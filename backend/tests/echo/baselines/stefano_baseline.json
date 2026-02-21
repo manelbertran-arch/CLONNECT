@@ -1,0 +1,16 @@
+{
+  "version": "v1.0",
+  "created_at": "2026-02-21T00:00:00Z",
+  "creator": "stefano",
+  "overall_score": 76.1,
+  "dimension_scores": {
+    "style_fidelity": 80.2,
+    "knowledge_accuracy": 73.5,
+    "persona_consistency": 78.1,
+    "tone_appropriateness": 76.8,
+    "sales_effectiveness": 65.3,
+    "safety_score": 89.4
+  },
+  "sample_size": 20,
+  "test_set_version": "stefano_v1"
+}

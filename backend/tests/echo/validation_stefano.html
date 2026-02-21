@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECHO Validation — Stefano Bonanno</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f0f;
+            color: #e0e0e0;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #fff;
+            margin-bottom: 8px;
+            font-size: 24px;
+        }
+        .subtitle {
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #2a2a2a;
+            border-radius: 3px;
+            margin-bottom: 30px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        .card {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            transition: border-color 0.2s;
+        }
+        .card.rated {
+            border-color: #6366f1;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .card-number {
+            color: #6366f1;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .card-category {
+            background: #2a2a2a;
+            color: #aaa;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .context {
+            color: #999;
+            font-size: 13px;
+            margin-bottom: 12px;
+            font-style: italic;
+        }
+        .message-group {
+            margin-bottom: 16px;
+        }
+        .message {
+            padding: 10px 14px;
+            border-radius: 12px;
+            margin-bottom: 6px;
+            max-width: 85%;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .message.user {
+            background: #2a2a2a;
+            color: #ccc;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+        .message.bot {
+            background: linear-gradient(135deg, #1e1b4b, #312e81);
+            color: #e0e0ff;
+            border-bottom-left-radius: 4px;
+            border: 1px solid #4338ca;
+        }
+        .message-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .rating-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+            justify-content: center;
+        }
+        .rating-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            border: 2px solid #333;
+            background: #1a1a1a;
+            color: #aaa;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .rating-btn:hover {
+            border-color: #6366f1;
+            color: #fff;
+            transform: scale(1.05);
+        }
+        .rating-btn.selected {
+            background: #6366f1;
+            border-color: #6366f1;
+            color: #fff;
+            transform: scale(1.1);
+        }
+        .rating-btn .label {
+            font-size: 8px;
+            margin-top: 2px;
+            opacity: 0.7;
+        }
+        .notes-input {
+            width: 100%;
+            background: #111;
+            border: 1px solid #333;
+            color: #ccc;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-top: 10px;
+            font-size: 13px;
+            resize: vertical;
+            min-height: 40px;
+            display: none;
+        }
+        .notes-input.visible {
+            display: block;
+        }
+        .submit-section {
+            text-align: center;
+            padding: 40px 0;
+        }
+        .submit-btn {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            border: none;
+            padding: 14px 40px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .submit-btn:hover {
+            opacity: 0.9;
+        }
+        .submit-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .results {
+            display: none;
+            background: #1a1a1a;
+            border: 2px solid #6366f1;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+        }
+        .results h2 {
+            color: #fff;
+            margin-bottom: 16px;
+        }
+        .results .score {
+            font-size: 48px;
+            font-weight: 700;
+            color: #6366f1;
+        }
+        .results .detail {
+            color: #888;
+            margin-top: 8px;
+        }
+        .copy-btn {
+            margin-top: 20px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .copy-btn:hover { background: #333; }
+    </style>
+</head>
+<body>
+
+<h1>ECHO Clone Validation</h1>
+<p class="subtitle">
+    Creator: Stefano Bonanno | 20 conversations |
+    Generated: 2026-02-21 20:42 UTC
+</p>
+
+<div class="progress-bar">
+    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+</div>
+
+<div id="cardsContainer">
+
+<div class="card" id="card-test_0082">
+    <div class="card-header">
+        <span class="card-number">#1 of 20</span>
+        <span class="card-category">interesado | contenido</span>
+    </div>
+    <div class="context">Lead INTERESADO — pregunta sobre contenido: &quot;Vi tu ultimo video, muy bueno!&quot;</div>
+
+    <div class="message-group">
+        <div class="message-label">Follower:</div>
+<div class="message user">Hola Stefano</div>
+<div class="message-label">Clone:</div>
+<div class="message bot">Buenas! 😊 Que tal?</div>
+
+        <div class="message-label">Follower:</div>
+        <div class="message user">Vi tu ultimo video, muy bueno!</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Gracias! 😊 Me alegra que te haya gustado. Cual te resonó más?</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0082', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0082', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0082', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0082', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0082', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0082', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0015">
+    <div class="card-header">
+        <span class="card-number">#2 of 20</span>
+        <span class="card-category">caliente | ventas</span>
+    </div>
+    <div class="context">Lead CALIENTE — consulta comercial: &quot;Me encanto, como puedo pagar?&quot;</div>
+
+    <div class="message-group">
+        
+        <div class="message-label">Follower:</div>
+        <div class="message user">Me encanto, como puedo pagar?</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Vamoooos 🔥🔥 Te mando el link de pago! Es super facil, pagas y tienes acceso inmediato 💪</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0015', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0015', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0015', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0015', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0015', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0015', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0004">
+    <div class="card-header">
+        <span class="card-number">#3 of 20</span>
+        <span class="card-category">nuevo | ventas</span>
+    </div>
+    <div class="context">Lead NUEVO — consulta comercial: &quot;Buenas, quiero info sobre tus cursos&quot;</div>
+
+    <div class="message-group">
+        <div class="message-label">Follower:</div>
+<div class="message user">Hola Stefano</div>
+<div class="message-label">Clone:</div>
+<div class="message bot">Buenas! 😊 Que tal?</div>
+
+        <div class="message-label">Follower:</div>
+        <div class="message user">Buenas, quiero info sobre tus cursos</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Hola! 😊 Claro que si, tengo varios cursos. Que es lo que buscas exactamente?</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0004', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0004', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0004', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0004', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0004', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0004', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0095">
+    <div class="card-header">
+        <span class="card-number">#4 of 20</span>
+        <span class="card-category">fantasma | casual</span>
+    </div>
+    <div class="context">Lead FANTASMA — conversacion casual: &quot;Perdon por desaparecer&quot;</div>
+
+    <div class="message-group">
+        <div class="message-label">Follower:</div>
+<div class="message user">Hola Stefano</div>
+<div class="message-label">Clone:</div>
+<div class="message bot">Buenas! 😊 Que tal?</div>
+
+        <div class="message-label">Follower:</div>
+        <div class="message user">Perdon por desaparecer</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Tranqui! 🙏 Lo importante es que estas de vuelta. Cuentame, como te ha ido?</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0095', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0095', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0095', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0095', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0095', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0095', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0036">
+    <div class="card-header">
+        <span class="card-number">#5 of 20</span>
+        <span class="card-category">fantasma | casual</span>
+    </div>
+    <div class="context">Lead FANTASMA — conversacion casual: &quot;Ey Stefano, sigo aqui jaja&quot;</div>
+
+    <div class="message-group">
+        
+        <div class="message-label">Follower:</div>
+        <div class="message user">Ey Stefano, sigo aqui jaja</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Buenaaas!! 😊 Que alegria verte por aqui de nuevo! Sigues con ganas de mejorar tu alimentacion?</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0036', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0036', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0036', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0036', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0036', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0036', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0032">
+    <div class="card-header">
+        <span class="card-number">#6 of 20</span>
+        <span class="card-category">nuevo | ventas</span>
+    </div>
+    <div class="context">Lead NUEVO — consulta comercial: &quot;Hola! Vi tu video sobre nutricion&quot;</div>
+
+    <div class="message-group">
+        <div class="message-label">Follower:</div>
+<div class="message user">Hola Stefano</div>
+<div class="message-label">Clone:</div>
+<div class="message bot">Buenas! 😊 Que tal?</div>
+
+        <div class="message-label">Follower:</div>
+        <div class="message user">Hola! Vi tu video sobre nutricion</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Ey que bien!! 💪 Me alegra que te haya gustado, de que video me hablas?</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0032', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0032', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0032', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0032', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0032', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0032', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0029">
+    <div class="card-header">
+        <span class="card-number">#7 of 20</span>
+        <span class="card-category">caliente | ventas</span>
+    </div>
+    <div class="context">Lead CALIENTE — consulta comercial: &quot;Dame el link de pago&quot;</div>
+
+    <div class="message-group">
+        <div class="message-label">Follower:</div>
+<div class="message user">Hola Stefano</div>
+<div class="message-label">Clone:</div>
+<div class="message bot">Buenas! 😊 Que tal?</div>
+
+        <div class="message-label">Follower:</div>
+        <div class="message user">Dame el link de pago</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Aqui lo tienes! 🔥 En cuanto pagues ya tienes acceso a todo. Si tienes alguna duda me dices 💪</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0029', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0029', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0029', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0029', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0029', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0029', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0018">
+    <div class="card-header">
+        <span class="card-number">#8 of 20</span>
+        <span class="card-category">interesado | contenido</span>
+    </div>
+    <div class="context">Lead INTERESADO — pregunta sobre contenido: &quot;Tienes recetas faciles?&quot;</div>
+
+    <div class="message-group">
+        
+        <div class="message-label">Follower:</div>
+        <div class="message user">Tienes recetas faciles?</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Si! 💪 En mi ebook de Recetas Fit hay 50 recetas super faciles. Esta a 19€ y te cambia la vida jaja</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0018', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0018', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0018', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0018', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0018', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0018', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0014">
+    <div class="card-header">
+        <span class="card-number">#9 of 20</span>
+        <span class="card-category">nuevo | casual</span>
+    </div>
+    <div class="context">Lead NUEVO — conversacion casual: &quot;Hey que tal!&quot;</div>
+
+    <div class="message-group">
+        <div class="message-label">Follower:</div>
+<div class="message user">Hola Stefano</div>
+<div class="message-label">Clone:</div>
+<div class="message bot">Buenas! 😊 Que tal?</div>
+
+        <div class="message-label">Follower:</div>
+        <div class="message user">Hey que tal!</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Ey buenas! 💪 Todo bien por aqui, tu que tal?</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0014', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0014', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0014', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0014', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0014', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0014', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0087">
+    <div class="card-header">
+        <span class="card-number">#10 of 20</span>
+        <span class="card-category">caliente | ventas</span>
+    </div>
+    <div class="context">Lead CALIENTE — consulta comercial: &quot;Dame el link de pago&quot;</div>
+
+    <div class="message-group">
+        
+        <div class="message-label">Follower:</div>
+        <div class="message user">Dame el link de pago</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Aqui lo tienes! 🔥 En cuanto pagues ya tienes acceso a todo. Si tienes alguna duda me dices 💪</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0087', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0087', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0087', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0087', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0087', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0087', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0070">
+    <div class="card-header">
+        <span class="card-number">#11 of 20</span>
+        <span class="card-category">caliente | ventas</span>
+    </div>
+    <div class="context">Lead CALIENTE — consulta comercial: &quot;Me encanto, como puedo pagar?&quot;</div>
+
+    <div class="message-group">
+        <div class="message-label">Follower:</div>
+<div class="message user">Hola Stefano</div>
+<div class="message-label">Clone:</div>
+<div class="message bot">Buenas! 😊 Que tal?</div>
+
+        <div class="message-label">Follower:</div>
+        <div class="message user">Me encanto, como puedo pagar?</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Vamoooos 🔥🔥 Te mando el link de pago! Es super facil, pagas y tienes acceso inmediato 💪</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0070', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0070', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0070', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0070', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0070', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0070', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0012">
+    <div class="card-header">
+        <span class="card-number">#12 of 20</span>
+        <span class="card-category">cliente | casual</span>
+    </div>
+    <div class="context">CLIENTE — conversacion casual: &quot;Gracias por todo Stefano!&quot;</div>
+
+    <div class="message-group">
+        
+        <div class="message-label">Follower:</div>
+        <div class="message user">Gracias por todo Stefano!</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">A ti crack! 💪 Me alegra mucho ver tus resultados. Sigue asi!</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0012', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0012', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0012', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0012', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0012', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0012', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0076">
+    <div class="card-header">
+        <span class="card-number">#13 of 20</span>
+        <span class="card-category">interesado | contenido</span>
+    </div>
+    <div class="context">Lead INTERESADO — pregunta sobre contenido: &quot;Tienes recetas faciles?&quot;</div>
+
+    <div class="message-group">
+        <div class="message-label">Follower:</div>
+<div class="message user">Hola Stefano</div>
+<div class="message-label">Clone:</div>
+<div class="message bot">Buenas! 😊 Que tal?</div>
+
+        <div class="message-label">Follower:</div>
+        <div class="message user">Tienes recetas faciles?</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Si! 💪 En mi ebook de Recetas Fit hay 50 recetas super faciles. Esta a 19€ y te cambia la vida jaja</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0076', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0076', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0076', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0076', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0076', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0076', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0055">
+    <div class="card-header">
+        <span class="card-number">#14 of 20</span>
+        <span class="card-category">caliente | ventas</span>
+    </div>
+    <div class="context">Lead CALIENTE — consulta comercial: &quot;Me encanto, como puedo pagar?&quot;</div>
+
+    <div class="message-group">
+        <div class="message-label">Follower:</div>
+<div class="message user">Hola Stefano</div>
+<div class="message-label">Clone:</div>
+<div class="message bot">Buenas! 😊 Que tal?</div>
+
+        <div class="message-label">Follower:</div>
+        <div class="message user">Me encanto, como puedo pagar?</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Vamoooos 🔥🔥 Te mando el link de pago! Es super facil, pagas y tienes acceso inmediato 💪</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0055', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0055', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0055', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0055', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0055', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0055', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0005">
+    <div class="card-header">
+        <span class="card-number">#15 of 20</span>
+        <span class="card-category">nuevo | ventas</span>
+    </div>
+    <div class="context">Lead NUEVO — consulta comercial: &quot;Buenas, quiero info sobre tus cursos&quot;</div>
+
+    <div class="message-group">
+        <div class="message-label">Follower:</div>
+<div class="message user">Hola Stefano</div>
+<div class="message-label">Clone:</div>
+<div class="message bot">Buenas! 😊 Que tal?</div>
+
+        <div class="message-label">Follower:</div>
+        <div class="message user">Buenas, quiero info sobre tus cursos</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Hola! 😊 Claro que si, tengo varios cursos. Que es lo que buscas exactamente?</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0005', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0005', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0005', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0005', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0005', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0005', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0028">
+    <div class="card-header">
+        <span class="card-number">#16 of 20</span>
+        <span class="card-category">nuevo | ventas</span>
+    </div>
+    <div class="context">Lead NUEVO — consulta comercial: &quot;Buenas, quiero info sobre tus cursos&quot;</div>
+
+    <div class="message-group">
+        <div class="message-label">Follower:</div>
+<div class="message user">Hola Stefano</div>
+<div class="message-label">Clone:</div>
+<div class="message bot">Buenas! 😊 Que tal?</div>
+
+        <div class="message-label">Follower:</div>
+        <div class="message user">Buenas, quiero info sobre tus cursos</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Hola! 😊 Claro que si, tengo varios cursos. Que es lo que buscas exactamente?</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0028', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0028', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0028', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0028', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0028', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0028', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0030">
+    <div class="card-header">
+        <span class="card-number">#17 of 20</span>
+        <span class="card-category">cliente | casual</span>
+    </div>
+    <div class="context">CLIENTE — conversacion casual: &quot;Llevo 2 semanas y ya veo cambios&quot;</div>
+
+    <div class="message-group">
+        
+        <div class="message-label">Follower:</div>
+        <div class="message user">Llevo 2 semanas y ya veo cambios</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">VAMOS! 🔥🔥 Eso es lo que me gusta oir. Sigue con el plan que los resultados se multiplican!</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0030', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0030', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0030', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0030', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0030', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0030', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0065">
+    <div class="card-header">
+        <span class="card-number">#18 of 20</span>
+        <span class="card-category">interesado | casual</span>
+    </div>
+    <div class="context">Lead INTERESADO — conversacion casual: &quot;Bro que tal el finde?&quot;</div>
+
+    <div class="message-group">
+        <div class="message-label">Follower:</div>
+<div class="message user">Hola Stefano</div>
+<div class="message-label">Clone:</div>
+<div class="message bot">Buenas! 😊 Que tal?</div>
+
+        <div class="message-label">Follower:</div>
+        <div class="message user">Bro que tal el finde?</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0065', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0065', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0065', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0065', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0065', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0065', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0078">
+    <div class="card-header">
+        <span class="card-number">#19 of 20</span>
+        <span class="card-category">fantasma | casual</span>
+    </div>
+    <div class="context">Lead FANTASMA — conversacion casual: &quot;Perdon por desaparecer&quot;</div>
+
+    <div class="message-group">
+        
+        <div class="message-label">Follower:</div>
+        <div class="message user">Perdon por desaparecer</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Tranqui! 🙏 Lo importante es que estas de vuelta. Cuentame, como te ha ido?</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0078', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0078', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0078', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0078', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0078', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0078', this.value)"></textarea>
+</div>
+<div class="card" id="card-test_0072">
+    <div class="card-header">
+        <span class="card-number">#20 of 20</span>
+        <span class="card-category">interesado | casual</span>
+    </div>
+    <div class="context">Lead INTERESADO — conversacion casual: &quot;Bro que tal el finde?&quot;</div>
+
+    <div class="message-group">
+        
+        <div class="message-label">Follower:</div>
+        <div class="message user">Bro que tal el finde?</div>
+        <div class="message-label" style="margin-top: 10px">Clone response:</div>
+        <div class="message bot">Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?</div>
+    </div>
+
+    <div class="rating-group">
+        <button class="rating-btn" data-score="1" onclick="rate('test_0072', 1)">
+            1<span class="label">Nada</span>
+        </button>
+        <button class="rating-btn" data-score="2" onclick="rate('test_0072', 2)">
+            2<span class="label">Poco</span>
+        </button>
+        <button class="rating-btn" data-score="3" onclick="rate('test_0072', 3)">
+            3<span class="label">Regular</span>
+        </button>
+        <button class="rating-btn" data-score="4" onclick="rate('test_0072', 4)">
+            4<span class="label">Bien</span>
+        </button>
+        <button class="rating-btn" data-score="5" onclick="rate('test_0072', 5)">
+            5<span class="label">Exacto</span>
+        </button>
+    </div>
+    <textarea class="notes-input" placeholder="Notas opcionales..."
+        onchange="updateNotes('test_0072', this.value)"></textarea>
+</div>
+</div>
+
+<div class="submit-section" id="submitSection">
+    <p style="color: #888; margin-bottom: 16px;">
+        Rate all <span id="remainingCount">20</span> conversations to submit.
+    </p>
+    <button class="submit-btn" id="submitBtn" disabled onclick="submitResults()">
+        Submit Results
+    </button>
+</div>
+
+<div class="results" id="resultsSection">
+    <h2>Results</h2>
+    <div class="score" id="meanScore">-</div>
+    <p class="detail" id="resultDetail"></p>
+    <button class="copy-btn" onclick="copyResults()">Copy JSON Results</button>
+    <pre id="jsonOutput" style="display:none"></pre>
+</div>
+
+<script>
+const ratings = {};
+const notes = {};
+const totalCards = 20;
+const testCaseIds = ["test_0082", "test_0015", "test_0004", "test_0095", "test_0036", "test_0032", "test_0029", "test_0018", "test_0014", "test_0087", "test_0070", "test_0012", "test_0076", "test_0055", "test_0005", "test_0028", "test_0030", "test_0065", "test_0078", "test_0072"];
+
+function rate(cardId, score) {
+    ratings[cardId] = score;
+
+    // Update button states
+    document.querySelectorAll(`#card-${cardId} .rating-btn`).forEach(btn => {
+        btn.classList.toggle('selected', parseInt(btn.dataset.score) === score);
+    });
+
+    // Show notes input
+    document.querySelector(`#card-${cardId} .notes-input`).classList.add('visible');
+
+    // Mark card as rated
+    document.getElementById(`card-${cardId}`).classList.add('rated');
+
+    updateProgress();
+}
+
+function updateNotes(cardId, text) {
+    notes[cardId] = text;
+}
+
+function updateProgress() {
+    const rated = Object.keys(ratings).length;
+    const pct = (rated / totalCards) * 100;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('remainingCount').textContent = totalCards - rated;
+    document.getElementById('submitBtn').disabled = rated < totalCards;
+}
+
+function submitResults() {
+    const scores = Object.values(ratings);
+    const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const high = scores.filter(s => s >= 4).length;
+    const highRate = (high / scores.length) * 100;
+
+    document.getElementById('meanScore').textContent = mean.toFixed(2) + '/5';
+
+    const passMsg = mean >= 3.5 && highRate >= 70
+        ? 'PASS' : 'NEEDS IMPROVEMENT';
+
+    document.getElementById('resultDetail').innerHTML =
+        `Mean: ${mean.toFixed(2)}/5 | 4-5 rate: ${highRate.toFixed(0)}% (${high}/${scores.length})<br>` +
+        `Target: mean > 3.5, 4-5 rate > 70%<br>` +
+        `<strong style="color: ${passMsg === 'PASS' ? '#22c55e' : '#ef4444'}">${passMsg}</strong>`;
+
+    // Build result JSON
+    const result = {
+        creator: 'Stefano Bonanno',
+        submitted_at: new Date().toISOString(),
+        total: totalCards,
+        mean: parseFloat(mean.toFixed(2)),
+        median: scores.sort((a,b) => a-b)[Math.floor(scores.length/2)],
+        high_count: high,
+        high_rate: parseFloat((highRate/100).toFixed(3)),
+        distribution: {
+            1: scores.filter(s=>s===1).length,
+            2: scores.filter(s=>s===2).length,
+            3: scores.filter(s=>s===3).length,
+            4: scores.filter(s=>s===4).length,
+            5: scores.filter(s=>s===5).length,
+        },
+        ratings: testCaseIds.map(id => ({
+            test_case_id: id,
+            rating: ratings[id] || null,
+            notes: notes[id] || null,
+        })),
+        pass: mean >= 3.5 && highRate >= 70,
+    };
+
+    document.getElementById('jsonOutput').textContent = JSON.stringify(result, null, 2);
+    document.getElementById('resultsSection').style.display = 'block';
+    document.getElementById('submitSection').style.display = 'none';
+
+    // Scroll to results
+    document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+function copyResults() {
+    const text = document.getElementById('jsonOutput').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy JSON Results', 2000);
+    });
+}
+</script>
+
+</body>
+</html>

@@ -688,12 +688,12 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_gold_examples_scheduler())
         logger.info("Gold examples scheduler scheduled (every 12h, 570s delay)")
 
-        # JOB 21: CloneScore daily evaluation (24h, 600s delay, ENABLE_CLONE_SCORE)
+        # JOB 21: CloneScore daily evaluation (24h, 600s delay, ENABLE_CLONE_SCORE_EVAL)
         async def start_clone_score_daily_scheduler():
-            enable = os.getenv("ENABLE_CLONE_SCORE", "false").lower() == "true"
+            enable = os.getenv("ENABLE_CLONE_SCORE_EVAL", "false").lower() == "true"
             await asyncio.sleep(600)
             if not enable:
-                logger.info("[CLONE_SCORE] Disabled via ENABLE_CLONE_SCORE")
+                logger.info("[CLONE_SCORE] Disabled via ENABLE_CLONE_SCORE_EVAL")
                 return
             logger.info("[CLONE_SCORE] Daily scheduler started — runs every 24h")
 
@@ -737,7 +737,7 @@ def register_startup_handlers(app: "FastAPI"):
                 await asyncio.sleep(86400)  # 24 hours
 
         asyncio.create_task(start_clone_score_daily_scheduler())
-        logger.info("CloneScore daily scheduler scheduled (every 24h, 600s delay)")
+        logger.info("CloneScore daily eval scheduler scheduled (every 24h, 600s delay, ENABLE_CLONE_SCORE_EVAL)")
 
         # JOB 22: Memory decay — Ebbinghaus eviction of stale lead memories (24h, 630s delay)
         async def start_memory_decay_scheduler():

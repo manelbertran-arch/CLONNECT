@@ -16,6 +16,31 @@ os.environ["META_APP_SECRET"] = "test-secret"
 
 from fastapi.testclient import TestClient
 from api.main import app
+from api.database import get_db
+from api.auth import require_creator_access
+
+
+# =============================================================================
+# DEPENDENCY OVERRIDES FOR TESTING
+# =============================================================================
+
+def _mock_get_db():
+    """Override get_db to return a MagicMock session instead of raising."""
+    mock_session = MagicMock()
+    try:
+        yield mock_session
+    finally:
+        pass
+
+
+async def _mock_require_creator_access(creator_id: str) -> str:
+    """Override require_creator_access to bypass auth in tests."""
+    return creator_id
+
+
+# Apply overrides globally so all TestClient instances use them
+app.dependency_overrides[get_db] = _mock_get_db
+app.dependency_overrides[require_creator_access] = _mock_require_creator_access
 
 
 # =============================================================================

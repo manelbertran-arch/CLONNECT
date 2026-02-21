@@ -145,7 +145,7 @@ class TestPlaywrightScraperCore:
         """Should respect robots.txt and return None for blocked URLs."""
         from ingestion.playwright_scraper import PlaywrightScraper
 
-        with patch("ingestion.playwright_scraper.get_robots_checker") as mock_robots:
+        with patch("ingestion.deterministic_scraper.get_robots_checker") as mock_robots:
             mock_checker = Mock()
             mock_checker.is_allowed.return_value = False
             mock_robots.return_value = mock_checker
@@ -161,25 +161,25 @@ class TestPlaywrightScraperCore:
         """Should extract content from rendered HTML."""
         from ingestion.playwright_scraper import PlaywrightScraper
 
-        # Mock all dependencies
-        with patch("ingestion.playwright_scraper.get_robots_checker") as mock_robots:
+        # Mock all dependencies (imports happen inside scrape_page from deterministic_scraper and core.metrics)
+        with patch("ingestion.deterministic_scraper.get_robots_checker") as mock_robots:
             mock_checker = Mock()
             mock_checker.is_allowed.return_value = True
             mock_robots.return_value = mock_checker
 
-            with patch("ingestion.playwright_scraper.scraper_circuit_breaker") as mock_cb:
+            with patch("ingestion.deterministic_scraper.scraper_circuit_breaker") as mock_cb:
                 mock_cb.call_async = AsyncMock(return_value=(sample_html_with_js, "https://example.com"))
 
                 # Mock metrics
-                with patch("ingestion.playwright_scraper.record_page_scraped"):
-                    with patch("ingestion.playwright_scraper.observe_scrape_duration"):
+                with patch("core.metrics.record_page_scraped"):
+                    with patch("core.metrics.observe_scrape_duration"):
                         scraper = PlaywrightScraper()
                         scraper._browser = Mock()  # Pretend browser is initialized
 
                         result = await scraper.scrape_page("https://example.com", "creator_123")
 
                         assert result is not None
-                        assert result.title == "Welcome to Our SPA"
+                        assert result.title == "SPA Test Page"
                         assert "Features" in result.main_content
                         assert "Pricing" in result.main_content
                         assert result.metadata.get("rendered_by") == "playwright"
@@ -187,23 +187,30 @@ class TestPlaywrightScraperCore:
     @pytest.mark.asyncio
     async def test_scrape_page_handles_timeout(self, mock_playwright_available):
         """Should handle timeout gracefully."""
-        from ingestion.playwright_scraper import PlaywrightScraper, PlaywrightTimeout
+        from ingestion.playwright_scraper import PlaywrightScraper
 
-        with patch("ingestion.playwright_scraper.get_robots_checker") as mock_robots:
+        # PlaywrightTimeout may not be available since playwright is not installed
+        # Create a mock exception class for the test
+        class MockPlaywrightTimeout(Exception):
+            pass
+
+        with patch("ingestion.deterministic_scraper.get_robots_checker") as mock_robots:
             mock_checker = Mock()
             mock_checker.is_allowed.return_value = True
             mock_robots.return_value = mock_checker
 
-            with patch("ingestion.playwright_scraper.scraper_circuit_breaker") as mock_cb:
-                mock_cb.call_async = AsyncMock(side_effect=PlaywrightTimeout("Timeout"))
+            with patch("ingestion.deterministic_scraper.scraper_circuit_breaker") as mock_cb:
+                # Patch the TimeoutError that the code catches
+                with patch("ingestion.playwright_scraper.PlaywrightTimeout", MockPlaywrightTimeout, create=True):
+                    mock_cb.call_async = AsyncMock(side_effect=MockPlaywrightTimeout("Timeout"))
 
-                with patch("ingestion.playwright_scraper.record_page_failed") as mock_failed:
-                    with patch("ingestion.playwright_scraper.record_ingestion_error"):
-                        scraper = PlaywrightScraper()
-                        result = await scraper.scrape_page("https://slow-site.com", "creator_123")
+                    with patch("core.metrics.record_page_failed") as mock_failed:
+                        with patch("core.metrics.record_ingestion_error"):
+                            scraper = PlaywrightScraper()
+                            result = await scraper.scrape_page("https://slow-site.com", "creator_123")
 
-                        assert result is None
-                        mock_failed.assert_called_once_with("creator_123", "playwright_timeout")
+                            assert result is None
+                            mock_failed.assert_called_once_with("creator_123", "playwright_timeout")
 
     @pytest.mark.asyncio
     async def test_scrape_page_handles_circuit_breaker_open(self, mock_playwright_available):
@@ -211,15 +218,15 @@ class TestPlaywrightScraperCore:
         import pybreaker
         from ingestion.playwright_scraper import PlaywrightScraper
 
-        with patch("ingestion.playwright_scraper.get_robots_checker") as mock_robots:
+        with patch("ingestion.deterministic_scraper.get_robots_checker") as mock_robots:
             mock_checker = Mock()
             mock_checker.is_allowed.return_value = True
             mock_robots.return_value = mock_checker
 
-            with patch("ingestion.playwright_scraper.scraper_circuit_breaker") as mock_cb:
+            with patch("ingestion.deterministic_scraper.scraper_circuit_breaker") as mock_cb:
                 mock_cb.call_async = AsyncMock(side_effect=pybreaker.CircuitBreakerError())
 
-                with patch("ingestion.playwright_scraper.record_page_failed") as mock_failed:
+                with patch("core.metrics.record_page_failed") as mock_failed:
                     scraper = PlaywrightScraper()
                     result = await scraper.scrape_page("https://failing-site.com", "creator_123")
 

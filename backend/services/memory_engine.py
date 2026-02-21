@@ -1086,8 +1086,9 @@ class MemoryEngine:
         self,
         facts: List[LeadMemory],
         summary: Optional[ConversationSummaryData],
+        max_chars: int = 1200,
     ) -> str:
-        """Format memories into the prompt section (max ~500 tokens)."""
+        """Format memories into the prompt section (max ~300 tokens / 1200 chars)."""
         if not facts and not summary:
             return ""
 
@@ -1109,7 +1110,7 @@ class MemoryEngine:
             )
 
             lines.append("Hechos conocidos sobre este lead:")
-            char_budget = 1500
+            char_budget = max_chars
             chars_used = 0
 
             for fact in sorted_facts[:MAX_FACTS_IN_PROMPT]:

@@ -1,6 +1,6 @@
 """Audit tests for core/notifications.py."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -184,9 +184,9 @@ class TestEmptyRecipientHandling:
             service = NotificationService()
             notif = _make_notification()
 
-            # Simulate a recent notification
+            # Simulate a recent notification (must be timezone-aware to match source)
             cooldown_key = f"{notif.creator_id}:{notif.follower_id}"
-            service._sent_notifications[cooldown_key] = datetime.now()
+            service._sent_notifications[cooldown_key] = datetime.now(tz=timezone.utc)
 
             result = await service.notify_escalation(notif)
             assert result.get("skipped") is True
@@ -199,9 +199,9 @@ class TestEmptyRecipientHandling:
             service = NotificationService()
             notif = _make_notification()
 
-            # Simulate an old notification beyond cooldown
+            # Simulate an old notification beyond cooldown (must be timezone-aware to match source)
             cooldown_key = f"{notif.creator_id}:{notif.follower_id}"
-            service._sent_notifications[cooldown_key] = datetime.now() - timedelta(seconds=600)
+            service._sent_notifications[cooldown_key] = datetime.now(tz=timezone.utc) - timedelta(seconds=600)
 
             # Will only use "log" channel since no external services configured
             with patch.object(service, "_log_notification", return_value=True):

@@ -1,6 +1,6 @@
 """Tests para el servicio de memoria de conversaciones."""
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from services.memory_service import ConversationMemoryService
 from models.conversation_memory import ConversationMemory, FactType
@@ -20,7 +20,7 @@ def sample_memory():
         creator_id="test_creator"
     )
     memory.info_given = {"precio": "150€"}
-    memory.last_interaction = datetime.now() - timedelta(days=2)
+    memory.last_interaction = datetime.now(timezone.utc) - timedelta(days=2)
     return memory
 
 
@@ -86,13 +86,13 @@ class TestShouldRepeatInfo:
         assert should_repeat
 
     def test_should_not_repeat_recent(self, memory_service, sample_memory):
-        sample_memory.last_interaction = datetime.now() - timedelta(days=1)
+        sample_memory.last_interaction = datetime.now(timezone.utc) - timedelta(days=1)
         should_repeat, prev = memory_service.should_repeat_info(sample_memory, "precio")
         assert not should_repeat
         assert prev == "150€"
 
     def test_should_repeat_after_week(self, memory_service, sample_memory):
-        sample_memory.last_interaction = datetime.now() - timedelta(days=10)
+        sample_memory.last_interaction = datetime.now(timezone.utc) - timedelta(days=10)
         should_repeat, prev = memory_service.should_repeat_info(sample_memory, "precio")
         assert should_repeat
         assert prev == "150€"
@@ -147,7 +147,7 @@ class TestMemoryContextGeneration:
         assert "NO REPETIR" in context
 
     def test_context_includes_days_since(self, memory_service, sample_memory):
-        sample_memory.last_interaction = datetime.now() - timedelta(days=5)
+        sample_memory.last_interaction = datetime.now(timezone.utc) - timedelta(days=5)
         context = memory_service.get_memory_context_for_prompt(sample_memory)
         assert "5 días" in context
 

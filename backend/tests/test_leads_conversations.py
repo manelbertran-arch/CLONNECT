@@ -1,6 +1,8 @@
 # backend/tests/test_leads_conversations.py
 # Tests the full flow: create lead -> update lead -> verify /dm/conversations returns email/phone/notes
 
+import os
+import pytest
 from fastapi.testclient import TestClient
 from api.main import app
 import time
@@ -9,7 +11,11 @@ client = TestClient(app)
 
 CREATOR_ID = "manel_conv_test"
 
+SKIP_DB_TESTS = not os.getenv("DATABASE_URL")
+requires_db = pytest.mark.skipif(SKIP_DB_TESTS, reason="DATABASE_URL not set - requires PostgreSQL")
 
+
+@requires_db
 def test_full_lead_flow_with_conversations():
     """
     Test the complete flow:

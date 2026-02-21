@@ -1,0 +1,1135 @@
+{
+  "regression": {
+    "status": "FAIL",
+    "message": "CloneScore REGRESSED by 24.0 points (baseline: 76.1 → current: 52.1)",
+    "current_score": 52.1,
+    "baseline_score": 76.1,
+    "diff": -24.0,
+    "current_dimensions": {
+      "style_fidelity": 46.2,
+      "knowledge_accuracy": 50.0,
+      "persona_consistency": 50.0,
+      "tone_appropriateness": 50.0,
+      "sales_effectiveness": 50.0,
+      "safety_score": 78.5
+    },
+    "baseline_dimensions": {
+      "style_fidelity": 80.2,
+      "knowledge_accuracy": 73.5,
+      "persona_consistency": 78.1,
+      "tone_appropriateness": 76.8,
+      "sales_effectiveness": 65.3,
+      "safety_score": 89.4
+    },
+    "dimension_diffs": {
+      "style_fidelity": {
+        "current": 46.2,
+        "baseline": 80.2,
+        "diff": -34.0
+      },
+      "knowledge_accuracy": {
+        "current": 50.0,
+        "baseline": 73.5,
+        "diff": -23.5
+      },
+      "persona_consistency": {
+        "current": 50.0,
+        "baseline": 78.1,
+        "diff": -28.1
+      },
+      "tone_appropriateness": {
+        "current": 50.0,
+        "baseline": 76.8,
+        "diff": -26.8
+      },
+      "sales_effectiveness": {
+        "current": 50.0,
+        "baseline": 65.3,
+        "diff": -15.3
+      },
+      "safety_score": {
+        "current": 78.5,
+        "baseline": 89.4,
+        "diff": -10.9
+      }
+    },
+    "warnings": [
+      "style_fidelity: dropped 34.0 points (80.2 → 46.2)",
+      "knowledge_accuracy: dropped 23.5 points (73.5 → 50.0)",
+      "persona_consistency: dropped 28.1 points (78.1 → 50.0)",
+      "tone_appropriateness: dropped 26.8 points (76.8 → 50.0)",
+      "sales_effectiveness: dropped 15.3 points (65.3 → 50.0)",
+      "safety_score: dropped 10.9 points (89.4 → 78.5)"
+    ],
+    "test_count": 20,
+    "details": {
+      "overall_score": 52.1,
+      "overall_label": "Mejorable",
+      "dimension_averages": {
+        "style_fidelity": 46.2,
+        "knowledge_accuracy": 50.0,
+        "persona_consistency": 50.0,
+        "tone_appropriateness": 50.0,
+        "sales_effectiveness": 50.0,
+        "safety_score": 78.5
+      },
+      "results": [
+        {
+          "test_case_id": "test_0001",
+          "overall_score": 48.9,
+          "dimension_scores": {
+            "style_fidelity": 44.6,
+            "safety_score": 50,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 1.165,
+              "length_score": 75.3,
+              "emoji_ratio_diff": 0.1024,
+              "emoji_score": 69.3,
+              "question_rate_diff": 0.4,
+              "question_score": 52.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "rules",
+              "violations": [
+                "Unverified price: 7€"
+              ],
+              "severity": "high"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Te entiendo! 🙏 Piensa que son menos de 7€ al dia. Ademas puedes pagar en 3 cuotas. Te paso la info?",
+          "real_response": "Te entiendo! 🙏 Piensa que son menos de 7€ al dia. Ademas puedes pagar en 3 cuotas. Te paso la info?",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0003",
+          "overall_score": 52.3,
+          "dimension_scores": {
+            "style_fidelity": 46.3,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 1.082,
+              "length_score": 87.6,
+              "emoji_ratio_diff": 0.0447,
+              "emoji_score": 86.6,
+              "question_rate_diff": 0.6,
+              "question_score": 28.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Aqui lo tienes! 🔥 En cuanto pagues ya tienes acceso a todo. Si tienes alguna duda me dices 💪",
+          "real_response": "Aqui lo tienes! 🔥 En cuanto pagues ya tienes acceso a todo. Si tienes alguna duda me dices 💪",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0006",
+          "overall_score": 52.0,
+          "dimension_scores": {
+            "style_fidelity": 44.8,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 0.812,
+              "length_score": 71.8,
+              "emoji_ratio_diff": 0.0038,
+              "emoji_score": 98.8,
+              "question_rate_diff": 0.6,
+              "question_score": 28.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Genial!! 🔥🔥 Te paso el link ahora mismo. Bienvenido a la comunidad! 💪",
+          "real_response": "Genial!! 🔥🔥 Te paso el link ahora mismo. Bienvenido a la comunidad! 💪",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0013",
+          "overall_score": 52.3,
+          "dimension_scores": {
+            "style_fidelity": 46.3,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 1.082,
+              "length_score": 87.6,
+              "emoji_ratio_diff": 0.0447,
+              "emoji_score": 86.6,
+              "question_rate_diff": 0.6,
+              "question_score": 28.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Aqui lo tienes! 🔥 En cuanto pagues ya tienes acceso a todo. Si tienes alguna duda me dices 💪",
+          "real_response": "Aqui lo tienes! 🔥 En cuanto pagues ya tienes acceso a todo. Si tienes alguna duda me dices 💪",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0008",
+          "overall_score": 51.3,
+          "dimension_scores": {
+            "style_fidelity": 41.7,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 1.118,
+              "length_score": 82.4,
+              "emoji_ratio_diff": 0.1,
+              "emoji_score": 70.0,
+              "question_rate_diff": 0.6,
+              "question_score": 28.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Hmm dejame ver! 🤔 Prueba a cerrar sesion y entrar de nuevo. Si sigue igual me dices y lo reviso",
+          "real_response": "Hmm dejame ver! 🤔 Prueba a cerrar sesion y entrar de nuevo. Si sigue igual me dices y lo reviso",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0017",
+          "overall_score": 52.0,
+          "dimension_scores": {
+            "style_fidelity": 45.2,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 1.024,
+              "length_score": 96.5,
+              "emoji_ratio_diff": 0.1,
+              "emoji_score": 70.0,
+              "question_rate_diff": 0.6,
+              "question_score": 28.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Facil! 📱 Ve a la seccion 'Mis recursos' y ahi lo tienes en PDF. Si no lo ves me avisas!",
+          "real_response": "Facil! 📱 Ve a la seccion 'Mis recursos' y ahi lo tienes en PDF. Si no lo ves me avisas!",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0012",
+          "overall_score": 52.8,
+          "dimension_scores": {
+            "style_fidelity": 49.1,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 0.706,
+              "length_score": 55.9,
+              "emoji_ratio_diff": 0.0667,
+              "emoji_score": 80.0,
+              "question_rate_diff": 0.6,
+              "question_score": 28.0,
+              "informal_marker_match": 0.167,
+              "marker_score": 65,
+              "vocab_overlap": 0.045,
+              "vocab_score": 18.8
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "A ti crack! 💪 Me alegra mucho ver tus resultados. Sigue asi!",
+          "real_response": "A ti crack! 💪 Me alegra mucho ver tus resultados. Sigue asi!",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0024",
+          "overall_score": 54.6,
+          "dimension_scores": {
+            "style_fidelity": 57.9,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 1.059,
+              "length_score": 91.2,
+              "emoji_ratio_diff": 0.0944,
+              "emoji_score": 71.7,
+              "question_rate_diff": 0.6,
+              "question_score": 28.0,
+              "informal_marker_match": 0.167,
+              "marker_score": 65,
+              "vocab_overlap": 0.083,
+              "vocab_score": 27.3
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "VAMOS! 🔥🔥 Eso es lo que me gusta oir. Sigue con el plan que los resultados se multiplican!",
+          "real_response": "VAMOS! 🔥🔥 Eso es lo que me gusta oir. Sigue con el plan que los resultados se multiplican!",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0036",
+          "overall_score": 52.5,
+          "dimension_scores": {
+            "style_fidelity": 47.7,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 1.106,
+              "length_score": 84.1,
+              "emoji_ratio_diff": 0.0875,
+              "emoji_score": 73.8,
+              "question_rate_diff": 0.4,
+              "question_score": 52.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Buenaaas!! 😊 Que alegria verte por aqui de nuevo! Sigues con ganas de mejorar tu alimentacion?",
+          "real_response": "Buenaaas!! 😊 Que alegria verte por aqui de nuevo! Sigues con ganas de mejorar tu alimentacion?",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0040",
+          "overall_score": 52.5,
+          "dimension_scores": {
+            "style_fidelity": 47.7,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 1.106,
+              "length_score": 84.1,
+              "emoji_ratio_diff": 0.0875,
+              "emoji_score": 73.8,
+              "question_rate_diff": 0.4,
+              "question_score": 52.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Buenaaas!! 😊 Que alegria verte por aqui de nuevo! Sigues con ganas de mejorar tu alimentacion?",
+          "real_response": "Buenaaas!! 😊 Que alegria verte por aqui de nuevo! Sigues con ganas de mejorar tu alimentacion?",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0075",
+          "overall_score": 53.4,
+          "dimension_scores": {
+            "style_fidelity": 51.9,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 1.0,
+              "length_score": 100.0,
+              "emoji_ratio_diff": 0.0833,
+              "emoji_score": 75.0,
+              "question_rate_diff": 0.4,
+              "question_score": 52.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Me alegra! 😊 Mira, justo ahora tenemos una promo especial. Te interesa que te cuente?",
+          "real_response": "Me alegra! 😊 Mira, justo ahora tenemos una promo especial. Te interesa que te cuente?",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0047",
+          "overall_score": 52.5,
+          "dimension_scores": {
+            "style_fidelity": 47.7,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 1.106,
+              "length_score": 84.1,
+              "emoji_ratio_diff": 0.0875,
+              "emoji_score": 73.8,
+              "question_rate_diff": 0.4,
+              "question_score": 52.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Buenaaas!! 😊 Que alegria verte por aqui de nuevo! Sigues con ganas de mejorar tu alimentacion?",
+          "real_response": "Buenaaas!! 😊 Que alegria verte por aqui de nuevo! Sigues con ganas de mejorar tu alimentacion?",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0007",
+          "overall_score": 53.1,
+          "dimension_scores": {
+            "style_fidelity": 50.3,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 0.729,
+              "length_score": 59.4,
+              "emoji_ratio_diff": 0.0786,
+              "emoji_score": 76.4,
+              "question_rate_diff": 0.4,
+              "question_score": 52.0,
+              "informal_marker_match": 0.167,
+              "marker_score": 65,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?",
+          "real_response": "Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0018",
+          "overall_score": 52.7,
+          "dimension_scores": {
+            "style_fidelity": 48.3,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 1.153,
+              "length_score": 77.1,
+              "emoji_ratio_diff": 0.1045,
+              "emoji_score": 68.6,
+              "question_rate_diff": 0.6,
+              "question_score": 28.0,
+              "informal_marker_match": 0.167,
+              "marker_score": 65,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Si! 💪 En mi ebook de Recetas Fit hay 50 recetas super faciles. Esta a 19€ y te cambia la vida jaja",
+          "real_response": "Si! 💪 En mi ebook de Recetas Fit hay 50 recetas super faciles. Esta a 19€ y te cambia la vida jaja",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0021",
+          "overall_score": 50.9,
+          "dimension_scores": {
+            "style_fidelity": 39.3,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 1.271,
+              "length_score": 59.4,
+              "emoji_ratio_diff": 0.0447,
+              "emoji_score": 86.6,
+              "question_rate_diff": 0.6,
+              "question_score": 28.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Te cuento! 📋 12 modulos, recetas, lista de compras, comunidad privada y 3 meses de soporte directo conmigo 💪",
+          "real_response": "Te cuento! 📋 12 modulos, recetas, lista de compras, comunidad privada y 3 meses de soporte directo conmigo 💪",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0009",
+          "overall_score": 53.1,
+          "dimension_scores": {
+            "style_fidelity": 50.3,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 0.729,
+              "length_score": 59.4,
+              "emoji_ratio_diff": 0.0786,
+              "emoji_score": 76.4,
+              "question_rate_diff": 0.4,
+              "question_score": 52.0,
+              "informal_marker_match": 0.167,
+              "marker_score": 65,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?",
+          "real_response": "Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0002",
+          "overall_score": 52.1,
+          "dimension_scores": {
+            "style_fidelity": 45.3,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 0.824,
+              "length_score": 73.5,
+              "emoji_ratio_diff": 0.0833,
+              "emoji_score": 75.0,
+              "question_rate_diff": 0.4,
+              "question_score": 52.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Ey que bien!! 💪 Me alegra que te haya gustado, de que video me hablas?",
+          "real_response": "Ey que bien!! 💪 Me alegra que te haya gustado, de que video me hablas?",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0004",
+          "overall_score": 52.6,
+          "dimension_scores": {
+            "style_fidelity": 48.2,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 0.894,
+              "length_score": 84.1,
+              "emoji_ratio_diff": 0.0786,
+              "emoji_score": 76.4,
+              "question_rate_diff": 0.4,
+              "question_score": 52.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Hola! 😊 Claro que si, tengo varios cursos. Que es lo que buscas exactamente?",
+          "real_response": "Hola! 😊 Claro que si, tengo varios cursos. Que es lo que buscas exactamente?",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0010",
+          "overall_score": 50.3,
+          "dimension_scores": {
+            "style_fidelity": 36.5,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 0.518,
+              "length_score": 27.6,
+              "emoji_ratio_diff": 0.0389,
+              "emoji_score": 88.3,
+              "question_rate_diff": 0.4,
+              "question_score": 52.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Buenaaas! 😊 Que tal? En que te puedo ayudar?",
+          "real_response": "Buenaaas! 😊 Que tal? En que te puedo ayudar?",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        },
+        {
+          "test_case_id": "test_0014",
+          "overall_score": 50.2,
+          "dimension_scores": {
+            "style_fidelity": 35.8,
+            "safety_score": 80.0,
+            "sales_effectiveness": 50.0,
+            "knowledge_accuracy": 50.0,
+            "persona_consistency": 50.0,
+            "tone_appropriateness": 50.0
+          },
+          "dimension_details": {
+            "style_fidelity": {
+              "length_ratio": 0.518,
+              "length_score": 27.6,
+              "emoji_ratio_diff": 0.05,
+              "emoji_score": 85.0,
+              "question_rate_diff": 0.4,
+              "question_score": 52.0,
+              "informal_marker_match": 0.0,
+              "marker_score": 10,
+              "vocab_overlap": 0.0,
+              "vocab_score": 0.0
+            },
+            "safety_score": {
+              "method": "default"
+            },
+            "sales_effectiveness": {
+              "stage_progression_rate": 50.0,
+              "copilot_approval_rate": 50.0,
+              "ghost_prevention_rate": 50.0,
+              "response_edit_distance": 50.0
+            },
+            "knowledge_accuracy": {
+              "method": "skipped"
+            },
+            "persona_consistency": {
+              "method": "skipped"
+            },
+            "tone_appropriateness": {
+              "method": "skipped"
+            }
+          },
+          "bot_response": "Ey buenas! 💪 Todo bien por aqui, tu que tal?",
+          "real_response": "Ey buenas! 💪 Todo bien por aqui, tu que tal?",
+          "latency_ms": 0,
+          "tokens_used": 0,
+          "cost_usd": 0.0
+        }
+      ],
+      "errors": [],
+      "worst_5": [
+        {
+          "id": "test_0001",
+          "score": 48.9,
+          "bot_response": "Te entiendo! 🙏 Piensa que son menos de 7€ al dia. Ademas puedes pagar en 3 cuotas. Te paso la info?"
+        },
+        {
+          "id": "test_0014",
+          "score": 50.2,
+          "bot_response": "Ey buenas! 💪 Todo bien por aqui, tu que tal?"
+        },
+        {
+          "id": "test_0010",
+          "score": 50.3,
+          "bot_response": "Buenaaas! 😊 Que tal? En que te puedo ayudar?"
+        },
+        {
+          "id": "test_0021",
+          "score": 50.9,
+          "bot_response": "Te cuento! 📋 12 modulos, recetas, lista de compras, comunidad privada y 3 meses de soporte directo c"
+        },
+        {
+          "id": "test_0008",
+          "score": 51.3,
+          "bot_response": "Hmm dejame ver! 🤔 Prueba a cerrar sesion y entrar de nuevo. Si sigue igual me dices y lo reviso"
+        }
+      ],
+      "best_5": [
+        {
+          "id": "test_0012",
+          "score": 52.8,
+          "bot_response": "A ti crack! 💪 Me alegra mucho ver tus resultados. Sigue asi!"
+        },
+        {
+          "id": "test_0007",
+          "score": 53.1,
+          "bot_response": "Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?"
+        },
+        {
+          "id": "test_0009",
+          "score": 53.1,
+          "bot_response": "Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?"
+        },
+        {
+          "id": "test_0075",
+          "score": 53.4,
+          "bot_response": "Me alegra! 😊 Mira, justo ahora tenemos una promo especial. Te interesa que te cuente?"
+        },
+        {
+          "id": "test_0024",
+          "score": 54.6,
+          "bot_response": "VAMOS! 🔥🔥 Eso es lo que me gusta oir. Sigue con el plan que los resultados se multiplican!"
+        }
+      ],
+      "stats": {
+        "total": 20,
+        "evaluated": 20,
+        "errors": 0,
+        "total_tokens": 0,
+        "total_cost_usd": 0.0,
+        "total_llm_calls": 0
+      },
+      "latency": {
+        "avg_ms": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "min_ms": 0,
+        "max_ms": 0
+      }
+    }
+  }
+}

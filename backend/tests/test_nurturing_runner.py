@@ -4,7 +4,7 @@
 import os
 import json
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi.testclient import TestClient
 from api.main import app
 from core.nurturing import get_nurturing_manager
@@ -36,7 +36,7 @@ def _create_test_followups(creator_id: str, count: int = 3, due: bool = True):
     """Create test followups directly in JSON file"""
     os.makedirs("data/nurturing", exist_ok=True)
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     followups = []
 
     for i in range(count):
@@ -178,7 +178,7 @@ def test_due_only_filters_by_scheduled_at():
     with open(path, 'r') as f:
         existing = json.load(f)
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     for i in range(2):
         existing.append({
             "id": f"{creator_id}_future_{i}_{int(time.time())}",
@@ -237,7 +237,7 @@ def test_by_sequence_breakdown():
 
     # Create followups of different types
     os.makedirs("data/nurturing", exist_ok=True)
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     past = now - timedelta(hours=1)
 
     followups = [

@@ -862,6 +862,20 @@ class DMResponderAgentV2:
                 asyncio.to_thread(_get_raw_dna, self.creator_id, sender_id),
             )
             cognitive_metadata.update(state_meta)
+
+            # Memory recall (per-lead context from past conversations)
+            memory_context = ""
+            if os.getenv("ENABLE_MEMORY_ENGINE", "false").lower() == "true":
+                try:
+                    from services.memory_engine import get_memory_engine
+                    mem_engine = get_memory_engine()
+                    memory_context = await mem_engine.recall(self.creator_id, sender_id, message)
+                    if memory_context:
+                        cognitive_metadata["memory_recalled"] = True
+                        cognitive_metadata["memory_chars"] = len(memory_context)
+                except Exception as e:
+                    logger.debug(f"[MEMORY] recall failed: {e}")
+
             _bot_instructions = ""
             if dna_context:
                 logger.debug(f"DNA context loaded for {sender_id}")
@@ -914,19 +928,25 @@ class DMResponderAgentV2:
             logger.info(f"[TIMING] Phase 2 sub: intent={int((_t1a - _t1) * 1000)}ms parallel_io={int((_t1b - _t1a) * 1000)}ms")
 
             # Fast in-memory operations (no parallelization needed)
-            # RAG retrieval
+            # RAG retrieval — skip for simple intents that don't need knowledge
+            _SKIP_RAG_INTENTS = {"greeting", "farewell", "thanks", "saludo", "despedida"}
             rag_query = message
-            if ENABLE_QUERY_EXPANSION:
-                try:
-                    expanded = get_query_expander().expand(message, max_expansions=2)
-                    if len(expanded) > 1:
-                        rag_query = " ".join(expanded)
-                        cognitive_metadata["query_expanded"] = True
-                except Exception as e:
-                    logger.debug(f"Query expansion failed: {e}")
-            rag_results = self.semantic_rag.search(
-                rag_query, top_k=self.config.rag_top_k, creator_id=self.creator_id
-            )
+            if intent_value in _SKIP_RAG_INTENTS:
+                rag_results = []
+                cognitive_metadata["rag_skipped"] = intent_value
+                logger.info(f"[RAG] Skipped for intent={intent_value} (no knowledge needed)")
+            else:
+                if ENABLE_QUERY_EXPANSION:
+                    try:
+                        expanded = get_query_expander().expand(message, max_expansions=2)
+                        if len(expanded) > 1:
+                            rag_query = " ".join(expanded)
+                            cognitive_metadata["query_expanded"] = True
+                    except Exception as e:
+                        logger.debug(f"Query expansion failed: {e}")
+                rag_results = self.semantic_rag.search(
+                    rag_query, top_k=self.config.rag_top_k, creator_id=self.creator_id
+                )
             if rag_results:
                 logger.info(f"[RAG] query='{rag_query[:50]}' results={len(rag_results)}")
             else:
@@ -1011,13 +1031,13 @@ class DMResponderAgentV2:
                     )
                     logger.info("[A1] Friend detected — suppressing acquisition behavior")
 
-            # Load few-shot examples from calibration
+            # Load few-shot examples from calibration (cap at 2 to reduce prompt size)
             few_shot_section = ""
             if self.calibration:
                 try:
                     from services.calibration_loader import get_few_shot_section
 
-                    few_shot_section = get_few_shot_section(self.calibration)
+                    few_shot_section = get_few_shot_section(self.calibration, max_examples=2)
                 except Exception as e:
                     logger.debug(f"Few-shot loading failed: {e}")
 
@@ -1052,21 +1072,23 @@ class DMResponderAgentV2:
                     )
                     cognitive_metadata["audio_enriched"] = True
 
+            # Priority ordering: style first, then knowledge, then context
             combined_context = "\n\n".join(
                 filter(
                     None,
                     [
-                        self.style_prompt,
-                        few_shot_section,
-                        friend_context,
-                        audio_context,
-                        rag_context,
-                        dna_context,
-                        state_context,
-                        advanced_section,
-                        citation_context,
-                        kb_context,
-                        prompt_override,
+                        self.style_prompt,       # HOW to write (highest priority)
+                        friend_context,          # Friend/family override (critical)
+                        rag_context,             # Product/knowledge data
+                        memory_context,          # Per-lead facts (personalization)
+                        few_shot_section,        # Examples of correct responses
+                        dna_context,             # Relationship insights
+                        state_context,           # Conversation phase
+                        audio_context,           # Audio message context
+                        kb_context,              # Factual knowledge base
+                        citation_context,        # Source attribution
+                        advanced_section,        # Anti-hallucination rules
+                        prompt_override,         # Manual override (lowest)
                     ],
                 )
             )
@@ -1259,8 +1281,28 @@ class DMResponderAgentV2:
             prompt_parts.append(f"Mensaje actual: {message}")
             full_prompt = "\n\n".join(prompt_parts)
 
+            # Cap total context to ~6000 tokens to control LLM cost/latency
+            _MAX_CONTEXT_CHARS = 24000  # ~6000 tokens
+            if len(system_prompt) > _MAX_CONTEXT_CHARS:
+                system_prompt = system_prompt[:_MAX_CONTEXT_CHARS]
+                cognitive_metadata["prompt_truncated"] = True
+                logger.warning(f"[PROMPT] Truncated system prompt from {len(system_prompt)} to {_MAX_CONTEXT_CHARS} chars")
+
             # Log prompt size for latency diagnosis
-            logger.info(f"[TIMING] System prompt: {len(system_prompt)} chars (~{len(system_prompt) // 4} tokens)")
+            _est_tokens = len(system_prompt) // 4
+            _section_sizes = {
+                k: len(v) for k, v in [
+                    ("style", self.style_prompt or ""),
+                    ("rag", rag_context), ("memory", memory_context),
+                    ("fewshot", few_shot_section), ("dna", dna_context),
+                    ("state", state_context), ("kb", kb_context),
+                    ("advanced", advanced_section),
+                ] if v
+            }
+            logger.info(
+                f"[TIMING] System prompt: {len(system_prompt)} chars (~{_est_tokens} tokens) "
+                f"sections={_section_sizes}"
+            )
 
             # LLM generation: Flash-Lite → GPT-4o-mini (2 providers, nothing else)
             # Path: webhook → process_dm() → generate_dm_response() → gemini/openai
@@ -1503,6 +1545,20 @@ class DMResponderAgentV2:
             _t4 = time.monotonic()
             logger.info(f"[TIMING] Phase 5 (post-processing): {int((_t4 - _t3) * 1000)}ms")
 
+            # CloneScore real-time logging (non-blocking, CPU-only style_fidelity)
+            if os.getenv("ENABLE_CLONE_SCORE", "false").lower() == "true":
+                try:
+                    from services.clone_score_engine import CloneScoreEngine
+                    cs_engine = CloneScoreEngine()
+                    score_result = await cs_engine.evaluate_single(
+                        self.creator_id, message, formatted_content, {}
+                    )
+                    cognitive_metadata["clone_score"] = score_result.get("overall_score", 0)
+                    _style = score_result.get("dimension_scores", {}).get("style_fidelity", 0)
+                    logger.info(f"[CLONE_SCORE] style={_style:.1f}")
+                except Exception as e:
+                    logger.debug(f"[CLONE_SCORE] eval failed: {e}")
+
             # Step 9: Update lead score (synchronous - needed for response)
             new_stage = self._update_lead_score(follower, intent_value, metadata)
 
@@ -1533,6 +1589,21 @@ class DMResponderAgentV2:
                     cognitive_metadata=cognitive_metadata,
                 )
             )
+
+            # Memory extraction (extract facts from conversation — fire-and-forget)
+            if os.getenv("ENABLE_MEMORY_ENGINE", "false").lower() == "true":
+                try:
+                    from services.memory_engine import get_memory_engine
+                    mem_engine = get_memory_engine()
+                    conversation_msgs = [
+                        {"role": "user", "content": message},
+                        {"role": "assistant", "content": formatted_content},
+                    ]
+                    asyncio.create_task(
+                        mem_engine.add(self.creator_id, sender_id, conversation_msgs)
+                    )
+                except Exception as e:
+                    logger.debug(f"[MEMORY] extraction failed: {e}")
 
             # Step 10: Escalation notification (async, lightweight)
             asyncio.create_task(

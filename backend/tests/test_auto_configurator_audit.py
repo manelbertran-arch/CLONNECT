@@ -41,10 +41,10 @@ class TestAutoConfiguratorImports:
 
 
 # ---------------------------------------------------------------------------
-# Test 2: happy path - to_dict and _analyze_tone
+# Test 2: happy path - to_dict and _generate_tone_profile
 # ---------------------------------------------------------------------------
 class TestAutoConfiguratorHappyPath:
-    """Test data conversion and tone analysis on valid data."""
+    """Test data conversion and tone profile generation on valid data."""
 
     def test_to_dict_structure(self):
         from core.auto_configurator import AutoConfigResult
@@ -71,60 +71,85 @@ class TestAutoConfiguratorHappyPath:
         assert d["duration_seconds"] == 12.5
         assert "instagram_scraping" in d["steps_completed"]
 
-    def test_analyze_tone_returns_expected_keys(self):
+    @pytest.mark.asyncio
+    async def test_generate_tone_profile_returns_expected_keys(self):
+        """_generate_tone_profile returns dict with 'success' and 'confidence' keys."""
         from core.auto_configurator import AutoConfigurator
 
         configurator = AutoConfigurator()
-        captions = [
-            "Hoy fue un gran dia de entreno! Fuerza y disciplina siempre",
-            "Nuevo video donde les cuento mi rutina de ejercicio para mantenerse fit",
-            "La mente lo es todo. Sin mentalidad ganadora no hay progreso",
-            "Proteina despues del gym, siempre. Buena alimentacion es clave",
-            "Gracias por el apoyo! Los quiero mucho a todos mis seguidores",
+
+        posts = [
+            {"id": str(i), "caption": f"Caption text that is long enough for processing number {i}"}
+            for i in range(10)
         ]
 
-        profile = configurator._analyze_tone(captions)
+        mock_profile = object()  # any truthy value
 
-        assert "emoji_style" in profile
-        assert "avg_message_length" in profile
-        assert "formality" in profile
-        assert "frequent_words" in profile
-        assert "topics" in profile
-        assert "confidence_score" in profile
-        assert isinstance(profile["confidence_score"], float)
-        assert 0 <= profile["confidence_score"] <= 1.0
+        with patch("core.tone_profile_db.get_instagram_posts_db", new_callable=AsyncMock, return_value=posts), \
+             patch("core.tone_service.save_tone_profile", new_callable=AsyncMock), \
+             patch("ingestion.tone_analyzer.ToneAnalyzer") as MockAnalyzer:
+            MockAnalyzer.return_value.analyze = AsyncMock(return_value=mock_profile)
 
-    def test_analyze_tone_detects_fitness_topic(self):
+            result = await configurator._generate_tone_profile("creator1")
+
+        assert "success" in result
+        assert "confidence" in result
+        assert isinstance(result["confidence"], float)
+        assert result["success"] is True
+        assert result["confidence"] == 0.8
+
+    @pytest.mark.asyncio
+    async def test_generate_tone_profile_calls_tone_analyzer(self):
+        """_generate_tone_profile delegates to ToneAnalyzer.analyze when enough posts exist."""
         from core.auto_configurator import AutoConfigurator
 
         configurator = AutoConfigurator()
-        captions = [
-            "Vamos al gym a entrenar piernas hoy! Fuerza!",
-            "Dia de ejercicio intenso, no hay excusas",
-            "El fitness es un estilo de vida, no solo un hobby",
-            "Entreno de fuerza para principiantes disponible",
-            "Nuevo programa de deporte para todos los niveles",
+
+        posts = [
+            {"id": str(i), "caption": f"This is a sufficiently long caption for post number {i}"}
+            for i in range(10)
         ]
-        profile = configurator._analyze_tone(captions)
-        assert "fitness" in profile["topics"]
+
+        mock_profile = {"some": "profile"}
+
+        with patch("core.tone_profile_db.get_instagram_posts_db", new_callable=AsyncMock, return_value=posts), \
+             patch("core.tone_service.save_tone_profile", new_callable=AsyncMock) as mock_save, \
+             patch("ingestion.tone_analyzer.ToneAnalyzer") as MockAnalyzer:
+            mock_analyze = AsyncMock(return_value=mock_profile)
+            MockAnalyzer.return_value.analyze = mock_analyze
+
+            result = await configurator._generate_tone_profile("creator1")
+
+        mock_analyze.assert_awaited_once()
+        mock_save.assert_awaited_once_with(mock_profile)
+        assert result["success"] is True
 
 
 # ---------------------------------------------------------------------------
 # Test 3: edge case - invalid / minimal inputs
 # ---------------------------------------------------------------------------
 class TestAutoConfiguratorEdgeCases:
-    """Edge cases in tone analysis and result serialisation."""
+    """Edge cases in tone profile generation and result serialisation."""
 
-    def test_analyze_tone_single_word_captions(self):
-        """Very short captions should still produce a valid profile dict."""
+    @pytest.mark.asyncio
+    async def test_generate_tone_profile_not_enough_posts(self):
+        """When fewer than 5 valid posts exist, should return failure."""
         from core.auto_configurator import AutoConfigurator
 
         configurator = AutoConfigurator()
-        captions = ["Hola", "Vamos", "Si", "Dale", "Ok"]
-        profile = configurator._analyze_tone(captions)
 
-        assert "confidence_score" in profile
-        assert profile["avg_message_length"] >= 1
+        # Only 3 posts with short captions (< 20 chars) — will be filtered out
+        posts = [
+            {"id": "1", "caption": "Hola"},
+            {"id": "2", "caption": "Vamos"},
+            {"id": "3", "caption": "Si"},
+        ]
+
+        with patch("core.tone_profile_db.get_instagram_posts_db", new_callable=AsyncMock, return_value=posts):
+            result = await configurator._generate_tone_profile("creator1")
+
+        assert result["success"] is False
+        assert result["confidence"] == 0.0
 
     def test_to_dict_truncates_errors(self):
         """Errors list in to_dict is capped at 10."""
@@ -140,34 +165,39 @@ class TestAutoConfiguratorEdgeCases:
         assert len(d["warnings"]) == 10
         assert len(d["transcription"]["errors"]) == 5
 
-    def test_analyze_tone_all_caps_text(self):
+    @pytest.mark.asyncio
+    async def test_generate_tone_profile_handles_analyzer_exception(self):
+        """If ToneAnalyzer raises an exception, should return failure gracefully."""
         from core.auto_configurator import AutoConfigurator
 
         configurator = AutoConfigurator()
-        captions = [
-            "TODO EN MAYUSCULAS PORQUE SI AMIGOS",
-            "ESTO ES UN CAPTION EN CAPS",
-            "HOLA A TODOS MIS SEGUIDORES QUERIDOS",
-            "GRACIAS POR EL APOYO INCONDICIONAL",
-            "VAMOS QUE SE PUEDE CON TODO",
-        ]
-        profile = configurator._analyze_tone(captions)
-        assert isinstance(profile["formality"], float)
 
-    def test_analyze_tone_empty_emoji_list(self):
-        """Captions without emojis should return empty emoji_style list."""
+        posts = [
+            {"id": str(i), "caption": f"A sufficiently long caption for post number {i} here"}
+            for i in range(10)
+        ]
+
+        with patch("core.tone_profile_db.get_instagram_posts_db", new_callable=AsyncMock, return_value=posts), \
+             patch("ingestion.tone_analyzer.ToneAnalyzer") as MockAnalyzer:
+            MockAnalyzer.return_value.analyze = AsyncMock(side_effect=Exception("LLM unavailable"))
+
+            result = await configurator._generate_tone_profile("creator1")
+
+        assert result["success"] is False
+        assert result["confidence"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_generate_tone_profile_no_posts(self):
+        """When no posts exist at all, should return failure."""
         from core.auto_configurator import AutoConfigurator
 
         configurator = AutoConfigurator()
-        captions = [
-            "Post sin emoji, solo texto plano aqui",
-            "Otro post bastante sencillo la verdad",
-            "Esto es un contenido limpio sin adornos",
-            "Publicacion profesional y seria",
-            "Contenido de valor para la comunidad",
-        ]
-        profile = configurator._analyze_tone(captions)
-        assert profile["emoji_style"] == []
+
+        with patch("core.tone_profile_db.get_instagram_posts_db", new_callable=AsyncMock, return_value=[]):
+            result = await configurator._generate_tone_profile("creator1")
+
+        assert result["success"] is False
+        assert result["confidence"] == 0.0
 
 
 # ---------------------------------------------------------------------------

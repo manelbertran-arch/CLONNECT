@@ -39,6 +39,9 @@ _ANTI_BIAS_INSTRUCTIONS = """INSTRUCCIONES IMPORTANTES PARA EL EVALUADOR:
 class LLMJudge:
     """Reusable LLM-as-judge for CloneScore dimensions."""
 
+    # Cap judge prompts to ~2000 tokens (8000 chars) to control cost
+    MAX_JUDGE_PROMPT_CHARS = 8000
+
     async def judge(
         self,
         prompt: str,
@@ -56,6 +59,17 @@ class LLMJudge:
             Dict with at least {"score": float, "reasoning": str}
             Returns {"score": 50.0} on failure (neutral fallback)
         """
+        # Truncate long prompts to cap cost
+        original_len = len(prompt)
+        if original_len > self.MAX_JUDGE_PROMPT_CHARS:
+            prompt = prompt[:self.MAX_JUDGE_PROMPT_CHARS]
+            logger.info(
+                f"[LLM_JUDGE] {dimension}: truncated prompt {original_len} -> {self.MAX_JUDGE_PROMPT_CHARS} chars"
+            )
+
+        est_tokens = len(prompt) // 4
+        logger.info(f"[LLM_JUDGE] {dimension}: prompt ~{est_tokens} tokens")
+
         system_prompt = (
             "Eres un evaluador experto de calidad para clones de IA. "
             "Evaluas respuestas de bots de DMs comparandolas con el estilo "

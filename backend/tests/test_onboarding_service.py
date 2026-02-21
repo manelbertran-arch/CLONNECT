@@ -3,7 +3,7 @@ Tests para OnboardingService - Pipeline de onboarding.
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from core.onboarding_service import (
@@ -210,7 +210,7 @@ class TestResultBuilding:
             success=True,
             posts_count=10,
             errors=[],
-            start_time=datetime.now(),
+            start_time=datetime.now(timezone.utc),
             tone_profile=sample_tone_profile,
             citation_stats={"posts_indexed": 10, "total_chunks": 10}
         )
@@ -228,7 +228,7 @@ class TestResultBuilding:
             success=True,
             posts_count=10,
             errors=[],
-            start_time=datetime.now(),
+            start_time=datetime.now(timezone.utc),
             tone_profile=None,
             citation_stats=None
         )
@@ -240,7 +240,7 @@ class TestResultBuilding:
         from datetime import timedelta
 
         request = OnboardingRequest(creator_id="test")
-        start = datetime.now() - timedelta(seconds=5)
+        start = datetime.now(timezone.utc) - timedelta(seconds=5)
 
         result = onboarding_service._build_result(
             request=request,
@@ -261,7 +261,7 @@ class TestResultBuilding:
             success=True,
             posts_count=5,
             errors=["warning1"],
-            start_time=datetime.now(),
+            start_time=datetime.now(timezone.utc),
             tone_profile=sample_tone_profile
         )
 

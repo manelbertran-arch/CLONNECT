@@ -87,8 +87,8 @@ class TestBulkInsertChunks:
         """
         from core.citation_service import _save_chunks_to_db
 
-        with patch("core.citation_service.SessionLocal", return_value=mock_db_session):
-            with patch("core.citation_service.ContentChunk"):
+        with patch("api.database.SessionLocal", return_value=mock_db_session):
+            with patch("api.models.ContentChunk"):
                 _result = _save_chunks_to_db("test_creator", sample_chunks)
 
         # Should use bulk operations
@@ -118,8 +118,8 @@ class TestBulkInsertChunks:
 
         start_time = time.time()
 
-        with patch("core.citation_service.SessionLocal", return_value=mock_session):
-            with patch("core.citation_service.ContentChunk"):
+        with patch("api.database.SessionLocal", return_value=mock_session):
+            with patch("api.models.ContentChunk"):
                 _result = _save_chunks_to_db("stress_test_creator", large_chunks)
 
         elapsed_time = time.time() - start_time
@@ -149,8 +149,8 @@ class TestBulkInsertChunks:
         ]
         mock_db_session.query.return_value.filter.return_value.all.return_value = mock_existing
 
-        with patch("core.citation_service.SessionLocal", return_value=mock_db_session):
-            with patch("core.citation_service.ContentChunk"):
+        with patch("api.database.SessionLocal", return_value=mock_db_session):
+            with patch("api.models.ContentChunk"):
                 _result = _save_chunks_to_db("test_creator", sample_chunks)
 
         # Should call bulk_update for existing chunks
@@ -167,7 +167,7 @@ class TestBulkInsertChunks:
         """Verify that empty chunk list is handled gracefully."""
         from core.citation_service import _save_chunks_to_db
 
-        with patch("core.citation_service.SessionLocal", return_value=mock_db_session):
+        with patch("api.database.SessionLocal", return_value=mock_db_session):
             result = _save_chunks_to_db("test_creator", [])
 
         assert result is True
@@ -181,8 +181,8 @@ class TestBulkInsertChunks:
 
         mock_db_session.commit.side_effect = Exception("Database error")
 
-        with patch("core.citation_service.SessionLocal", return_value=mock_db_session):
-            with patch("core.citation_service.ContentChunk"):
+        with patch("api.database.SessionLocal", return_value=mock_db_session):
+            with patch("api.models.ContentChunk"):
                 result = _save_chunks_to_db("test_creator", sample_chunks)
 
         # Should have called rollback
@@ -273,6 +273,8 @@ class TestSearchAfterBulkInsert:
                 content="Descubre cómo el coaching puede transformar tu vida y ayudarte a alcanzar tus metas.",
                 chunk_index=0,
                 total_chunks=1,
+                metadata={},
+                created_at=datetime.now(),
             ),
             ContentChunk(
                 id="search_test_2",
@@ -284,6 +286,8 @@ class TestSearchAfterBulkInsert:
                 content="Bienestar y salud mental: claves para una vida equilibrada y plena.",
                 chunk_index=0,
                 total_chunks=1,
+                metadata={},
+                created_at=datetime.now(),
             ),
         ]
 
@@ -313,6 +317,8 @@ class TestSearchAfterBulkInsert:
                 content="Este contenido debe ser citable por el bot con su URL original.",
                 chunk_index=0,
                 total_chunks=1,
+                metadata={},
+                created_at=datetime.now(),
             ),
         ]
 

@@ -105,7 +105,11 @@ class SemanticRAG:
             except Exception as e:
                 logger.error(f"Error storing embedding: {e}")
 
-    def search(self, query: str, top_k: int = 5, creator_id: str = None) -> List[Dict]:
+    # Intents that don't need RAG (simple social interactions)
+    SKIP_RAG_INTENTS = frozenset({"greeting", "farewell", "thanks", "saludo", "despedida"})
+
+    def search(self, query: str, top_k: int = 5, creator_id: str = None,
+               intent: str = None) -> List[Dict]:
         """
         Search for relevant documents using semantic similarity.
         Results are cached by query+creator_id with TTL.
@@ -119,10 +123,15 @@ class SemanticRAG:
             query: Search query
             top_k: Number of results to return
             creator_id: Filter by creator
+            intent: Optional intent to skip RAG for simple intents
 
         Returns:
             List of documents with scores
         """
+        # Skip RAG for simple intents that don't need knowledge retrieval
+        if intent and intent in self.SKIP_RAG_INTENTS:
+            logger.info(f"[RAG] Skipped search for intent={intent}")
+            return []
         if not creator_id:
             logger.warning("search() called without creator_id")
             return []

@@ -79,8 +79,8 @@ class TestSemanticMemoryPgvector:
         """add_message should generate embedding and store in DB"""
         mock_embedding = [0.1] * 1536  # Mock 1536-dim embedding
 
-        with patch('core.semantic_memory_pgvector.generate_embedding', return_value=mock_embedding) as mock_gen:
-            with patch('core.semantic_memory_pgvector.get_db_session') as mock_db_ctx:
+        with patch('core.embeddings.generate_embedding', return_value=mock_embedding) as mock_gen:
+            with patch('api.database.get_db_session') as mock_db_ctx:
                 mock_db = MagicMock()
                 mock_db_ctx.return_value.__enter__ = MagicMock(return_value=mock_db)
                 mock_db_ctx.return_value.__exit__ = MagicMock(return_value=False)
@@ -114,8 +114,8 @@ class TestSemanticMemoryPgvector:
         mock_row.created_at = datetime.now()
         mock_row.msg_metadata = {"intent": "question"}
 
-        with patch('core.semantic_memory_pgvector.generate_embedding', return_value=mock_embedding):
-            with patch('core.semantic_memory_pgvector.get_db_session') as mock_db_ctx:
+        with patch('core.embeddings.generate_embedding', return_value=mock_embedding):
+            with patch('api.database.get_db_session') as mock_db_ctx:
                 mock_db = MagicMock()
                 mock_db_ctx.return_value.__enter__ = MagicMock(return_value=mock_db)
                 mock_db_ctx.return_value.__exit__ = MagicMock(return_value=False)
@@ -146,8 +146,8 @@ class TestSemanticMemoryPgvector:
         mock_row.created_at = datetime.now()
         mock_row.msg_metadata = {}
 
-        with patch('core.semantic_memory_pgvector.generate_embedding', return_value=mock_embedding):
-            with patch('core.semantic_memory_pgvector.get_db_session') as mock_db_ctx:
+        with patch('core.embeddings.generate_embedding', return_value=mock_embedding):
+            with patch('api.database.get_db_session') as mock_db_ctx:
                 mock_db = MagicMock()
                 mock_db_ctx.return_value.__enter__ = MagicMock(return_value=mock_db)
                 mock_db_ctx.return_value.__exit__ = MagicMock(return_value=False)
@@ -177,8 +177,8 @@ class TestSemanticMemoryPgvector:
         mock_row.created_at = datetime.now()
         mock_row.msg_metadata = {}
 
-        with patch('core.semantic_memory_pgvector.generate_embedding', return_value=mock_embedding):
-            with patch('core.semantic_memory_pgvector.get_db_session') as mock_db_ctx:
+        with patch('core.embeddings.generate_embedding', return_value=mock_embedding):
+            with patch('api.database.get_db_session') as mock_db_ctx:
                 mock_db = MagicMock()
                 mock_db_ctx.return_value.__enter__ = MagicMock(return_value=mock_db)
                 mock_db_ctx.return_value.__exit__ = MagicMock(return_value=False)
@@ -257,7 +257,7 @@ class TestGetMemoryStats:
         mock_row.total = 100
         mock_row.followers = 10
 
-        with patch('core.semantic_memory_pgvector.get_db_session') as mock_db_ctx:
+        with patch('api.database.get_db_session') as mock_db_ctx:
             mock_db = MagicMock()
             mock_db_ctx.return_value.__enter__ = MagicMock(return_value=mock_db)
             mock_db_ctx.return_value.__exit__ = MagicMock(return_value=False)

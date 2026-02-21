@@ -1,6 +1,8 @@
 # backend/tests/test_kanban_status.py
 # Tests the Kanban drag & drop status update flow
 
+import os
+import pytest
 from fastapi.testclient import TestClient
 from api.main import app
 import time
@@ -9,7 +11,11 @@ client = TestClient(app)
 
 CREATOR_ID = "manel_kanban_test"
 
+SKIP_DB_TESTS = not os.getenv("DATABASE_URL")
+requires_db = pytest.mark.skipif(SKIP_DB_TESTS, reason="DATABASE_URL not set - requires PostgreSQL")
 
+
+@requires_db
 def test_kanban_status_update_with_uuid():
     """
     Test the complete Kanban drag & drop flow:
@@ -111,6 +117,7 @@ def test_kanban_status_update_with_uuid():
     print("4. Status persisted and visible in /dm/conversations ✓")
 
 
+@requires_db
 def test_status_update_with_platform_user_id():
     """
     Test that status update also works with platform_user_id (legacy support)

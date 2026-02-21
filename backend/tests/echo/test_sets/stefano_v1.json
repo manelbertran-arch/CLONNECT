@@ -1,0 +1,2247 @@
+{
+  "version": "1.0",
+  "created_at": "2026-02-21T20:39:02.943558+00:00",
+  "creator": "Stefano",
+  "stats": {
+    "total": 100,
+    "by_category": {
+      "caliente": 25,
+      "nuevo": 32,
+      "interesado": 23,
+      "cliente": 11,
+      "fantasma": 9
+    },
+    "by_topic": {
+      "ventas": 49,
+      "casual": 36,
+      "soporte": 4,
+      "contenido": 11
+    },
+    "by_language": {
+      "es_informal": 100
+    },
+    "media_count": 0,
+    "avg_response_length": 78.34,
+    "min_response_length": 38,
+    "max_response_length": 120,
+    "avg_history_length": 1.34,
+    "category_distribution": {
+      "caliente": 0.25,
+      "nuevo": 0.32,
+      "interesado": 0.23,
+      "cliente": 0.11,
+      "fantasma": 0.09
+    },
+    "topic_distribution": {
+      "ventas": 0.49,
+      "casual": 0.36,
+      "soporte": 0.04,
+      "contenido": 0.11
+    }
+  },
+  "test_cases": [
+    {
+      "id": "test_0001",
+      "context": "Lead CALIENTE — consulta comercial: \"197 es mucho para mi\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0001",
+      "real_response": "Te entiendo! 🙏 Piensa que son menos de 7€ al dia. Ademas puedes pagar en 3 cuotas. Te paso la info?",
+      "follower_message": "197 es mucho para mi",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 99
+      }
+    },
+    {
+      "id": "test_0002",
+      "context": "Lead NUEVO — consulta comercial: \"Hola! Vi tu video sobre nutricion\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0002",
+      "real_response": "Ey que bien!! 💪 Me alegra que te haya gustado, de que video me hablas?",
+      "follower_message": "Hola! Vi tu video sobre nutricion",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 70
+      }
+    },
+    {
+      "id": "test_0003",
+      "context": "Lead CALIENTE — consulta comercial: \"Dame el link de pago\"",
+      "conversation_history": [],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0003",
+      "real_response": "Aqui lo tienes! 🔥 En cuanto pagues ya tienes acceso a todo. Si tienes alguna duda me dices 💪",
+      "follower_message": "Dame el link de pago",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 92
+      }
+    },
+    {
+      "id": "test_0004",
+      "context": "Lead NUEVO — consulta comercial: \"Buenas, quiero info sobre tus cursos\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0004",
+      "real_response": "Hola! 😊 Claro que si, tengo varios cursos. Que es lo que buscas exactamente?",
+      "follower_message": "Buenas, quiero info sobre tus cursos",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 76
+      }
+    },
+    {
+      "id": "test_0005",
+      "context": "Lead NUEVO — consulta comercial: \"Buenas, quiero info sobre tus cursos\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0005",
+      "real_response": "Hola! 😊 Claro que si, tengo varios cursos. Que es lo que buscas exactamente?",
+      "follower_message": "Buenas, quiero info sobre tus cursos",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 76
+      }
+    },
+    {
+      "id": "test_0006",
+      "context": "Lead CALIENTE — consulta comercial: \"Ok me apunto al curso\"",
+      "conversation_history": [],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0006",
+      "real_response": "Genial!! 🔥🔥 Te paso el link ahora mismo. Bienvenido a la comunidad! 💪",
+      "follower_message": "Ok me apunto al curso",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 69
+      }
+    },
+    {
+      "id": "test_0007",
+      "context": "Lead INTERESADO — conversacion casual: \"Bro que tal el finde?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0007",
+      "real_response": "Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?",
+      "follower_message": "Bro que tal el finde?",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 62
+      }
+    },
+    {
+      "id": "test_0008",
+      "context": "CLIENTE — pide soporte: \"El video no carga\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "cliente",
+      "lead_id": "synthetic-lead-0008",
+      "real_response": "Hmm dejame ver! 🤔 Prueba a cerrar sesion y entrar de nuevo. Si sigue igual me dices y lo reviso",
+      "follower_message": "El video no carga",
+      "metadata": {
+        "topic": "soporte",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 95
+      }
+    },
+    {
+      "id": "test_0009",
+      "context": "Lead INTERESADO — conversacion casual: \"Bro que tal el finde?\"",
+      "conversation_history": [],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0009",
+      "real_response": "Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?",
+      "follower_message": "Bro que tal el finde?",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 62
+      }
+    },
+    {
+      "id": "test_0010",
+      "context": "Lead NUEVO — conversacion casual: \"Hola Stefano!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0010",
+      "real_response": "Buenaaas! 😊 Que tal? En que te puedo ayudar?",
+      "follower_message": "Hola Stefano!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 44
+      }
+    },
+    {
+      "id": "test_0011",
+      "context": "Lead NUEVO — consulta comercial: \"Me interesa mejorar mi alimentacion\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0011",
+      "real_response": "Genial! 💪 Eso es lo primero, reconocer que quieres cambiar. Cuentame, que tipo de alimentacion llevas ahora?",
+      "follower_message": "Me interesa mejorar mi alimentacion",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 108
+      }
+    },
+    {
+      "id": "test_0012",
+      "context": "CLIENTE — conversacion casual: \"Gracias por todo Stefano!\"",
+      "conversation_history": [],
+      "lead_category": "cliente",
+      "lead_id": "synthetic-lead-0012",
+      "real_response": "A ti crack! 💪 Me alegra mucho ver tus resultados. Sigue asi!",
+      "follower_message": "Gracias por todo Stefano!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 60
+      }
+    },
+    {
+      "id": "test_0013",
+      "context": "Lead CALIENTE — consulta comercial: \"Dame el link de pago\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0013",
+      "real_response": "Aqui lo tienes! 🔥 En cuanto pagues ya tienes acceso a todo. Si tienes alguna duda me dices 💪",
+      "follower_message": "Dame el link de pago",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 92
+      }
+    },
+    {
+      "id": "test_0014",
+      "context": "Lead NUEVO — conversacion casual: \"Hey que tal!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0014",
+      "real_response": "Ey buenas! 💪 Todo bien por aqui, tu que tal?",
+      "follower_message": "Hey que tal!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 44
+      }
+    },
+    {
+      "id": "test_0015",
+      "context": "Lead CALIENTE — consulta comercial: \"Me encanto, como puedo pagar?\"",
+      "conversation_history": [],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0015",
+      "real_response": "Vamoooos 🔥🔥 Te mando el link de pago! Es super facil, pagas y tienes acceso inmediato 💪",
+      "follower_message": "Me encanto, como puedo pagar?",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 87
+      }
+    },
+    {
+      "id": "test_0016",
+      "context": "Lead CALIENTE — consulta comercial: \"Me encanto, como puedo pagar?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0016",
+      "real_response": "Vamoooos 🔥🔥 Te mando el link de pago! Es super facil, pagas y tienes acceso inmediato 💪",
+      "follower_message": "Me encanto, como puedo pagar?",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 87
+      }
+    },
+    {
+      "id": "test_0017",
+      "context": "CLIENTE — pide soporte: \"Como descargo el ebook?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "cliente",
+      "lead_id": "synthetic-lead-0017",
+      "real_response": "Facil! 📱 Ve a la seccion 'Mis recursos' y ahi lo tienes en PDF. Si no lo ves me avisas!",
+      "follower_message": "Como descargo el ebook?",
+      "metadata": {
+        "topic": "soporte",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 87
+      }
+    },
+    {
+      "id": "test_0018",
+      "context": "Lead INTERESADO — pregunta sobre contenido: \"Tienes recetas faciles?\"",
+      "conversation_history": [],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0018",
+      "real_response": "Si! 💪 En mi ebook de Recetas Fit hay 50 recetas super faciles. Esta a 19€ y te cambia la vida jaja",
+      "follower_message": "Tienes recetas faciles?",
+      "metadata": {
+        "topic": "contenido",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 98
+      }
+    },
+    {
+      "id": "test_0019",
+      "context": "Lead NUEVO — conversacion casual: \"Hola Stefano!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0019",
+      "real_response": "Buenaaas! 😊 Que tal? En que te puedo ayudar?",
+      "follower_message": "Hola Stefano!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 44
+      }
+    },
+    {
+      "id": "test_0020",
+      "context": "Lead CALIENTE — consulta comercial: \"Ok me apunto al curso\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0020",
+      "real_response": "Genial!! 🔥🔥 Te paso el link ahora mismo. Bienvenido a la comunidad! 💪",
+      "follower_message": "Ok me apunto al curso",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 69
+      }
+    },
+    {
+      "id": "test_0021",
+      "context": "Lead INTERESADO — consulta comercial: \"Que incluye el curso?\"",
+      "conversation_history": [],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0021",
+      "real_response": "Te cuento! 📋 12 modulos, recetas, lista de compras, comunidad privada y 3 meses de soporte directo conmigo 💪",
+      "follower_message": "Que incluye el curso?",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 108
+      }
+    },
+    {
+      "id": "test_0022",
+      "context": "Lead INTERESADO — conversacion casual: \"Bro que tal el finde?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0022",
+      "real_response": "Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?",
+      "follower_message": "Bro que tal el finde?",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 62
+      }
+    },
+    {
+      "id": "test_0023",
+      "context": "Lead CALIENTE — consulta comercial: \"Ok me apunto al curso\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0023",
+      "real_response": "Genial!! 🔥🔥 Te paso el link ahora mismo. Bienvenido a la comunidad! 💪",
+      "follower_message": "Ok me apunto al curso",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 69
+      }
+    },
+    {
+      "id": "test_0024",
+      "context": "CLIENTE — conversacion casual: \"Llevo 2 semanas y ya veo cambios\"",
+      "conversation_history": [],
+      "lead_category": "cliente",
+      "lead_id": "synthetic-lead-0024",
+      "real_response": "VAMOS! 🔥🔥 Eso es lo que me gusta oir. Sigue con el plan que los resultados se multiplican!",
+      "follower_message": "Llevo 2 semanas y ya veo cambios",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 90
+      }
+    },
+    {
+      "id": "test_0025",
+      "context": "Lead INTERESADO — consulta comercial: \"Cuanto tiempo dura el acceso?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0025",
+      "real_response": "Tienes acceso de por vida al material! 🔥 Y el soporte directo conmigo es por 3 meses. Que te parece?",
+      "follower_message": "Cuanto tiempo dura el acceso?",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 100
+      }
+    },
+    {
+      "id": "test_0026",
+      "context": "CLIENTE — conversacion casual: \"Gracias por todo Stefano!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "cliente",
+      "lead_id": "synthetic-lead-0026",
+      "real_response": "A ti crack! 💪 Me alegra mucho ver tus resultados. Sigue asi!",
+      "follower_message": "Gracias por todo Stefano!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 60
+      }
+    },
+    {
+      "id": "test_0027",
+      "context": "Lead CALIENTE — consulta comercial: \"Dame el link de pago\"",
+      "conversation_history": [],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0027",
+      "real_response": "Aqui lo tienes! 🔥 En cuanto pagues ya tienes acceso a todo. Si tienes alguna duda me dices 💪",
+      "follower_message": "Dame el link de pago",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 92
+      }
+    },
+    {
+      "id": "test_0028",
+      "context": "Lead NUEVO — consulta comercial: \"Buenas, quiero info sobre tus cursos\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0028",
+      "real_response": "Hola! 😊 Claro que si, tengo varios cursos. Que es lo que buscas exactamente?",
+      "follower_message": "Buenas, quiero info sobre tus cursos",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 76
+      }
+    },
+    {
+      "id": "test_0029",
+      "context": "Lead CALIENTE — consulta comercial: \"Dame el link de pago\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0029",
+      "real_response": "Aqui lo tienes! 🔥 En cuanto pagues ya tienes acceso a todo. Si tienes alguna duda me dices 💪",
+      "follower_message": "Dame el link de pago",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 92
+      }
+    },
+    {
+      "id": "test_0030",
+      "context": "CLIENTE — conversacion casual: \"Llevo 2 semanas y ya veo cambios\"",
+      "conversation_history": [],
+      "lead_category": "cliente",
+      "lead_id": "synthetic-lead-0030",
+      "real_response": "VAMOS! 🔥🔥 Eso es lo que me gusta oir. Sigue con el plan que los resultados se multiplican!",
+      "follower_message": "Llevo 2 semanas y ya veo cambios",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 90
+      }
+    },
+    {
+      "id": "test_0031",
+      "context": "Lead NUEVO — consulta comercial: \"Cuanto cuesta el plan personalizado?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0031",
+      "real_response": "Buenas! El plan personalizado de 3 meses esta a 297€ 🔥 Incluye seguimiento semanal conmigo. Te cuento mas?",
+      "follower_message": "Cuanto cuesta el plan personalizado?",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 106
+      }
+    },
+    {
+      "id": "test_0032",
+      "context": "Lead NUEVO — consulta comercial: \"Hola! Vi tu video sobre nutricion\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0032",
+      "real_response": "Ey que bien!! 💪 Me alegra que te haya gustado, de que video me hablas?",
+      "follower_message": "Hola! Vi tu video sobre nutricion",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 70
+      }
+    },
+    {
+      "id": "test_0033",
+      "context": "Lead NUEVO — consulta comercial: \"Cuanto cuesta el plan personalizado?\"",
+      "conversation_history": [],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0033",
+      "real_response": "Buenas! El plan personalizado de 3 meses esta a 297€ 🔥 Incluye seguimiento semanal conmigo. Te cuento mas?",
+      "follower_message": "Cuanto cuesta el plan personalizado?",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 106
+      }
+    },
+    {
+      "id": "test_0034",
+      "context": "Lead CALIENTE — consulta comercial: \"Dame el link de pago\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0034",
+      "real_response": "Aqui lo tienes! 🔥 En cuanto pagues ya tienes acceso a todo. Si tienes alguna duda me dices 💪",
+      "follower_message": "Dame el link de pago",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 92
+      }
+    },
+    {
+      "id": "test_0035",
+      "context": "Lead CALIENTE — consulta comercial: \"197 es mucho para mi\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0035",
+      "real_response": "Te entiendo! 🙏 Piensa que son menos de 7€ al dia. Ademas puedes pagar en 3 cuotas. Te paso la info?",
+      "follower_message": "197 es mucho para mi",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 99
+      }
+    },
+    {
+      "id": "test_0036",
+      "context": "Lead FANTASMA — conversacion casual: \"Ey Stefano, sigo aqui jaja\"",
+      "conversation_history": [],
+      "lead_category": "fantasma",
+      "lead_id": "synthetic-lead-0036",
+      "real_response": "Buenaaas!! 😊 Que alegria verte por aqui de nuevo! Sigues con ganas de mejorar tu alimentacion?",
+      "follower_message": "Ey Stefano, sigo aqui jaja",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 94
+      }
+    },
+    {
+      "id": "test_0037",
+      "context": "Lead CALIENTE — consulta comercial: \"197 es mucho para mi\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0037",
+      "real_response": "Te entiendo! 🙏 Piensa que son menos de 7€ al dia. Ademas puedes pagar en 3 cuotas. Te paso la info?",
+      "follower_message": "197 es mucho para mi",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 99
+      }
+    },
+    {
+      "id": "test_0038",
+      "context": "Lead NUEVO — conversacion casual: \"Hola Stefano!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0038",
+      "real_response": "Buenaaas! 😊 Que tal? En que te puedo ayudar?",
+      "follower_message": "Hola Stefano!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 44
+      }
+    },
+    {
+      "id": "test_0039",
+      "context": "Lead INTERESADO — pregunta sobre contenido: \"Tienes recetas faciles?\"",
+      "conversation_history": [],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0039",
+      "real_response": "Si! 💪 En mi ebook de Recetas Fit hay 50 recetas super faciles. Esta a 19€ y te cambia la vida jaja",
+      "follower_message": "Tienes recetas faciles?",
+      "metadata": {
+        "topic": "contenido",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 98
+      }
+    },
+    {
+      "id": "test_0040",
+      "context": "Lead FANTASMA — conversacion casual: \"Ey Stefano, sigo aqui jaja\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "fantasma",
+      "lead_id": "synthetic-lead-0040",
+      "real_response": "Buenaaas!! 😊 Que alegria verte por aqui de nuevo! Sigues con ganas de mejorar tu alimentacion?",
+      "follower_message": "Ey Stefano, sigo aqui jaja",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 94
+      }
+    },
+    {
+      "id": "test_0041",
+      "context": "CLIENTE — conversacion casual: \"Gracias por todo Stefano!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "cliente",
+      "lead_id": "synthetic-lead-0041",
+      "real_response": "A ti crack! 💪 Me alegra mucho ver tus resultados. Sigue asi!",
+      "follower_message": "Gracias por todo Stefano!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 60
+      }
+    },
+    {
+      "id": "test_0042",
+      "context": "Lead NUEVO — consulta comercial: \"Hola! Vi tu video sobre nutricion\"",
+      "conversation_history": [],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0042",
+      "real_response": "Ey que bien!! 💪 Me alegra que te haya gustado, de que video me hablas?",
+      "follower_message": "Hola! Vi tu video sobre nutricion",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 70
+      }
+    },
+    {
+      "id": "test_0043",
+      "context": "Lead CALIENTE — consulta comercial: \"Me encanto, como puedo pagar?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0043",
+      "real_response": "Vamoooos 🔥🔥 Te mando el link de pago! Es super facil, pagas y tienes acceso inmediato 💪",
+      "follower_message": "Me encanto, como puedo pagar?",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 87
+      }
+    },
+    {
+      "id": "test_0044",
+      "context": "Lead NUEVO — conversacion casual: \"Hey que tal!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0044",
+      "real_response": "Ey buenas! 💪 Todo bien por aqui, tu que tal?",
+      "follower_message": "Hey que tal!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 44
+      }
+    },
+    {
+      "id": "test_0045",
+      "context": "Lead NUEVO — consulta comercial: \"Hola! Vi tu video sobre nutricion\"",
+      "conversation_history": [],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0045",
+      "real_response": "Ey que bien!! 💪 Me alegra que te haya gustado, de que video me hablas?",
+      "follower_message": "Hola! Vi tu video sobre nutricion",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 70
+      }
+    },
+    {
+      "id": "test_0046",
+      "context": "Lead NUEVO — conversacion casual: \"Hola Stefano!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0046",
+      "real_response": "Buenaaas! 😊 Que tal? En que te puedo ayudar?",
+      "follower_message": "Hola Stefano!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 44
+      }
+    },
+    {
+      "id": "test_0047",
+      "context": "Lead FANTASMA — conversacion casual: \"Ey Stefano, sigo aqui jaja\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "fantasma",
+      "lead_id": "synthetic-lead-0047",
+      "real_response": "Buenaaas!! 😊 Que alegria verte por aqui de nuevo! Sigues con ganas de mejorar tu alimentacion?",
+      "follower_message": "Ey Stefano, sigo aqui jaja",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 94
+      }
+    },
+    {
+      "id": "test_0048",
+      "context": "Lead CALIENTE — consulta comercial: \"197 es mucho para mi\"",
+      "conversation_history": [],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0048",
+      "real_response": "Te entiendo! 🙏 Piensa que son menos de 7€ al dia. Ademas puedes pagar en 3 cuotas. Te paso la info?",
+      "follower_message": "197 es mucho para mi",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 99
+      }
+    },
+    {
+      "id": "test_0049",
+      "context": "Lead INTERESADO — pregunta sobre contenido: \"Tienes recetas faciles?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0049",
+      "real_response": "Si! 💪 En mi ebook de Recetas Fit hay 50 recetas super faciles. Esta a 19€ y te cambia la vida jaja",
+      "follower_message": "Tienes recetas faciles?",
+      "metadata": {
+        "topic": "contenido",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 98
+      }
+    },
+    {
+      "id": "test_0050",
+      "context": "Lead FANTASMA — conversacion casual: \"Perdon por desaparecer\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "fantasma",
+      "lead_id": "synthetic-lead-0050",
+      "real_response": "Tranqui! 🙏 Lo importante es que estas de vuelta. Cuentame, como te ha ido?",
+      "follower_message": "Perdon por desaparecer",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 74
+      }
+    },
+    {
+      "id": "test_0051",
+      "context": "Lead INTERESADO — pregunta sobre contenido: \"Tienes recetas faciles?\"",
+      "conversation_history": [],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0051",
+      "real_response": "Si! 💪 En mi ebook de Recetas Fit hay 50 recetas super faciles. Esta a 19€ y te cambia la vida jaja",
+      "follower_message": "Tienes recetas faciles?",
+      "metadata": {
+        "topic": "contenido",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 98
+      }
+    },
+    {
+      "id": "test_0052",
+      "context": "Lead INTERESADO — pregunta sobre contenido: \"Tienes recetas faciles?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0052",
+      "real_response": "Si! 💪 En mi ebook de Recetas Fit hay 50 recetas super faciles. Esta a 19€ y te cambia la vida jaja",
+      "follower_message": "Tienes recetas faciles?",
+      "metadata": {
+        "topic": "contenido",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 98
+      }
+    },
+    {
+      "id": "test_0053",
+      "context": "Lead NUEVO — consulta comercial: \"Hola! Vi tu video sobre nutricion\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0053",
+      "real_response": "Ey que bien!! 💪 Me alegra que te haya gustado, de que video me hablas?",
+      "follower_message": "Hola! Vi tu video sobre nutricion",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 70
+      }
+    },
+    {
+      "id": "test_0054",
+      "context": "Lead INTERESADO — pregunta sobre contenido: \"Vi tu ultimo video, muy bueno!\"",
+      "conversation_history": [],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0054",
+      "real_response": "Gracias! 😊 Me alegra que te haya gustado. Cual te resonó más?",
+      "follower_message": "Vi tu ultimo video, muy bueno!",
+      "metadata": {
+        "topic": "contenido",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 61
+      }
+    },
+    {
+      "id": "test_0055",
+      "context": "Lead CALIENTE — consulta comercial: \"Me encanto, como puedo pagar?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0055",
+      "real_response": "Vamoooos 🔥🔥 Te mando el link de pago! Es super facil, pagas y tienes acceso inmediato 💪",
+      "follower_message": "Me encanto, como puedo pagar?",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 87
+      }
+    },
+    {
+      "id": "test_0056",
+      "context": "Lead CALIENTE — consulta comercial: \"Ok me apunto al curso\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0056",
+      "real_response": "Genial!! 🔥🔥 Te paso el link ahora mismo. Bienvenido a la comunidad! 💪",
+      "follower_message": "Ok me apunto al curso",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 69
+      }
+    },
+    {
+      "id": "test_0057",
+      "context": "Lead NUEVO — consulta comercial: \"Me interesa mejorar mi alimentacion\"",
+      "conversation_history": [],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0057",
+      "real_response": "Genial! 💪 Eso es lo primero, reconocer que quieres cambiar. Cuentame, que tipo de alimentacion llevas ahora?",
+      "follower_message": "Me interesa mejorar mi alimentacion",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 108
+      }
+    },
+    {
+      "id": "test_0058",
+      "context": "Lead NUEVO — consulta comercial: \"Me interesa mejorar mi alimentacion\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0058",
+      "real_response": "Genial! 💪 Eso es lo primero, reconocer que quieres cambiar. Cuentame, que tipo de alimentacion llevas ahora?",
+      "follower_message": "Me interesa mejorar mi alimentacion",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 108
+      }
+    },
+    {
+      "id": "test_0059",
+      "context": "Lead CALIENTE — consulta comercial: \"Ok me apunto al curso\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0059",
+      "real_response": "Genial!! 🔥🔥 Te paso el link ahora mismo. Bienvenido a la comunidad! 💪",
+      "follower_message": "Ok me apunto al curso",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 69
+      }
+    },
+    {
+      "id": "test_0060",
+      "context": "Lead CALIENTE — consulta comercial: \"Ok me apunto al curso\"",
+      "conversation_history": [],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0060",
+      "real_response": "Genial!! 🔥🔥 Te paso el link ahora mismo. Bienvenido a la comunidad! 💪",
+      "follower_message": "Ok me apunto al curso",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 69
+      }
+    },
+    {
+      "id": "test_0061",
+      "context": "CLIENTE — conversacion casual: \"Gracias por todo Stefano!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "cliente",
+      "lead_id": "synthetic-lead-0061",
+      "real_response": "A ti crack! 💪 Me alegra mucho ver tus resultados. Sigue asi!",
+      "follower_message": "Gracias por todo Stefano!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 60
+      }
+    },
+    {
+      "id": "test_0062",
+      "context": "Lead NUEVO — conversacion casual: \"Hey que tal!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0062",
+      "real_response": "Ey buenas! 💪 Todo bien por aqui, tu que tal?",
+      "follower_message": "Hey que tal!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 44
+      }
+    },
+    {
+      "id": "test_0063",
+      "context": "Lead INTERESADO — conversacion casual: \"Bro que tal el finde?\"",
+      "conversation_history": [],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0063",
+      "real_response": "Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?",
+      "follower_message": "Bro que tal el finde?",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 62
+      }
+    },
+    {
+      "id": "test_0064",
+      "context": "Lead CALIENTE — consulta comercial: \"Me encanto, como puedo pagar?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0064",
+      "real_response": "Vamoooos 🔥🔥 Te mando el link de pago! Es super facil, pagas y tienes acceso inmediato 💪",
+      "follower_message": "Me encanto, como puedo pagar?",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 87
+      }
+    },
+    {
+      "id": "test_0065",
+      "context": "Lead INTERESADO — conversacion casual: \"Bro que tal el finde?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0065",
+      "real_response": "Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?",
+      "follower_message": "Bro que tal el finde?",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 62
+      }
+    },
+    {
+      "id": "test_0066",
+      "context": "Lead NUEVO — consulta comercial: \"Cuanto cuesta el plan personalizado?\"",
+      "conversation_history": [],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0066",
+      "real_response": "Buenas! El plan personalizado de 3 meses esta a 297€ 🔥 Incluye seguimiento semanal conmigo. Te cuento mas?",
+      "follower_message": "Cuanto cuesta el plan personalizado?",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 106
+      }
+    },
+    {
+      "id": "test_0067",
+      "context": "Lead NUEVO — consulta comercial: \"Me interesa mejorar mi alimentacion\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0067",
+      "real_response": "Genial! 💪 Eso es lo primero, reconocer que quieres cambiar. Cuentame, que tipo de alimentacion llevas ahora?",
+      "follower_message": "Me interesa mejorar mi alimentacion",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 108
+      }
+    },
+    {
+      "id": "test_0068",
+      "context": "Lead INTERESADO — consulta comercial: \"He visto otros cursos mas baratos\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0068",
+      "real_response": "Buena pregunta! 😊 Lo que diferencia mi curso es que es 100% personalizado, no un PDF generico. Trabajamos juntos tu caso",
+      "follower_message": "He visto otros cursos mas baratos",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 120
+      }
+    },
+    {
+      "id": "test_0069",
+      "context": "CLIENTE — pide soporte: \"No puedo acceder al modulo 3\"",
+      "conversation_history": [],
+      "lead_category": "cliente",
+      "lead_id": "synthetic-lead-0069",
+      "real_response": "Tranqui! 🙏 Dame 5 min que reviso tu cuenta y te aviso. Disculpa las molestias",
+      "follower_message": "No puedo acceder al modulo 3",
+      "metadata": {
+        "topic": "soporte",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 77
+      }
+    },
+    {
+      "id": "test_0070",
+      "context": "Lead CALIENTE — consulta comercial: \"Me encanto, como puedo pagar?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0070",
+      "real_response": "Vamoooos 🔥🔥 Te mando el link de pago! Es super facil, pagas y tienes acceso inmediato 💪",
+      "follower_message": "Me encanto, como puedo pagar?",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 87
+      }
+    },
+    {
+      "id": "test_0071",
+      "context": "Lead FANTASMA — conversacion casual: \"Ey Stefano, sigo aqui jaja\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "fantasma",
+      "lead_id": "synthetic-lead-0071",
+      "real_response": "Buenaaas!! 😊 Que alegria verte por aqui de nuevo! Sigues con ganas de mejorar tu alimentacion?",
+      "follower_message": "Ey Stefano, sigo aqui jaja",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 94
+      }
+    },
+    {
+      "id": "test_0072",
+      "context": "Lead INTERESADO — conversacion casual: \"Bro que tal el finde?\"",
+      "conversation_history": [],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0072",
+      "real_response": "Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?",
+      "follower_message": "Bro que tal el finde?",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 62
+      }
+    },
+    {
+      "id": "test_0073",
+      "context": "CLIENTE — pide soporte: \"No puedo acceder al modulo 3\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "cliente",
+      "lead_id": "synthetic-lead-0073",
+      "real_response": "Tranqui! 🙏 Dame 5 min que reviso tu cuenta y te aviso. Disculpa las molestias",
+      "follower_message": "No puedo acceder al modulo 3",
+      "metadata": {
+        "topic": "soporte",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 77
+      }
+    },
+    {
+      "id": "test_0074",
+      "context": "Lead INTERESADO — conversacion casual: \"Jaja me dio risa tu ultimo reel\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0074",
+      "real_response": "Jajaja me alegro! 😂 Cual te gusto mas?",
+      "follower_message": "Jaja me dio risa tu ultimo reel",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 38
+      }
+    },
+    {
+      "id": "test_0075",
+      "context": "Lead FANTASMA — consulta comercial: \"Sigo pensando en el curso\"",
+      "conversation_history": [],
+      "lead_category": "fantasma",
+      "lead_id": "synthetic-lead-0075",
+      "real_response": "Me alegra! 😊 Mira, justo ahora tenemos una promo especial. Te interesa que te cuente?",
+      "follower_message": "Sigo pensando en el curso",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 85
+      }
+    },
+    {
+      "id": "test_0076",
+      "context": "Lead INTERESADO — pregunta sobre contenido: \"Tienes recetas faciles?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0076",
+      "real_response": "Si! 💪 En mi ebook de Recetas Fit hay 50 recetas super faciles. Esta a 19€ y te cambia la vida jaja",
+      "follower_message": "Tienes recetas faciles?",
+      "metadata": {
+        "topic": "contenido",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 98
+      }
+    },
+    {
+      "id": "test_0077",
+      "context": "Lead NUEVO — conversacion casual: \"Hola Stefano!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0077",
+      "real_response": "Buenaaas! 😊 Que tal? En que te puedo ayudar?",
+      "follower_message": "Hola Stefano!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 44
+      }
+    },
+    {
+      "id": "test_0078",
+      "context": "Lead FANTASMA — conversacion casual: \"Perdon por desaparecer\"",
+      "conversation_history": [],
+      "lead_category": "fantasma",
+      "lead_id": "synthetic-lead-0078",
+      "real_response": "Tranqui! 🙏 Lo importante es que estas de vuelta. Cuentame, como te ha ido?",
+      "follower_message": "Perdon por desaparecer",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 74
+      }
+    },
+    {
+      "id": "test_0079",
+      "context": "Lead NUEVO — conversacion casual: \"Hola Stefano!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0079",
+      "real_response": "Buenaaas! 😊 Que tal? En que te puedo ayudar?",
+      "follower_message": "Hola Stefano!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 44
+      }
+    },
+    {
+      "id": "test_0080",
+      "context": "Lead NUEVO — consulta comercial: \"Buenas, quiero info sobre tus cursos\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0080",
+      "real_response": "Hola! 😊 Claro que si, tengo varios cursos. Que es lo que buscas exactamente?",
+      "follower_message": "Buenas, quiero info sobre tus cursos",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 76
+      }
+    },
+    {
+      "id": "test_0081",
+      "context": "Lead NUEVO — consulta comercial: \"Buenas, quiero info sobre tus cursos\"",
+      "conversation_history": [],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0081",
+      "real_response": "Hola! 😊 Claro que si, tengo varios cursos. Que es lo que buscas exactamente?",
+      "follower_message": "Buenas, quiero info sobre tus cursos",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 76
+      }
+    },
+    {
+      "id": "test_0082",
+      "context": "Lead INTERESADO — pregunta sobre contenido: \"Vi tu ultimo video, muy bueno!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0082",
+      "real_response": "Gracias! 😊 Me alegra que te haya gustado. Cual te resonó más?",
+      "follower_message": "Vi tu ultimo video, muy bueno!",
+      "metadata": {
+        "topic": "contenido",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 61
+      }
+    },
+    {
+      "id": "test_0083",
+      "context": "Lead CALIENTE — consulta comercial: \"Me encanto, como puedo pagar?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0083",
+      "real_response": "Vamoooos 🔥🔥 Te mando el link de pago! Es super facil, pagas y tienes acceso inmediato 💪",
+      "follower_message": "Me encanto, como puedo pagar?",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 87
+      }
+    },
+    {
+      "id": "test_0084",
+      "context": "Lead INTERESADO — pregunta sobre contenido: \"Tienes recetas faciles?\"",
+      "conversation_history": [],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0084",
+      "real_response": "Si! 💪 En mi ebook de Recetas Fit hay 50 recetas super faciles. Esta a 19€ y te cambia la vida jaja",
+      "follower_message": "Tienes recetas faciles?",
+      "metadata": {
+        "topic": "contenido",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 98
+      }
+    },
+    {
+      "id": "test_0085",
+      "context": "Lead FANTASMA — conversacion casual: \"Perdon por desaparecer\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "fantasma",
+      "lead_id": "synthetic-lead-0085",
+      "real_response": "Tranqui! 🙏 Lo importante es que estas de vuelta. Cuentame, como te ha ido?",
+      "follower_message": "Perdon por desaparecer",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 74
+      }
+    },
+    {
+      "id": "test_0086",
+      "context": "Lead NUEVO — conversacion casual: \"Hola Stefano!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0086",
+      "real_response": "Buenaaas! 😊 Que tal? En que te puedo ayudar?",
+      "follower_message": "Hola Stefano!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 44
+      }
+    },
+    {
+      "id": "test_0087",
+      "context": "Lead CALIENTE — consulta comercial: \"Dame el link de pago\"",
+      "conversation_history": [],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0087",
+      "real_response": "Aqui lo tienes! 🔥 En cuanto pagues ya tienes acceso a todo. Si tienes alguna duda me dices 💪",
+      "follower_message": "Dame el link de pago",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 92
+      }
+    },
+    {
+      "id": "test_0088",
+      "context": "Lead INTERESADO — consulta comercial: \"Cuanto cuesta el curso?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0088",
+      "real_response": "El curso de Nutricion Consciente esta a 197€ bro 🔥 Incluye 12 modulos + comunidad privada. Te paso mas info?",
+      "follower_message": "Cuanto cuesta el curso?",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 108
+      }
+    },
+    {
+      "id": "test_0089",
+      "context": "Lead INTERESADO — pregunta sobre contenido: \"Vi tu ultimo video, muy bueno!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0089",
+      "real_response": "Gracias! 😊 Me alegra que te haya gustado. Cual te resonó más?",
+      "follower_message": "Vi tu ultimo video, muy bueno!",
+      "metadata": {
+        "topic": "contenido",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 61
+      }
+    },
+    {
+      "id": "test_0090",
+      "context": "Lead NUEVO — consulta comercial: \"Me interesa mejorar mi alimentacion\"",
+      "conversation_history": [],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0090",
+      "real_response": "Genial! 💪 Eso es lo primero, reconocer que quieres cambiar. Cuentame, que tipo de alimentacion llevas ahora?",
+      "follower_message": "Me interesa mejorar mi alimentacion",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 108
+      }
+    },
+    {
+      "id": "test_0091",
+      "context": "Lead NUEVO — conversacion casual: \"Hola Stefano!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0091",
+      "real_response": "Buenaaas! 😊 Que tal? En que te puedo ayudar?",
+      "follower_message": "Hola Stefano!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 44
+      }
+    },
+    {
+      "id": "test_0092",
+      "context": "CLIENTE — conversacion casual: \"Llevo 2 semanas y ya veo cambios\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "cliente",
+      "lead_id": "synthetic-lead-0092",
+      "real_response": "VAMOS! 🔥🔥 Eso es lo que me gusta oir. Sigue con el plan que los resultados se multiplican!",
+      "follower_message": "Llevo 2 semanas y ya veo cambios",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 90
+      }
+    },
+    {
+      "id": "test_0093",
+      "context": "Lead NUEVO — conversacion casual: \"Hola Stefano!\"",
+      "conversation_history": [],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0093",
+      "real_response": "Buenaaas! 😊 Que tal? En que te puedo ayudar?",
+      "follower_message": "Hola Stefano!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 44
+      }
+    },
+    {
+      "id": "test_0094",
+      "context": "Lead CALIENTE — consulta comercial: \"Me encanto, como puedo pagar?\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0094",
+      "real_response": "Vamoooos 🔥🔥 Te mando el link de pago! Es super facil, pagas y tienes acceso inmediato 💪",
+      "follower_message": "Me encanto, como puedo pagar?",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 87
+      }
+    },
+    {
+      "id": "test_0095",
+      "context": "Lead FANTASMA — conversacion casual: \"Perdon por desaparecer\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "fantasma",
+      "lead_id": "synthetic-lead-0095",
+      "real_response": "Tranqui! 🙏 Lo importante es que estas de vuelta. Cuentame, como te ha ido?",
+      "follower_message": "Perdon por desaparecer",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 74
+      }
+    },
+    {
+      "id": "test_0096",
+      "context": "Lead NUEVO — consulta comercial: \"Buenas, quiero info sobre tus cursos\"",
+      "conversation_history": [],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0096",
+      "real_response": "Hola! 😊 Claro que si, tengo varios cursos. Que es lo que buscas exactamente?",
+      "follower_message": "Buenas, quiero info sobre tus cursos",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 76
+      }
+    },
+    {
+      "id": "test_0097",
+      "context": "Lead INTERESADO — pregunta sobre contenido: \"Vi tu ultimo video, muy bueno!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0097",
+      "real_response": "Gracias! 😊 Me alegra que te haya gustado. Cual te resonó más?",
+      "follower_message": "Vi tu ultimo video, muy bueno!",
+      "metadata": {
+        "topic": "contenido",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 61
+      }
+    },
+    {
+      "id": "test_0098",
+      "context": "Lead CALIENTE — consulta comercial: \"197 es mucho para mi\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "caliente",
+      "lead_id": "synthetic-lead-0098",
+      "real_response": "Te entiendo! 🙏 Piensa que son menos de 7€ al dia. Ademas puedes pagar en 3 cuotas. Te paso la info?",
+      "follower_message": "197 es mucho para mi",
+      "metadata": {
+        "topic": "ventas",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 99
+      }
+    },
+    {
+      "id": "test_0099",
+      "context": "Lead INTERESADO — conversacion casual: \"Bro que tal el finde?\"",
+      "conversation_history": [],
+      "lead_category": "interesado",
+      "lead_id": "synthetic-lead-0099",
+      "real_response": "Buenisimo tio! 🔥 Fui a la playa y entrene un poco. Tu que tal?",
+      "follower_message": "Bro que tal el finde?",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 62
+      }
+    },
+    {
+      "id": "test_0100",
+      "context": "Lead NUEVO — conversacion casual: \"Hey que tal!\"",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Hola Stefano"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenas! 😊 Que tal?"
+        }
+      ],
+      "lead_category": "nuevo",
+      "lead_id": "synthetic-lead-0100",
+      "real_response": "Ey buenas! 💪 Todo bien por aqui, tu que tal?",
+      "follower_message": "Hey que tal!",
+      "metadata": {
+        "topic": "casual",
+        "has_media": false,
+        "language": "es_informal",
+        "synthetic": true,
+        "response_length": 44
+      }
+    }
+  ]
+}
