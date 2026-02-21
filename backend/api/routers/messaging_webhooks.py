@@ -1075,7 +1075,10 @@ async def evolution_webhook(request: Request):
         # If no text yet, set a descriptive placeholder so the message isn't dropped
         if not text.strip():
             if detected_media_type == "audio":
-                text = f"[\U0001f3a4 Audio]: {audio_transcription}" if audio_transcription else "[\U0001f3a4 Audio message]"
+                # Prefer clean_text from audio intelligence over raw transcription
+                ai = media_result.get("audio_intel", {}) if media_result else {}
+                display_text = ai.get("clean_text") or ai.get("summary") or audio_transcription
+                text = f"[\U0001f3a4 Audio]: {display_text}" if display_text else "[\U0001f3a4 Audio message]"
             else:
                 placeholder_map = {
                     "image": "[\U0001f4f7 Photo]",
@@ -1123,10 +1126,16 @@ async def evolution_webhook(request: Request):
                 outgoing_meta["url"] = media_result["url"]
             if audio_transcription:
                 outgoing_meta["transcription"] = audio_transcription
-            if detected_media_type == "audio" and isinstance(audio_obj, dict):
-                duration = audio_obj.get("seconds") or audio_obj.get("duration")
-                if duration:
-                    outgoing_meta["duration"] = duration
+            if detected_media_type == "audio":
+                if media_result and media_result.get("audio_intel"):
+                    outgoing_meta["audio_intel"] = media_result["audio_intel"]
+                    for k in ("transcript_raw", "transcript_full", "transcript_summary"):
+                        if media_result.get(k):
+                            outgoing_meta[k] = media_result[k]
+                if isinstance(audio_obj, dict):
+                    duration = audio_obj.get("seconds") or audio_obj.get("duration")
+                    if duration:
+                        outgoing_meta["duration"] = duration
 
         asyncio.create_task(
             _save_evolution_outgoing_message(
@@ -1166,6 +1175,13 @@ async def evolution_webhook(request: Request):
         if detected_media_type == "audio":
             if audio_transcription:
                 msg_metadata["transcription"] = audio_transcription
+            # Audio Intelligence structured data (summary, entities, clean_text)
+            if media_result and media_result.get("audio_intel"):
+                msg_metadata["audio_intel"] = media_result["audio_intel"]
+                # Legacy fields for backward compat
+                for k in ("transcript_raw", "transcript_full", "transcript_summary"):
+                    if media_result.get(k):
+                        msg_metadata[k] = media_result[k]
             if isinstance(audio_obj, dict):
                 duration = audio_obj.get("seconds") or audio_obj.get("duration")
                 if duration:
@@ -1326,7 +1342,7 @@ async def _download_evolution_media(instance: str, data: dict, media_type: str) 
                 except Exception as cloud_err:
                     logger.warning(f"[EVO:{instance}] Cloudinary upload skipped: {cloud_err}")
 
-                # Transcribe audio with Whisper (audio only)
+                # Transcribe audio with cascade (Groq → Gemini → OpenAI) + Audio Intelligence
                 if media_type == "audio":
                     try:
                         from ingestion.transcriber import get_transcriber
@@ -1334,7 +1350,24 @@ async def _download_evolution_media(instance: str, data: dict, media_type: str) 
                         transcriber = get_transcriber()
                         transcript = await transcriber.transcribe_file(tmp_path, language="es")
                         if transcript and transcript.full_text.strip():
-                            result["transcription"] = transcript.full_text.strip()
+                            raw_text = transcript.full_text.strip()
+                            result["transcription"] = raw_text
+
+                            # Audio Intelligence Pipeline (4-layer) — same as Instagram
+                            try:
+                                from services.audio_intelligence import get_audio_intelligence
+
+                                intel = get_audio_intelligence()
+                                ai_result = await intel.process(
+                                    raw_text=raw_text,
+                                    language="es",
+                                    role="user",
+                                )
+                                result["audio_intel"] = ai_result.to_metadata()
+                                legacy = ai_result.to_legacy_fields()
+                                result.update(legacy)
+                            except Exception as intel_err:
+                                logger.warning(f"[EVO:{instance}] Audio intelligence failed: {intel_err}")
                     except Exception as whisper_err:
                         logger.error(f"[EVO:{instance}] Whisper transcription failed: {whisper_err}")
 
