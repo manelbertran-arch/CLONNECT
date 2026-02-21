@@ -1552,35 +1552,16 @@ async def _process_evolution_message_safe(
 
         follower_id = f"wa_{sender_number}"
 
-        # Audio Intelligence Pipeline (4-layer: clean → extract → synthesize)
+        # Audio Intelligence already ran in _download_evolution_media() (Run 1).
+        # Use existing audio_intel for display text if available.
         if (
             msg_metadata
             and msg_metadata.get("type") == "audio"
-            and msg_metadata.get("transcription")
+            and msg_metadata.get("audio_intel")
         ):
-            try:
-                from services.audio_intelligence import get_audio_intelligence
-
-                raw_text = msg_metadata["transcription"]
-                intel = get_audio_intelligence()
-                ai_result = await intel.process(
-                    raw_text=raw_text,
-                    duration_seconds=msg_metadata.get("duration", 0),
-                    language="es",
-                    role="user",
-                )
-                # Legacy fields (backward compat)
-                legacy = ai_result.to_legacy_fields()
-                msg_metadata.update(legacy)
-                # Structured intelligence data
-                msg_metadata["audio_intel"] = ai_result.to_metadata()
-                text = f"[\U0001f3a4 Audio]: {ai_result.clean_text or raw_text}"
-                logger.info(
-                    f"[EVO:{instance}] AudioIntel: {ai_result.summary[:60]}... "
-                    f"({ai_result.processing_time_ms}ms)"
-                )
-            except Exception as e:
-                logger.warning(f"[EVO:{instance}] Audio intelligence failed: {e}")
+            ai = msg_metadata["audio_intel"]
+            clean = ai.get("clean_text") or msg_metadata.get("transcription", "")
+            text = f"[\U0001f3a4 Audio]: {clean}"
 
         # Generate suggestion via DM agent
         agent = get_dm_agent(creator_id)

@@ -92,12 +92,15 @@ class AudioIntelligence:
         }
 
     def to_legacy_fields(self) -> dict:
-        """Return old-format fields for backward compatibility."""
+        """Return old-format fields for backward compatibility.
+
+        NOTE: Does NOT include 'transcription' — that field holds the raw
+        Whisper output and must never be overwritten by AI processing.
+        """
         return {
             "transcript_raw": self.raw_text,
             "transcript_full": self.clean_text or self.raw_text,
             "transcript_summary": self.summary or self.raw_text,
-            "transcription": self.summary or self.raw_text,
         }
 
 
