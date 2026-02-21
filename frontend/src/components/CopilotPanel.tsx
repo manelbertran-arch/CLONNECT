@@ -49,18 +49,6 @@ import {
 import type { PendingResponse, CopilotComparison, ContextMessage, LearningDashboard } from "@/services/api";
 import { formatDateTimeCET, formatFullDateTimeCET, formatSessionLabel } from "@/utils/time";
 
-// Temperature → label mapping for Best-of-N candidates
-const CANDIDATE_LABELS: Record<string, { label: string; emoji: string; color: string; border: string }> = {
-  "0.2": { label: "Corta", emoji: "\u{1F6E1}\u{FE0F}", color: "text-blue-400", border: "border-blue-500/30 bg-blue-500/5" },
-  "0.7": { label: "Balanceada", emoji: "\u{2696}\u{FE0F}", color: "text-green-400", border: "border-green-500/30 bg-green-500/5" },
-  "1.4": { label: "Expresiva", emoji: "\u{2728}", color: "text-orange-400", border: "border-orange-500/30 bg-orange-500/5" },
-};
-
-function getCandidateStyle(temperature: number) {
-  const key = temperature.toFixed(1);
-  return CANDIDATE_LABELS[key] || { label: `T=${key}`, emoji: "\u{1F916}", color: "text-gray-400", border: "border-gray-500/30 bg-gray-500/5" };
-}
-
 interface PendingCardProps {
   item: PendingResponse;
   onApprove: (messageId: string, editedText?: string, chosenIndex?: number) => void;
@@ -125,17 +113,13 @@ function PendingCard({ item, onApprove, onDiscard, isLoading, isFading }: Pendin
         <>
           <div className="grid grid-cols-3 gap-2">
             {sortedCandidates.map((candidate, idx) => {
-              const style = getCandidateStyle(candidate.temperature);
               const originalIdx = candidates.indexOf(candidate);
               return (
                 <div
                   key={idx}
-                  className={`border rounded-lg p-3 space-y-2 ${style.border}`}
+                  className="border border-border/40 rounded-lg p-3 flex flex-col"
                 >
-                  <span className={`text-xs font-medium ${style.color}`}>
-                    {style.emoji} {style.label}
-                  </span>
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed min-h-[60px]">
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed flex-1">
                     {candidate.content}
                   </p>
                   <Button
@@ -143,7 +127,7 @@ function PendingCard({ item, onApprove, onDiscard, isLoading, isFading }: Pendin
                     size="sm"
                     onClick={() => onApprove(item.id, undefined, originalIdx)}
                     disabled={isLoading}
-                    className="w-full gap-1 text-xs"
+                    className="w-full gap-1 text-xs mt-2"
                   >
                     <Check className="w-3 h-3" />
                     Elegir

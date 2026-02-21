@@ -20,13 +20,6 @@ interface CopilotBannerProps {
   platform?: string;
 }
 
-// Temperature → style mapping
-const CANDIDATE_STYLES: Record<string, { label: string; emoji: string; color: string; border: string }> = {
-  "0.2": { label: "Corta", emoji: "\u{1F6E1}\u{FE0F}", color: "text-blue-400", border: "border-blue-500/30" },
-  "0.7": { label: "Balanceada", emoji: "\u{2696}\u{FE0F}", color: "text-green-400", border: "border-green-500/30" },
-  "1.4": { label: "Expresiva", emoji: "\u{2728}", color: "text-orange-400", border: "border-orange-500/30" },
-};
-
 export function CopilotBanner({ leadId, platform }: CopilotBannerProps) {
   const { data, isLoading } = usePendingForLead(leadId);
   const approveMutation = useApproveCopilotResponse(getCreatorId());
@@ -109,23 +102,18 @@ export function CopilotBanner({ leadId, platform }: CopilotBannerProps) {
       ) : hasCandidates ? (
         <div className="grid grid-cols-3 gap-2 mb-2">
           {sortedCandidates.map((candidate, idx) => {
-            const key = candidate.temperature.toFixed(1);
-            const style = CANDIDATE_STYLES[key] || { label: `T=${key}`, emoji: "\u{1F916}", color: "text-gray-400", border: "border-gray-500/30" };
             const originalIdx = candidates.indexOf(candidate);
             return (
               <div
                 key={idx}
-                className={`p-2 rounded-lg border-l-2 ${style.border} bg-white/5`}
+                className="p-2 rounded-lg border border-border/40 bg-white/5 flex flex-col"
               >
-                <span className={`text-[10px] font-medium ${style.color} block mb-1`}>
-                  {style.emoji} {style.label}
-                </span>
-                <p className="text-xs text-foreground/80 whitespace-pre-wrap leading-relaxed min-h-[40px]">
+                <p className="text-xs text-foreground/80 whitespace-pre-wrap leading-relaxed flex-1">
                   {candidate.content}
                 </p>
                 <Button
                   size="sm"
-                  className={`h-6 text-[10px] px-2 mt-1 w-full text-white ${approveBtn}`}
+                  className={`h-6 text-[10px] px-2 mt-2 w-full text-white ${approveBtn}`}
                   onClick={() => handleApprove(originalIdx)}
                   disabled={isBusy}
                 >
