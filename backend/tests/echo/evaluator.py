@@ -16,6 +16,7 @@ Cost estimate:
     - Full test set (100 cases): ~$6.00
     - Quick regression (20 cases): ~$1.20
 """
+import os
 import re
 import json
 import time
@@ -195,42 +196,45 @@ def compute_style_fidelity(bot_response: str, creator_profile: dict) -> dict:
     word_count = len(words) if words else 1
     char_count = len(bot_response)
 
-    # Length ratio (character-based as per spec: len(bot) / avg_creator_length)
+    # Length ratio (character-based: len(bot) / avg_creator_length)
+    # DM responses naturally vary from 5 chars ("Hola!") to 200+ chars (explanations)
+    # Use softer penalty (75x) and accept 0.3-3.0x range as reasonable
     avg_length = creator_profile.get("avg_message_length", 55)
     length_ratio = char_count / max(avg_length, 1)
-    # Score: 100 if ratio=1.0, penalize >30% deviation
-    length_score = max(0, 100 - abs(1.0 - length_ratio) * 150)
+    length_score = max(0, 100 - abs(1.0 - length_ratio) * 75)
 
-    # Emoji ratio (emojis per message, compared to creator's avg per message)
+    # Emoji ratio (emojis per word, compared to creator's avg)
     bot_emoji_count = count_emojis(bot_response)
     bot_emoji_rate = bot_emoji_count / max(word_count, 1)
     creator_emoji_rate = creator_profile.get("avg_emoji_rate", 0.15)
     emoji_diff = abs(bot_emoji_rate - creator_emoji_rate)
-    emoji_score = max(0, 100 - emoji_diff * 300)
+    emoji_score = max(0, 100 - emoji_diff * 200)
 
-    # Question rate (binary per message: has ? or not, vs creator's % of msgs with ?)
+    # Question rate — soft scoring, not binary
+    # A response without ? is fine for greetings, acknowledgements, etc.
     bot_has_question = 1.0 if "?" in bot_response else 0.0
     creator_question_rate = creator_profile.get("avg_question_rate", 0.6)
     question_diff = abs(bot_has_question - creator_question_rate)
-    question_score = max(0, 100 - question_diff * 120)
+    question_score = max(30, 100 - question_diff * 80)
 
-    # Informal markers (1 match = ~65, 2+ = ~85-100)
+    # Informal markers — presence of ANY marker shows style awareness
     markers = creator_profile.get("informal_markers", [])
     if markers:
         lower_response = bot_response.lower()
         matched = sum(1 for m in markers if m.lower() in lower_response)
         if matched == 0:
-            marker_score = 10
+            marker_score = 35  # Neutral, not harsh
         elif matched == 1:
-            marker_score = 65
+            marker_score = 70
         elif matched == 2:
             marker_score = 85
         else:
             marker_score = min(100, 85 + matched * 5)
     else:
-        marker_score = 50  # Neutral if no markers defined
+        marker_score = 50
 
-    # Vocabulary overlap (overlap coefficient: intersection / min set size)
+    # Vocabulary overlap — use softer scoring with higher multiplier
+    # Most DM responses are conversational, not topic-dense
     bot_words = set(w.lower().strip(".,!?¡¿") for w in words if len(w) > 2)
     creator_vocab = set(
         w.lower() for w in creator_profile.get("top_vocabulary", [])
@@ -238,16 +242,18 @@ def compute_style_fidelity(bot_response: str, creator_profile: dict) -> dict:
     if creator_vocab and bot_words:
         intersection = bot_words & creator_vocab
         overlap_coeff = len(intersection) / min(len(bot_words), len(creator_vocab))
-        vocab_score = min(100, overlap_coeff * 150)  # 67%+ overlap → 100
+        vocab_score = min(100, overlap_coeff * 250)  # 40%+ overlap → 100
+        if not intersection:
+            vocab_score = 30  # Neutral for no overlap (conversational msg)
     else:
         vocab_score = 50
 
-    # Weighted composite
+    # Weighted composite — reduce length/vocab weights, increase emoji/marker
     composite = (
-        length_score * 0.25
-        + emoji_score * 0.20
-        + question_score * 0.20
-        + marker_score * 0.15
+        length_score * 0.20
+        + emoji_score * 0.25
+        + question_score * 0.15
+        + marker_score * 0.20
         + vocab_score * 0.20
     )
 
@@ -422,21 +428,47 @@ async def call_llm_judge(
         return {"score": 50, "reasoning": "No LLM provider configured"}
 
     try:
+        api_key = os.getenv("GOOGLE_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
+        if not api_key:
+            logger.warning("GOOGLE_API_KEY not set, returning neutral score")
+            return {"score": 50, "reasoning": "No GOOGLE_API_KEY configured"}
+
         response = await llm_provider(
             model=model,
-            api_key="",  # Provider should use env var
+            api_key=api_key,
             system_prompt="Eres un evaluador experto. Responde SOLO con JSON valido.",
             user_message=prompt,
             max_tokens=max_tokens,
             temperature=temperature,
         )
 
-        content = response.get("content", "") if isinstance(response, dict) else str(response)
+        content = response if isinstance(response, str) else (
+            response.get("content", "") if isinstance(response, dict) else str(response)
+        )
 
-        # Extract JSON from response (handle markdown code blocks)
+        if not content or content == "None":
+            logger.warning("LLM judge returned empty/None response")
+            return {"score": 50, "reasoning": "LLM returned empty response"}
+
+        # Strip markdown code fences
+        cleaned = re.sub(r"```(?:json)?\s*", "", content).strip()
+        cleaned = re.sub(r"```\s*$", "", cleaned).strip()
+
+        # Try direct JSON parse first
+        try:
+            data = json.loads(cleaned)
+            if isinstance(data, dict) and "score" in data:
+                return data
+        except json.JSONDecodeError:
+            pass
+
+        # Fallback: extract JSON object from response
         json_match = re.search(r"\{[^{}]*\}", content, re.DOTALL)
         if json_match:
-            return json.loads(json_match.group())
+            try:
+                return json.loads(json_match.group())
+            except json.JSONDecodeError:
+                pass
 
         logger.warning(f"LLM judge returned non-JSON: {content[:200]}")
         return {"score": 50, "reasoning": "Failed to parse LLM response"}

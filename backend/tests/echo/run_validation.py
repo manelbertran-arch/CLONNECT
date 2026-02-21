@@ -96,12 +96,18 @@ DEFAULT_CREATOR_PROFILE = {
 # Pipeline loader
 # ---------------------------------------------------------------------------
 
-def load_pipeline():
+def load_pipeline(creator_name: str = "stefano"):
     """Try to load the real DM pipeline, return None if unavailable."""
     try:
+        # Resolve creator_id from DB
+        from tests.echo.generate_test_set import get_db_session, resolve_creator_id
+        session = get_db_session()
+        creator_id = resolve_creator_id(session, creator_name)
+        session.close()
+
         from core.dm_agent_v2 import DMResponderAgentV2
-        pipeline = DMResponderAgentV2()
-        logger.info("Loaded real DM pipeline")
+        pipeline = DMResponderAgentV2(creator_id=str(creator_id))
+        logger.info(f"Loaded real DM pipeline for creator {creator_name} ({creator_id})")
         return pipeline
     except Exception as e:
         logger.info(f"Real pipeline not available ({e}), using mock")
@@ -464,7 +470,7 @@ Examples:
 
     # Load components
     profile = load_creator_profile(args.creator)
-    pipeline = load_pipeline() if args.mode != "validation" else None
+    pipeline = load_pipeline(args.creator) if args.mode != "validation" else None
     llm_provider = load_llm_provider() if not args.no_llm else None
 
     # Run selected mode
