@@ -1455,3 +1455,42 @@ class CSATRating(Base):
     rating = Column(Integer, nullable=False)
     feedback = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class CloneScoreEvaluation(Base):
+    """CloneScore evaluation snapshots (single/batch/daily)."""
+
+    __tablename__ = "clone_score_evaluations"
+    __table_args__ = (
+        Index("idx_clone_score_evals_creator", "creator_id"),
+        Index("idx_clone_score_evals_creator_type", "creator_id", "eval_type"),
+        Index("idx_clone_score_evals_evaluated_at", "evaluated_at"),
+        {"extend_existing": True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), nullable=False)
+    eval_type = Column(String(20), nullable=False)
+    evaluated_at = Column(DateTime(timezone=True), server_default=func.now())
+    overall_score = Column(Float, nullable=False)
+    dimension_scores = Column(JSONB, nullable=False)
+    sample_size = Column(Integer, server_default="1")
+    eval_metadata = Column(JSONB, server_default="{}")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class CloneScoreTestSet(Base):
+    """Test sets with ground-truth creator response pairs."""
+
+    __tablename__ = "clone_score_test_sets"
+    __table_args__ = (
+        Index("idx_clone_score_test_sets_creator", "creator_id"),
+        {"extend_existing": True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    test_pairs = Column(JSONB, nullable=False, server_default="[]")
+    is_active = Column(Boolean, server_default="true")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

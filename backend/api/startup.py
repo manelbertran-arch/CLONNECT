@@ -688,6 +688,57 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_gold_examples_scheduler())
         logger.info("Gold examples scheduler scheduled (every 12h, 570s delay)")
 
+        # JOB 21: CloneScore daily evaluation (24h, 600s delay, ENABLE_CLONE_SCORE)
+        async def start_clone_score_daily_scheduler():
+            enable = os.getenv("ENABLE_CLONE_SCORE", "false").lower() == "true"
+            await asyncio.sleep(600)
+            if not enable:
+                logger.info("[CLONE_SCORE] Disabled via ENABLE_CLONE_SCORE")
+                return
+            logger.info("[CLONE_SCORE] Daily scheduler started — runs every 24h")
+
+            while True:
+                try:
+                    from api.models import Creator
+                    from services.clone_score_engine import get_clone_score_engine
+
+                    session = SessionLocal()
+                    try:
+                        creators = (
+                            session.query(Creator.id, Creator.name)
+                            .filter(Creator.bot_active.is_(True))
+                            .all()
+                        )
+                    finally:
+                        session.close()
+
+                    engine = get_clone_score_engine()
+                    for creator_db_id, creator_name in creators:
+                        try:
+                            result = await engine.evaluate_batch(
+                                creator_id=creator_name,
+                                creator_db_id=creator_db_id,
+                                sample_size=50,
+                            )
+                            if result.get("overall_score"):
+                                logger.info(
+                                    f"[CLONE_SCORE] {creator_name}: "
+                                    f"{result['overall_score']:.1f}"
+                                )
+                        except Exception as e:
+                            logger.error(
+                                f"[CLONE_SCORE] Error for {creator_name}: {e}"
+                            )
+                        await asyncio.sleep(30)
+
+                except Exception as e:
+                    logger.error(f"[CLONE_SCORE] Daily scheduler error: {e}")
+
+                await asyncio.sleep(86400)  # 24 hours
+
+        asyncio.create_task(start_clone_score_daily_scheduler())
+        logger.info("CloneScore daily scheduler scheduled (every 24h, 600s delay)")
+
         logger.info("Message reconciliation on startup DISABLED (use /maintenance/reconcile)")
 
         # Hydrate RAG from PostgreSQL

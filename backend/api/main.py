@@ -340,6 +340,11 @@ from api.routers import unified_leads as unified_leads_router
 
 app.include_router(unified_leads_router.router)
 
+# CloneScore router (6-dimension quality evaluation)
+from api.routers import clone_score as clone_score_router
+
+app.include_router(clone_score_router.router)
+
 # Authentication router
 from api.auth import router as auth_router
 
