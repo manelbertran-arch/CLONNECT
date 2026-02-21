@@ -113,7 +113,7 @@ class TestApprovalEndpoint:
 
         assert result["success"] is True
         mock_service.approve_response.assert_called_once_with(
-            "test_creator", "msg_1", "edited text"
+            "test_creator", "msg_1", "edited text", None
         )
 
 

@@ -32,7 +32,7 @@ export function useCopilotStatus(creatorId: string = getCreatorId()) {
 export function useApproveCopilotResponse(creatorId: string = getCreatorId()) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ messageId, editedText }: { messageId: string; editedText?: string }) => approveCopilotResponse(creatorId, messageId, editedText),
+    mutationFn: ({ messageId, editedText, chosenIndex }: { messageId: string; editedText?: string; chosenIndex?: number }) => approveCopilotResponse(creatorId, messageId, editedText, chosenIndex),
     onMutate: async ({ messageId }) => {
       await queryClient.cancelQueries({ queryKey: apiKeys.copilotPending(creatorId) });
       const previousData = queryClient.getQueryData(apiKeys.copilotPending(creatorId));

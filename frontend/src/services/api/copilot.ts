@@ -6,6 +6,13 @@ export interface ContextMessage {
   timestamp: string;
 }
 
+export interface CopilotCandidate {
+  content: string;
+  temperature: number;
+  confidence: number;
+  rank: number;
+}
+
 export interface PendingResponse {
   id: string;
   lead_id: string;
@@ -19,6 +26,8 @@ export interface PendingResponse {
   created_at: string;
   status: string;
   conversation_context?: ContextMessage[];
+  candidates?: CopilotCandidate[];
+  confidence?: number;
 }
 
 export interface CopilotStatus {
@@ -47,8 +56,8 @@ export async function getCopilotStatus(creatorId: string = CREATOR_ID): Promise<
   return apiFetch(`/copilot/${creatorId}/status`);
 }
 
-export async function approveCopilotResponse(creatorId: string = CREATOR_ID, messageId: string, editedText?: string): Promise<{ success: boolean; message_id: string; was_edited: boolean; final_text: string }> {
-  return apiFetch(`/copilot/${creatorId}/approve/${messageId}`, { method: "POST", body: JSON.stringify({ edited_text: editedText }) });
+export async function approveCopilotResponse(creatorId: string = CREATOR_ID, messageId: string, editedText?: string, chosenIndex?: number): Promise<{ success: boolean; message_id: string; was_edited: boolean; final_text: string }> {
+  return apiFetch(`/copilot/${creatorId}/approve/${messageId}`, { method: "POST", body: JSON.stringify({ edited_text: editedText, chosen_index: chosenIndex }) });
 }
 
 export async function discardCopilotResponse(creatorId: string = CREATOR_ID, messageId: string): Promise<{ success: boolean; message_id: string }> {
@@ -70,6 +79,10 @@ export async function approveAllCopilot(creatorId: string = CREATOR_ID): Promise
 
 export async function getPendingForLead(creatorId: string = CREATOR_ID, leadId: string): Promise<{ pending: PendingResponse | null }> {
   return apiFetch(`/copilot/${creatorId}/pending-for-lead/${leadId}`);
+}
+
+export async function discardAllCopilot(creatorId: string = CREATOR_ID): Promise<{ success: boolean; discarded_count: number }> {
+  return apiFetch(`/copilot/${creatorId}/discard-all`, { method: "POST" });
 }
 
 export interface CopilotStats {

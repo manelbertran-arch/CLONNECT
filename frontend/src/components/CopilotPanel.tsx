@@ -51,9 +51,21 @@ import {
 import type { PendingResponse, CopilotComparison, ContextMessage, LearningDashboard } from "@/services/api";
 import { formatDateTimeCET, formatFullDateTimeCET, formatSessionLabel } from "@/utils/time";
 
+// Temperature → label mapping for Best-of-N candidates
+const CANDIDATE_LABELS: Record<string, { label: string; emoji: string; color: string; border: string }> = {
+  "0.3": { label: "Conservadora", emoji: "\u{1F6E1}\u{FE0F}", color: "text-blue-400", border: "border-blue-500/30 bg-blue-500/5" },
+  "0.7": { label: "Balanceada", emoji: "\u{2696}\u{FE0F}", color: "text-green-400", border: "border-green-500/30 bg-green-500/5" },
+  "1.1": { label: "Creativa", emoji: "\u{2728}", color: "text-orange-400", border: "border-orange-500/30 bg-orange-500/5" },
+};
+
+function getCandidateStyle(temperature: number) {
+  const key = temperature.toFixed(1);
+  return CANDIDATE_LABELS[key] || { label: `T=${key}`, emoji: "\u{1F916}", color: "text-gray-400", border: "border-gray-500/30 bg-gray-500/5" };
+}
+
 interface PendingCardProps {
   item: PendingResponse;
-  onApprove: (messageId: string, editedText?: string) => void;
+  onApprove: (messageId: string, editedText?: string, chosenIndex?: number) => void;
   onDiscard: (messageId: string) => void;
   isLoading: boolean;
   isFading: boolean;
@@ -63,18 +75,23 @@ function PendingCard({ item, onApprove, onDiscard, isLoading, isFading }: Pendin
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(item.suggested_response);
 
-  const handleApprove = () => {
-    if (isEditing && editedText !== item.suggested_response) {
-      onApprove(item.id, editedText);
-    } else {
-      onApprove(item.id);
-    }
-    setIsEditing(false);
-  };
+  const displayName = item.full_name || item.username || item.follower_id;
+  const timeAgo = formatDateTimeCET(item.created_at);
+  const candidates = item.candidates || [];
+  const hasCandidates = candidates.length > 0;
+
+  // Sort candidates by temperature ascending for consistent L-to-R layout
+  const sortedCandidates = hasCandidates
+    ? [...candidates].sort((a, b) => a.temperature - b.temperature)
+    : [];
+
+  // Find best candidate (rank=1)
+  const bestCandidate = candidates.find(c => c.rank === 1);
 
   const handleEdit = () => {
     setIsEditing(true);
-    setEditedText(item.suggested_response);
+    // Pre-fill with best candidate text, or suggested_response
+    setEditedText(bestCandidate?.content || item.suggested_response);
   };
 
   const handleCancelEdit = () => {
@@ -82,8 +99,20 @@ function PendingCard({ item, onApprove, onDiscard, isLoading, isFading }: Pendin
     setEditedText(item.suggested_response);
   };
 
-  const displayName = item.full_name || item.username || item.follower_id;
-  const timeAgo = formatDateTimeCET(item.created_at);
+  const handleApproveEdited = () => {
+    onApprove(item.id, editedText);
+    setIsEditing(false);
+  };
+
+  // Single-suggestion fallback (no candidates)
+  const handleApproveSingle = () => {
+    if (isEditing && editedText !== item.suggested_response) {
+      onApprove(item.id, editedText);
+    } else {
+      onApprove(item.id);
+    }
+    setIsEditing(false);
+  };
 
   return (
     <div
@@ -120,7 +149,7 @@ function PendingCard({ item, onApprove, onDiscard, isLoading, isFading }: Pendin
         )}
       </div>
 
-      {/* Mensaje del Usuario */}
+      {/* User message */}
       <div className="bg-secondary/50 rounded-lg p-3">
         <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
           <MessageSquare className="w-3 h-3" />
@@ -129,81 +158,137 @@ function PendingCard({ item, onApprove, onDiscard, isLoading, isFading }: Pendin
         <p className="text-sm">{item.user_message}</p>
       </div>
 
-      {/* Respuesta del Bot */}
-      <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
-        <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-          <Bot className="w-3 h-3" />
-          Respuesta sugerida
-        </p>
-        {isEditing ? (
-          <Textarea
-            value={editedText}
-            onChange={(e) => setEditedText(e.target.value)}
-            className="min-h-[100px] text-sm"
-            placeholder="Edita la respuesta..."
-          />
-        ) : (
-          <p className="text-sm whitespace-pre-wrap">{item.suggested_response}</p>
-        )}
-      </div>
-
-      {/* Acciones */}
-      <div className="flex items-center justify-end gap-2 pt-2">
-        {isEditing ? (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleCancelEdit}
-              disabled={isLoading}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleApprove}
-              disabled={isLoading}
-              className="gap-1"
-            >
-              {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-              Enviar Editado
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDiscard(item.id)}
-              disabled={isLoading}
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-            >
-              <X className="w-4 h-4 mr-1" />
-              Descartar
-            </Button>
+      {/* Candidates grid (Best-of-N) */}
+      {hasCandidates && !isEditing ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            {sortedCandidates.map((candidate, idx) => {
+              const style = getCandidateStyle(candidate.temperature);
+              const isRecommended = candidate.rank === 1;
+              const originalIdx = candidates.indexOf(candidate);
+              return (
+                <div
+                  key={idx}
+                  className={`border rounded-lg p-3 space-y-2 ${style.border} ${isRecommended ? 'ring-1 ring-green-500/40' : ''}`}
+                >
+                  {/* Candidate header */}
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-medium ${style.color}`}>
+                      {style.emoji} {style.label}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {Math.round(candidate.confidence * 100)}%
+                    </span>
+                  </div>
+                  {isRecommended && (
+                    <Badge className="text-[9px] px-1 py-0 bg-green-500/20 text-green-400 border-green-500/30">
+                      Recomendada
+                    </Badge>
+                  )}
+                  {/* Candidate text */}
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed min-h-[60px]">
+                    {candidate.content}
+                  </p>
+                  {/* Choose button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onApprove(item.id, undefined, originalIdx)}
+                    disabled={isLoading}
+                    className="w-full gap-1 text-xs"
+                  >
+                    <Check className="w-3 h-3" />
+                    Elegir
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+          {/* Bottom actions */}
+          <div className="flex items-center justify-end gap-2 pt-1">
             <Button
               variant="outline"
               size="sm"
               onClick={handleEdit}
               disabled={isLoading}
+              className="gap-1"
             >
-              <Edit3 className="w-4 h-4 mr-1" />
-              Editar
+              <Edit3 className="w-3 h-3" />
+              Editar manualmente
             </Button>
             <Button
-              variant="default"
+              variant="ghost"
               size="sm"
-              onClick={handleApprove}
+              onClick={() => onDiscard(item.id)}
               disabled={isLoading}
-              className="bg-success hover:bg-success/90"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1"
             >
-              {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-4 h-4 mr-1" />}
-              Aprobar
+              <X className="w-3 h-3" />
+              Descartar
             </Button>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Single suggestion or edit mode */}
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+            <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+              <Bot className="w-3 h-3" />
+              {isEditing ? "Editar respuesta" : "Respuesta sugerida"}
+            </p>
+            {isEditing ? (
+              <Textarea
+                value={editedText}
+                onChange={(e) => setEditedText(e.target.value)}
+                className="min-h-[100px] text-sm"
+                placeholder="Edita la respuesta..."
+              />
+            ) : (
+              <p className="text-sm whitespace-pre-wrap">{item.suggested_response}</p>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-2 pt-2">
+            {isEditing ? (
+              <>
+                <Button variant="ghost" size="sm" onClick={handleCancelEdit} disabled={isLoading}>
+                  Cancelar
+                </Button>
+                <Button variant="default" size="sm" onClick={handleApproveEdited} disabled={isLoading} className="gap-1">
+                  {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                  Enviar Editado
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="ghost" size="sm"
+                  onClick={() => onDiscard(item.id)}
+                  disabled={isLoading}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  Descartar
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleEdit} disabled={isLoading}>
+                  <Edit3 className="w-4 h-4 mr-1" />
+                  Editar
+                </Button>
+                <Button
+                  variant="default" size="sm"
+                  onClick={handleApproveSingle}
+                  disabled={isLoading}
+                  className="bg-success hover:bg-success/90"
+                >
+                  {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-4 h-4 mr-1" />}
+                  Aprobar
+                </Button>
+              </>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -343,7 +428,7 @@ interface PendingTabProps {
   isPendingLoading: boolean;
   fadingIds: Set<string>;
   isAnyLoading: boolean;
-  onApprove: (messageId: string, editedText?: string) => void;
+  onApprove: (messageId: string, editedText?: string, chosenIndex?: number) => void;
   onDiscard: (messageId: string) => void;
   onApproveAll: () => void;
   isApproveAllPending: boolean;
@@ -421,6 +506,11 @@ function PendingTab({
                     {item.intent && (
                       <Badge variant="secondary" className="text-[10px] px-1 py-0 shrink-0">{item.intent}</Badge>
                     )}
+                    {item.candidates && item.candidates.length > 0 && (
+                      <Badge className="text-[10px] px-1 py-0 shrink-0 bg-violet-500/20 text-violet-400 border-violet-500/30">
+                        {item.candidates.length} opciones
+                      </Badge>
+                    )}
                     <span className="text-[10px] text-muted-foreground shrink-0 ml-auto">{formatDateTimeCET(item.created_at)}</span>
                   </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -434,7 +524,16 @@ function PendingTab({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-green-500 hover:text-green-400 hover:bg-green-500/10"
-                  onClick={() => onApprove(item.id)}
+                  onClick={() => {
+                    // Quick approve: use rank=1 candidate index if candidates exist
+                    const candidates = item.candidates || [];
+                    const bestIdx = candidates.findIndex(c => c.rank === 1);
+                    if (bestIdx >= 0) {
+                      onApprove(item.id, undefined, bestIdx);
+                    } else {
+                      onApprove(item.id);
+                    }
+                  }}
                   disabled={isAnyLoading}
                   title="Aprobar"
                 >
@@ -997,7 +1096,7 @@ export default function CopilotPanel() {
   // copilot_enabled: false = Automatic mode (bot responds alone)
   const isManualMode = statusData?.copilot_enabled ?? true;
 
-  const handleApprove = (messageId: string, editedText?: string) => {
+  const handleApprove = (messageId: string, editedText?: string, chosenIndex?: number) => {
     // Prevent double-click
     if (fadingIds.has(messageId) || hiddenIds.has(messageId)) return;
 
@@ -1017,7 +1116,7 @@ export default function CopilotPanel() {
     animationTimersRef.current.add(timer);
 
     approveMutation.mutate(
-      { messageId, editedText },
+      { messageId, editedText, chosenIndex },
       {
         onSuccess: () => {
           toast({

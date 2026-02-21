@@ -28,6 +28,7 @@ router = APIRouter(prefix="/copilot", tags=["copilot"])
 
 class ApproveRequest(BaseModel):
     edited_text: Optional[str] = None
+    chosen_index: Optional[int] = None  # Index into best_of_n candidates[]
 
 
 class ToggleRequest(BaseModel):
@@ -101,10 +102,11 @@ async def approve_response(creator_id: str, message_id: str, request: ApproveReq
     from core.copilot_service import get_copilot_service
 
     edited_text = request.edited_text if request else None
-    logger.info(f"[Copilot] POST approve: creator={creator_id} msg={message_id} edited={edited_text is not None}")
+    chosen_index = request.chosen_index if request else None
+    logger.info(f"[Copilot] POST approve: creator={creator_id} msg={message_id} edited={edited_text is not None} chosen_index={chosen_index}")
 
     service = get_copilot_service()
-    result = await service.approve_response(creator_id, message_id, edited_text)
+    result = await service.approve_response(creator_id, message_id, edited_text, chosen_index)
 
     if not result.get("success"):
         logger.warning(f"[Copilot] Approve failed: {result.get('error')}")
@@ -155,6 +157,57 @@ async def discard_response(
         raise HTTPException(status_code=400, detail=result.get("error", "Failed to discard"))
 
     return result
+
+
+# =============================================================================
+# POST /copilot/{creator_id}/discard-all
+# =============================================================================
+@router.post("/{creator_id}/discard-all")
+async def discard_all_pending(creator_id: str, _auth: str = Depends(require_creator_access)):
+    """Discard ALL pending suggestions for this creator (used for bulk cleanup)."""
+    from sqlalchemy import func
+
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        now = datetime.now(timezone.utc)
+        count = (
+            session.query(Message)
+            .filter(
+                Message.lead_id.in_(
+                    session.query(Lead.id).filter(Lead.creator_id == creator.id)
+                ),
+                Message.role == "assistant",
+                Message.status == "pending_approval",
+            )
+            .update(
+                {
+                    Message.status: "discarded",
+                    Message.copilot_action: "bulk_purge",
+                    Message.approved_at: now,
+                },
+                synchronize_session="fetch",
+            )
+        )
+        session.commit()
+
+        logger.info(f"[Copilot] Bulk discarded {count} pending suggestions for {creator_id}")
+        return {"success": True, "discarded_count": count, "creator_id": creator_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Copilot] Error in discard-all: {e}")
+        session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
 
 
 # =============================================================================
@@ -469,22 +522,35 @@ async def get_pending_for_lead(creator_id: str, lead_id: str, _auth: str = Depen
         service = get_copilot_service()
         context = service._get_conversation_context(session, lead.id)
 
-        return {
-            "pending": {
-                "id": str(pending_msg.id),
-                "lead_id": str(lead.id),
-                "follower_id": lead.platform_user_id,
-                "platform": lead.platform,
-                "username": lead.username or "",
-                "full_name": lead.full_name or "",
-                "user_message": user_msg.content if user_msg else "",
-                "suggested_response": pending_msg.content,
-                "intent": pending_msg.intent or "",
-                "created_at": pending_msg.created_at.isoformat() if pending_msg.created_at else "",
-                "status": pending_msg.status,
-                "conversation_context": context,
-            }
+        # Extract best_of_n candidates from msg_metadata
+        bon = (pending_msg.msg_metadata or {}).get("best_of_n", {})
+        candidates_list = None
+        if bon.get("candidates"):
+            candidates_list = [
+                {"content": c["content"], "temperature": c["temperature"],
+                 "confidence": c.get("confidence", 0), "rank": c.get("rank", 0)}
+                for c in bon["candidates"]
+            ]
+
+        pending_dict = {
+            "id": str(pending_msg.id),
+            "lead_id": str(lead.id),
+            "follower_id": lead.platform_user_id,
+            "platform": lead.platform,
+            "username": lead.username or "",
+            "full_name": lead.full_name or "",
+            "user_message": user_msg.content if user_msg else "",
+            "suggested_response": pending_msg.content,
+            "intent": pending_msg.intent or "",
+            "created_at": pending_msg.created_at.isoformat() if pending_msg.created_at else "",
+            "status": pending_msg.status,
+            "conversation_context": context,
+            "confidence": pending_msg.confidence_score,
         }
+        if candidates_list:
+            pending_dict["candidates"] = candidates_list
+
+        return {"pending": pending_dict}
 
     except HTTPException:
         raise

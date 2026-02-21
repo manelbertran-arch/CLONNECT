@@ -6,7 +6,7 @@
  * leaving the inbox.
  */
 import { useState } from "react";
-import { Bot, Check, X, Edit3, Loader2, MessageSquare, Clock, Minus } from "lucide-react";
+import { Bot, Check, X, Edit3, Loader2, MessageSquare, Clock, Minus, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -51,11 +51,19 @@ export function CopilotBanner({ leadId, platform }: CopilotBannerProps) {
 
   if (isLoading || !pending) return null;
 
-  const handleApprove = async () => {
+  const candidates = pending.candidates || [];
+  const hasCandidates = candidates.length > 0;
+  const sortedCandidates = hasCandidates
+    ? [...candidates].sort((a, b) => a.temperature - b.temperature)
+    : [];
+  const bestCandidate = candidates.find(c => c.rank === 1);
+
+  const handleApprove = async (chosenIndex?: number) => {
     try {
       await approveMutation.mutateAsync({
         messageId: pending.id,
         editedText: isEditing ? editedText : undefined,
+        chosenIndex: !isEditing ? chosenIndex : undefined,
       });
       toast({ title: isEditing ? "Enviado (editado)" : "Enviado" });
       setIsEditing(false);
@@ -75,11 +83,18 @@ export function CopilotBanner({ leadId, platform }: CopilotBannerProps) {
   };
 
   const handleStartEdit = () => {
-    setEditedText(pending.suggested_response);
+    setEditedText(bestCandidate?.content || pending.suggested_response);
     setIsEditing(true);
   };
 
   const isBusy = approveMutation.isPending || discardMutation.isPending;
+
+  // Temperature → style mapping
+  const candidateStyles: Record<string, { label: string; emoji: string; color: string; border: string }> = {
+    "0.3": { label: "Conservadora", emoji: "\u{1F6E1}\u{FE0F}", color: "text-blue-400", border: "border-blue-500/30" },
+    "0.7": { label: "Balanceada", emoji: "\u{2696}\u{FE0F}", color: "text-green-400", border: "border-green-500/30" },
+    "1.1": { label: "Creativa", emoji: "\u{2728}", color: "text-orange-400", border: "border-orange-500/30" },
+  };
 
   // Platform-aware colors
   const bgColor =
@@ -148,7 +163,7 @@ export function CopilotBanner({ leadId, platform }: CopilotBannerProps) {
         </div>
       )}
 
-      {/* Suggestion text or edit area */}
+      {/* Suggestion text or edit area or candidates */}
       {isEditing ? (
         <Textarea
           value={editedText}
@@ -156,6 +171,49 @@ export function CopilotBanner({ leadId, platform }: CopilotBannerProps) {
           className="mb-2 text-sm bg-black/20 border-white/10 min-h-[60px] resize-none"
           autoFocus
         />
+      ) : hasCandidates ? (
+        <div className="space-y-2 mb-2">
+          {sortedCandidates.map((candidate, idx) => {
+            const key = candidate.temperature.toFixed(1);
+            const style = candidateStyles[key] || { label: `T=${key}`, emoji: "\u{1F916}", color: "text-gray-400", border: "border-gray-500/30" };
+            const isRecommended = candidate.rank === 1;
+            const originalIdx = candidates.indexOf(candidate);
+            return (
+              <div
+                key={idx}
+                className={`flex items-start gap-2 p-2 rounded-lg border-l-2 ${style.border} bg-white/5 ${isRecommended ? 'ring-1 ring-green-500/20' : ''}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className={`text-[10px] font-medium ${style.color}`}>
+                      {style.emoji} {style.label}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {Math.round(candidate.confidence * 100)}%
+                    </span>
+                    {isRecommended && (
+                      <span className="text-[9px] px-1 py-0 rounded bg-green-500/20 text-green-400">
+                        Recomendada
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-foreground/80 whitespace-pre-wrap leading-relaxed">
+                    {candidate.content}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  className={`h-6 text-[10px] px-2 shrink-0 text-white ${approveBtn}`}
+                  onClick={() => handleApprove(originalIdx)}
+                  disabled={isBusy}
+                >
+                  <Check className="w-3 h-3 mr-0.5" />
+                  Elegir
+                </Button>
+              </div>
+            );
+          })}
+        </div>
       ) : (
         <p className="text-sm text-foreground/90 mb-2 whitespace-pre-wrap leading-relaxed">
           {pending.suggested_response}
@@ -164,19 +222,36 @@ export function CopilotBanner({ leadId, platform }: CopilotBannerProps) {
 
       {/* Action buttons */}
       <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          className={`h-7 text-xs text-white ${approveBtn}`}
-          onClick={handleApprove}
-          disabled={isBusy}
-        >
-          {isBusy ? (
-            <Loader2 className="w-3 h-3 animate-spin mr-1" />
-          ) : (
-            <Check className="w-3 h-3 mr-1" />
-          )}
-          {isEditing ? "Enviar editado" : "Aprobar y enviar"}
-        </Button>
+        {!hasCandidates && !isEditing && (
+          <Button
+            size="sm"
+            className={`h-7 text-xs text-white ${approveBtn}`}
+            onClick={() => handleApprove()}
+            disabled={isBusy}
+          >
+            {isBusy ? (
+              <Loader2 className="w-3 h-3 animate-spin mr-1" />
+            ) : (
+              <Check className="w-3 h-3 mr-1" />
+            )}
+            Aprobar y enviar
+          </Button>
+        )}
+        {isEditing && (
+          <Button
+            size="sm"
+            className={`h-7 text-xs text-white ${approveBtn}`}
+            onClick={() => handleApprove()}
+            disabled={isBusy}
+          >
+            {isBusy ? (
+              <Loader2 className="w-3 h-3 animate-spin mr-1" />
+            ) : (
+              <Check className="w-3 h-3 mr-1" />
+            )}
+            Enviar editado
+          </Button>
+        )}
         {!isEditing && (
           <Button
             size="sm"

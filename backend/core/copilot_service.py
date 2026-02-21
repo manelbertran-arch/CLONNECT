@@ -581,6 +581,8 @@ class CopilotService:
                     Lead.platform,
                     Lead.username,
                     Lead.full_name,
+                    Message.msg_metadata,
+                    Message.confidence_score,
                 )
                 .join(Lead, Message.lead_id == Lead.id)
                 .filter(
@@ -631,7 +633,16 @@ class CopilotService:
                     "intent": row.intent or "",
                     "created_at": row.created_at.isoformat() if row.created_at else "",
                     "status": row.status,
+                    "confidence": row.confidence_score,
                 }
+                # Extract best_of_n candidates
+                bon = (row.msg_metadata or {}).get("best_of_n", {})
+                if bon.get("candidates"):
+                    item["candidates"] = [
+                        {"content": c["content"], "temperature": c["temperature"],
+                         "confidence": c.get("confidence", 0), "rank": c.get("rank", 0)}
+                        for c in bon["candidates"]
+                    ]
                 if include_context:
                     item["conversation_context"] = self._get_conversation_context(
                         session, row.lead_id
@@ -651,7 +662,8 @@ class CopilotService:
             session.close()
 
     async def approve_response(
-        self, creator_id: str, message_id: str, edited_text: Optional[str] = None
+        self, creator_id: str, message_id: str, edited_text: Optional[str] = None,
+        chosen_index: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Aprobar (y opcionalmente editar) una respuesta y enviarla.
@@ -680,6 +692,15 @@ class CopilotService:
             lead = session.query(Lead).filter_by(id=msg.lead_id).first()
             if not lead:
                 return {"success": False, "error": "Lead not found"}
+
+            # Resolve chosen_index into edited_text if a non-default candidate was chosen
+            if chosen_index is not None and edited_text is None:
+                bon = (msg.msg_metadata or {}).get("best_of_n", {})
+                candidates = bon.get("candidates", [])
+                if 0 <= chosen_index < len(candidates):
+                    chosen_text = candidates[chosen_index]["content"]
+                    if chosen_text != msg.content:
+                        edited_text = chosen_text
 
             # Determinar texto final
             final_text = edited_text if edited_text else msg.content
