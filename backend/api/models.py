@@ -1494,3 +1494,51 @@ class CloneScoreTestSet(Base):
     test_pairs = Column(JSONB, nullable=False, server_default="[]")
     is_active = Column(Boolean, server_default="true")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class LeadMemory(Base):
+    """Per-lead extracted facts with pgvector embeddings."""
+
+    __tablename__ = "lead_memories"
+    __table_args__ = (
+        Index("idx_lead_memories_creator_lead", "creator_id", "lead_id"),
+        Index("idx_lead_memories_active", "creator_id", "lead_id", "is_active"),
+        Index("idx_lead_memories_type", "creator_id", "lead_id", "fact_type"),
+        {"extend_existing": True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), nullable=False)
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id"), nullable=False)
+    fact_type = Column(String(30), nullable=False)
+    fact_text = Column(Text, nullable=False)
+    confidence = Column(Float, server_default="0.7")
+    source_message_id = Column(UUID(as_uuid=True), nullable=True)
+    source_type = Column(String(30), server_default="extracted")
+    is_active = Column(Boolean, server_default="true")
+    superseded_by = Column(UUID(as_uuid=True), nullable=True)
+    times_accessed = Column(Integer, server_default="0")
+    last_accessed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class ConversationSummary(Base):
+    """Conversation summaries for lead context."""
+
+    __tablename__ = "conversation_summaries"
+    __table_args__ = (
+        Index("idx_conv_summaries_creator_lead", "creator_id", "lead_id"),
+        {"extend_existing": True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), nullable=False)
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id"), nullable=False)
+    summary_text = Column(Text, nullable=False)
+    key_topics = Column(JSONB, server_default="[]")
+    commitments_made = Column(JSONB, server_default="[]")
+    sentiment = Column(String(20), server_default="neutral")
+    message_count = Column(Integer, server_default="0")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

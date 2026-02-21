@@ -345,6 +345,11 @@ from api.routers import clone_score as clone_score_router
 
 app.include_router(clone_score_router.router)
 
+# Memory Engine router (per-lead fact extraction and recall)
+from api.routers import memory as memory_router
+
+app.include_router(memory_router.router)
+
 # Authentication router
 from api.auth import router as auth_router
 

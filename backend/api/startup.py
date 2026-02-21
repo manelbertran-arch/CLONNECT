@@ -739,6 +739,54 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_clone_score_daily_scheduler())
         logger.info("CloneScore daily scheduler scheduled (every 24h, 600s delay)")
 
+        # JOB 22: Memory decay — Ebbinghaus eviction of stale lead memories (24h, 630s delay)
+        async def start_memory_decay_scheduler():
+            enable = os.getenv("ENABLE_MEMORY_DECAY", "false").lower() == "true"
+            await asyncio.sleep(630)
+            if not enable:
+                logger.info("[MEMORY-DECAY] Disabled via ENABLE_MEMORY_DECAY")
+                return
+            logger.info("[MEMORY-DECAY] Scheduler started — runs every 24h")
+
+            while True:
+                try:
+                    from services.memory_engine import get_memory_engine
+                    from sqlalchemy import text
+
+                    engine = get_memory_engine()
+                    session = SessionLocal()
+                    try:
+                        rows = session.execute(
+                            text("SELECT id FROM creators WHERE bot_active = true")
+                        ).fetchall()
+                        creator_ids = [str(r[0]) for r in rows]
+                    finally:
+                        session.close()
+
+                    total_deactivated = 0
+                    for cid in creator_ids:
+                        try:
+                            count = await engine.decay_memories(cid)
+                            total_deactivated += count
+                        except Exception as decay_err:
+                            logger.error(
+                                "[MEMORY-DECAY] Failed for creator %s: %s",
+                                cid[:8], decay_err,
+                            )
+
+                    logger.info(
+                        "[MEMORY-DECAY] Processed %d creators, deactivated %d memories",
+                        len(creator_ids),
+                        total_deactivated,
+                    )
+                except Exception as e:
+                    logger.error("[MEMORY-DECAY] Job failed: %s", e)
+
+                await asyncio.sleep(86400)  # 24 hours
+
+        asyncio.create_task(start_memory_decay_scheduler())
+        logger.info("Memory decay scheduler scheduled (every 24h, 630s delay)")
+
         logger.info("Message reconciliation on startup DISABLED (use /maintenance/reconcile)")
 
         # Hydrate RAG from PostgreSQL
