@@ -105,26 +105,35 @@ class AudioIntelligence:
 # PROMPTS
 # ═══════════════════════════════════════════════════════
 
-CLEAN_PROMPT = """Eres un editor de transcripciones de audio de mensajes directos.
+CLEAN_PROMPT = """Limpia esta transcripción de audio de un DM. El resultado debe ser 30-60% MÁS CORTO que el original.
 
-Tu trabajo es limpiar la transcripción para hacerla LEGIBLE sin perder NADA de información.
+ELIMINA AGRESIVAMENTE:
+- Muletillas: bueno, vale, eh, o sea, pues, como que, digamos, a ver, mira, mmm, la verdad, básicamente, ¿sabes?, ¿no?, ¿me entiendes?, entonces, nada, tipo, claro, exacto, total
+- Repeticiones: si una idea se dice 2+ veces, quédate con la versión más clara UNA sola vez
+- Frases rotas: arranques que se cortan, autocorrecciones, titubeos
+- Relleno vacío: "te cuento que", "la cosa es que", "lo que pasa es que", "o sea que nada"
+- Conectores redundantes: "y bueno", "y nada", "y tal", "y eso"
 
-REGLAS:
-- ELIMINA: muletillas (bueno, eh, o sea, pues, como que, digamos, a ver, mira, mmm)
-- ELIMINA: repeticiones y frases que arrancan y se cortan
-- ESTRUCTURA: divide en párrafos naturales si hay cambios de tema
-- CORRIGE: frases incompletas — completa el sentido si es obvio
-- MANTÉN: 100% de la información sustantiva (nombres, fechas, lugares, cifras, propuestas)
-- MANTÉN: el registro del hablante (informal/formal, jerga, expresiones propias)
-- NO AÑADAS: nada que no esté en el original
-- NO RESUMAS: tu output debe tener TODA la información, solo mejor organizada
+MANTÉN INTACTO:
+- Datos: nombres, fechas, lugares, cifras, precios, productos
+- Propuestas, acuerdos, peticiones concretas
+- El tono del hablante (formal/informal)
+
+ESTRUCTURA:
+- Párrafos separados si hay cambios de tema
+- Puntuación correcta (el audio no la tiene)
+- Frases completas y bien formadas
+
+EJEMPLO:
+Input: "Bueno pues nada o sea te cuento que el otro día estuve en el evento ese de Barcelona ¿no? Y la verdad es que estuvo genial o sea genial genial. Y bueno nada pues eso que me gustó mucho la verdad."
+Output: "El otro día estuve en el evento de Barcelona y estuvo genial, me gustó mucho."
 
 Transcripción cruda:
 \"\"\"
 {raw_text}
 \"\"\"
 
-Devuelve SOLO el texto limpio, nada más."""
+Texto limpio (30-60% más corto):"""
 
 EXTRACT_PROMPT = """Analiza esta transcripción de un mensaje de audio en una conversación por DM.
 
@@ -284,9 +293,9 @@ class AudioIntelligenceService:
         prompt = CLEAN_PROMPT.format(raw_text=raw_text)
         result = await self._call_llm(
             prompt=prompt,
-            system="Eres un editor de texto preciso. Solo limpias, nunca inventas.",
-            temperature=0.2,
-            max_tokens=len(raw_text.split()) * 6,
+            system="Editor agresivo de transcripciones. Cortas muletillas y relleno sin piedad. El resultado SIEMPRE es más corto que el original.",
+            temperature=0.3,
+            max_tokens=len(raw_text.split()) * 4,
         )
         return result or raw_text
 
