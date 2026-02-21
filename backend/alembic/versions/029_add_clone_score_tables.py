@@ -22,7 +22,7 @@ def upgrade():
     # CloneScore evaluation snapshots
     op.create_table(
         "clone_score_evaluations",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("uuid_generate_v4()")),
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("creator_id", UUID(as_uuid=True), sa.ForeignKey("creators.id"), nullable=False),
         sa.Column("eval_type", sa.String(20), nullable=False),
         sa.Column("evaluated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
@@ -39,7 +39,7 @@ def upgrade():
     # CloneScore test sets with ground-truth pairs
     op.create_table(
         "clone_score_test_sets",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("uuid_generate_v4()")),
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("creator_id", UUID(as_uuid=True), sa.ForeignKey("creators.id"), nullable=False),
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("test_pairs", JSONB(), nullable=False, server_default="[]"),
