@@ -17,8 +17,16 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
-BEST_OF_N_TEMPERATURES = [0.3, 0.7, 1.1]
+BEST_OF_N_TEMPERATURES = [0.2, 0.7, 1.4]
 BEST_OF_N_TIMEOUT = float(os.getenv("BEST_OF_N_TIMEOUT", "12"))
+
+# Style hints injected into the system prompt for each temperature
+# to force visibly different outputs even when the LLM is deterministic
+BEST_OF_N_STYLE_HINTS = [
+    "\n[ESTILO: responde de forma breve y directa, máximo 1-2 frases cortas]",
+    "",  # balanced — no extra hint
+    "\n[ESTILO: responde de forma más elaborada, cálida y expresiva, 3-4 frases con personalidad]",
+]
 
 
 @dataclass
@@ -44,9 +52,16 @@ async def _generate_single(
     messages: list[dict],
     max_tokens: int,
     temperature: float,
+    style_hint: str = "",
 ) -> Optional[dict]:
     """Generate a single candidate at the given temperature."""
     from core.providers.gemini_provider import generate_dm_response
+
+    # Inject style hint into system prompt to force variation
+    if style_hint and messages and messages[0].get("role") == "system":
+        patched = list(messages)
+        patched[0] = {**patched[0], "content": patched[0]["content"] + style_hint}
+        return await generate_dm_response(patched, max_tokens, temperature)
 
     return await generate_dm_response(messages, max_tokens, temperature)
 
@@ -74,10 +89,10 @@ async def generate_best_of_n(
 
     t_start = time.monotonic()
 
-    # Launch all candidates in parallel
+    # Launch all candidates in parallel with style hints for diversity
     tasks = [
-        _generate_single(messages, max_tokens, temp)
-        for temp in BEST_OF_N_TEMPERATURES
+        _generate_single(messages, max_tokens, temp, hint)
+        for temp, hint in zip(BEST_OF_N_TEMPERATURES, BEST_OF_N_STYLE_HINTS)
     ]
 
     try:
