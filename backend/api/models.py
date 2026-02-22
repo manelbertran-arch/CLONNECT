@@ -1583,10 +1583,10 @@ class CommitmentModel(Base):
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), nullable=False)
-    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id"), nullable=False)
+    creator_id = Column(String(100), nullable=False)  # creator name string
+    lead_id = Column(String(100), nullable=False)  # platform_user_id string
     commitment_text = Column(Text, nullable=False)
-    commitment_type = Column(String(30), default="promise")  # promise, follow_up, send_info, schedule
+    commitment_type = Column(String(30), default="promise")  # delivery, info_request, meeting, follow_up, promise
     due_date = Column(DateTime(timezone=True), nullable=True)
     status = Column(String(20), default="pending")  # pending, fulfilled, expired, cancelled
     source_message_id = Column(UUID(as_uuid=True), nullable=True)

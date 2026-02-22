@@ -528,3 +528,180 @@ async def reload_personality(creator_name: str):
     except Exception as e:
         logger.error(f"[HOT-RELOAD] Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# ECHO ENGINE ENDPOINTS
+# =============================================================================
+
+
+@router.post("/analyze-style/{creator_name}")
+async def analyze_style(creator_name: str, force: bool = Query(default=False)):
+    """
+    Run Style Analyzer for a creator. Extracts quantitative + qualitative
+    style metrics from historical DMs and persists to DB.
+
+    - First run: analyzes all messages (requires ≥30 messages)
+    - force=True: re-analyzes even if profile exists
+    """
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+        creator_db_id = str(creator.id)
+    finally:
+        session.close()
+
+    try:
+        from core.style_analyzer import analyze_and_persist
+        profile = await analyze_and_persist(creator_name, creator_db_id, force=force)
+
+        if not profile:
+            return {
+                "status": "skipped",
+                "message": "Not enough messages (minimum 30) or profile already exists (use force=true)",
+            }
+
+        return {
+            "status": "ok",
+            "creator": creator_name,
+            "confidence": profile.get("confidence", 0),
+            "messages_analyzed": profile.get("total_messages_analyzed", 0),
+            "version": profile.get("version", 1),
+            "prompt_injection_length": len(profile.get("prompt_injection", "")),
+            "quantitative_keys": list(profile.get("quantitative", {}).keys()),
+            "qualitative_keys": list(profile.get("qualitative", {}).keys()),
+        }
+    except Exception as e:
+        logger.error(f"[ECHO] Style analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/style-profile/{creator_name}")
+async def get_style_profile(creator_name: str):
+    """View the computed StyleProfile for a creator."""
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        from core.style_analyzer import load_profile_from_db
+        profile = load_profile_from_db(str(creator.id))
+
+        if not profile:
+            return {"status": "not_found", "message": "No StyleProfile computed yet. Run POST /maintenance/analyze-style/ first."}
+
+        return {
+            "status": "ok",
+            "creator": creator_name,
+            "confidence": profile.get("confidence", 0),
+            "messages_analyzed": profile.get("total_messages_analyzed", 0),
+            "version": profile.get("version", 1),
+            "quantitative": profile.get("quantitative", {}),
+            "qualitative": profile.get("qualitative", {}),
+            "prompt_injection": profile.get("prompt_injection", ""),
+        }
+    finally:
+        session.close()
+
+
+@router.get("/commitments/{creator_name}/{lead_platform_id}")
+async def get_lead_commitments(creator_name: str, lead_platform_id: str):
+    """View pending commitments for a specific lead."""
+    try:
+        from services.commitment_tracker import get_commitment_tracker
+        tracker = get_commitment_tracker()
+        text_output = tracker.get_pending_text(lead_platform_id)
+        commitments = tracker.get_pending_for_lead(lead_platform_id, limit=10)
+
+        return {
+            "status": "ok",
+            "creator": creator_name,
+            "lead": lead_platform_id,
+            "pending_count": len(commitments),
+            "pending_text": text_output,
+            "commitments": [
+                {
+                    "id": str(c.id),
+                    "text": c.commitment_text,
+                    "type": c.commitment_type,
+                    "status": c.status,
+                    "due_date": c.due_date.isoformat() if c.due_date else None,
+                    "created_at": c.created_at.isoformat() if c.created_at else None,
+                }
+                for c in commitments
+            ],
+        }
+    except Exception as e:
+        logger.error(f"[ECHO] Commitments query failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/echo-status/{creator_name}")
+async def echo_status(creator_name: str):
+    """Check ECHO Engine module status for a creator."""
+    import os
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+        creator_db_id = str(creator.id)
+
+        # Style Analyzer status
+        style_status = {"enabled": os.getenv("ENABLE_STYLE_ANALYZER", "true").lower() == "true"}
+        try:
+            from core.style_analyzer import load_profile_from_db
+            profile = load_profile_from_db(creator_db_id)
+            style_status["profile_exists"] = profile is not None
+            if profile:
+                style_status["confidence"] = profile.get("confidence", 0)
+                style_status["messages_analyzed"] = profile.get("total_messages_analyzed", 0)
+        except Exception:
+            style_status["profile_exists"] = False
+
+        # Memory Engine status
+        memory_status = {
+            "enabled": os.getenv("ENABLE_MEMORY_ENGINE", "false").lower() == "true",
+        }
+
+        # Relationship Adapter status
+        adapter_status = {
+            "enabled": os.getenv("ENABLE_RELATIONSHIP_ADAPTER", "true").lower() == "true",
+        }
+
+        # Commitment Tracker status
+        commitment_status = {
+            "enabled": os.getenv("ENABLE_COMMITMENT_TRACKING", "true").lower() == "true",
+        }
+
+        # CloneScore status
+        clone_score_status = {
+            "enabled": os.getenv("ENABLE_CLONE_SCORE", "true").lower() == "true",
+        }
+        try:
+            from api.models import CloneScoreEvaluation
+            eval_count = (
+                session.query(CloneScoreEvaluation)
+                .filter_by(creator_id=creator_db_id)
+                .count()
+            )
+            clone_score_status["evaluations_count"] = eval_count
+        except Exception:
+            clone_score_status["evaluations_count"] = 0
+
+        return {
+            "creator": creator_name,
+            "modules": {
+                "style_analyzer": style_status,
+                "clone_score": clone_score_status,
+                "memory_engine": memory_status,
+                "relationship_adapter": adapter_status,
+                "commitment_tracker": commitment_status,
+            },
+        }
+    finally:
+        session.close()
