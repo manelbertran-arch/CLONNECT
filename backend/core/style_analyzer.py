@@ -544,9 +544,8 @@ Responde SOLO con un JSON (sin markdown, sin explicaciones):
         # 5. Signature phrases
         phrases = qual.get("signature_phrases", [])
         if phrases:
-            parts.append(
-                f"FRASES CARACTERÍSTICAS: {', '.join(f'\"{p}\"' for p in phrases[:5])}"
-            )
+            quoted = ", ".join(f'"{p}"' for p in phrases[:5])
+            parts.append(f"FRASES CARACTERÍSTICAS: {quoted}")
 
         # 6. Vocabulary
         vocab = qual.get("vocabulary_preferences", [])
