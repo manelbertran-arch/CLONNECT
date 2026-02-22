@@ -787,6 +787,101 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_memory_decay_scheduler())
         logger.info("Memory decay scheduler scheduled (every 24h, 630s delay)")
 
+        # JOB 23: Commitment cleanup — expire overdue commitments (24h, 660s delay)
+        async def start_commitment_cleanup_scheduler():
+            enable = os.getenv("ENABLE_COMMITMENT_CLEANUP", "true").lower() == "true"
+            await asyncio.sleep(660)
+            if not enable:
+                logger.info("[COMMITMENT_CLEANUP] Disabled via ENABLE_COMMITMENT_CLEANUP")
+                return
+            logger.info("[COMMITMENT_CLEANUP] Scheduler started — runs every 24h")
+
+            while True:
+                try:
+                    from api.models import Creator
+                    from services.commitment_tracker import get_commitment_tracker
+
+                    tracker = get_commitment_tracker()
+                    session = SessionLocal()
+                    try:
+                        creators = (
+                            session.query(Creator.id, Creator.name)
+                            .filter(Creator.bot_active.is_(True))
+                            .all()
+                        )
+                    finally:
+                        session.close()
+
+                    total_expired = 0
+                    for creator_db_id, creator_name in creators:
+                        try:
+                            expired = tracker.expire_overdue(creator_name)
+                            total_expired += expired
+                        except Exception as creator_err:
+                            logger.error(
+                                f"[COMMITMENT_CLEANUP] Error for {creator_name}: {creator_err}"
+                            )
+
+                    if total_expired > 0:
+                        logger.info(
+                            f"[COMMITMENT_CLEANUP] Expired {total_expired} overdue "
+                            f"commitments across {len(creators)} creators"
+                        )
+                except Exception as e:
+                    logger.error(f"[COMMITMENT_CLEANUP] Scheduler error: {e}")
+
+                await asyncio.sleep(86400)  # 24 hours
+
+        asyncio.create_task(start_commitment_cleanup_scheduler())
+        logger.info("Commitment cleanup scheduler scheduled (every 24h, 660s delay)")
+
+        # JOB 24: Style recalculation — re-analyze StyleProfile (30 days, 690s delay)
+        async def start_style_recalc_scheduler():
+            enable = os.getenv("ENABLE_STYLE_RECALC", "true").lower() == "true"
+            await asyncio.sleep(690)
+            if not enable:
+                logger.info("[STYLE_RECALC] Disabled via ENABLE_STYLE_RECALC")
+                return
+            logger.info("[STYLE_RECALC] Scheduler started — runs every 30 days")
+
+            while True:
+                try:
+                    from api.models import Creator
+                    from core.style_analyzer import analyze_and_persist
+
+                    session = SessionLocal()
+                    try:
+                        creators = (
+                            session.query(Creator.id, Creator.name)
+                            .filter(Creator.bot_active.is_(True))
+                            .all()
+                        )
+                    finally:
+                        session.close()
+
+                    for creator_db_id, creator_name in creators:
+                        try:
+                            result = await analyze_and_persist(
+                                creator_name, str(creator_db_id), force=True
+                            )
+                            if result:
+                                logger.info(
+                                    f"[STYLE_RECALC] {creator_name}: "
+                                    f"confidence={result.get('confidence', 0)}"
+                                )
+                        except Exception as creator_err:
+                            logger.error(
+                                f"[STYLE_RECALC] Error for {creator_name}: {creator_err}"
+                            )
+                        await asyncio.sleep(60)  # Stagger between creators
+                except Exception as e:
+                    logger.error(f"[STYLE_RECALC] Scheduler error: {e}")
+
+                await asyncio.sleep(2592000)  # 30 days
+
+        asyncio.create_task(start_style_recalc_scheduler())
+        logger.info("Style recalculation scheduler scheduled (every 30d, 690s delay)")
+
         logger.info("Message reconciliation on startup DISABLED (use /maintenance/reconcile)")
 
         # Hydrate RAG from PostgreSQL
