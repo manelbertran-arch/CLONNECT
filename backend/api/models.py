@@ -1542,3 +1542,56 @@ class ConversationSummary(Base):
     message_count = Column(Integer, server_default="0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class StyleProfileModel(Base):
+    """Data-driven style profile extracted by StyleAnalyzer.
+
+    Stores quantitative metrics + qualitative LLM analysis + generated prompt section.
+    One per creator. Updated periodically when new messages accumulate.
+    Part of ECHO Engine (E = Extract).
+    """
+
+    __tablename__ = "style_profiles"
+    __table_args__ = (
+        Index("idx_style_profiles_creator", "creator_id", unique=True),
+        {"extend_existing": True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), nullable=False)
+    profile_data = Column(JSONB, nullable=False)  # Full StyleProfile JSON
+    version = Column(Integer, default=1)
+    confidence = Column(Float, default=0.5)  # 0.0-1.0
+    messages_analyzed = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class CommitmentModel(Base):
+    """Track promises/commitments made by the clone in conversations.
+
+    Detects when the bot says things like 'te envío el link mañana' and
+    ensures follow-up. Part of ECHO Engine (H = Harmonize).
+    """
+
+    __tablename__ = "commitments"
+    __table_args__ = (
+        Index("idx_commitments_creator_lead", "creator_id", "lead_id"),
+        Index("idx_commitments_status", "creator_id", "status"),
+        {"extend_existing": True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), nullable=False)
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id"), nullable=False)
+    commitment_text = Column(Text, nullable=False)
+    commitment_type = Column(String(30), default="promise")  # promise, follow_up, send_info, schedule
+    due_date = Column(DateTime(timezone=True), nullable=True)
+    status = Column(String(20), default="pending")  # pending, fulfilled, expired, cancelled
+    source_message_id = Column(UUID(as_uuid=True), nullable=True)
+    detected_by = Column(String(20), default="llm")  # llm, regex, manual
+    fulfilled_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+

@@ -437,6 +437,9 @@ class DMResponderAgentV2:
             self.products = products
             self.style_prompt = ""
 
+        # ECHO Engine: Enrich style_prompt with data-driven StyleProfile (Sprint 1)
+        self._enrich_style_with_profile()
+
         # Load calibration data (few-shot examples, tone targets)
         self.calibration = None
         try:
@@ -561,6 +564,50 @@ class DMResponderAgentV2:
             logger.warning(f"Could not load creator data for {creator_id}: {e}")
 
         return loaded_personality, loaded_products, style_prompt
+
+    def _enrich_style_with_profile(self) -> None:
+        """ECHO Engine: Load data-driven StyleProfile to enrich style_prompt.
+
+        Merges quantitative style metrics (from Style Analyzer Sprint 1)
+        with existing Doc D personality extraction. Falls back gracefully
+        if StyleProfile is not available.
+        """
+        if os.getenv("ENABLE_STYLE_ANALYZER", "true").lower() != "true":
+            return
+        try:
+            from core.style_analyzer import load_profile_from_db
+            from api.database import SessionLocal
+            from api.models import Creator
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                if not creator:
+                    return
+                profile = load_profile_from_db(str(creator.id))
+                if profile and profile.get("prompt_injection"):
+                    data_driven_style = profile["prompt_injection"]
+                    if self.style_prompt:
+                        self.style_prompt = (
+                            f"=== ESTILO DE ESCRITURA (datos reales) ===\n"
+                            f"{data_driven_style}\n"
+                            f"=== FIN ESTILO DATOS ===\n\n"
+                            f"{self.style_prompt}"
+                        )
+                    else:
+                        self.style_prompt = (
+                            f"=== ESTILO DE ESCRITURA (datos reales) ===\n"
+                            f"{data_driven_style}\n"
+                            f"=== FIN ESTILO DATOS ==="
+                        )
+                    logger.info(
+                        f"[ECHO] StyleProfile loaded for {self.creator_id} "
+                        f"(confidence={profile.get('confidence', 0)})"
+                    )
+            finally:
+                session.close()
+        except Exception as e:
+            logger.warning(f"[ECHO] StyleProfile load failed (using Doc D only): {e}")
 
     def _init_services(self) -> None:
         """Initialize all required services."""
@@ -876,6 +923,20 @@ class DMResponderAgentV2:
                 except Exception as e:
                     logger.debug(f"[MEMORY] recall failed: {e}")
 
+            # ECHO Engine: Load pending commitments for this lead (Sprint 4)
+            commitment_text = ""
+            if os.getenv("ENABLE_COMMITMENT_TRACKING", "true").lower() == "true":
+                try:
+                    from services.commitment_tracker import get_commitment_tracker
+                    tracker = get_commitment_tracker()
+                    commitment_text = await asyncio.to_thread(
+                        tracker.get_pending_text, sender_id
+                    )
+                    if commitment_text:
+                        cognitive_metadata["commitments_pending"] = True
+                except Exception as e:
+                    logger.debug(f"[COMMITMENT] load failed: {e}")
+
             _bot_instructions = ""
             if dna_context:
                 logger.debug(f"DNA context loaded for {sender_id}")
@@ -1072,6 +1133,51 @@ class DMResponderAgentV2:
                     )
                     cognitive_metadata["audio_enriched"] = True
 
+            # ECHO Engine: Generate relational context (Sprint 4)
+            relational_block = ""
+            _echo_rel_ctx = None
+            if os.getenv("ENABLE_RELATIONSHIP_ADAPTER", "true").lower() == "true":
+                try:
+                    from services.relationship_adapter import (
+                        RelationshipAdapter,
+                        style_profile_from_analyzer,
+                    )
+                    from core.style_analyzer import load_profile_from_db
+                    from api.database import SessionLocal
+                    from api.models import Creator
+
+                    # Load StyleProfile for modulation
+                    _sp = None
+                    session = SessionLocal()
+                    try:
+                        creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                        if creator:
+                            _raw_profile = load_profile_from_db(str(creator.id))
+                            _sp = style_profile_from_analyzer(_raw_profile)
+                    finally:
+                        session.close()
+
+                    adapter = RelationshipAdapter()
+                    _rel_type = "DESCONOCIDO"
+                    if isinstance(raw_dna, dict):
+                        _rel_type = raw_dna.get("relationship_type", "DESCONOCIDO")
+
+                    _echo_rel_ctx = adapter.get_relational_context(
+                        lead_status=current_stage,
+                        style_profile=_sp,
+                        commitment_text=commitment_text,
+                        lead_memory_summary=memory_context,
+                        relationship_type=_rel_type,
+                        lead_name=follower.username if hasattr(follower, 'username') else None,
+                        message_count=follower.total_messages if hasattr(follower, 'total_messages') else 0,
+                    )
+                    relational_block = _echo_rel_ctx.prompt_instructions
+                    if relational_block:
+                        cognitive_metadata["relational_adapted"] = True
+                        cognitive_metadata["lead_warmth"] = _echo_rel_ctx.warmth_score
+                except Exception as e:
+                    logger.debug(f"[ECHO] Relationship Adapter failed: {e}")
+
             # Priority ordering: style first, then knowledge, then context
             combined_context = "\n\n".join(
                 filter(
@@ -1079,6 +1185,7 @@ class DMResponderAgentV2:
                     [
                         self.style_prompt,       # HOW to write (highest priority)
                         friend_context,          # Friend/family override (critical)
+                        relational_block,        # ECHO: Lead-specific behavior (Sprint 4)
                         rag_context,             # Product/knowledge data
                         memory_context,          # Per-lead facts (personalization)
                         few_shot_section,        # Examples of correct responses
@@ -1293,6 +1400,7 @@ class DMResponderAgentV2:
             _section_sizes = {
                 k: len(v) for k, v in [
                     ("style", self.style_prompt or ""),
+                    ("relational", relational_block),
                     ("rag", rag_context), ("memory", memory_context),
                     ("fewshot", few_shot_section), ("dna", dna_context),
                     ("state", state_context), ("kb", kb_context),
@@ -1337,7 +1445,17 @@ class DMResponderAgentV2:
                 cognitive_metadata["best_of_n"] = serialize_candidates(best_of_n_result)
             else:
                 # A4/A5: generate_dm_response returns dict with model/provider/latency
-                llm_result = await generate_dm_response(llm_messages, max_tokens=150)
+                # ECHO: Use dynamic max_tokens/temperature from Relationship Adapter
+                _llm_max_tokens = 150
+                _llm_temperature = 0.7
+                if _echo_rel_ctx:
+                    _llm_max_tokens = _echo_rel_ctx.llm_max_tokens
+                    _llm_temperature = _echo_rel_ctx.llm_temperature
+                llm_result = await generate_dm_response(
+                    llm_messages,
+                    max_tokens=_llm_max_tokens,
+                    temperature=_llm_temperature,
+                )
 
             _t3 = time.monotonic()
             logger.info(f"[TIMING] LLM call: {int((_t3 - _t2) * 1000)}ms")
@@ -1604,6 +1722,26 @@ class DMResponderAgentV2:
                     )
                 except Exception as e:
                     logger.debug(f"[MEMORY] extraction failed: {e}")
+
+            # ECHO Engine: Detect commitments in bot response (Sprint 4 — fire-and-forget)
+            if os.getenv("ENABLE_COMMITMENT_TRACKING", "true").lower() == "true":
+                try:
+                    from services.commitment_tracker import get_commitment_tracker
+
+                    async def _detect_commitments():
+                        try:
+                            tracker = get_commitment_tracker()
+                            tracker.detect_and_store(
+                                response_text=formatted_content,
+                                creator_id=self.creator_id,
+                                lead_id=sender_id,
+                            )
+                        except Exception as e:
+                            logger.debug(f"[COMMITMENT] detection failed: {e}")
+
+                    asyncio.create_task(_detect_commitments())
+                except Exception as e:
+                    logger.debug(f"[COMMITMENT] setup failed: {e}")
 
             # Step 10: Escalation notification (async, lightweight)
             asyncio.create_task(
