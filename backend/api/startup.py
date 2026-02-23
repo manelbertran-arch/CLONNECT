@@ -642,13 +642,14 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_pattern_analyzer_scheduler())
         logger.info("Pattern analyzer scheduler scheduled (every 12h, 540s delay)")
 
-        # JOB 20: Gold examples curation + preference profile refresh (12h, 570s delay)
+        # JOB 20: Gold examples curation + preference pairs + preference profile (12h, 570s delay)
         async def start_gold_examples_scheduler():
             enable_gold = os.getenv("ENABLE_GOLD_EXAMPLES", "false").lower() == "true"
             enable_profile = os.getenv("ENABLE_PREFERENCE_PROFILE", "false").lower() == "true"
+            enable_pairs = os.getenv("ENABLE_PREFERENCE_PAIRS", "true").lower() == "true"
             await asyncio.sleep(570)
-            if not enable_gold and not enable_profile:
-                logger.info("[GOLD_EXAMPLES] Both gold examples and preference profile disabled")
+            if not enable_gold and not enable_profile and not enable_pairs:
+                logger.info("[GOLD_EXAMPLES] Gold examples, preference pairs and preference profile all disabled")
                 return
             logger.info("[GOLD_EXAMPLES] Scheduler started — runs every 12h")
 
@@ -677,6 +678,14 @@ def register_startup_handlers(app: "FastAPI"):
                                         f"created={result.get('created', 0)} "
                                         f"expired={result.get('expired', 0)}"
                                     )
+                            if enable_pairs:
+                                from services.preference_pairs_service import curate_pairs
+                                pairs_result = await curate_pairs(creator_name, creator_db_id)
+                                if pairs_result.get("historical_created", 0) > 0:
+                                    logger.info(
+                                        f"[PREF_PAIRS] {creator_name}: "
+                                        f"historical_created={pairs_result.get('historical_created', 0)}"
+                                    )
                         except Exception as creator_err:
                             logger.error(f"[GOLD_EXAMPLES] Error for {creator_name}: {creator_err}")
 
@@ -686,7 +695,7 @@ def register_startup_handlers(app: "FastAPI"):
                 await asyncio.sleep(43200)  # 12 hours
 
         asyncio.create_task(start_gold_examples_scheduler())
-        logger.info("Gold examples scheduler scheduled (every 12h, 570s delay)")
+        logger.info("Gold examples + preference pairs scheduler scheduled (every 12h, 570s delay)")
 
         # JOB 21: CloneScore daily evaluation (24h, 600s delay, ENABLE_CLONE_SCORE_EVAL)
         async def start_clone_score_daily_scheduler():

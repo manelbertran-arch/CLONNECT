@@ -7,8 +7,9 @@ Generates preference pairs from:
 - discard: (None, suggested)
 - manual_override: (manual_text, suggested)
 - best_of_n_ranking: winner vs each loser → N-1 pairs
+- historical: (creator_response, None) mined from historical IG messages
 
-Feature flag: ENABLE_PREFERENCE_PAIRS (default false)
+Feature flag: ENABLE_PREFERENCE_PAIRS (default true)
 """
 
 import logging
@@ -19,7 +20,7 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-ENABLE_PREFERENCE_PAIRS = os.getenv("ENABLE_PREFERENCE_PAIRS", "false").lower() == "true"
+ENABLE_PREFERENCE_PAIRS = os.getenv("ENABLE_PREFERENCE_PAIRS", "true").lower() == "true"
 
 
 async def create_pairs_from_action(
@@ -234,3 +235,139 @@ def mark_exported(pair_ids: List[str]) -> int:
         return 0
     finally:
         session.close()
+
+
+async def mine_historical_pairs(creator_id: str, creator_db_id, limit: int = 500) -> int:
+    """Mine historical creator messages (copilot_action IS NULL) for preference pairs.
+
+    For creators onboarded with years of historical IG data, this extracts
+    (user_msg → creator_response) as 'historical' action_type pairs for ML training.
+    These are high-quality approved-style pairs: the creator actually sent them.
+
+    Quality filters:
+    - Creator response: 15–250 chars (concise DM-style, not walls of text)
+    - User message: > 5 chars
+    - At most 5 pairs per lead (to avoid one conversation dominating)
+    - Skip if a pair from this source_message_id already exists (dedup)
+
+    Returns number of pairs created.
+    """
+    from sqlalchemy import func as sqlfunc
+    from api.database import SessionLocal
+    from api.models import Lead, Message, PreferencePair
+
+    session = SessionLocal()
+    created = 0
+    try:
+        rows = (
+            session.query(Message, Lead)
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator_db_id,
+                Message.role == "assistant",
+                Message.copilot_action.is_(None),
+                sqlfunc.length(Message.content) >= 15,
+                sqlfunc.length(Message.content) <= 250,
+            )
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        # Pre-fetch already-mined source_message_ids to avoid per-row queries
+        source_ids = [msg.id for msg, _ in rows]
+        already_mined = set()
+        if source_ids:
+            existing = (
+                session.query(PreferencePair.source_message_id)
+                .filter(PreferencePair.source_message_id.in_(source_ids))
+                .all()
+            )
+            already_mined = {str(row[0]) for row in existing}
+
+        pairs_per_lead: Dict[str, int] = {}
+
+        for msg, lead in rows:
+            if str(msg.id) in already_mined:
+                continue
+
+            lead_key = str(msg.lead_id)
+            if pairs_per_lead.get(lead_key, 0) >= 5:
+                continue
+
+            # Get the immediately preceding user message
+            user_msg = (
+                session.query(Message)
+                .filter(
+                    Message.lead_id == msg.lead_id,
+                    Message.role == "user",
+                    Message.created_at < msg.created_at,
+                    sqlfunc.length(Message.content) > 5,
+                )
+                .order_by(Message.created_at.desc())
+                .first()
+            )
+            if not user_msg or not user_msg.content:
+                continue
+
+            pair = PreferencePair(
+                creator_id=creator_db_id,
+                source_message_id=msg.id,
+                user_message=user_msg.content,
+                intent=msg.intent,
+                lead_stage=lead.status,
+                chosen=msg.content,
+                rejected=None,
+                action_type="historical",
+            )
+            session.add(pair)
+            created += 1
+            pairs_per_lead[lead_key] = pairs_per_lead.get(lead_key, 0) + 1
+
+        session.commit()
+        logger.info(
+            "[PREF_PAIRS] mine_historical_pairs %s: created=%d from %d candidates",
+            creator_id, created, len(rows),
+        )
+        return created
+
+    except Exception as e:
+        logger.error("[PREF_PAIRS] mine_historical_pairs error for %s: %s", creator_id, e)
+        session.rollback()
+        return 0
+    finally:
+        session.close()
+
+
+async def curate_pairs(creator_id: str, creator_db_id) -> Dict[str, Any]:
+    """Background: mine historical pairs when the library is thin (< 10 pairs).
+
+    Mirrors gold_examples_service.curate_examples() — called by JOB 20 scheduler
+    to backfill training data for newly onboarded creators with historical IG data.
+    """
+    from api.database import SessionLocal
+    from api.models import PreferencePair
+
+    session = SessionLocal()
+    try:
+        total = (
+            session.query(PreferencePair)
+            .filter(PreferencePair.creator_id == creator_db_id)
+            .count()
+        )
+    finally:
+        session.close()
+
+    historical_created = 0
+    if total < 10:
+        historical_created = await mine_historical_pairs(creator_id, creator_db_id, limit=500)
+
+    logger.info(
+        "[PREF_PAIRS] curate_pairs %s: total_before=%d historical_created=%d",
+        creator_id, total, historical_created,
+    )
+    return {
+        "status": "done",
+        "total_before": total,
+        "historical_created": historical_created,
+    }
