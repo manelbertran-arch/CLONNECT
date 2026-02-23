@@ -29,6 +29,7 @@ from fastapi import APIRouter
 from .clone import router as clone_router
 from .dm_sync import router as dm_sync_router
 from .extraction import router as extraction_router
+from .pipeline import router as pipeline_router
 from .progress import router as progress_router
 from .setup import router as setup_router
 from .verification import router as verification_router
@@ -44,6 +45,7 @@ router.include_router(setup_router)
 router.include_router(dm_sync_router)
 router.include_router(extraction_router)
 router.include_router(verification_router)
+router.include_router(pipeline_router)
 
 __all__ = [
     "router",
