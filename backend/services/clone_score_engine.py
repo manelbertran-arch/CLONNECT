@@ -198,6 +198,7 @@ class CloneScoreEngine:
                     ka = await self._compute_knowledge_accuracy(
                         msg_content, creator_id,
                         {"conversation_context": conv_history},
+                        creator_db_id=creator_db_id,
                     )
                     knowledge_scores.append(ka)
                 except Exception:
@@ -376,11 +377,21 @@ class CloneScoreEngine:
         bot_response: str,
         creator_id: str,
         context: Optional[Dict] = None,
+        creator_db_id=None,
     ) -> float:
         """Evaluate information accuracy using LLM judge."""
         from services.llm_judge import LLMJudge
 
-        knowledge_context = self._get_knowledge_context(creator_id)
+        if creator_db_id is None:
+            from api.database import SessionLocal
+            from api.models import Creator as _Creator
+            _s = SessionLocal()
+            try:
+                row = _s.query(_Creator.id).filter_by(name=creator_id).first()
+                creator_db_id = row[0] if row else None
+            finally:
+                _s.close()
+        knowledge_context = self._get_knowledge_context(creator_db_id)
         conv_context = ""
         if context and context.get("conversation_context"):
             conv_context = "\n".join(
@@ -738,21 +749,24 @@ Responde SOLO con JSON:
         finally:
             session.close()
 
-    def _get_knowledge_context(self, creator_id: str) -> str:
+    def _get_knowledge_context(self, creator_db_id) -> str:
         """Load products and knowledge_base entries for accuracy checking."""
         from api.database import SessionLocal
         from api.models import KnowledgeBase, Product
+
+        if not creator_db_id:
+            return "(sin datos de productos/conocimiento)"
 
         session = SessionLocal()
         try:
             products = (
                 session.query(Product.name, Product.description, Product.price, Product.currency)
-                .filter(Product.creator_id == creator_id, Product.is_active.is_(True))
+                .filter(Product.creator_id == creator_db_id, Product.is_active.is_(True))
                 .all()
             )
             kb_entries = (
                 session.query(KnowledgeBase.question, KnowledgeBase.answer)
-                .filter(KnowledgeBase.creator_id == creator_id)
+                .filter(KnowledgeBase.creator_id == creator_db_id)
                 .limit(20)
                 .all()
             )

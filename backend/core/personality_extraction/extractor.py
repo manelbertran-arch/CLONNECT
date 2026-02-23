@@ -86,16 +86,22 @@ class PersonalityExtractor:
             started_at=datetime.now(),
         )
 
-        # Resolve creator name from DB if not provided
+        from api.database import SessionLocal as _SL
+
+        # Resolve creator name from DB if not provided — short-lived session
         if not creator_name:
             from sqlalchemy import text
-            row = self.db.execute(
-                text("SELECT name FROM creators WHERE id = :id OR name = :id LIMIT 1"),
-                {"id": creator_id},
-            ).fetchone()
-            if row:
-                result.creator_name = row.name
-                creator_name = row.name
+            _s = _SL()
+            try:
+                row = _s.execute(
+                    text("SELECT name FROM creators WHERE id = :id OR name = :id LIMIT 1"),
+                    {"id": creator_id},
+                ).fetchone()
+                if row:
+                    result.creator_name = row.name
+                    creator_name = row.name
+            finally:
+                _s.close()
 
         # Setup output directory
         out_dir = Path(output_dir) if output_dir else OUTPUT_DIR / creator_id
@@ -104,12 +110,13 @@ class PersonalityExtractor:
         try:
             # ── Phase 0: Data Cleaning ──────────────────────────────
             logger.info("═══ PHASE 0: Data Cleaning ═══")
-            conversations, stats = extract_conversations(
-                self.db,
-                creator_id,
-                min_messages=1,
-                limit_leads=limit_leads,
-            )
+            _s = _SL()
+            try:
+                conversations, stats = extract_conversations(
+                    _s, creator_id, min_messages=1, limit_leads=limit_leads,
+                )
+            finally:
+                _s.close()
             result.cleaning_stats = stats
 
             if not conversations:
