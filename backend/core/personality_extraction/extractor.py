@@ -361,8 +361,8 @@ def _save_docs_to_db(creator_id: str, docs: dict) -> None:
                     text(
                         """
                         INSERT INTO personality_docs (id, creator_id, doc_type, content)
-                        VALUES (CAST(:id AS uuid), :creator_id, :doc_type, :content)
-                        ON CONFLICT ON CONSTRAINT uq_personality_docs_creator_type
+                        VALUES (:id::uuid, :creator_id, :doc_type, :content)
+                        ON CONFLICT (creator_id, doc_type)
                         DO UPDATE SET content = EXCLUDED.content,
                                       updated_at = now()
                         """
