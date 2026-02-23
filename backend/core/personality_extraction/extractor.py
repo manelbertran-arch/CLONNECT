@@ -360,14 +360,14 @@ def _save_docs_to_db(creator_id: str, docs: dict) -> None:
                 _s.execute(
                     text(
                         """
-                        INSERT INTO personality_docs (id, creator_id, doc_type, content)
-                        VALUES (:id::uuid, :creator_id, :doc_type, :content)
+                        INSERT INTO personality_docs (creator_id, doc_type, content)
+                        VALUES (:creator_id, :doc_type, :content)
                         ON CONFLICT (creator_id, doc_type)
                         DO UPDATE SET content = EXCLUDED.content,
                                       updated_at = now()
                         """
                     ),
-                    {"id": str(uuid.uuid4()), "creator_id": creator_id, "doc_type": doc_type, "content": content},
+                    {"creator_id": creator_id, "doc_type": doc_type, "content": content},
                 )
             _s.commit()
             logger.info(
