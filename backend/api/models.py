@@ -1613,7 +1613,7 @@ class PersonalityDoc(Base):
         {"extend_existing": True},
     )
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.uuid_generate_v4())
     creator_id = Column(String(100), nullable=False)  # creator UUID or slug
     doc_type = Column(String(10), nullable=False)      # 'doc_d' or 'doc_e'
     content = Column(Text, nullable=False)

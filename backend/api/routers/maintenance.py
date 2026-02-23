@@ -558,8 +558,8 @@ async def backfill_personality_docs(creator_name: str):
                 session.execute(
                     text(
                         """
-                        INSERT INTO personality_docs (creator_id, doc_type, content)
-                        VALUES (:creator_id, :doc_type, :content)
+                        INSERT INTO personality_docs (id, creator_id, doc_type, content)
+                        VALUES (uuid_generate_v4(), :creator_id, :doc_type, :content)
                         ON CONFLICT ON CONSTRAINT uq_personality_docs_creator_type
                         DO UPDATE SET content = EXCLUDED.content,
                                       updated_at = now()
