@@ -580,7 +580,7 @@ Responde SOLO con JSON:
                     Message.created_at >= since,
                 )
                 .scalar()
-            ) or 1
+            ) or 0
 
             copilot_approved = (
                 session.query(func.count(Message.id))
@@ -593,7 +593,12 @@ Responde SOLO con JSON:
                 .scalar()
             ) or 0
 
-            approval_rate = min(100.0, (copilot_approved / copilot_total) * 100)
+            # Use neutral 50.0 when no copilot history (autopilot or pre-copilot creators)
+            # to avoid unfairly penalizing them with 0% approval rate
+            if copilot_total == 0:
+                approval_rate = 50.0
+            else:
+                approval_rate = min(100.0, (copilot_approved / copilot_total) * 100)
 
             ghost_leads = (
                 session.query(func.count(Lead.id))
@@ -708,8 +713,20 @@ Responde SOLO con JSON:
     # =====================================================================
     # HELPERS: data loading
     # =====================================================================
+    # Mapping from ToneProfile qualitative strings to numeric rates
+    _EMOJI_FREQ_MAP = {
+        "ninguna": 0.0, "baja": 0.05, "media": 0.15, "alta": 0.30, "muy_alta": 0.50,
+    }
+    _AVG_LEN_MAP = {
+        "muy_corta": 30, "corta": 55, "media": 80, "larga": 130, "muy_larga": 200,
+    }
+
     def _get_style_baseline(self, creator_id: str) -> Dict:
-        """Load creator's style baseline from tone_profiles table."""
+        """Load creator's style baseline from tone_profiles table.
+
+        Handles both numeric and string-encoded fields from ToneProfile dataclass
+        (e.g. emoji_frequency="media" → 0.15, average_message_length="larga" → 130).
+        """
         import time
         now = time.time()
         if creator_id in self._baseline_cache:
@@ -730,13 +747,41 @@ Responde SOLO con JSON:
                 return {}
 
             data = tp.profile_data
+
+            # avg_message_length: ToneProfile stores "average_message_length" as string
+            raw_len = data.get("avg_message_length") or data.get("average_message_length", 80)
+            if isinstance(raw_len, str):
+                raw_len = self._AVG_LEN_MAP.get(raw_len, 80)
+
+            # emoji_frequency: ToneProfile stores as string ("media", "alta", etc.)
+            raw_emoji = data.get("emoji_frequency", 0.1)
+            if isinstance(raw_emoji, str):
+                raw_emoji = self._EMOJI_FREQ_MAP.get(raw_emoji, 0.1)
+
+            # question_rate: ToneProfile stores as bool "asks_questions", not numeric
+            raw_q = data.get("question_frequency")
+            if raw_q is None:
+                raw_q = 0.3 if data.get("asks_questions", True) else 0.05
+
+            # informal_markers: filler_words ✓, slang from regional_expressions fallback
+            informal = (
+                data.get("filler_words", [])
+                + data.get("slang_words", [])
+                + data.get("regional_expressions", [])
+            )
+
+            # vocabulary_sample: signature_phrases + greetings as fallback
+            vocab = (
+                data.get("vocabulary_sample")
+                or data.get("signature_phrases", []) + data.get("common_greetings", [])
+            )
+
             baseline = {
-                "avg_message_length": data.get("avg_message_length", 80),
-                "emoji_rate": data.get("emoji_frequency", 0.1),
-                "question_rate": data.get("question_frequency", 0.2),
-                "informal_markers": data.get("filler_words", [])
-                    + data.get("slang_words", []),
-                "top_vocabulary": data.get("vocabulary_sample", []),
+                "avg_message_length": raw_len,
+                "emoji_rate": raw_emoji,
+                "question_rate": raw_q,
+                "informal_markers": informal,
+                "top_vocabulary": vocab,
             }
 
             self._baseline_cache[creator_id] = baseline
