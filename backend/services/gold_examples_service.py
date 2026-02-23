@@ -30,6 +30,7 @@ _SOURCE_QUALITY = {
     "manual_override": 0.9,
     "approved": 0.8,
     "minor_edit": 0.7,
+    "historical": 0.6,   # Mined from historical IG conversations
 }
 
 
@@ -55,17 +56,29 @@ def create_gold_example(
 
     session = SessionLocal()
     try:
-        # Dedup: same creator + similar user_message (first 100 chars)
-        user_prefix = user_message[:100]
-        existing = (
-            session.query(GoldExample)
-            .filter(
-                GoldExample.creator_id == creator_db_id,
-                GoldExample.is_active.is_(True),
-                GoldExample.user_message.startswith(user_prefix),
+        # Dedup: for long messages use first 100-char prefix; for short messages
+        # use the full text to avoid false-positive merges ("Hola!" collapsing all greetings)
+        if len(user_message) >= 30:
+            user_prefix = user_message[:100]
+            existing = (
+                session.query(GoldExample)
+                .filter(
+                    GoldExample.creator_id == creator_db_id,
+                    GoldExample.is_active.is_(True),
+                    GoldExample.user_message.startswith(user_prefix),
+                )
+                .first()
             )
-            .first()
-        )
+        else:
+            existing = (
+                session.query(GoldExample)
+                .filter(
+                    GoldExample.creator_id == creator_db_id,
+                    GoldExample.is_active.is_(True),
+                    GoldExample.user_message == user_message,
+                )
+                .first()
+            )
         if existing:
             # Update with newer response if quality is higher
             new_quality = _SOURCE_QUALITY.get(source, 0.5)
@@ -191,34 +204,122 @@ def get_matching_examples(
         session.close()
 
 
+async def mine_historical_examples(
+    creator_id: str, creator_db_id, limit: int = 500
+) -> int:
+    """Mine historical creator messages (copilot_action IS NULL) for gold examples.
+
+    For creators onboarded with years of historical IG data, curate_examples()
+    finds nothing because those messages have copilot_action=NULL. This function
+    extracts high-quality (user_msg → creator_response) pairs from that history.
+
+    Quality filters:
+    - Creator response: 15–250 chars (concise DM-style, not walls of text)
+    - User message: > 5 chars
+    - At most 5 examples per lead (to avoid one conversation dominating)
+
+    Returns number of examples created.
+    """
+    from sqlalchemy import func as sqlfunc
+    from api.database import SessionLocal
+    from api.models import Lead, Message
+
+    session = SessionLocal()
+    created = 0
+    try:
+        # Fetch historical assistant messages with no copilot action, bounded per lead
+        rows = (
+            session.query(Message, Lead)
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator_db_id,
+                Message.role == "assistant",
+                Message.copilot_action.is_(None),
+                sqlfunc.length(Message.content) >= 15,
+                sqlfunc.length(Message.content) <= 250,
+            )
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        # Track how many examples we've taken per lead to spread coverage
+        examples_per_lead: Dict[str, int] = {}
+
+        for msg, lead in rows:
+            lead_key = str(msg.lead_id)
+            if examples_per_lead.get(lead_key, 0) >= 5:
+                continue
+
+            # Get the immediately preceding user message
+            user_msg = (
+                session.query(Message)
+                .filter(
+                    Message.lead_id == msg.lead_id,
+                    Message.role == "user",
+                    Message.created_at < msg.created_at,
+                    sqlfunc.length(Message.content) > 5,
+                )
+                .order_by(Message.created_at.desc())
+                .first()
+            )
+            if not user_msg or not user_msg.content:
+                continue
+
+            result = create_gold_example(
+                creator_db_id=creator_db_id,
+                user_message=user_msg.content,
+                creator_response=msg.content,
+                intent=msg.intent,
+                lead_stage=lead.status,
+                relationship_type=lead.relationship_type,
+                source="historical",
+                source_message_id=msg.id,
+            )
+            if result and result.get("created"):
+                created += 1
+                examples_per_lead[lead_key] = examples_per_lead.get(lead_key, 0) + 1
+
+        logger.info("[GOLD] mine_historical_examples %s: created=%d from %d candidates",
+                    creator_id, created, len(rows))
+        return created
+
+    except Exception as e:
+        logger.error("[GOLD] mine_historical_examples error for %s: %s", creator_id, e)
+        return 0
+    finally:
+        session.close()
+
+
 async def curate_examples(creator_id: str, creator_db_id) -> Dict[str, Any]:
     """Background: scan recent copilot messages and create gold examples.
 
-    Also expires old low-usage examples and caps per-creator count.
+    Also expires old low-usage examples, caps per-creator count, and
+    mines historical data when the library is thin (< 10 examples).
     """
     from api.database import SessionLocal
     from api.models import GoldExample, Lead, Message
 
     session = SessionLocal()
     try:
-        # Find recent approved/edited/manual messages (last 7 days)
-        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
-        messages = (
-            session.query(Message)
+        # Find recent approved/edited/manual messages (last 30 days, was 7)
+        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+        rows = (
+            session.query(Message, Lead)
             .join(Lead, Message.lead_id == Lead.id)
             .filter(
                 Lead.creator_id == creator_db_id,
                 Message.role == "assistant",
                 Message.copilot_action.in_(["approved", "edited", "manual_override"]),
-                Message.created_at >= seven_days_ago,
+                Message.created_at >= thirty_days_ago,
             )
             .order_by(Message.created_at.desc())
-            .limit(50)
+            .limit(200)
             .all()
         )
 
         created = 0
-        for msg in messages:
+        for msg, lead in rows:
             # Get the preceding user message for this lead
             user_msg = (
                 session.query(Message)
@@ -248,11 +349,32 @@ async def curate_examples(creator_id: str, creator_db_id) -> Dict[str, Any]:
                 user_message=user_msg.content,
                 creator_response=msg.content,
                 intent=msg.intent,
+                lead_stage=lead.status,
+                relationship_type=lead.relationship_type,
                 source=source,
                 source_message_id=msg.id,
             )
             if result and result.get("created"):
                 created += 1
+
+        # If the library is thin, mine historical messages (copilot_action IS NULL).
+        # This is the primary path for newly onboarded creators with years of IG history
+        # but few copilot interactions — without this, they get 0-1 gold examples forever.
+        # mine_historical_examples opens its own DB session; main session stays open.
+        total_after_copilot = (
+            session.query(GoldExample)
+            .filter(
+                GoldExample.creator_id == creator_db_id,
+                GoldExample.is_active.is_(True),
+            )
+            .count()
+        )
+        historical_created = 0
+        if total_after_copilot < 10:
+            historical_created = await mine_historical_examples(
+                creator_id, creator_db_id, limit=500
+            )
+            created += historical_created
 
         # Expire old low-usage examples (>90 days, times_used < 3)
         expiry_cutoff = datetime.now(timezone.utc) - timedelta(days=GOLD_EXPIRY_DAYS)
@@ -297,12 +419,13 @@ async def curate_examples(creator_id: str, creator_db_id) -> Dict[str, Any]:
         _invalidate_examples_cache(str(creator_db_id))
 
         logger.info(
-            "[GOLD] %s: created=%d expired=%d capped=%d",
-            creator_id, created, expired, over_cap,
+            "[GOLD] %s: created=%d (historical=%d) expired=%d capped=%d",
+            creator_id, created, historical_created, expired, over_cap,
         )
         return {
             "status": "done",
             "created": created,
+            "historical_created": historical_created,
             "expired": expired,
             "capped": over_cap,
         }
