@@ -148,8 +148,26 @@ async def reset_magic_slice_data(creator_id: str, admin: str = Depends(require_a
 
 
 # =============================================================================
-# WHATSAPP ONBOARDING STATUS
+# WHATSAPP ONBOARDING — TRIGGER + STATUS
 # =============================================================================
+
+
+@router.post("/whatsapp/trigger/{creator_id}/{instance_name}")
+async def trigger_whatsapp_onboarding(
+    creator_id: str,
+    instance_name: str,
+    background_tasks: BackgroundTasks,
+):
+    """Manually trigger WhatsApp onboarding pipeline (admin/debug)."""
+    from services.whatsapp_onboarding_pipeline import WhatsAppOnboardingPipeline
+
+    async def _run():
+        pipeline = WhatsAppOnboardingPipeline(creator_id, instance_name)
+        result = await pipeline.run()
+        logger.info(f"[WA-PIPELINE] Manual trigger done for {creator_id}: {result}")
+
+    background_tasks.add_task(_run)
+    return {"status": "started", "creator_id": creator_id, "instance": instance_name}
 
 
 @router.get("/whatsapp/status/{creator_id}")
