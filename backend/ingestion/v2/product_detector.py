@@ -370,7 +370,7 @@ class ProductDetector:
         r'\bsi estás dudando\b', r'\bno lo dudes\b',
         r'\bme siento\b.*\b(mejor|genial|increíble)\b',
         r'\bél me enseñó\b', r'\bella me enseñó\b',
-        r'\baprendí\b.*\bcon (él|ella|stefano)\b',
+        r'\baprendí\b.*\bcon (él|ella|[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\b',
         # Atribución de testimonios
         r'^"[^"]{10,200}"$',  # Texto solo entre comillas
         r'^\s*—\s*\w+',  # Atribución tipo "— María"
@@ -703,7 +703,7 @@ class ProductDetector:
         """Extrae nombre del producto de la URL."""
         # Obtener último segmento
         path = url.rstrip('/').split('/')[-1]
-        if not path or path == 'www.stefanobonanno.com':
+        if not path or '.' in path:  # Domain root (e.g. www.example.com) has no product path
             return None
 
         # Convertir slug a nombre

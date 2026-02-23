@@ -107,7 +107,7 @@ PHISHING_PATTERNS = [
     r'\b(?:dame|pasame|env[ií]ame)\s+(?:su|el)\s+(?:email|tel[eé]fono|direcci[oó]n|contacto)',
     r'\b(?:necesito|quiero)\s+(?:su|el)\s+(?:tel[eé]fono|email|contacto)\s*(?:personal|privado)?',
     r'\b(?:necesito|dame)\s+(?:sus?|los?)\s+datos\s+personales\b',
-    r'\bdatos\s+personales\s+(?:de|del)\s+(?:creador|stefano)\b',
+    r'\bdatos\s+personales\s+(?:de|del)\s+creador\b',
     r'\b(?:informaci[oó]n\s+(?:personal|privada)\s+(?:de|sobre))',
     # Urgencia + solicitud de info
     r'\b(?:es\s+urgente).*(?:informaci[oó]n|datos|contacto)\b',

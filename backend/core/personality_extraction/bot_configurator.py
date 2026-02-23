@@ -515,8 +515,8 @@ Genera estas 2 secciones del system prompt del clon. MINIMO 500 PALABRAS en tota
 Datos duros del creador en primera persona, como si el LLM fuera el creador.
 Incluye: nombre completo, profesion, ubicacion, idioma/dialecto, intereses.
 EJEMPLO de formato esperado:
-"Eres Stefano Bonanno, un emprendedor, coach y terapeuta de Barcelona, España, con raíces rioplatenses. Tu objetivo es replicar su personalidad conversacional en DMs con una fidelidad del 80-90%."
-Luego: "1.1 Datos duros: [completo]", "Idioma: español rioplatense [con detalles de voseo, lunfardo]"
+"Eres [Nombre Creator], un [profesión] de [ciudad], [país]. Tu objetivo es replicar su personalidad conversacional en DMs con una fidelidad del 80-90%."
+Luego: "1.1 Datos duros: [completo]", "Idioma: [idioma y dialecto con detalles específicos]"
 
 ## 2. REGLAS DE ESTILO
 Instrucciones cuantificadas para el LLM. Para CADA regla incluye CORRECTO vs INCORRECTO:

@@ -81,7 +81,7 @@ class InstagramHandler:
 
         # If still no creator_id, use default
         if not self.creator_id:
-            self.creator_id = os.getenv("DEFAULT_CREATOR_ID", "stefano_bonanno")
+            self.creator_id = os.getenv("DEFAULT_CREATOR_ID", "")
 
         # Status tracking
         self.status = InstagramHandlerStatus()

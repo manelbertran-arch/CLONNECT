@@ -11,7 +11,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from prompts.clone_system_prompt_v2 import STEFAN_METRICS, CreatorMetrics
+from prompts.clone_system_prompt_v2 import CreatorMetrics
 from services.context_memory_service import get_context_memory_service
 from services.creator_knowledge_service import get_creator_knowledge_service
 from services.length_controller import detect_message_type, enforce_length
@@ -51,7 +51,7 @@ class DMAgentOrchestratedV4:
 
     def __init__(self, creator_id: str, metrics: CreatorMetrics = None):
         self.creator_id = creator_id
-        self.metrics = metrics or STEFAN_METRICS
+        self.metrics = metrics
         self.variator = get_response_variator_v2()
         self.context_service = get_context_memory_service()
         self.knowledge_service = get_creator_knowledge_service()
@@ -83,7 +83,11 @@ class DMAgentOrchestratedV4:
             creator_id=self.creator_id, message=message
         )
 
-        prompt = f"""Eres Stefan (Stefano Bonanno). Responde EXACTAMENTE como Stefan en Instagram DM.
+        # Load creator name dynamically — never hardcode a specific creator
+        knowledge = self.knowledge_service.load_knowledge(self.creator_id)
+        creator_name = knowledge.name if knowledge else self.creator_id
+
+        prompt = f"""Eres {creator_name}. Responde EXACTAMENTE como {creator_name} en Instagram DM.
 
 ═══════════════════════════════════════════════════════════════════════════════
 REGLAS CRÍTICAS (OBLIGATORIAS)
