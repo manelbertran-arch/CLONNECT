@@ -382,13 +382,16 @@ class CloneScoreEngine:
         if informal_markers:
             bot_lower = bot_response.lower()
             matches = sum(1 for m in informal_markers if m.lower() in bot_lower)
-            informal_score = min(100, (matches / max(1, len(informal_markers) * 0.3)) * 100)
+            # Cap threshold at 20 so score doesn't collapse with 100+ tokenized markers
+            threshold = max(1, min(len(informal_markers), 20) * 0.3)
+            informal_score = min(100, (matches / threshold) * 100)
         else:
             informal_score = 70.0
 
         creator_vocab = set(creator_baseline.get("top_vocabulary", []))
         if creator_vocab:
-            bot_words = set(bot_response.lower().split())
+            # Use regex tokenization (same as baseline) to strip punctuation from bot words
+            bot_words = set(re.findall(r"[a-záéíóúüñça-zà-ÿ0-9]+", bot_response.lower()))
             overlap = len(creator_vocab & bot_words)
             vocab_score = min(100, (overlap / max(1, len(creator_vocab) * 0.15)) * 100)
         else:
