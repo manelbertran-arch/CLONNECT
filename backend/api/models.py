@@ -355,6 +355,31 @@ class GoldExample(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True)
 
 
+class PatternAnalysisRun(Base):
+    """Audit trail for LLM-as-Judge pattern analysis runs.
+
+    Records when each batch analysis ran, how many preference pairs were
+    processed, and how many learning rules were extracted. Allows tracking
+    analysis cadence and debugging low rule-generation rates.
+    """
+
+    __tablename__ = "pattern_analysis_runs"
+    __table_args__ = (
+        Index("idx_pattern_runs_creator", "creator_id"),
+        Index("idx_pattern_runs_ran_at", "ran_at"),
+        {"extend_existing": True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid.uuid4())
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), nullable=False)
+    ran_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    status = Column(String(20), nullable=False)          # done | skipped | error
+    pairs_analyzed = Column(Integer, default=0)
+    rules_created = Column(Integer, default=0)
+    groups_processed = Column(Integer, default=0)
+    details = Column(JSONB, default=dict)                # full result dict for debugging
+
+
 class PreferencePair(Base):
     """Training data pairs (chosen, rejected) from copilot actions and Best-of-N rankings."""
     __tablename__ = "preference_pairs"

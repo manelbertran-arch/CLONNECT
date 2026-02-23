@@ -56,10 +56,35 @@ Si no hay patrones claros, responde: []
 IMPORTANTE: Solo JSON, sin texto adicional."""
 
 
+def _persist_run(creator_db_id, result: Dict[str, Any]) -> None:
+    """Insert one row into pattern_analysis_runs for audit trail."""
+    try:
+        from api.database import SessionLocal
+        from api.models import PatternAnalysisRun
+
+        s = SessionLocal()
+        try:
+            run = PatternAnalysisRun(
+                creator_id=creator_db_id,
+                status=result.get("status", "error"),
+                pairs_analyzed=result.get("pairs_analyzed", 0),
+                rules_created=result.get("rules_created", 0),
+                groups_processed=result.get("groups_processed", 0),
+                details=result,
+            )
+            s.add(run)
+            s.commit()
+        finally:
+            s.close()
+    except Exception as e:
+        logger.warning("[PATTERN] Failed to persist run record: %s", e)
+
+
 async def run_pattern_analysis(creator_id: str, creator_db_id) -> Dict[str, Any]:
     """Analyze unprocessed preference pairs for a single creator.
 
     Returns dict with status, rules_created, pairs_analyzed counts.
+    Persists a run record to pattern_analysis_runs for audit trail.
     """
     from api.database import SessionLocal
     from api.models import PreferencePair
@@ -79,11 +104,13 @@ async def run_pattern_analysis(creator_id: str, creator_db_id) -> Dict[str, Any]
         )
 
         if len(pairs) < PATTERN_ANALYSIS_MIN_PAIRS:
-            return {
+            result = {
                 "status": "skipped",
                 "reason": f"Only {len(pairs)} unanalyzed pairs (min: {PATTERN_ANALYSIS_MIN_PAIRS})",
                 "pairs_available": len(pairs),
             }
+            _persist_run(creator_db_id, result)
+            return result
 
         # Group by (intent, lead_stage)
         groups: Dict[str, List] = {}
@@ -138,22 +165,25 @@ async def run_pattern_analysis(creator_id: str, creator_db_id) -> Dict[str, Any]
             )
             session.commit()
 
-        logger.info(
-            "[PATTERN] %s: analyzed=%d pairs, created=%d rules from %d groups",
-            creator_id, total_pairs_analyzed, total_rules, len(groups),
-        )
-
-        return {
+        result = {
             "status": "done",
             "pairs_analyzed": total_pairs_analyzed,
             "rules_created": total_rules,
             "groups_processed": len([g for g in groups.values() if len(g) >= PATTERN_ANALYSIS_MIN_PAIRS]),
         }
+        logger.info(
+            "[PATTERN] %s: analyzed=%d pairs, created=%d rules from %d groups",
+            creator_id, total_pairs_analyzed, total_rules, len(groups),
+        )
+        _persist_run(creator_db_id, result)
+        return result
 
     except Exception as e:
         logger.error("[PATTERN] run_pattern_analysis error for %s: %s", creator_id, e)
         session.rollback()
-        return {"status": "error", "error": str(e)}
+        result = {"status": "error", "error": str(e)}
+        _persist_run(creator_db_id, result)
+        return result
     finally:
         session.close()
 
