@@ -50,6 +50,40 @@ _OFFENSIVE_WORDS = [
 _EMAIL_REGEX = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 _PHONE_REGEX = re.compile(r"\+?\d[\d\s\-]{7,14}\d")
 
+_STOP_WORDS = {
+    "de", "la", "el", "en", "a", "y", "que", "es", "se", "no", "un", "una",
+    "con", "por", "para", "lo", "le", "su", "al", "del", "las", "los", "me",
+    "te", "mi", "si", "ya", "mas", "pero", "como", "tu", "yo", "ni", "he",
+    "ha", "hay", "son", "ser", "bien", "muy", "tan", "era", "fue",
+}
+
+
+def _phrases_to_word_tokens(phrases: list, top_n: int = 50) -> list:
+    """Tokenize full phrases → top-N content words by frequency."""
+    from collections import Counter
+    counts: Counter = Counter()
+    for phrase in phrases:
+        for w in re.findall(r"[a-záéíóúüñça-zà-ÿ0-9]+", phrase.lower()):
+            if len(w) >= 3 and w not in _STOP_WORDS:
+                counts[w] += 1
+    return [w for w, _ in counts.most_common(top_n)]
+
+
+def _phrases_to_ngrams(phrases: list) -> list:
+    """Extract words + bigrams/trigrams from phrases as informal markers."""
+    tokens: set = set()
+    for phrase in phrases:
+        words = [
+            w for w in re.findall(r"[a-záéíóúüñça-zà-ÿ0-9]+", phrase.lower())
+            if len(w) >= 3 and w not in _STOP_WORDS
+        ]
+        tokens.update(words)
+        for i in range(len(words) - 1):
+            tokens.add(f"{words[i]} {words[i+1]}")
+        for i in range(len(words) - 2):
+            tokens.add(f"{words[i]} {words[i+1]} {words[i+2]}")
+    return list(tokens)
+
 
 class CloneScoreEngine:
     """Main engine for CloneScore evaluation."""
@@ -174,9 +208,10 @@ class CloneScoreEngine:
 
             for sample in samples:
                 msg_content = sample.content or ""
-                style_scores.append(
-                    self._compute_style_fidelity(msg_content, baseline)
-                )
+                if not msg_content.startswith("[🎤 Audio]"):
+                    style_scores.append(
+                        self._compute_style_fidelity(msg_content, baseline)
+                    )
                 safety_scores.append(
                     self._compute_safety_score_sync(msg_content, creator_id)
                 )
@@ -321,7 +356,7 @@ class CloneScoreEngine:
         avg_len = creator_baseline.get("avg_message_length", 80)
         if avg_len > 0:
             ratio = len(bot_response) / avg_len
-            length_score = max(0, 100 - abs(1.0 - ratio) * 150)
+            length_score = max(10.0, 100 - abs(1.0 - ratio) * 150)
         else:
             length_score = 50.0
 
@@ -763,18 +798,20 @@ Responde SOLO con JSON:
             if raw_q is None:
                 raw_q = 0.3 if data.get("asks_questions", True) else 0.05
 
-            # informal_markers: filler_words ✓, slang from regional_expressions fallback
-            informal = (
+            # informal_markers: tokenize phrases → words + bigrams/trigrams
+            raw_informal = (
                 data.get("filler_words", [])
                 + data.get("slang_words", [])
                 + data.get("regional_expressions", [])
             )
+            informal = _phrases_to_ngrams(raw_informal)
 
-            # vocabulary_sample: signature_phrases + greetings as fallback
-            vocab = (
+            # vocabulary_sample: tokenize phrases → top-50 content words by frequency
+            raw_vocab = (
                 data.get("vocabulary_sample")
                 or data.get("signature_phrases", []) + data.get("common_greetings", [])
             )
+            vocab = _phrases_to_word_tokens(raw_vocab, top_n=50)
 
             baseline = {
                 "avg_message_length": raw_len,
