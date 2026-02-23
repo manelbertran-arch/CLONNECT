@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import time
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -360,13 +361,13 @@ def _save_docs_to_db(creator_id: str, docs: dict) -> None:
                     text(
                         """
                         INSERT INTO personality_docs (id, creator_id, doc_type, content)
-                        VALUES (uuid_generate_v4(), :creator_id, :doc_type, :content)
+                        VALUES (CAST(:id AS uuid), :creator_id, :doc_type, :content)
                         ON CONFLICT ON CONSTRAINT uq_personality_docs_creator_type
                         DO UPDATE SET content = EXCLUDED.content,
                                       updated_at = now()
                         """
                     ),
-                    {"creator_id": creator_id, "doc_type": doc_type, "content": content},
+                    {"id": str(uuid.uuid4()), "creator_id": creator_id, "doc_type": doc_type, "content": content},
                 )
             _s.commit()
             logger.info(

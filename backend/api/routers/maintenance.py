@@ -5,6 +5,7 @@ Maintenance endpoints for admin tasks like refreshing profile pictures.
 import asyncio
 import logging
 import os
+import uuid as uuid_lib
 
 import httpx
 from api.database import SessionLocal
@@ -560,13 +561,13 @@ async def backfill_personality_docs(creator_name: str):
                     text(
                         """
                         INSERT INTO personality_docs (id, creator_id, doc_type, content)
-                        VALUES (uuid_generate_v4(), :creator_id, :doc_type, :content)
+                        VALUES (CAST(:id AS uuid), :creator_id, :doc_type, :content)
                         ON CONFLICT ON CONSTRAINT uq_personality_docs_creator_type
                         DO UPDATE SET content = EXCLUDED.content,
                                       updated_at = now()
                         """
                     ),
-                    {"creator_id": creator_id, "doc_type": doc_type, "content": content},
+                    {"id": str(uuid_lib.uuid4()), "creator_id": creator_id, "doc_type": doc_type, "content": content},
                 )
                 saved.append(f"{doc_type} ({len(content)} chars from {chosen})")
             except Exception as e:
