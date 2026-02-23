@@ -1595,3 +1595,28 @@ class CommitmentModel(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+
+class PersonalityDoc(Base):
+    """Persistent storage for personality extraction documents (Doc D, Doc E).
+
+    Railway has an ephemeral filesystem — all files written to disk are lost on
+    every deploy. This table stores the markdown content of Doc D (bot config)
+    and Doc E (copilot rules) so they survive deploys.
+
+    One row per (creator_id, doc_type). Updated on every extraction run.
+    """
+
+    __tablename__ = "personality_docs"
+    __table_args__ = (
+        UniqueConstraint("creator_id", "doc_type", name="uq_personality_docs_creator_type"),
+        Index("ix_personality_docs_creator_id", "creator_id"),
+        {"extend_existing": True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(String(100), nullable=False)  # creator UUID or slug
+    doc_type = Column(String(10), nullable=False)      # 'doc_d' or 'doc_e'
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
