@@ -4,6 +4,7 @@ Maintenance endpoints for admin tasks like refreshing profile pictures.
 
 import asyncio
 import logging
+import os
 
 import httpx
 from api.database import SessionLocal
