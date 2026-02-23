@@ -148,6 +148,36 @@ async def reset_magic_slice_data(creator_id: str, admin: str = Depends(require_a
 
 
 # =============================================================================
+# WHATSAPP ONBOARDING STATUS
+# =============================================================================
+
+
+@router.get("/whatsapp/status/{creator_id}")
+async def whatsapp_onboarding_status(creator_id: str):
+    """Get WhatsApp onboarding pipeline progress."""
+    from api.database import SessionLocal
+    from api.models import Creator
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(404, "Creator not found")
+
+        progress = creator.clone_progress or {}
+        return {
+            "creator_id": creator_id,
+            "status": creator.clone_status,
+            "progress": progress,
+            "started_at": creator.clone_started_at.isoformat() if creator.clone_started_at else None,
+            "completed_at": creator.clone_completed_at.isoformat() if creator.clone_completed_at else None,
+            "error": creator.clone_error,
+        }
+    finally:
+        session.close()
+
+
+# =============================================================================
 # FULL AUTO-SETUP WITH REAL-TIME PROGRESS
 # =============================================================================
 

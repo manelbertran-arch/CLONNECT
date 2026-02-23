@@ -980,6 +980,9 @@ EVOLUTION_INSTANCE_MAP: Dict[str, str] = {
     "iris-bertran": "iris_bertran",
 }
 
+# Guard: prevent duplicate WA onboarding pipeline launches
+_wa_pipeline_running: set = set()
+
 # Dedup: Evolution/Baileys sends messages.upsert twice per message.
 # Track processed message IDs with timestamps to skip duplicates.
 _evo_processed_messages: Dict[str, float] = {}
@@ -1029,6 +1032,34 @@ async def evolution_webhook(request: Request):
     if event == "connection.update":
         state = payload.get("data", {}).get("state", "unknown")
         logger.info(f"[EVO:{instance}] Connection update: {state}")
+
+        if state == "open":
+            creator_id = EVOLUTION_INSTANCE_MAP.get(instance)
+            if creator_id and creator_id not in _wa_pipeline_running:
+                _wa_pipeline_running.add(creator_id)
+
+                async def _run_wa_pipeline():
+                    try:
+                        from services.whatsapp_onboarding_pipeline import (
+                            WhatsAppOnboardingPipeline,
+                        )
+
+                        pipeline = WhatsAppOnboardingPipeline(creator_id, instance)
+                        result = await pipeline.run()
+                        logger.info(
+                            f"[WA-PIPELINE] Completed for {creator_id}: "
+                            f"{result.get('status', 'unknown')}"
+                        )
+                    except Exception as e:
+                        logger.error(f"[WA-PIPELINE] Failed for {creator_id}: {e}")
+                    finally:
+                        _wa_pipeline_running.discard(creator_id)
+
+                asyncio.create_task(_run_wa_pipeline())
+                logger.info(
+                    f"[EVO:{instance}] WhatsApp onboarding pipeline started for {creator_id}"
+                )
+
         return {"status": "ok", "event": event, "state": state}
 
     if event == "qrcode.updated":

@@ -210,3 +210,39 @@ async def fetch_instances() -> list:
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
         async with session.get(url, headers=_headers()) as resp:
             return await resp.json()
+
+
+async def find_messages(
+    instance: str,
+    page: int = 1,
+    where: dict = None,
+) -> dict:
+    """
+    Fetch historical messages from Evolution API.
+
+    Args:
+        instance: Instance name (e.g. "iris-bertran")
+        page: Page number (1-indexed)
+        where: Optional filter dict for the query
+
+    Returns:
+        {"messages": {"total": N, "pages": N, "currentPage": N, "records": [...]}}
+        API returns 50 records per page regardless of limit param.
+    """
+    url = f"{EVOLUTION_API_URL}/chat/findMessages/{instance}"
+    body = {"where": where or {}, "limit": 500, "page": page}
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                url, json=body, headers=_headers(),
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                if resp.status >= 400:
+                    text = await resp.text()
+                    logger.error(f"[EVO] findMessages error {resp.status}: {text}")
+                    return {"messages": {"total": 0, "pages": 0, "records": []}}
+                return await resp.json()
+    except Exception as e:
+        logger.error(f"[EVO] findMessages exception: {e}")
+        return {"messages": {"total": 0, "pages": 0, "records": []}}
