@@ -600,7 +600,7 @@ Responde SOLO con JSON:
                 .filter(
                     Lead.creator_id == creator_db_id,
                     Lead.first_contact_at >= since,
-                    Lead.status.in_(["frio", "frío"]),
+                    Lead.status == "fantasma",
                 )
                 .scalar()
             ) or 0

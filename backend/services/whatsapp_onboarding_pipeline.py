@@ -590,7 +590,7 @@ class WhatsAppOnboardingPipeline:
                 docs_generated = sum([
                     bool(extraction_result.conversations),
                     bool(extraction_result.lead_analyses),
-                    bool(extraction_result.personality_profile.formality_level),
+                    bool(extraction_result.personality_profile.raw_profile_text),
                     bool(extraction_result.bot_configuration.system_prompt),
                     bool(extraction_result.copilot_rules.raw_rules_text),
                 ])
@@ -600,6 +600,80 @@ class WhatsAppOnboardingPipeline:
                 }
             finally:
                 session.close()
+
+            # 4c-bis: Upsert ToneProfile from WritingStyle + Dictionary
+            try:
+                from api.models import ToneProfile
+
+                ws = extraction_result.personality_profile.writing_style
+                dic = extraction_result.personality_profile.dictionary
+
+                filler_words = [
+                    item.get("phrase", "") for item in (dic.greetings + dic.validation)[:15]
+                    if isinstance(item, dict) and item.get("phrase")
+                ]
+                slang_words = [
+                    item.get("phrase", "") for item in dic.unique_catchphrases[:10]
+                    if isinstance(item, dict) and item.get("phrase")
+                ]
+                vocab_sample = list({
+                    item.get("phrase", "")
+                    for lst in [dic.greetings, dic.farewells, dic.gratitude, dic.unique_catchphrases]
+                    for item in lst
+                    if isinstance(item, dict) and item.get("phrase")
+                })[:30]
+
+                profile_data = {
+                    "avg_message_length": ws.avg_message_length or 80.0,
+                    "emoji_frequency": round(ws.emoji_pct / 100.0, 4),
+                    "question_frequency": 0.2,
+                    "filler_words": filler_words,
+                    "slang_words": slang_words,
+                    "vocabulary_sample": vocab_sample,
+                    "primary_language": ws.primary_language,
+                    "avg_emojis_per_msg": ws.avg_emojis_per_msg,
+                    "top_emojis": [
+                        e.get("emoji") for e in ws.top_emojis[:5]
+                        if isinstance(e, dict)
+                    ],
+                }
+                confidence_map = {"alta": 0.9, "media": 0.6, "baja": 0.3}
+                confidence = confidence_map.get(
+                    extraction_result.personality_profile.confidence, 0.6
+                )
+
+                from api.database import SessionLocal as _SL
+                tp_session = _SL()
+                try:
+                    existing = tp_session.query(ToneProfile).filter_by(
+                        creator_id=self.creator_name
+                    ).first()
+                    if existing:
+                        existing.profile_data = profile_data
+                        existing.analyzed_posts_count = (
+                            extraction_result.personality_profile.messages_analyzed
+                        )
+                        existing.confidence_score = confidence
+                    else:
+                        tp_session.add(ToneProfile(
+                            creator_id=self.creator_name,
+                            profile_data=profile_data,
+                            analyzed_posts_count=(
+                                extraction_result.personality_profile.messages_analyzed
+                            ),
+                            confidence_score=confidence,
+                        ))
+                    tp_session.commit()
+                    results["tone_profile"] = {"status": "ok", "confidence": confidence}
+                    logger.info(
+                        f"[WA-PIPELINE] ToneProfile upserted for {self.creator_name} "
+                        f"(confidence={confidence})"
+                    )
+                finally:
+                    tp_session.close()
+            except Exception as tp_e:
+                logger.warning(f"[WA-PIPELINE] ToneProfile write failed: {tp_e}")
+                results["tone_profile"] = {"error": str(tp_e)}
         except Exception as e:
             logger.warning(f"[WA-PIPELINE] PersonalityExtraction failed: {e}")
             results["personality_extraction"] = {"error": str(e)}
