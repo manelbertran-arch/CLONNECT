@@ -170,6 +170,33 @@ async def trigger_whatsapp_onboarding(
     return {"status": "started", "creator_id": creator_id, "instance": instance_name}
 
 
+@router.post("/whatsapp/retrigger-phase/{creator_id}")
+async def retrigger_whatsapp_phase(creator_id: str, phase: int):
+    """Re-run a single phase (4 or 5) of the WhatsApp onboarding pipeline.
+
+    Phases 1-3 require a live Evolution API instance — use
+    /whatsapp/trigger/{creator_id}/{instance_name} for a full re-run.
+
+    Query params:
+        phase: 4 (memory & intelligence) or 5 (calibration)
+    """
+    if phase not in (4, 5):
+        raise HTTPException(status_code=400, detail="Only phases 4 and 5 can be retriggered")
+
+    from services.whatsapp_onboarding_pipeline import WhatsAppOnboardingPipeline
+
+    pipeline = WhatsAppOnboardingPipeline(creator_id, instance_name="")
+    if not await pipeline._resolve_creator():
+        raise HTTPException(status_code=404, detail=f"Creator '{creator_id}' not found")
+
+    if phase == 4:
+        result = await pipeline._phase4_memory_intelligence()
+    else:
+        result = await pipeline._phase5_calibration()
+
+    return {"status": "complete", "phase": phase, "creator_id": creator_id, "result": result}
+
+
 @router.get("/whatsapp/status/{creator_id}")
 async def whatsapp_onboarding_status(creator_id: str):
     """Get WhatsApp onboarding pipeline progress."""
