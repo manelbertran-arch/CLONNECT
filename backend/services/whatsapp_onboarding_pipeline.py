@@ -587,15 +587,13 @@ class WhatsAppOnboardingPipeline:
                     skip_llm=False,
                     limit_leads=50,
                 )
-                docs_generated = sum(
-                    1 for d in [
-                        extraction_result.doc_a,
-                        extraction_result.doc_b,
-                        extraction_result.doc_c,
-                        extraction_result.doc_d,
-                        extraction_result.doc_e,
-                    ] if d
-                )
+                docs_generated = sum([
+                    bool(extraction_result.conversations),
+                    bool(extraction_result.lead_analyses),
+                    bool(extraction_result.personality_profile.formality_level),
+                    bool(extraction_result.bot_configuration.system_prompt),
+                    bool(extraction_result.copilot_rules.raw_rules_text),
+                ])
                 results["personality_extraction"] = {
                     "status": "ok",
                     "docs_generated": docs_generated,
