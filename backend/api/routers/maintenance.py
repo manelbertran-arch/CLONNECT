@@ -502,6 +502,94 @@ async def batch_embed_conversations(creator_name: str, batch_size: int = Query(5
         session.close()
 
 
+@router.post("/backfill-personality-docs/{creator_name}")
+async def backfill_personality_docs(creator_name: str):
+    """
+    Read Doc D and Doc E from disk and persist to personality_docs table in DB.
+
+    Use this once after deploying migration 033 to backfill existing creators.
+    After this, all future extractions persist automatically.
+    """
+    import glob as _glob
+
+    session = SessionLocal()
+    try:
+        from sqlalchemy import text
+
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+        creator_id = str(creator.id)
+
+        extractions_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "data", "personality_extractions",
+        )
+
+        saved = []
+        errors = []
+
+        doc_map = {
+            "doc_d": "doc_d_bot_configuration.md",
+            "doc_e": "doc_e_copilot_rules.md",
+        }
+
+        for doc_type, filename in doc_map.items():
+            # Search for the file under any subdirectory
+            matches = _glob.glob(os.path.join(extractions_dir, "**", filename), recursive=True)
+            if not matches:
+                errors.append(f"{doc_type}: not found on disk")
+                continue
+
+            # Prefer exact creator_id or creator_name subdirectory
+            chosen = None
+            for m in matches:
+                parts = m.split(os.sep)
+                if creator_id in parts or creator_name in parts:
+                    chosen = m
+                    break
+            if not chosen:
+                chosen = matches[0]  # fall back to first found
+
+            try:
+                with open(chosen, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                session.execute(
+                    text(
+                        """
+                        INSERT INTO personality_docs (creator_id, doc_type, content)
+                        VALUES (:creator_id, :doc_type, :content)
+                        ON CONFLICT ON CONSTRAINT uq_personality_docs_creator_type
+                        DO UPDATE SET content = EXCLUDED.content,
+                                      updated_at = now()
+                        """
+                    ),
+                    {"creator_id": creator_id, "doc_type": doc_type, "content": content},
+                )
+                saved.append(f"{doc_type} ({len(content)} chars from {chosen})")
+            except Exception as e:
+                errors.append(f"{doc_type}: {e}")
+
+        session.commit()
+        logger.info(f"[BACKFILL] personality_docs for {creator_name}: saved={saved} errors={errors}")
+
+        return {
+            "status": "ok",
+            "creator": creator_name,
+            "creator_id": creator_id,
+            "saved": saved,
+            "errors": errors,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[BACKFILL] personality_docs error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
 @router.post("/reload-personality/{creator_name}")
 async def reload_personality(creator_name: str):
     """

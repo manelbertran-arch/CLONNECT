@@ -63,29 +63,53 @@ class ExtractionData:
 def _find_doc_path(creator_id: str) -> Optional[str]:
     """Find doc_d_bot_configuration.md for a creator_id (slug or UUID).
 
-    Checks: 1) exact match, 2) scan subdirectories for any containing a match.
-    This handles the case where the DM agent uses slugs (e.g. 'stefano_bonanno')
-    but extractions are stored under UUIDs.
+    Checks only an exact directory match (creator_id as subdir name).
+    Does NOT scan all subdirectories to avoid cross-creator contamination.
     """
-    # Direct match
     direct = os.path.join(EXTRACTIONS_DIR, creator_id, "doc_d_bot_configuration.md")
     if os.path.isfile(direct):
         return direct
+    return None
 
-    # Scan all subdirectories
-    if os.path.isdir(EXTRACTIONS_DIR):
-        for entry in os.listdir(EXTRACTIONS_DIR):
-            candidate = os.path.join(EXTRACTIONS_DIR, entry, "doc_d_bot_configuration.md")
-            if os.path.isfile(candidate):
-                return candidate
 
+def _load_doc_d_from_db(creator_id: str) -> Optional[str]:
+    """Load Doc D markdown content from PostgreSQL personality_docs table.
+
+    Returns the content string, or None if not found.
+    This is the primary source (survives Railway deploys).
+    """
+    try:
+        from api.database import SessionLocal as _SL
+        from sqlalchemy import text
+
+        _s = _SL()
+        try:
+            row = _s.execute(
+                text(
+                    """
+                    SELECT content FROM personality_docs
+                    WHERE creator_id = :creator_id
+                      AND doc_type = 'doc_d'
+                    LIMIT 1
+                    """
+                ),
+                {"creator_id": creator_id},
+            ).fetchone()
+            if row:
+                return row.content
+        finally:
+            _s.close()
+    except Exception as e:
+        logger.warning("Could not load Doc D from DB for %s: %s", creator_id, e)
     return None
 
 
 def load_extraction(creator_id: str) -> Optional[ExtractionData]:
     """Load and cache personality extraction for a creator.
 
-    Returns None if no extraction exists.
+    Priority: 1) DB (personality_docs table, survives deploys)
+              2) Disk (data/personality_extractions/{creator_id}/doc_d_*.md)
+    Returns None if no extraction exists in either location.
     Cache expires after PERSONALITY_CACHE_TTL seconds (default 300s / 5 min).
     """
     now = time.time()
@@ -96,20 +120,32 @@ def load_extraction(creator_id: str) -> Optional[ExtractionData]:
         # TTL expired — reload
         logger.info("Personality cache expired for %s, reloading", creator_id)
 
-    doc_path = _find_doc_path(creator_id)
-    if not doc_path:
+    # 1. Try DB first (primary — survives Railway deploys)
+    content = _load_doc_d_from_db(creator_id)
+    source = "db"
+
+    # 2. Fall back to disk
+    if not content:
+        doc_path = _find_doc_path(creator_id)
+        if doc_path:
+            try:
+                with open(doc_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                source = "disk"
+            except Exception as e:
+                logger.error("Failed to read doc_d from disk for %s: %s", creator_id, e)
+
+    if not content:
         _cache[creator_id] = (None, now)
         return None
 
     try:
-        with open(doc_path, "r", encoding="utf-8") as f:
-            content = f.read()
         data = _parse_doc_d(creator_id, content)
         _cache[creator_id] = (data, now)
         logger.info(
-            "Loaded personality extraction for %s: "
+            "Loaded personality extraction for %s (source=%s): "
             "prompt=%d chars, blacklist=%d, pools=%d cats, multi_bubble=%d",
-            creator_id, len(data.system_prompt), len(data.blacklist_phrases),
+            creator_id, source, len(data.system_prompt), len(data.blacklist_phrases),
             len(data.template_pools), len(data.multi_bubble),
         )
         return data

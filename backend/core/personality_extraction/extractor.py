@@ -304,6 +304,9 @@ class PersonalityExtractor:
             }
             _save_document(out_dir / "extraction_summary.json", json.dumps(summary, indent=2, ensure_ascii=False))
 
+            # Persist Doc D and Doc E to DB (survives Railway deploys)
+            _save_docs_to_db(creator_id, {"doc_d": doc_d, "doc_e": doc_e})
+
             logger.info(
                 "═══ EXTRACTION COMPLETE in %.1fs ═══ "
                 "Creator: %s | %d messages | %d leads | %d docs saved to %s",
@@ -331,3 +334,47 @@ def _save_document(path: Path, content: str) -> None:
         logger.info("Saved: %s (%d chars)", path, len(content))
     except Exception as e:
         logger.error("Failed to save %s: %s", path, e)
+
+
+def _save_docs_to_db(creator_id: str, docs: dict) -> None:
+    """Persist Doc D and/or Doc E to PostgreSQL personality_docs table.
+
+    This is the critical persistence layer — Railway's ephemeral filesystem
+    loses all disk files on every deploy. DB storage survives deploys.
+
+    Args:
+        creator_id: Creator UUID or slug
+        docs: Dict mapping doc_type ('doc_d', 'doc_e') -> markdown content string
+    """
+    try:
+        from api.database import SessionLocal as _SL
+        from sqlalchemy import text
+
+        _s = _SL()
+        try:
+            for doc_type, content in docs.items():
+                if not content or content.startswith("# Doc"):
+                    # Skip skipped/empty docs (e.g. "# Doc D: SKIPPED (skip_llm=True)")
+                    continue
+                _s.execute(
+                    text(
+                        """
+                        INSERT INTO personality_docs (creator_id, doc_type, content)
+                        VALUES (:creator_id, :doc_type, :content)
+                        ON CONFLICT ON CONSTRAINT uq_personality_docs_creator_type
+                        DO UPDATE SET content = EXCLUDED.content,
+                                      updated_at = now()
+                        """
+                    ),
+                    {"creator_id": creator_id, "doc_type": doc_type, "content": content},
+                )
+            _s.commit()
+            logger.info(
+                "Persisted docs to DB for creator %s: %s",
+                creator_id,
+                list(docs.keys()),
+            )
+        finally:
+            _s.close()
+    except Exception as e:
+        logger.error("Failed to persist docs to DB for creator %s: %s", creator_id, e)
