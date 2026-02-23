@@ -23,6 +23,7 @@ Usage:
         # Returns: "RELEVANT HISTORY:\n- User said: 'I have an online clothing store'"
 """
 
+import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -118,7 +119,7 @@ class SemanticMemoryPgvector:
                         "role": role,
                         "content": content,
                         "embedding": embedding_str,
-                        "metadata": metadata or {},
+                        "metadata": json.dumps(metadata or {}),
                     },
                 )
                 db.commit()
