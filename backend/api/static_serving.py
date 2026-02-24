@@ -157,6 +157,14 @@ def register_static_routes(app: "FastAPI"):
         if full_path.startswith(api_prefixes):
             raise HTTPException(status_code=404, detail="API route not found")
 
+        # Block dotfiles (.env, .git, .htaccess, etc.) and common sensitive paths
+        path_parts = full_path.split("/")
+        if any(part.startswith(".") for part in path_parts if part):
+            raise HTTPException(status_code=404)
+        sensitive_extensions = (".env", ".ini", ".cfg", ".conf", ".log", ".bak", ".sql", ".sh")
+        if full_path.lower().endswith(sensitive_extensions):
+            raise HTTPException(status_code=404)
+
         index_path = os.path.join(_static_dir, "index.html")
         if os.path.exists(index_path):
             response = FileResponse(index_path, media_type="text/html")
