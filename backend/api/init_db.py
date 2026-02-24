@@ -439,7 +439,7 @@ def create_demo_user(session):
         return
 
     # Hash the password
-    password = "demo2024"
+    password = os.getenv("DEMO_USER_PASSWORD", "change-me-in-production")
     password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     # Create user

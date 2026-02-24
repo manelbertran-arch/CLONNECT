@@ -10,7 +10,9 @@ Handles creator-related operations:
 import logging
 import os
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from api.auth import require_admin
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -19,7 +21,7 @@ DEMO_RESET_ENABLED = os.getenv("ENABLE_DEMO_RESET", "true").lower() == "true"
 
 
 @router.get("/demo-status")
-async def get_demo_status():
+async def get_demo_status(admin: str = Depends(require_admin)):
     """Check if demo reset is enabled and get current data counts"""
     counts = {}
 
@@ -83,7 +85,7 @@ async def get_demo_status():
 
 
 @router.get("/creators")
-async def admin_list_creators():
+async def admin_list_creators(admin: str = Depends(require_admin)):
     """
     [ADMIN] Listar todos los creadores con estadísticas básicas.
     Requiere CLONNECT_ADMIN_KEY.
@@ -133,7 +135,7 @@ async def admin_list_creators():
 
 
 @router.post("/creators/{creator_id}/pause")
-async def admin_pause_creator(creator_id: str, reason: str = "Pausado por admin"):
+async def admin_pause_creator(creator_id: str, reason: str = "Pausado por admin", admin: str = Depends(require_admin)):
     """
     [ADMIN] Pausar el bot de cualquier creador.
     Requiere CLONNECT_ADMIN_KEY.
@@ -159,7 +161,7 @@ async def admin_pause_creator(creator_id: str, reason: str = "Pausado por admin"
 
 
 @router.post("/creators/{creator_id}/resume")
-async def admin_resume_creator(creator_id: str):
+async def admin_resume_creator(creator_id: str, admin: str = Depends(require_admin)):
     """
     [ADMIN] Reanudar el bot de cualquier creador.
     Requiere CLONNECT_ADMIN_KEY.
@@ -185,7 +187,7 @@ async def admin_resume_creator(creator_id: str):
 
 
 @router.post("/reset-rate-limiter/{creator_id}")
-async def admin_reset_rate_limiter(creator_id: str):
+async def admin_reset_rate_limiter(creator_id: str, admin: str = Depends(require_admin)):
     """Reset Instagram rate limiter backoff for a creator."""
     try:
         from core.instagram_rate_limiter import get_instagram_rate_limiter
@@ -199,7 +201,7 @@ async def admin_reset_rate_limiter(creator_id: str):
 
 
 @router.get("/rate-limiter-stats")
-async def admin_rate_limiter_stats(creator_id: str = None):
+async def admin_rate_limiter_stats(creator_id: str = None, admin: str = Depends(require_admin)):
     """Get Instagram rate limiter statistics."""
     try:
         from core.instagram_rate_limiter import get_instagram_rate_limiter

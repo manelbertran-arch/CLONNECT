@@ -110,7 +110,6 @@ DEFAULT_CORS_ORIGINS = [
     "https://www.clonnectapp.com",
     "https://clonnectapp.com",
     "https://api.clonnectapp.com",
-    "https://web-production-9f69.up.railway.app",  # Legacy Railway URL — keep for transition
 ]
 # Only include localhost origins in non-production environments
 if os.getenv("ENVIRONMENT", "production") != "production":
@@ -250,11 +249,6 @@ app.include_router(preview_router.router)
 from api.routers import dm as dm_router
 
 app.include_router(dm_router.router)
-
-# DM Orchestrated router (Bot Autopilot test endpoints)
-from api.routers import dm_orchestrated as dm_orchestrated_router
-
-app.include_router(dm_orchestrated_router.router)
 
 # Webhooks router (payment and calendar webhooks)
 from api.routers import webhooks as webhooks_router

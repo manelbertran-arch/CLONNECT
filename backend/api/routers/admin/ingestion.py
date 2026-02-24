@@ -13,7 +13,9 @@ IDEMPOTENT: Instagram uses clean_before=false (append new); website uses clean_b
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from api.auth import require_admin
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -29,7 +31,7 @@ class RefreshResult(BaseModel):
 
 
 @router.get("/ingestion/status/{creator_id}")
-async def get_ingestion_status(creator_id: str):
+async def get_ingestion_status(creator_id: str, admin: str = Depends(require_admin)):
     """
     Get current data counts for a creator (for pre/post refresh comparison).
 
@@ -118,7 +120,7 @@ async def get_ingestion_status(creator_id: str):
 
 
 @router.post("/ingestion/refresh-ig-posts/{creator_id}")
-async def refresh_ig_posts(creator_id: str, max_posts: int = 50, clean_before: bool = False):
+async def refresh_ig_posts(creator_id: str, max_posts: int = 50, clean_before: bool = False, admin: str = Depends(require_admin)):
     """
     Re-scrape Instagram posts for a creator via Graph API.
 
@@ -183,7 +185,7 @@ async def refresh_ig_posts(creator_id: str, max_posts: int = 50, clean_before: b
 
 
 @router.post("/ingestion/refresh-content/{creator_id}")
-async def refresh_content(creator_id: str, url: Optional[str] = None, max_pages: int = 10):
+async def refresh_content(creator_id: str, url: Optional[str] = None, max_pages: int = 10, admin: str = Depends(require_admin)):
     """
     Re-scrape creator website, detect products, create RAG chunks.
 
@@ -263,6 +265,7 @@ async def full_refresh(
     max_web_pages: int = 10,
     skip_ig: bool = False,
     skip_website: bool = False,
+    admin: str = Depends(require_admin),
 ):
     """
     Full re-ingestion: IG posts + website content in sequence.
@@ -348,7 +351,7 @@ async def full_refresh(
 
 
 @router.post("/content/refresh/{creator_id}")
-async def trigger_content_refresh(creator_id: str):
+async def trigger_content_refresh(creator_id: str, admin: str = Depends(require_admin)):
     """
     Manually trigger content refresh for a creator.
 
@@ -383,7 +386,7 @@ async def trigger_content_refresh(creator_id: str):
 
 
 @router.get("/content/refresh/status")
-async def get_content_refresh_status():
+async def get_content_refresh_status(admin: str = Depends(require_admin)):
     """
     Get content refresh scheduler configuration and status.
     """

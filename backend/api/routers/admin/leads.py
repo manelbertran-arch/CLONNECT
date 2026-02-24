@@ -9,14 +9,16 @@ Handles lead-related operations:
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from api.auth import require_admin
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.post("/rescore-leads/{creator_id}")
-async def rescore_leads(creator_id: str):
+async def rescore_leads(creator_id: str, admin: str = Depends(require_admin)):
     """
     Re-categorizar todos los leads usando el sistema de embudo estándar.
 
@@ -168,7 +170,7 @@ async def rescore_leads(creator_id: str):
 
 
 @router.get("/lead-categories")
-async def get_lead_categories():
+async def get_lead_categories(admin: str = Depends(require_admin)):
     """
     Obtener configuración de categorías de leads para el frontend.
 
@@ -180,7 +182,7 @@ async def get_lead_categories():
 
 
 @router.get("/ghost-stats/{creator_id}")
-async def get_ghost_stats(creator_id: str):
+async def get_ghost_stats(creator_id: str, admin: str = Depends(require_admin)):
     """
     Obtiene estadísticas de leads fantasma y estado de reactivación.
 
@@ -198,7 +200,7 @@ async def get_ghost_stats(creator_id: str):
 
 
 @router.post("/ghost-reactivate/{creator_id}")
-async def reactivate_ghosts(creator_id: str, dry_run: bool = False):
+async def reactivate_ghosts(creator_id: str, dry_run: bool = False, admin: str = Depends(require_admin)):
     """
     Reactiva manualmente leads fantasma de un creator.
 
@@ -226,6 +228,7 @@ async def configure_ghost_reactivation(
     max_days: int = None,
     cooldown_days: int = None,
     max_per_cycle: int = None,
+    admin: str = Depends(require_admin),
 ):
     """
     Configura parámetros de reactivación de fantasmas.
@@ -256,7 +259,7 @@ async def configure_ghost_reactivation(
 
 
 @router.get("/ghost-config")
-async def get_ghost_config():
+async def get_ghost_config(admin: str = Depends(require_admin)):
     """Obtiene la configuración actual de reactivación."""
     try:
         from core.ghost_reactivation import REACTIVATION_CONFIG
@@ -267,7 +270,7 @@ async def get_ghost_config():
 
 
 @router.get("/diagnose-duplicate-leads/{creator_id}")
-async def diagnose_duplicate_leads(creator_id: str):
+async def diagnose_duplicate_leads(creator_id: str, admin: str = Depends(require_admin)):
     """
     Diagnose duplicate leads (same username with different platform_user_id).
     Also creates a backup of the leads table.
@@ -370,7 +373,7 @@ async def diagnose_duplicate_leads(creator_id: str):
 
 
 @router.post("/merge-duplicate-leads/{creator_id}")
-async def merge_duplicate_leads(creator_id: str):
+async def merge_duplicate_leads(creator_id: str, admin: str = Depends(require_admin)):
     """
     Merge duplicate leads (same username with different platform_user_id).
     Moves messages from ig_xxx leads to xxx leads, then deletes the ig_xxx leads.

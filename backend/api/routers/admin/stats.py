@@ -12,14 +12,16 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from api.auth import require_admin
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.get("/stats")
-async def admin_global_stats():
+async def admin_global_stats(admin: str = Depends(require_admin)):
     """
     [ADMIN] Estadísticas globales de la plataforma.
     Requiere CLONNECT_ADMIN_KEY.
@@ -78,7 +80,7 @@ async def admin_global_stats():
 
 
 @router.get("/conversations")
-async def admin_all_conversations(creator_id: Optional[str] = None, limit: int = 100):
+async def admin_all_conversations(creator_id: Optional[str] = None, limit: int = 100, admin: str = Depends(require_admin)):
     """
     [ADMIN] Listar todas las conversaciones de todos los creadores.
     Opcionalmente filtrar por creator_id.
@@ -122,7 +124,7 @@ async def admin_all_conversations(creator_id: Optional[str] = None, limit: int =
 
 
 @router.get("/alerts")
-async def admin_recent_alerts(limit: int = 50):
+async def admin_recent_alerts(limit: int = 50, admin: str = Depends(require_admin)):
     """
     [ADMIN] Obtener alertas recientes del sistema.
     Requiere CLONNECT_ADMIN_KEY.
