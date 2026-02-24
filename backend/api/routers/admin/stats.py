@@ -123,6 +123,24 @@ async def admin_all_conversations(creator_id: Optional[str] = None, limit: int =
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/pending-messages")
+async def admin_pending_messages(admin: str = Depends(require_admin)):
+    """View messages queued for retry."""
+    from api.database import SessionLocal
+    from api.models import PendingMessage
+    with SessionLocal() as session:
+        pending = session.query(PendingMessage).filter(
+            PendingMessage.status == "pending"
+        ).count()
+        failed = session.query(PendingMessage).filter(
+            PendingMessage.status == "failed_permanent"
+        ).count()
+        return {
+            "pending_retry": pending,
+            "failed_permanent": failed,
+        }
+
+
 @router.get("/alerts")
 async def admin_recent_alerts(limit: int = 50, admin: str = Depends(require_admin)):
     """

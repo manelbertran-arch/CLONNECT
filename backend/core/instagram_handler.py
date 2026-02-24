@@ -2404,6 +2404,18 @@ class InstagramHandler:
             if "error" in result:
                 logger.error(f"Error sending message: {result['error']}")
                 self.status.errors += 1
+                # Queue for retry
+                try:
+                    from services.message_retry_service import queue_failed_message
+                    import asyncio
+                    asyncio.create_task(queue_failed_message(
+                        creator_id=self.creator_id,
+                        recipient_id=recipient_id,
+                        content=text,
+                        error=str(result['error']),
+                    ))
+                except Exception as retry_err:
+                    logger.debug(f"Failed to queue message for retry: {retry_err}")
                 return False
 
             self._record_sent()
@@ -2412,6 +2424,18 @@ class InstagramHandler:
         except Exception as e:
             logger.error(f"Error sending response: {e}")
             self.status.errors += 1
+            # Queue for retry
+            try:
+                from services.message_retry_service import queue_failed_message
+                import asyncio
+                asyncio.create_task(queue_failed_message(
+                    creator_id=self.creator_id,
+                    recipient_id=recipient_id,
+                    content=text,
+                    error=str(e),
+                ))
+            except Exception as retry_err:
+                logger.debug(f"Failed to queue message for retry: {retry_err}")
             return False
 
     async def send_message_with_buttons(

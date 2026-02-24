@@ -269,6 +269,12 @@ def health_cache():
         return {"status": "error", "error": str(e)}
 
 
+@router.get("/health/tasks")
+async def task_health():
+    from core.task_scheduler import scheduler
+    return scheduler.health_report()
+
+
 @router.get("/health/scheduler")
 def health_scheduler():
     """List all background scheduled jobs and their status.

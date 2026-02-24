@@ -3,6 +3,8 @@ from fastapi import APIRouter, Body, HTTPException
 import logging
 import os
 
+from api.schemas.knowledge import FAQCreate, FAQUpdate, KnowledgeAdd
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/creator/config", tags=["knowledge"])
 
@@ -42,10 +44,10 @@ async def get_faqs(creator_id: str):
     return {"status": "ok", "items": [], "count": 0}
 
 @router.post("/{creator_id}/knowledge/faqs")
-async def add_faq(creator_id: str, data: dict = Body(...)):
+async def add_faq(creator_id: str, data: FAQCreate):
     """Add a new FAQ"""
-    question = data.get("question", "").strip()
-    answer = data.get("answer", "").strip()
+    question = data.question.strip()
+    answer = data.answer.strip()
 
     if not question or not answer:
         raise HTTPException(status_code=400, detail="Question and answer are required")
@@ -60,10 +62,10 @@ async def add_faq(creator_id: str, data: dict = Body(...)):
     raise HTTPException(status_code=500, detail="Failed to add FAQ")
 
 @router.put("/{creator_id}/knowledge/faqs/{item_id}")
-async def update_faq(creator_id: str, item_id: str, data: dict = Body(...)):
+async def update_faq(creator_id: str, item_id: str, data: FAQUpdate):
     """Update an existing FAQ"""
-    question = data.get("question", "").strip()
-    answer = data.get("answer", "").strip()
+    question = (data.question or "").strip()
+    answer = (data.answer or "").strip()
 
     if not question or not answer:
         raise HTTPException(status_code=400, detail="Question and answer are required")
@@ -102,7 +104,7 @@ async def get_about(creator_id: str):
 
 @router.put("/{creator_id}/knowledge/about")
 async def update_about(creator_id: str, data: dict = Body(...)):
-    """Update About Me/Business info"""
+    """Update About Me/Business info — accepts raw dict (structured JSON fields)"""
     if USE_DB:
         try:
             success = db_service.update_knowledge_about(creator_id, data)
@@ -114,10 +116,10 @@ async def update_about(creator_id: str, data: dict = Body(...)):
 
 # Legacy endpoint compatibility
 @router.post("/{creator_id}/knowledge")
-async def add_knowledge_legacy(creator_id: str, data: dict = Body(...)):
+async def add_knowledge_legacy(creator_id: str, data: KnowledgeAdd):
     """Legacy: Add knowledge (auto-parse Q&A format)"""
-    text = data.get("text", "").strip()
-    _doc_type = data.get("doc_type", "faq")
+    text = data.text.strip()
+    _doc_type = data.doc_type or "faq"
 
     if not text:
         raise HTTPException(status_code=400, detail="Text is required")

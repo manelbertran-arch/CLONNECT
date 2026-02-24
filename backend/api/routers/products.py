@@ -4,6 +4,7 @@ import logging
 import os
 
 from api.auth import require_creator_access
+from api.schemas.products import ProductCreate, ProductUpdate
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/creator", tags=["products"])
@@ -46,10 +47,10 @@ async def get_products(creator_id: str, active_only: bool = True, _auth: str = D
     return {"status": "ok", "products": [], "count": 0}
 
 @router.post("/{creator_id}/products")
-async def create_product(creator_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
+async def create_product(creator_id: str, data: ProductCreate, _auth: str = Depends(require_creator_access)):
     if USE_DB:
         try:
-            result = db_service.create_product(creator_id, data)
+            result = db_service.create_product(creator_id, data.model_dump(exclude_unset=True))
             if result:
                 _invalidate_bot_cache(creator_id)
                 return {"status": "ok", "product": adapt_product_response(result)}
@@ -58,13 +59,13 @@ async def create_product(creator_id: str, data: dict = Body(...), _auth: str = D
     raise HTTPException(status_code=500, detail="Failed to create product")
 
 @router.put("/{creator_id}/products/{product_id}")
-async def update_product(creator_id: str, product_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
+async def update_product(creator_id: str, product_id: str, data: ProductUpdate, _auth: str = Depends(require_creator_access)):
     logger.info("=== ROUTER UPDATE PRODUCT ===")
     logger.info(f"Creator: {creator_id}, Product ID: {product_id}")
-    logger.info(f"Data received: {data}")
+    logger.info(f"Data received: {data.model_dump(exclude_unset=True)}")
     if USE_DB:
         try:
-            success = db_service.update_product(creator_id, product_id, data)
+            success = db_service.update_product(creator_id, product_id, data.model_dump(exclude_unset=True))
             logger.info(f"DB update result: {success}")
             if success:
                 _invalidate_bot_cache(creator_id)
