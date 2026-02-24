@@ -27,13 +27,22 @@ logger = logging.getLogger(__name__)
 
 
 class SimpleCache:
-    """Thread-safe in-memory cache with TTL support."""
+    """Thread-safe in-memory cache with TTL support and max size cap."""
 
-    def __init__(self):
+    def __init__(self, maxsize: int = 1000):
         self._cache: Dict[str, Tuple[Any, datetime]] = {}
         self._lock = threading.Lock()
         self._hits = 0
         self._misses = 0
+        self._maxsize = maxsize
+        self._evictions = 0
+
+    def _evict_expired(self):
+        """Remove expired entries (call while holding lock)."""
+        now = datetime.now(timezone.utc)
+        expired = [k for k, (_, exp) in self._cache.items() if now >= exp]
+        for k in expired:
+            del self._cache[k]
 
     def get(self, key: str) -> Optional[Any]:
         """Get value from cache if not expired."""
@@ -50,10 +59,19 @@ class SimpleCache:
             return None
 
     def set(self, key: str, value: Any, ttl_seconds: int = 10):
-        """Set value in cache with TTL."""
+        """Set value in cache with TTL. Evicts oldest entries if at capacity."""
         with self._lock:
             expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
             self._cache[key] = (value, expires_at)
+            # Enforce max size: evict expired first, then oldest if still over
+            if len(self._cache) > self._maxsize:
+                self._evict_expired()
+            if len(self._cache) > self._maxsize:
+                # Remove oldest entries (by expiry time) until under limit
+                sorted_keys = sorted(self._cache, key=lambda k: self._cache[k][1])
+                while len(self._cache) > self._maxsize and sorted_keys:
+                    del self._cache[sorted_keys.pop(0)]
+                    self._evictions += 1
 
     def invalidate(self, key_prefix: str):
         """Invalidate all keys starting with prefix."""
@@ -80,6 +98,8 @@ class SimpleCache:
                 "misses": self._misses,
                 "hit_rate": f"{hit_rate:.1f}%",
                 "cached_keys": len(self._cache),
+                "maxsize": self._maxsize,
+                "evictions": self._evictions,
             }
 
 

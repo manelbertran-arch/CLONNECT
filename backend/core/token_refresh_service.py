@@ -297,7 +297,17 @@ async def refresh_all_creator_tokens(db_session) -> Dict[str, Any]:
             creator_id, creator_name = creator
 
             try:
-                check_result = await check_and_refresh_if_needed(str(creator_id), db_session)
+                # Retry token refresh up to 3 times with exponential backoff
+                check_result = None
+                for attempt in range(3):
+                    check_result = await check_and_refresh_if_needed(str(creator_id), db_session)
+                    if check_result.get("success") or check_result.get("action") == "skip":
+                        break
+                    if attempt < 2:  # Don't sleep after last attempt
+                        import asyncio as _aio
+                        wait = 60 * (2 ** attempt)  # 60s, 120s
+                        logger.warning(f"[TOKEN-REFRESH] Retry {attempt+1}/3 for {creator_name} in {wait}s")
+                        await _aio.sleep(wait)
                 stats["checked"] += 1
 
                 days_remaining = check_result.get("days_until_expiry")
@@ -329,7 +339,7 @@ async def refresh_all_creator_tokens(db_session) -> Dict[str, Any]:
                             stats["alerts_sent"] += 1
                         else:
                             await alert_manager.send_telegram_alert(
-                                message=f"Token auto-refresh failed ({days_remaining} days remaining).\nWill retry tomorrow.",
+                                message=f"Token auto-refresh failed ({days_remaining} days remaining).\nWill retry in 6h.",
                                 level=AlertLevel.WARNING,
                                 title="OAuth Token Refresh Failed",
                                 creator_id=str(creator_id),

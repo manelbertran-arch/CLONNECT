@@ -93,6 +93,7 @@ def create_relationship_dna(
 
     try:
         from api.models import RelationshipDNAModel
+        from sqlalchemy.exc import IntegrityError
 
         dna = RelationshipDNAModel(
             creator_id=creator_id,
@@ -112,6 +113,18 @@ def create_relationship_dna(
         logger.info(f"Created RelationshipDNA for {creator_id}/{follower_id}: {relationship_type}")
         return _dna_to_dict(dna)
 
+    except IntegrityError:
+        # Race condition: another request created this DNA concurrently.
+        # Return the existing record instead.
+        session.rollback()
+        logger.info(f"RelationshipDNA already exists for {creator_id}/{follower_id} (concurrent create)")
+        try:
+            existing = session.query(RelationshipDNAModel).filter_by(
+                creator_id=creator_id, follower_id=follower_id
+            ).first()
+            return _dna_to_dict(existing) if existing else None
+        except Exception:
+            return None
     except Exception as e:
         logger.error(f"create_relationship_dna error: {e}")
         session.rollback()

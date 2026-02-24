@@ -140,7 +140,7 @@ class UnmatchedWebhook(Base):
     instagram_ids = Column(JSONB, nullable=False)  # All IDs extracted from payload
     payload_summary = Column(JSONB)  # Summary of payload (no sensitive data)
     resolved = Column(Boolean, default=False, nullable=False)
-    resolved_to_creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"))
+    resolved_to_creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), index=True)
     resolved_at = Column(DateTime(timezone=True))
     notes = Column(Text)
 

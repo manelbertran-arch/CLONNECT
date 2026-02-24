@@ -194,6 +194,31 @@ def _message_mentions_product(product_name: str, msg_lower: str) -> bool:
 
 
 # =============================================================================
+# TEXT TRUNCATION (sentence-aware)
+# =============================================================================
+
+
+def _truncate_at_boundary(text: str, max_chars: int) -> str:
+    """Truncate text at a sentence or word boundary to avoid corrupting LLM input."""
+    if len(text) <= max_chars:
+        return text
+    truncated = text[:max_chars]
+    # Try to cut at last sentence boundary (don't lose more than 20%)
+    last_period = truncated.rfind('. ')
+    if last_period > max_chars * 0.8:
+        return truncated[:last_period + 1]
+    # Fallback: cut at last newline
+    last_newline = truncated.rfind('\n')
+    if last_newline > max_chars * 0.9:
+        return truncated[:last_newline]
+    # Fallback: cut at last word boundary
+    last_space = truncated.rfind(' ')
+    if last_space > max_chars * 0.9:
+        return truncated[:last_space]
+    return truncated
+
+
+# =============================================================================
 # NON-CACHEABLE INTENTS (backward compatibility)
 # =============================================================================
 # Intents that should NOT be cached (require fresh responses)
@@ -1379,15 +1404,16 @@ class DMResponderAgentV2:
                     f"⚠️ NOTA: El usuario parece frustrado (nivel: {frustration_level:.0%}). "
                     f"Responde con empatía y ofrece ayuda concreta."
                 )
-            prompt_parts.append(f"Mensaje actual: {message}")
+            prompt_parts.append(f"Mensaje actual:\n<user_message>\n{message}\n</user_message>")
             full_prompt = "\n\n".join(prompt_parts)
 
             # Cap total context to ~6000 tokens to control LLM cost/latency
             _MAX_CONTEXT_CHARS = 24000  # ~6000 tokens
             if len(system_prompt) > _MAX_CONTEXT_CHARS:
-                system_prompt = system_prompt[:_MAX_CONTEXT_CHARS]
+                original_len = len(system_prompt)
+                system_prompt = _truncate_at_boundary(system_prompt, _MAX_CONTEXT_CHARS)
                 cognitive_metadata["prompt_truncated"] = True
-                logger.warning(f"[PROMPT] Truncated system prompt from {len(system_prompt)} to {_MAX_CONTEXT_CHARS} chars")
+                logger.warning(f"[PROMPT] Truncated system prompt from {original_len} to {len(system_prompt)} chars")
 
             # Log prompt size for latency diagnosis
             _est_tokens = len(system_prompt) // 4

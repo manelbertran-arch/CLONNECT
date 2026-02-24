@@ -106,11 +106,15 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_nurturing_delayed())
         logger.info("Nurturing scheduler scheduled to start in 30s")
 
-        # Start daily OAuth token refresh scheduler
+        # Start OAuth token refresh scheduler (every 6h for resilience)
         async def start_token_refresh_scheduler():
-            """Check and refresh OAuth tokens once daily (every 24h)."""
+            """Check and refresh OAuth tokens every 6h.
+
+            Reduced from 24h to 6h so that if one refresh fails,
+            the next retry is 6h later instead of a full day.
+            """
             await asyncio.sleep(60)  # Wait for DB to be ready
-            logger.info("[TOKEN-REFRESH] Scheduler started — runs every 24h")
+            logger.info("[TOKEN-REFRESH] Scheduler started — runs every 6h")
 
             while True:
                 try:
@@ -129,10 +133,10 @@ def register_startup_handlers(app: "FastAPI"):
                 except Exception as e:
                     logger.error(f"[TOKEN-REFRESH] Scheduler error: {e}")
 
-                await asyncio.sleep(86400)  # 24 hours
+                await asyncio.sleep(21600)  # 6 hours
 
         asyncio.create_task(start_token_refresh_scheduler())
-        logger.info("Token refresh scheduler scheduled (every 24h)")
+        logger.info("Token refresh scheduler scheduled (every 6h)")
 
         # Start daily content refresh scheduler (re-scrape IG posts, chunk, embed)
         async def start_content_refresh_scheduler():
