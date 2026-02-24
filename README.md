@@ -1,202 +1,88 @@
 # CLONNECT
 
-SaaS platform for content creators to automate Instagram/Telegram/WhatsApp DMs with AI.
+**AI Sales Expert for Content Creators** — SaaS platform that creates AI-powered digital clones to automate DM conversations, qualify leads, and generate revenue.
 
-## Features
+Production: [www.clonnectapp.com](https://www.clonnectapp.com)
 
-- **AI-Powered DM Responses**: Automatically respond to DMs with personalized messages using your voice/tone
-- **Multi-Channel Support**: Instagram, Telegram, WhatsApp integration
-- **Lead Management**: Track and score leads through the sales funnel (new -> warm -> hot -> customer)
-- **Nurturing Sequences**: Automated follow-up sequences for different lead stages
-- **Product Catalog**: Manage products with pricing and payment links
-- **Analytics Dashboard**: Real-time metrics on conversations, conversions, and revenue
-- **Booking Integration**: Calendar integration for scheduling calls (Calendly, Cal.com)
-- **Payment Processing**: Stripe, Hotmart, PayPal integration with revenue tracking
-- **GDPR Compliance**: Built-in data export, anonymization, and consent management
+## What It Does
+
+Clonnect learns a creator's voice, tone, knowledge, and sales style, then handles their DM conversations 24/7 — responding to inquiries, qualifying leads, handling objections, promoting products, and tracking every interaction.
+
+## Architecture
+
+Monolithic FastAPI backend + React frontend, deployed as a single service on Railway.
+
+```
+backend/
+├── core/              # Business logic (DM agent, LLM, integrations)
+│   ├── dm_agent_v2.py # Central orchestrator — 15-stage pipeline
+│   ├── providers/     # LLM providers (Gemini Flash-Lite primary)
+│   ├── rag/           # Hybrid search (BM25 + semantic + Cross-Encoder)
+│   └── …            # Guardrails, memory, intent, scoring, etc.
+├── api/               # FastAPI app (46 routers, auth, middleware)
+├── services/          # Specialized services (lead scoring, nurturing, etc.)
+├── ingestion/         # Content ingestion pipeline (IG, web, YouTube, podcast)
+├── tests/             # Test suite (293 files)
+├── alembic/           # DB migrations (37 versioned)
+└── metrics/           # Prometheus collectors
+
+frontend/
+├── src/pages/         # Dashboard pages (Inbox, Leads, Products, etc.)
+├── src/components/    # Reusable UI (shadcn/ui + TailwindCSS)
+└── src/services/      # API client
+
+_archive/              # Historical docs, legacy code, audit reports
+```
 
 ## Tech Stack
 
-- **Backend**: FastAPI (Python 3.11+)
-- **Frontend**: React + TypeScript + Vite + TailwindCSS + shadcn/ui
-- **Database**: PostgreSQL (with SQLAlchemy ORM)
-- **LLM**: Groq (Llama 3.3 70B), OpenAI, Anthropic with fallback
-- **Deployment**: Railway (all services)
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.11, FastAPI, SQLAlchemy 2.0, Pydantic |
+| Frontend | React, TypeScript, Vite, TailwindCSS, shadcn/ui |
+| Database | PostgreSQL 15 (Neon) + pgvector |
+| Primary LLM | Gemini 2.5 Flash-Lite |
+| Fallback LLM | GPT-4o-mini |
+| Embeddings | OpenAI text-embedding-3-small (1536d) |
+| Search | Hybrid RAG: 70% semantic + 30% BM25 + Cross-Encoder reranking |
+| Hosting | Railway (single service) |
+| Media | Cloudinary (persistent CDN) |
+| Messaging | Instagram Graph API (primary), WhatsApp (Evolution API), Telegram |
+| Payments | Stripe, Hotmart, PayPal |
+| Monitoring | Sentry + Prometheus |
 
-## Project Structure
+## Key Metrics
 
-```
-CLONNECT/
-├── backend/
-│   ├── api/                 # FastAPI application
-│   │   ├── main.py          # Main API entry point
-│   │   ├── models.py        # SQLAlchemy models
-│   │   ├── routers/         # API route handlers
-│   │   └── middleware/      # Rate limiting, etc.
-│   ├── core/                # Business logic
-│   │   ├── dm_agent.py      # AI response generation
-│   │   ├── llm.py           # LLM provider abstraction
-│   │   ├── payments.py      # Payment processing
-│   │   ├── nurturing.py     # Nurturing sequences
-│   │   └── ...
-│   ├── alembic/             # Database migrations
-│   ├── scripts/             # Utility scripts
-│   └── tests/               # Backend tests
-├── frontend/
-│   ├── src/
-│   │   ├── components/      # React components
-│   │   ├── pages/           # Page components
-│   │   ├── hooks/           # Custom hooks
-│   │   └── lib/             # Utilities
-│   ├── e2e/                 # Playwright E2E tests
-│   └── ...
-└── .github/workflows/       # CI/CD pipelines
-```
+- **~246K lines** of code (210K Python + 36K TypeScript)
+- **53 SQLAlchemy models**, 37 Alembic migrations
+- **46 API routers**, 65 feature flags
+- **18 operational subsystems** in production
+- **15-stage DM processing pipeline** per message
 
-## Quick Start
+## DM Agent Pipeline
 
-### Prerequisites
+Each incoming message passes through: Intent Classification → Frustration Detection → Sensitivity Detection → Context Analysis → Conversation State → Memory Recall → Query Expansion → Hybrid RAG Search → Prompt Construction → LLM Generation → Reflexion Self-Critique → Guardrails → Output Validation → Format Fixes → Lead Categorization.
 
-- Python 3.11+
-- Node.js 20+
-- PostgreSQL 15+
-- Git
-
-### Backend Setup
+## Running Locally
 
 ```bash
+# Backend
 cd backend
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
 pip install -r requirements.txt
+uvicorn api.main:app --reload
 
-# Copy environment variables
-cp .env.example .env
-# Edit .env with your API keys
-
-# Run database migrations (if DATABASE_URL is set)
-alembic upgrade head
-
-# Start the server
-uvicorn api.main:app --reload --port 8000
-```
-
-### Frontend Setup
-
-```bash
+# Frontend
 cd frontend
-
-# Install dependencies
 npm install
-
-# Install Playwright browsers (for E2E tests)
-npx playwright install
-
-# Start development server
 npm run dev
 ```
 
-## Environment Variables
+Requires environment variables — see Railway config.
 
-### Required
+## Feature Flags
 
-| Variable | Description |
-|----------|-------------|
-| `GROQ_API_KEY` | Groq API key for LLM |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `CLONNECT_ADMIN_KEY` | Admin authentication key |
+65 `ENABLE_*` flags control feature rollout. Key active flags: `ENABLE_RERANKING`, `ENABLE_BM25_HYBRID`, `ENABLE_GUARDRAILS`, `ENABLE_CHAIN_OF_THOUGHT`, `ENABLE_REFLEXION`.
 
-### Optional
+## Status
 
-| Variable | Description |
-|----------|-------------|
-| `SENTRY_DSN` | Sentry error tracking DSN |
-| `STRIPE_SECRET_KEY` | Stripe API key |
-| `INSTAGRAM_ACCESS_TOKEN` | Instagram Graph API token |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token |
-
-See `backend/.env.example` for full list.
-
-## API Documentation
-
-Once the backend is running, access the interactive API docs at:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-## Testing
-
-### Backend Tests
-
-```bash
-cd backend
-pytest -v
-```
-
-### Frontend Tests
-
-```bash
-cd frontend
-
-# Unit tests
-npm run test
-
-# E2E tests
-npm run test:e2e
-
-# E2E with UI
-npm run test:e2e:ui
-```
-
-## Deployment
-
-### Railway (Backend)
-
-1. Connect your GitHub repo to Railway
-2. Set environment variables in Railway dashboard
-3. Railway auto-deploys on push to `main`
-
-## Database Migrations
-
-```bash
-cd backend
-
-# Create a new migration
-alembic revision --autogenerate -m "description"
-
-# Apply migrations
-alembic upgrade head
-
-# Rollback one migration
-alembic downgrade -1
-```
-
-## Monitoring
-
-- **Error Tracking**: Sentry (configure `SENTRY_DSN`)
-- **Metrics**: Prometheus metrics at `/metrics`
-- **Health Check**: `/health` endpoint
-
-## Backup
-
-Run the backup script:
-
-```bash
-cd backend
-./scripts/backup.sh
-```
-
-Requires `DATABASE_URL` and optionally `S3_BUCKET` + AWS credentials for cloud backup.
-
-## Contributing
-
-1. Create a feature branch
-2. Make changes
-3. Run tests
-4. Submit PR
-
-## License
-
-Private - All rights reserved
+**Phase:** Functional beta — MVP in production, preparing first paying customers.
