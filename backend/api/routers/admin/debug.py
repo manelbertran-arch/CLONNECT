@@ -10,14 +10,16 @@ Provides tools for debugging Instagram API, message sync, and lead issues:
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from api.auth import require_admin
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.get("/debug-raw-messages/{creator_id}/{username}")
-async def debug_raw_messages(creator_id: str, username: str):
+async def debug_raw_messages(creator_id: str, username: str, admin: str = Depends(require_admin)):
     """
     DEBUG: Get raw Instagram API response for messages to see what fields are actually returned.
     This helps debug why media rendering isn't working.
@@ -151,7 +153,7 @@ async def debug_raw_messages(creator_id: str, username: str):
 
 
 @router.get("/debug-instagram-api/{creator_id}")
-async def debug_instagram_api(creator_id: str):
+async def debug_instagram_api(creator_id: str, admin: str = Depends(require_admin)):
     """
     Debug: Ver qué retorna la API de Instagram para conversaciones y mensajes.
     Uses centralized get_instagram_credentials() for consistent token lookup.
@@ -244,7 +246,7 @@ async def debug_instagram_api(creator_id: str):
 
 
 @router.get("/debug-sync-logic/{creator_id}")
-async def debug_sync_logic(creator_id: str):
+async def debug_sync_logic(creator_id: str, admin: str = Depends(require_admin)):
     """
     Debug: Simular exactamente lo que hace sync_worker para identificar
     por qué los mensajes no se guardan.
@@ -392,7 +394,7 @@ async def debug_sync_logic(creator_id: str):
 
 
 @router.get("/debug-orphaned-messages/{creator_id}")
-async def debug_orphaned_messages(creator_id: str):
+async def debug_orphaned_messages(creator_id: str, admin: str = Depends(require_admin)):
     """
     Diagnóstico: Buscar mensajes huérfanos o duplicados que impiden el sync.
     """
@@ -474,7 +476,7 @@ async def debug_orphaned_messages(creator_id: str):
 
 
 @router.get("/full-diagnostic/{creator_id}")
-async def full_diagnostic(creator_id: str, username: str = None, search: str = None):
+async def full_diagnostic(creator_id: str, username: str = None, search: str = None, admin: str = Depends(require_admin)):
     """
     Run comprehensive diagnostic queries for debugging.
 
