@@ -354,7 +354,8 @@ class SemanticMemoryPgvector:
 # Factory and Cache
 # =============================================================================
 
-# Cache of memory instances by creator+follower
+# Cache of memory instances by creator+follower (capped to prevent OOM)
+_MEMORY_CACHE_MAXSIZE = 500
 _memory_cache: Dict[str, SemanticMemoryPgvector] = {}
 
 
@@ -363,6 +364,7 @@ def get_semantic_memory(creator_id: str, follower_id: str) -> SemanticMemoryPgve
     Factory function to get a SemanticMemoryPgvector instance.
 
     Uses caching to reuse instances for the same creator-follower pair.
+    Evicts oldest entries when cache exceeds maxsize.
 
     Args:
         creator_id: Creator identifier
@@ -374,6 +376,12 @@ def get_semantic_memory(creator_id: str, follower_id: str) -> SemanticMemoryPgve
     cache_key = f"{creator_id}:{follower_id}"
 
     if cache_key not in _memory_cache:
+        # Evict oldest entries if at capacity
+        if len(_memory_cache) >= _MEMORY_CACHE_MAXSIZE:
+            # Remove first 10% of entries (oldest by insertion order)
+            keys_to_remove = list(_memory_cache.keys())[:_MEMORY_CACHE_MAXSIZE // 10]
+            for k in keys_to_remove:
+                del _memory_cache[k]
         _memory_cache[cache_key] = SemanticMemoryPgvector(creator_id, follower_id)
 
     return _memory_cache[cache_key]

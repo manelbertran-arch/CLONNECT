@@ -75,15 +75,22 @@ async def rescore_leads(creator_id: str, admin: str = Depends(require_admin)):
                 "details": [],
             }
 
-            # TODO: N+1 query - batch this. Should pre-fetch all messages grouped by lead_id
-            # in a single query instead of querying per-lead. Low priority since this is an admin endpoint.
+            # Batch pre-fetch all messages for this creator's leads (2 queries instead of N+1)
+            from collections import defaultdict
+
+            lead_ids = [lead.id for lead in leads]
+            all_messages = (
+                session.query(Message)
+                .filter(Message.lead_id.in_(lead_ids))
+                .order_by(Message.lead_id, Message.created_at)
+                .all()
+            )
+            messages_by_lead = defaultdict(list)
+            for msg in all_messages:
+                messages_by_lead[msg.lead_id].append(msg)
+
             for lead in leads:
-                messages = (
-                    session.query(Message)
-                    .filter_by(lead_id=lead.id)
-                    .order_by(Message.created_at)
-                    .all()
-                )
+                messages = messages_by_lead.get(lead.id, [])
 
                 # Convertir a formato esperado por calcular_categoria
                 mensajes_dict = [{"role": m.role, "content": m.content or ""} for m in messages]
