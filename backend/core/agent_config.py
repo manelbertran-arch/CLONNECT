@@ -19,7 +19,7 @@ class AgentThresholds:
     """All tunable thresholds for the DM agent pipeline."""
     temperature: float = field(default_factory=lambda: _env_float("TEMPERATURE", 0.7))
     max_tokens: int = field(default_factory=lambda: _env_int("MAX_TOKENS", 1024))
-    max_context_chars: int = field(default_factory=lambda: _env_int("MAX_CONTEXT_CHARS", 24000))
+    max_context_chars: int = field(default_factory=lambda: _env_int("MAX_CONTEXT_CHARS", 48000))
     rag_similarity_threshold: float = field(default_factory=lambda: _env_float("RAG_SIMILARITY_THRESHOLD", 0.3))
     sensitive_confidence: float = field(default_factory=lambda: _env_float("SENSITIVE_CONFIDENCE", 0.7))
     sensitive_escalation: float = field(default_factory=lambda: _env_float("SENSITIVE_ESCALATION", 0.85))

@@ -12,6 +12,7 @@ import asyncio
 import logging
 import os
 import time
+import time as _time
 from typing import Optional
 
 import httpx
@@ -20,6 +21,41 @@ logger = logging.getLogger(__name__)
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite"
+
+# Circuit breaker: skip Gemini for CIRCUIT_BREAKER_COOLDOWN seconds after
+# CIRCUIT_BREAKER_THRESHOLD consecutive failures.
+_gemini_consecutive_failures = 0
+_gemini_circuit_open_until = 0.0
+CIRCUIT_BREAKER_THRESHOLD = int(os.getenv("GEMINI_CB_THRESHOLD", "3"))
+CIRCUIT_BREAKER_COOLDOWN = int(os.getenv("GEMINI_CB_COOLDOWN", "300"))  # 5 minutes
+
+
+def _gemini_circuit_is_open() -> bool:
+    """Check if circuit breaker is open (Gemini should be skipped)."""
+    if _gemini_consecutive_failures >= CIRCUIT_BREAKER_THRESHOLD:
+        if _time.time() < _gemini_circuit_open_until:
+            return True
+        # Cooldown expired — allow one probe request
+    return False
+
+
+def _gemini_record_success():
+    """Record a successful Gemini call — reset circuit breaker."""
+    global _gemini_consecutive_failures, _gemini_circuit_open_until
+    _gemini_consecutive_failures = 0
+    _gemini_circuit_open_until = 0.0
+
+
+def _gemini_record_failure():
+    """Record a Gemini failure — potentially open circuit."""
+    global _gemini_consecutive_failures, _gemini_circuit_open_until
+    _gemini_consecutive_failures += 1
+    if _gemini_consecutive_failures >= CIRCUIT_BREAKER_THRESHOLD:
+        _gemini_circuit_open_until = _time.time() + CIRCUIT_BREAKER_COOLDOWN
+        logger.warning(
+            "Circuit breaker OPEN: Gemini failed %d times, routing to GPT-4o-mini for %ds",
+            _gemini_consecutive_failures, CIRCUIT_BREAKER_COOLDOWN
+        )
 
 
 async def _call_gemini(
@@ -150,22 +186,29 @@ async def generate_simple(
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": prompt})
 
-    # 1. Try Gemini
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if api_key:
-        model = os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
-        try:
-            result = await asyncio.wait_for(
-                _call_gemini(model, api_key, system_prompt, prompt, max_tokens, temperature),
-                timeout=float(os.getenv("LLM_PRIMARY_TIMEOUT", "8")),
-            )
-            if result and result.get("content"):
-                return result["content"]
-            logger.warning("generate_simple: Gemini returned empty, falling back")
-        except asyncio.TimeoutError:
-            logger.warning("generate_simple: Gemini timeout, falling back")
-        except Exception as e:
-            logger.warning("generate_simple: Gemini failed: %s, falling back", e)
+    # 1. Try Gemini (skip if circuit is open)
+    if _gemini_circuit_is_open():
+        logger.info("generate_simple: circuit breaker open, skipping Gemini")
+    else:
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if api_key:
+            model = os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+            try:
+                result = await asyncio.wait_for(
+                    _call_gemini(model, api_key, system_prompt, prompt, max_tokens, temperature),
+                    timeout=float(os.getenv("LLM_PRIMARY_TIMEOUT", "8")),
+                )
+                if result and result.get("content"):
+                    _gemini_record_success()
+                    return result["content"]
+                logger.warning("generate_simple: Gemini returned empty, falling back")
+                _gemini_record_failure()
+            except asyncio.TimeoutError:
+                logger.warning("generate_simple: Gemini timeout, falling back")
+                _gemini_record_failure()
+            except Exception as e:
+                logger.warning("generate_simple: Gemini failed: %s, falling back", e)
+                _gemini_record_failure()
 
     # 2. Fallback: GPT-4o-mini
     try:
@@ -245,10 +288,10 @@ async def generate_dm_response(
     max_tokens: int = 60,
     temperature: float = 0.7,
 ) -> Optional[dict]:
-    """Generate DM response with two-provider cascade.
+    """Generate DM response with two-provider cascade + circuit breaker.
 
     Pipeline:
-      1. Gemini Flash-Lite (primary) — timeout via LLM_PRIMARY_TIMEOUT env (default 8s)
+      1. Gemini Flash-Lite (primary) — skipped if circuit breaker is open
       2. GPT-4o-mini (fallback) — timeout via LLM_FALLBACK_TIMEOUT env (default 10s)
       3. None if both fail
 
@@ -257,21 +300,28 @@ async def generate_dm_response(
 
     Called from dm_agent_v2.py for all DM responses.
     """
-    # 1. PRIMARY: Gemini Flash-Lite
-    try:
-        primary_timeout = float(os.getenv("LLM_PRIMARY_TIMEOUT", "8"))
-        result = await asyncio.wait_for(
-            generate_response_gemini(messages, max_tokens, temperature),
-            timeout=primary_timeout,
-        )
-        if result:
-            return result
-        logger.warning("Flash-Lite returned empty, falling back to GPT-4o-mini")
-    except asyncio.TimeoutError:
-        logger.warning("Flash-Lite timeout after %.0fs, falling back to GPT-4o-mini",
-                        float(os.getenv("LLM_PRIMARY_TIMEOUT", "8")))
-    except Exception as e:
-        logger.warning("Flash-Lite failed: %s, falling back to GPT-4o-mini", e)
+    # 1. PRIMARY: Gemini Flash-Lite (skip if circuit is open)
+    if _gemini_circuit_is_open():
+        logger.info("Circuit breaker open — skipping Gemini, going direct to GPT-4o-mini")
+    else:
+        try:
+            primary_timeout = float(os.getenv("LLM_PRIMARY_TIMEOUT", "8"))
+            result = await asyncio.wait_for(
+                generate_response_gemini(messages, max_tokens, temperature),
+                timeout=primary_timeout,
+            )
+            if result:
+                _gemini_record_success()
+                return result
+            logger.warning("Flash-Lite returned empty, falling back to GPT-4o-mini")
+            _gemini_record_failure()
+        except asyncio.TimeoutError:
+            logger.warning("Flash-Lite timeout after %.0fs, falling back to GPT-4o-mini",
+                            float(os.getenv("LLM_PRIMARY_TIMEOUT", "8")))
+            _gemini_record_failure()
+        except Exception as e:
+            logger.warning("Flash-Lite failed: %s, falling back to GPT-4o-mini", e)
+            _gemini_record_failure()
 
     # 2. FALLBACK: GPT-4o-mini
     try:

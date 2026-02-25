@@ -173,6 +173,16 @@ class SemanticRAG:
             f"total={int((t3-t0)*1000)}ms"
         )
 
+        # Log retrieval quality
+        if semantic_results:
+            scores = [r.get("score", 0) for r in semantic_results]
+            logger.debug(
+                "RAG search: query=%s results=%d top_score=%.3f avg_score=%.3f",
+                query[:50], len(semantic_results),
+                max(scores) if scores else 0,
+                sum(scores) / len(scores) if scores else 0,
+            )
+
         # Store in cache
         _rag_cache[cache_key] = {"results": semantic_results, "ts": now}
 

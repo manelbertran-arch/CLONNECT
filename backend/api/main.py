@@ -182,42 +182,67 @@ if PROMETHEUS_AVAILABLE:
 
 
 # ---------------------------------------------------------
-
+# ROUTERS
 # ---------------------------------------------------------
-# ROUTERS (modularized endpoints)
-# ---------------------------------------------------------
-from api.routers import config, dashboard, health, leads, products, static
+from api.routers import (
+    admin,
+    ai,
+    analytics,
+    audience,
+    audiencia,
+    audio,
+    booking,
+    bot,
+    calendar,
+    citations,
+    clone_score,
+    config,
+    connections,
+    content,
+    copilot,
+    creator,
+    dashboard,
+    debug,
+    dm,
+    events,
+    gdpr,
+    health,
+    ingestion_v2,
+    insights,
+    instagram,
+    intelligence,
+    knowledge,
+    leads,
+    maintenance,
+    memory,
+    messaging_webhooks,
+    metrics,
+    nurturing,
+    oauth,
+    onboarding,
+    payments,
+    preview,
+    products,
+    static,
+    telegram,
+    tone,
+    unified_leads,
+    webhooks,
+)
+from api import autolearning_api
+from api.auth import router as auth_router
 
+# Register all routers
+# NOTE: messages.router removed — all its endpoints are duplicated in dm.router
 app.include_router(health.router)
 app.include_router(static.router)
 app.include_router(dashboard.router)
 app.include_router(config.router)
 app.include_router(leads.router)
 app.include_router(products.router)
-
-# Additional routers
-from api.routers import calendar, nurturing, payments
-
-# messages.router removed: all its endpoints are duplicated in dm.router
-# (get_metrics, get_follower_detail, send_message, update_follower_status, get_conversations)
 app.include_router(payments.router)
 app.include_router(calendar.router)
 app.include_router(nurturing.router)
-from api.routers import (
-    admin,
-    analytics,
-    booking,
-    citations,
-    connections,
-    copilot,
-    ingestion_v2,
-    intelligence,
-    knowledge,
-    oauth,
-    onboarding,
-    tone,
-)
-
 app.include_router(knowledge.router)
 app.include_router(analytics.router)
 app.include_router(intelligence.router)
@@ -230,128 +255,30 @@ app.include_router(tone.router)
 app.include_router(citations.router)
 app.include_router(copilot.router)
 app.include_router(ingestion_v2.router)
-
-from api import autolearning_api
-
 app.include_router(autolearning_api.router)
-
-# Instagram router (multi-creator support)
-from api.routers import instagram as instagram_router
-
-app.include_router(instagram_router.router)
-
-# Preview router (link previews with screenshots)
-from api.routers import preview as preview_router
-
-app.include_router(preview_router.router)
-
-# DM router (direct message management)
-from api.routers import dm as dm_router
-
-app.include_router(dm_router.router)
-
-# Webhooks router (payment and calendar webhooks)
-from api.routers import webhooks as webhooks_router
-
-app.include_router(webhooks_router.router)
-
-# GDPR router
-from api.routers import gdpr as gdpr_router
-
-app.include_router(gdpr_router.router)
-
-# Telegram router (bot management and status)
-from api.routers import telegram as telegram_router
-
-app.include_router(telegram_router.router)
-
-# Content router (RAG management)
-from api.routers import content as content_router
-
-app.include_router(content_router.router)
-
-# Creator router (config management)
-from api.routers import creator as creator_router
-
-app.include_router(creator_router.router)
-
-# Bot router (pause/resume/status)
-from api.routers import bot as bot_router
-
-app.include_router(bot_router.router)
-
-# AI router (Grok API endpoints)
-from api.routers import ai as ai_router
-
-app.include_router(ai_router.router)
-
-# Audio router (Whisper transcription)
-from api.routers import audio as audio_router
-
-app.include_router(audio_router.router)
-
-# Debug router (diagnostic endpoints)
-from api.routers import debug as debug_router
-
-app.include_router(debug_router.router)
-
-# Audience router (audience intelligence endpoints)
-from api.routers import audience as audience_router
-
-app.include_router(audience_router.router)
-
-# Insights router (daily mission and weekly insights)
-from api.routers import insights as insights_router
-
-app.include_router(insights_router.router)
-
-# Audiencia router (aggregated audience data for Tu Audiencia page)
-from api.routers import audiencia as audiencia_router
-
-app.include_router(audiencia_router.router)
-
-# Messaging webhooks router (Instagram, WhatsApp, Telegram)
-from api.routers import messaging_webhooks as messaging_webhooks_router
-
-app.include_router(messaging_webhooks_router.router)
-
-# Maintenance router (profile picture refresh, cleanup tasks)
-from api.routers import maintenance as maintenance_router
-
-app.include_router(maintenance_router.router)
-
-# Metrics router (academic metrics dashboard)
-from api.routers import metrics as metrics_router
-
-app.include_router(metrics_router.router)
-
-# SSE events router (real-time notifications)
-from api.routers import events as events_router
-
-app.include_router(events_router.router)
-
-from api.routers import unified_leads as unified_leads_router
-
-app.include_router(unified_leads_router.router)
-
-# CloneScore router (6-dimension quality evaluation)
-from api.routers import clone_score as clone_score_router
-
-app.include_router(clone_score_router.router)
-
-# Memory Engine router (per-lead fact extraction and recall)
-from api.routers import memory as memory_router
-
-app.include_router(memory_router.router)
-
-# Authentication router
-from api.auth import router as auth_router
-
+app.include_router(instagram.router)
+app.include_router(preview.router)
+app.include_router(dm.router)
+app.include_router(webhooks.router)
+app.include_router(gdpr.router)
+app.include_router(telegram.router)
+app.include_router(content.router)
+app.include_router(creator.router)
+app.include_router(bot.router)
+app.include_router(ai.router)
+app.include_router(audio.router)
+app.include_router(debug.router)
+app.include_router(audience.router)
+app.include_router(insights.router)
+app.include_router(audiencia.router)
+app.include_router(messaging_webhooks.router)
+app.include_router(maintenance.router)
+app.include_router(metrics.router)
+app.include_router(events.router)
+app.include_router(unified_leads.router)
+app.include_router(clone_score.router)
+app.include_router(memory.router)
 app.include_router(auth_router)
-
-logging.info(
-    "Routers loaded: health, dashboard, config, leads, products, analytics, connections, oauth, booking, tone, citations, copilot, ingestion_v2, instagram, auth"
-)
 # AUTHENTICATION
 # ---------------------------------------------------------
 # Endpoints publicos (no requieren autenticacion)

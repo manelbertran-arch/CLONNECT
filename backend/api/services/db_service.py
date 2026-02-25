@@ -9,6 +9,8 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+from api.utils.creator_resolver import resolve_creator_safe
+
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 USE_POSTGRES = bool(DATABASE_URL)
 pg_pool = None  # Not using asyncpg, using SQLAlchemy instead
@@ -35,7 +37,7 @@ def get_creator_by_name(name: str):
     try:
         from api.models import Creator
 
-        creator = session.query(Creator).filter_by(name=name).first()
+        creator = resolve_creator_safe(session, name)
         if creator:
             return {
                 "id": str(creator.id),
@@ -97,22 +99,8 @@ def get_instagram_credentials(creator_id: str):
 
     try:
         from api.models import Creator
-        from sqlalchemy import text
 
-        # Try by name first
-        creator = session.query(Creator).filter_by(name=creator_id).first()
-
-        # If not found by name, try by UUID
-        if not creator:
-            try:
-                creator = (
-                    session.query(Creator)
-                    .filter(text("id::text = :cid"))
-                    .params(cid=creator_id)
-                    .first()
-                )
-            except Exception as e:
-                logger.warning("Failed to query creator by UUID %s: %s", creator_id, e)
+        creator = resolve_creator_safe(session, creator_id)
 
         if not creator:
             return {
@@ -168,7 +156,7 @@ def get_or_create_creator(name: str):
         from api.models import Creator
 
         logger.info(f"get_or_create_creator: looking for creator '{name}'")
-        creator = session.query(Creator).filter_by(name=name).first()
+        creator = resolve_creator_safe(session, name)
         if not creator:
             logger.info(f"Creator '{name}' not found, auto-creating...")
             creator = Creator(name=name, bot_active=True, clone_tone="friendly")
@@ -224,7 +212,7 @@ def update_creator(name: str, data: dict):
         if "other_payment_methods" in data:
             logger.info(f"other_payment_methods value: {data['other_payment_methods']}")
 
-        creator = session.query(Creator).filter_by(name=name).first()
+        creator = resolve_creator_safe(session, name)
         if creator:
             for key, value in data.items():
                 if hasattr(creator, key):
@@ -257,7 +245,7 @@ def toggle_bot(name: str, active: bool = None):
     try:
         from api.models import Creator
 
-        creator = session.query(Creator).filter_by(name=name).first()
+        creator = resolve_creator_safe(session, name)
         if creator:
             creator.bot_active = active if active is not None else not creator.bot_active
             session.commit()
@@ -282,7 +270,7 @@ def get_leads(creator_name: str, include_archived: bool = False, limit: int = 10
         from api.models import Creator, Lead, Message
         from sqlalchemy import not_
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             return []
         # Filter out archived and spam leads by default
@@ -392,7 +380,7 @@ def get_conversations_with_counts(
         from api.models import Creator, Lead, Message
         from sqlalchemy import func, not_
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             return None
 
@@ -525,7 +513,7 @@ def create_lead(creator_name: str, data: dict):
         from api.models import Creator, Lead
 
         t1 = time.time()
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         logger.info(f"⏱️ create_lead: query creator took {time.time()-t1:.2f}s")
 
         if not creator:
@@ -592,7 +580,7 @@ def get_products(creator_name: str):
     try:
         from api.models import Creator, Product
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             logger.warning(f"get_products: creator '{creator_name}' not found")
             return []
@@ -628,7 +616,7 @@ def get_dashboard_metrics(creator_name: str):
         from api.models import Creator, Lead, Message, Product
         from sqlalchemy import Integer, func, not_
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             return None
 
@@ -793,7 +781,7 @@ def create_product(creator_name: str, data: dict):
     try:
         from api.models import Creator, Product
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             return None
         product = Product(
@@ -836,7 +824,7 @@ def update_product(creator_name: str, product_id: str, data: dict):
         logger.info(f"update_product: creator={creator_name}, product_id={product_id}")
         logger.info(f"update_product: data received = {data}")
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             logger.error(f"update_product: Creator '{creator_name}' not found")
             return False
@@ -880,7 +868,7 @@ def delete_product(creator_name: str, product_id: str):
 
         from api.models import Creator, Product
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             return False
         product = (
@@ -909,7 +897,7 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
 
         from api.models import Creator, Lead
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             logger.warning(f"update_lead: creator '{creator_name}' not found")
             return False
@@ -989,7 +977,7 @@ def delete_lead(creator_name: str, lead_id: str):
         from api.models import Creator, Lead
         from sqlalchemy import text
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             logger.warning(f"delete_lead: creator '{creator_name}' not found")
             return False
@@ -1057,7 +1045,7 @@ def get_lead_by_id(creator_name: str, lead_id: str):
 
         from api.models import Creator, Lead
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             return None
 
@@ -1116,8 +1104,8 @@ async def get_lead_by_platform_id(creator_id: str, platform_id: str) -> dict:
     try:
         from api.models import Creator, Lead
 
-        # First get creator by name (creator_id is the name like "manel")
-        creator = session.query(Creator).filter_by(name=creator_id).first()
+        # Get creator by name or UUID
+        creator = resolve_creator_safe(session, creator_id)
         if not creator:
             return None
         # Find lead by platform_user_id
@@ -1157,8 +1145,8 @@ async def create_lead_async(creator_id: str, data: dict) -> dict:
     try:
         from api.models import Creator, Lead
 
-        # Get creator by name
-        creator = session.query(Creator).filter_by(name=creator_id).first()
+        # Get creator by name or UUID
+        creator = resolve_creator_safe(session, creator_id)
         if not creator:
             logger.warning(f"Creator not found: {creator_id}")
             return None
@@ -1233,8 +1221,8 @@ def get_or_create_lead(
 
         from api.models import Creator, DismissedLead, Lead
 
-        # Get creator by name
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        # Get creator by name or UUID
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             logger.warning(f"get_or_create_lead: creator '{creator_name}' not found")
             return None
@@ -1446,7 +1434,7 @@ async def get_messages(creator_id: str, follower_id: str = None, limit: int = 50
     try:
         from api.models import Creator, Lead, Message
 
-        creator = session.query(Creator).filter_by(name=creator_id).first()
+        creator = resolve_creator_safe(session, creator_id)
         if not creator:
             return []
         query = session.query(Message).join(Lead).filter(Lead.creator_id == creator.id)
@@ -1480,7 +1468,7 @@ async def get_message_count(creator_id: str) -> int:
     try:
         from api.models import Creator, Lead, Message
 
-        creator = session.query(Creator).filter_by(name=creator_id).first()
+        creator = resolve_creator_safe(session, creator_id)
         if not creator:
             return 0
         count = (
@@ -1538,7 +1526,7 @@ def get_recent_messages(creator_id: str, follower_id: str, limit: int = 4) -> li
     try:
         from api.models import Creator, Lead, Message
 
-        creator = session.query(Creator).filter_by(name=creator_id).first()
+        creator = resolve_creator_safe(session, creator_id)
         if not creator:
             return []
 
@@ -1607,7 +1595,7 @@ def archive_conversation(creator_name: str, conversation_id: str) -> bool:
     try:
         from api.models import Creator, Lead
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             return False
         # Find lead by platform_user_id or id
@@ -1656,7 +1644,7 @@ def mark_conversation_spam(creator_name: str, conversation_id: str) -> bool:
     try:
         from api.models import Creator, Lead
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             return False
         # Find lead by platform_user_id or id
@@ -1708,7 +1696,7 @@ def reset_conversation_status(creator_name: str, conversation_id: str = None) ->
     try:
         from api.models import Creator, Lead
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             return 0
 
@@ -1763,7 +1751,7 @@ def delete_conversation(creator_name: str, conversation_id: str) -> bool:
     try:
         from api.models import Creator, Lead, Message
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             return False
         # Find lead by platform_user_id or id
@@ -1862,7 +1850,7 @@ def get_knowledge_items(creator_name: str) -> list:
     try:
         from api.models import Creator, KnowledgeBase
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             return []
         items = (
@@ -1895,7 +1883,7 @@ def add_knowledge_item(creator_name: str, question: str, answer: str) -> dict:
     try:
         from api.models import Creator, KnowledgeBase
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             # Auto-create creator if doesn't exist
             logger.info(f"Creator '{creator_name}' not found, auto-creating for knowledge item")
@@ -1929,7 +1917,7 @@ def delete_knowledge_item(creator_name: str, item_id: str) -> bool:
 
         from api.models import Creator, KnowledgeBase
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             return False
         item = (
@@ -1960,7 +1948,7 @@ def update_knowledge_item(creator_name: str, item_id: str, question: str, answer
 
         from api.models import Creator, KnowledgeBase
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             return None
         item = (
@@ -1995,7 +1983,7 @@ def get_knowledge_about(creator_name: str) -> dict:
     try:
         from api.models import Creator
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if creator:
             return creator.knowledge_about or {}
         return {}
@@ -2015,7 +2003,7 @@ def update_knowledge_about(creator_name: str, data: dict) -> bool:
         from api.models import Creator
         from sqlalchemy.orm.attributes import flag_modified
 
-        creator = session.query(Creator).filter_by(name=creator_name).first()
+        creator = resolve_creator_safe(session, creator_name)
         if not creator:
             # Auto-create creator if doesn't exist
             logger.info(f"Creator '{creator_name}' not found, auto-creating for knowledge about")

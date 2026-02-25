@@ -1,4 +1,9 @@
-"""Messages and follower endpoints"""
+"""Messages and follower endpoints
+
+NOTE (Migration): This router uses raw dict responses for frontend compatibility.
+Future migration: adopt ok() / err() response envelopes from api.utils.response_envelope
+once the frontend is updated to consume the standardized format.
+"""
 
 import logging
 import os
