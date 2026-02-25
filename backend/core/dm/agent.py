@@ -486,13 +486,8 @@ class DMResponderAgentV2:
         context: ContextBundle, detection: DetectionResult,
         cognitive_metadata: Dict,
     ) -> str:
-        """Phase 3b: Strategy, learning rules, gold examples, prompt assembly.
-
-        NOTE: Prompt construction is currently integrated into _phase_llm_generation
-        because the learning rules and gold examples require async DB calls.
-        This method returns a placeholder; the actual prompt is built in Phase 4.
-        """
-        return ""  # Actual prompt built in _phase_llm_generation
+        from core.dm.phases.prompt import phase_prompt_construction
+        return phase_prompt_construction(self, message, sender_id, metadata, context, detection, cognitive_metadata)
 
     async def _phase_llm_generation(
         self, message: str, full_prompt: str, system_prompt: str,
