@@ -159,9 +159,11 @@ async def get_dm_metrics(creator_id: str):
             return {"status": "ok", "total_messages": 0, "total_leads": 0, "bot_active": False}
 
         with SessionLocal() as session:
-            # Count messages
+            # Count messages (messages links via lead_id → leads.creator_id)
             msg_result = session.execute(
-                text("SELECT COUNT(*) FROM messages WHERE creator_id = :cid"),
+                text("""SELECT COUNT(*) FROM messages m
+                        JOIN leads l ON m.lead_id = l.id
+                        WHERE l.creator_id = :cid"""),
                 {"cid": creator_id}
             )
             total_messages = msg_result.scalar() or 0
@@ -175,7 +177,7 @@ async def get_dm_metrics(creator_id: str):
 
             # Check bot status
             bot_result = session.execute(
-                text("SELECT bot_active FROM creators WHERE id = :cid OR name = :cid LIMIT 1"),
+                text("SELECT bot_active FROM creators WHERE name = :cid LIMIT 1"),
                 {"cid": creator_id}
             )
             row = bot_result.fetchone()
