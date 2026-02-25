@@ -89,5 +89,53 @@ class TestDMAgentImportSafety(unittest.TestCase):
             self.assertTrue(hasattr(mod, name), f"core.dm_agent_v2 missing: {name}")
 
 
+class TestInstagramHandlerImportSafety(unittest.TestCase):
+    """Test that instagram_handler decomposed modules import correctly.
+
+    Note: These tests may be skipped if aiohttp is not installed
+    (required by core.instagram which is imported by many modules).
+    """
+
+    def _try_import(self, module_name):
+        """Import module, skip test if optional dependency missing."""
+        try:
+            return importlib.import_module(module_name)
+        except ModuleNotFoundError as e:
+            if "aiohttp" in str(e) or "cloudinary" in str(e):
+                self.skipTest(f"Optional dependency not installed: {e}")
+            raise
+
+    def test_import_instagram_handler(self):
+        mod = self._try_import("core.instagram_handler")
+        self.assertTrue(hasattr(mod, "InstagramHandler"))
+        self.assertTrue(hasattr(mod, "InstagramHandlerStatus"))
+        self.assertTrue(hasattr(mod, "get_instagram_handler"))
+
+    def test_import_instagram_modules_webhook(self):
+        mod = self._try_import("core.instagram_modules.webhook")
+        self.assertTrue(hasattr(mod, "handle_webhook_impl"))
+
+    def test_import_instagram_modules_dispatch(self):
+        mod = self._try_import("core.instagram_modules.dispatch")
+        self.assertTrue(hasattr(mod, "dispatch_response"))
+
+    def test_import_instagram_modules_echo(self):
+        mod = self._try_import("core.instagram_modules.echo")
+        self.assertTrue(hasattr(mod, "record_creator_manual_response"))
+        self.assertTrue(hasattr(mod, "process_reaction_events"))
+        self.assertTrue(hasattr(mod, "has_creator_responded_recently"))
+
+    def test_import_instagram_modules_media(self):
+        mod = self._try_import("core.instagram_modules.media")
+        self.assertTrue(hasattr(mod, "extract_media_info"))
+        self.assertTrue(hasattr(mod, "process_message_impl"))
+
+    def test_import_instagram_modules_package(self):
+        """Test that core.instagram_modules re-exports all original symbols."""
+        mod = self._try_import("core.instagram_modules")
+        for name in ["CommentHandler", "LeadManager", "MessageSender", "MessageStore"]:
+            self.assertTrue(hasattr(mod, name), f"core.instagram_modules missing: {name}")
+
+
 if __name__ == "__main__":
     unittest.main()
