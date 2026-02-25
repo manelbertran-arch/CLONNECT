@@ -12,7 +12,7 @@ from core.nurturing import NURTURING_SEQUENCES, get_nurturing_manager
 from fastapi import APIRouter, Body, Depends
 from pydantic import BaseModel
 
-from api.auth import require_creator_access
+from api.auth import require_admin, require_creator_access
 
 # Telegram proxy config
 TELEGRAM_PROXY_URL = os.getenv("TELEGRAM_PROXY_URL", "")
@@ -1156,7 +1156,7 @@ def stop_scheduler():
 
 
 @router.get("/scheduler/status")
-async def get_scheduler_status():
+async def get_scheduler_status(admin: str = Depends(require_admin)):
     """Get nurturing scheduler status"""
     return {
         "status": "ok",
@@ -1172,14 +1172,14 @@ async def get_scheduler_status():
 
 
 @router.post("/scheduler/run-now")
-async def run_scheduler_now():
+async def run_scheduler_now(admin: str = Depends(require_admin)):
     """Manually trigger a scheduler run (for testing)"""
     result = await _run_scheduler_cycle()
     return {"status": "ok", "result": result}
 
 
 @router.get("/reconciliation/status")
-async def get_reconciliation_status():
+async def get_reconciliation_status(admin: str = Depends(require_admin)):
     """Get message reconciliation status"""
     from core.message_reconciliation import get_reconciliation_status
 
@@ -1190,7 +1190,7 @@ async def get_reconciliation_status():
 
 
 @router.get("/reconciliation/health")
-async def check_reconciliation_health():
+async def check_reconciliation_health(admin: str = Depends(require_admin)):
     """
     Health check to detect gaps between Instagram and DB.
     Returns creators with message gaps that may need sync.
@@ -1211,7 +1211,7 @@ async def check_reconciliation_health():
 
 
 @router.post("/reconciliation/run-now")
-async def run_reconciliation_now(lookback_hours: int = 24):
+async def run_reconciliation_now(lookback_hours: int = 24, admin: str = Depends(require_admin)):
     """
     Manually trigger message reconciliation.
 
