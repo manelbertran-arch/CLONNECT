@@ -195,7 +195,7 @@ def register_startup_handlers(app: "FastAPI"):
                 )
                 total_updated = 0
                 for creator in creators:
-                    result = batch_recalculate_scores(session, str(creator.id))
+                    result = await asyncio.to_thread(batch_recalculate_scores, session, str(creator.id))
                     total_updated += result.get("updated", 0)
                 logger.info(
                     f"[SCORE_DECAY] Done: {total_updated} leads "
@@ -635,7 +635,7 @@ def register_startup_handlers(app: "FastAPI"):
             total_expired = 0
             for creator_db_id, creator_name in creators:
                 try:
-                    expired = tracker.expire_overdue(creator_name)
+                    expired = await asyncio.to_thread(tracker.expire_overdue, creator_name)
                     total_expired += expired
                 except Exception as creator_err:
                     logger.error(

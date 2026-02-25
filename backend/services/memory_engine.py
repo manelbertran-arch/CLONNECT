@@ -140,6 +140,37 @@ class MemoryEngine:
     """Per-lead memory engine with fact extraction and semantic recall."""
 
     # ─────────────────────────────────────────────────────────────────────
+    # PRIVATE: _resolve_creator_uuid() — resolve slug → UUID
+    # ─────────────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _resolve_creator_uuid(creator_id: str) -> str:
+        """Return the DB UUID for a creator, resolving slug names if needed."""
+        try:
+            uuid.UUID(creator_id)
+            return creator_id  # Already a valid UUID
+        except (ValueError, AttributeError):
+            pass
+        # Slug path: look up by name
+        try:
+            from api.database import SessionLocal
+            from sqlalchemy import text
+
+            session = SessionLocal()
+            try:
+                row = session.execute(
+                    text("SELECT id FROM creators WHERE name = :name LIMIT 1"),
+                    {"name": creator_id},
+                ).fetchone()
+                if row:
+                    return str(row[0])
+            finally:
+                session.close()
+        except Exception as e:
+            logger.debug("[MemoryEngine] _resolve_creator_uuid failed for %s: %s", creator_id, e)
+        return creator_id  # Fall back (will fail at DB layer with a clear error)
+
+    # ─────────────────────────────────────────────────────────────────────
     # PUBLIC: add() — Extract and store facts from conversation
     # ─────────────────────────────────────────────────────────────────────
 
@@ -154,7 +185,7 @@ class MemoryEngine:
         Extract facts from a conversation and store them.
 
         Args:
-            creator_id: Creator UUID as string
+            creator_id: Creator UUID or name slug
             lead_id: Lead UUID as string
             conversation_messages: List of {"role": "user|assistant", "content": "..."}
             source_message_id: Optional message ID that triggered extraction
@@ -164,6 +195,8 @@ class MemoryEngine:
         """
         if not ENABLE_MEMORY_ENGINE:
             return []
+
+        creator_id = self._resolve_creator_uuid(creator_id)
 
         try:
             formatted_msgs = self._format_messages_for_llm(conversation_messages)
@@ -245,6 +278,8 @@ class MemoryEngine:
         if not ENABLE_MEMORY_ENGINE:
             return []
 
+        creator_id = self._resolve_creator_uuid(creator_id)
+
         try:
             query_embedding = await self._generate_embedding(query)
             if not query_embedding:
@@ -281,6 +316,7 @@ class MemoryEngine:
         if not ENABLE_MEMORY_ENGINE:
             return ""
 
+        creator_id = self._resolve_creator_uuid(creator_id)
         cache_key = f"{creator_id}:{lead_id}"
         now = time.time()
         cached_ts = _recall_cache_ts.get(cache_key, 0)
@@ -323,6 +359,7 @@ class MemoryEngine:
         precomputed_sentiment: Optional[str] = None,
     ) -> Optional[ConversationSummaryData]:
         """Generate and store a conversation summary."""
+        creator_id = self._resolve_creator_uuid(creator_id)
         try:
             summary_text = precomputed_summary
             key_topics = precomputed_topics or []
@@ -403,6 +440,7 @@ class MemoryEngine:
 
     async def forget_lead(self, creator_id: str, lead_id: str) -> int:
         """Delete ALL memories for a specific lead (GDPR right to erasure)."""
+        creator_id = self._resolve_creator_uuid(creator_id)
         try:
             from api.database import SessionLocal
             from sqlalchemy import text
