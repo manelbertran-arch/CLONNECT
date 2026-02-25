@@ -150,13 +150,43 @@ async def debug_messages(creator_id: str):
 
 @router.get("/metrics/{creator_id}")
 async def get_dm_metrics(creator_id: str):
-    """Obtener metricas del agent"""
-    from .processing import get_dm_agent
-
+    """Obtener metricas del agent — basic stats from DB."""
     try:
-        agent = get_dm_agent(creator_id)
-        metrics = await agent.get_metrics()
-        return {"status": "ok", **metrics}
+        from api.database import SessionLocal
+        from sqlalchemy import text
 
+        if not SessionLocal:
+            return {"status": "ok", "total_messages": 0, "total_leads": 0, "bot_active": False}
+
+        with SessionLocal() as session:
+            # Count messages
+            msg_result = session.execute(
+                text("SELECT COUNT(*) FROM messages WHERE creator_id = :cid"),
+                {"cid": creator_id}
+            )
+            total_messages = msg_result.scalar() or 0
+
+            # Count leads
+            lead_result = session.execute(
+                text("SELECT COUNT(*) FROM leads WHERE creator_id = :cid"),
+                {"cid": creator_id}
+            )
+            total_leads = lead_result.scalar() or 0
+
+            # Check bot status
+            bot_result = session.execute(
+                text("SELECT bot_active FROM creators WHERE id = :cid OR name = :cid LIMIT 1"),
+                {"cid": creator_id}
+            )
+            row = bot_result.fetchone()
+            bot_active = bool(row[0]) if row else False
+
+        return {
+            "status": "ok",
+            "total_messages": total_messages,
+            "total_leads": total_leads,
+            "bot_active": bot_active,
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"DM metrics error: {e}")
+        return {"status": "ok", "total_messages": 0, "total_leads": 0, "bot_active": False, "error": str(e)}
