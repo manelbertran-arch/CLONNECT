@@ -138,7 +138,7 @@ async def list_unified_leads(creator_id: str, limit: int = 100, offset: int = 0)
         raise
     except Exception as e:
         logger.error(f"[UNIFIED] list error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/unified/{unified_id}")
@@ -208,7 +208,7 @@ async def get_unified_lead(creator_id: str, unified_id: str):
         raise
     except Exception as e:
         logger.error(f"[UNIFIED] get error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/{creator_id}/merge")

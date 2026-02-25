@@ -782,7 +782,7 @@ async def full_diagnostic(creator_id: str, username: str = None, search: str = N
 
     except Exception as e:
         logger.error(f"Error in diagnostic: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     finally:
         session.close()

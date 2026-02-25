@@ -55,7 +55,7 @@ async def admin_create_backup(creators_only: bool = False, admin: str = Depends(
         raise HTTPException(status_code=500, detail="Backup timed out (5 min limit)")
     except Exception as e:
         logger.error(f"Error creating backup: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/backups")
@@ -87,4 +87,4 @@ async def admin_list_backups(admin: str = Depends(require_admin)):
 
     except Exception as e:
         logger.error(f"Error listing backups: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

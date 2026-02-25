@@ -76,7 +76,7 @@ async def admin_global_stats(admin: str = Depends(require_admin)):
 
     except Exception as e:
         logger.error(f"Error getting global stats: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/conversations")
@@ -120,7 +120,7 @@ async def admin_all_conversations(creator_id: Optional[str] = None, limit: int =
 
     except Exception as e:
         logger.error(f"Error getting conversations: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/pending-messages")
@@ -174,7 +174,7 @@ async def admin_recent_alerts(limit: int = 50, admin: str = Depends(require_admi
 
     except Exception as e:
         logger.error(f"Error getting alerts: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/feature-flags")

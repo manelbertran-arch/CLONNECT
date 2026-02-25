@@ -514,7 +514,7 @@ async def test_full_sync_conversation(creator_id: str, username: str, admin: str
         import traceback
 
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 

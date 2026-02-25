@@ -149,7 +149,7 @@ async def delete_lead_by_platform_id(
     except Exception as e:
         session.rollback()
         logger.error(f"Error deleting lead: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 
@@ -223,6 +223,6 @@ async def cleanup_orphan_leads(
     except Exception as e:
         session.rollback()
         logger.error(f"Error cleaning orphan leads: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()

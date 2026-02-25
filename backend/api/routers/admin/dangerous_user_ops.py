@@ -375,14 +375,14 @@ async def delete_creator(creator_name: str, admin: str = Depends(require_admin))
         except Exception as e:
             session.rollback()
             logger.error(f"Delete creator failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal server error")
         finally:
             session.close()
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     # Clean up tone profile and RAG
     try:
@@ -491,14 +491,14 @@ async def force_delete_creator(creator_name: str, admin: str = Depends(require_a
             raise
         except Exception as e:
             session.rollback()
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal server error")
         finally:
             session.close()
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete("/delete-user/{email}")
@@ -545,7 +545,7 @@ async def delete_user_by_email(email: str, admin: str = Depends(require_admin)):
 
         except Exception as e:
             session.rollback()
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal server error")
         finally:
             session.close()
 
@@ -553,4 +553,4 @@ async def delete_user_by_email(email: str, admin: str = Depends(require_admin)):
         raise
     except Exception as e:
         logger.error(f"Error deleting user: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

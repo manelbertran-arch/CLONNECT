@@ -221,14 +221,14 @@ async def nuclear_reset(confirm: str = "", admin: str = Depends(require_admin)):
 
         except Exception as e:
             session.rollback()
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal server error")
         finally:
             session.close()
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete("/sync-reset/{creator_id}")
@@ -310,14 +310,14 @@ async def clear_messages(creator_id: str, confirm: str = None, admin: str = Depe
         except Exception as e:
             session.rollback()
             logger.error(f"Error clearing messages: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal server error")
         finally:
             session.close()
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/reset-demo-data/{creator_id}")

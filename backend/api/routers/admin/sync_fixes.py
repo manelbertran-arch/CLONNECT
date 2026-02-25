@@ -295,7 +295,7 @@ async def fix_reaction_emojis(admin: str = Depends(require_admin)):
 
     except Exception as e:
         logger.error(f"Error fixing reaction emojis: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/apply-unique-constraint")
@@ -398,7 +398,7 @@ async def apply_unique_constraint(admin: str = Depends(require_admin)):
     except Exception as e:
         logger.error(f"Error applying constraint: {e}")
         session.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     finally:
         session.close()
@@ -587,7 +587,7 @@ async def fix_instagram_page_id(creator_id: str, admin: str = Depends(require_ad
         raise
     except Exception as e:
         logger.error(f"Error fixing Instagram page_id: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 
@@ -725,7 +725,7 @@ async def fix_lead_duplicates(admin: str = Depends(require_admin)):
     except Exception as e:
         session.rollback()
         logger.error(f"Error fixing duplicates: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     finally:
         session.close()

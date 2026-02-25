@@ -116,7 +116,7 @@ async def get_ingestion_status(creator_id: str, admin: str = Depends(require_adm
         raise
     except Exception as e:
         logger.error(f"Ingestion status check failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/ingestion/refresh-ig-posts/{creator_id}")

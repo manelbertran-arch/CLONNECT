@@ -116,7 +116,7 @@ async def verify_onboarding(creator_id: str, _auth: str = Depends(require_creato
         raise
     except Exception as e:
         logger.error(f"[B8] Verification error for {creator_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 

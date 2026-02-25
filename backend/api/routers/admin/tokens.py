@@ -84,7 +84,7 @@ async def get_oauth_status(creator_id: str, admin: str = Depends(require_admin))
         raise
     except Exception as e:
         logger.error(f"OAuth status check failed for {creator_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/refresh-all-tokens")
@@ -447,7 +447,7 @@ async def fix_instagram_ids(creator_id: str, admin: str = Depends(require_admin)
     except Exception as e:
         session.rollback()
         logger.error(f"Error fixing Instagram IDs: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 
@@ -530,4 +530,4 @@ async def subscribe_to_feed_webhooks(admin: str = Depends(require_admin)):
 
     except Exception as e:
         logger.error(f"[FEED-WEBHOOK] Subscription request failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -143,7 +143,7 @@ async def get_connections(creator_id: str) -> AllConnections:
         raise
     except Exception as e:
         logger.error(f"[CONNECTIONS] Error after {_time.time() - start:.2f}s: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     # Fallback: return empty connections
     logger.info(f"[CONNECTIONS] Returning empty for {creator_id} in {_time.time() - start:.2f}s")
@@ -244,7 +244,7 @@ async def disconnect_platform(creator_id: str, platform: str):
         raise
     except Exception as e:
         logger.error(f"Error disconnecting {platform}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 async def _update_connection(creator_id: str, platform: str, data: UpdateConnectionRequest):
@@ -297,4 +297,4 @@ async def _update_connection(creator_id: str, platform: str, data: UpdateConnect
         raise
     except Exception as e:
         logger.error(f"Error updating {platform}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

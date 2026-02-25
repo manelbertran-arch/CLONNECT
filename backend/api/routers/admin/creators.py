@@ -131,7 +131,7 @@ async def admin_list_creators(admin: str = Depends(require_admin)):
 
     except Exception as e:
         logger.error(f"Error listing creators: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/creators/{creator_id}/pause")
@@ -157,7 +157,7 @@ async def admin_pause_creator(creator_id: str, reason: str = "Pausado por admin"
         raise
     except Exception as e:
         logger.error(f"Error pausing creator: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/creators/{creator_id}/resume")
@@ -183,7 +183,7 @@ async def admin_resume_creator(creator_id: str, admin: str = Depends(require_adm
         raise
     except Exception as e:
         logger.error(f"Error resuming creator: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/reset-rate-limiter/{creator_id}")
@@ -197,7 +197,7 @@ async def admin_reset_rate_limiter(creator_id: str, admin: str = Depends(require
         return {"status": "success", **result}
     except Exception as e:
         logger.error(f"Error resetting rate limiter: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/rate-limiter-stats")
@@ -210,4 +210,4 @@ async def admin_rate_limiter_stats(creator_id: str = None, admin: str = Depends(
         return limiter.get_stats(creator_id)
     except Exception as e:
         logger.error(f"Error getting rate limiter stats: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
