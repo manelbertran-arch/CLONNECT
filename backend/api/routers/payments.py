@@ -118,7 +118,7 @@ async def get_customer_purchases(creator_id: str, follower_id: str):
 
     except Exception as e:
         logger.error(f"Error getting customer purchases: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/{creator_id}/attribute")
@@ -148,4 +148,4 @@ async def attribute_sale(creator_id: str, purchase_id: str, follower_id: str):
         raise
     except Exception as e:
         logger.error(f"Error attributing sale: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

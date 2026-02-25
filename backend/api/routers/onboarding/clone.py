@@ -119,7 +119,7 @@ async def complete_wizard_onboarding(request: WizardCompleteRequest):
         import traceback
 
         logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # =============================================================================
@@ -315,7 +315,7 @@ async def start_clone_creation(request: StartCloneRequest, background_tasks: Bac
         import traceback
 
         logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/progress/{creator_id}")
@@ -384,7 +384,7 @@ async def get_clone_progress(creator_id: str):
         raise
     except Exception as e:
         logger.error(f"Error getting clone progress: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 async def _run_clone_creation(creator_id: str, website_url: str = None):

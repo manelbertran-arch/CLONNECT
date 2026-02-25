@@ -354,7 +354,7 @@ async def get_profile(creator_id: str, follower_id: str) -> Dict[str, Any]:
         raise
     except Exception as e:
         logger.error(f"Error getting profile: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/segments")
@@ -370,7 +370,7 @@ async def get_segments(creator_id: str) -> List[Dict[str, Any]]:
 
     except Exception as e:
         logger.error(f"Error getting segments: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/segments/{segment_name}")
@@ -395,7 +395,7 @@ async def get_segment_users(
 
     except Exception as e:
         logger.error(f"Error getting segment users: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/aggregated")
@@ -414,4 +414,4 @@ async def get_aggregated(creator_id: str) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Error getting aggregated: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 import logging
 import os
 
-from api.auth import require_creator_access
+from api.auth import require_admin, require_creator_access
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/creator/config", tags=["config"])
@@ -107,7 +107,7 @@ async def update_product_price(creator_id: str, data: dict = Body(...), _auth: s
             raise
         except Exception as e:
             logger.error(f"Update product price failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal server error")
     raise HTTPException(status_code=404, detail="Creator not found")
 
 
@@ -203,7 +203,7 @@ async def update_email_capture_config(creator_id: str, config: dict = Body(...),
             raise
         except Exception as e:
             logger.error(f"Update email capture config failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal server error")
     raise HTTPException(status_code=404, detail="Creator not found")
 
 
@@ -212,7 +212,7 @@ async def update_email_capture_config(creator_id: str, config: dict = Body(...),
 # =============================================================================
 
 @router.get("/unified-profile/{email}")
-async def get_unified_profile_by_email(email: str):
+async def get_unified_profile_by_email(email: str, admin: str = Depends(require_admin)):
     """
     Get unified profile by email with all linked platform identities.
     """
@@ -238,4 +238,4 @@ async def get_unified_profile_by_email(email: str):
         raise
     except Exception as e:
         logger.error(f"Get unified profile failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -32,7 +32,7 @@ async def get_today_mission(creator_id: str, db: Session = Depends(get_db)):
         return engine.get_today_mission()
     except Exception as e:
         logger.error(f"Error getting today mission for {creator_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/weekly", response_model=WeeklyInsights)
@@ -51,7 +51,7 @@ async def get_weekly_insights(creator_id: str, db: Session = Depends(get_db)):
         return engine.get_weekly_insights()
     except Exception as e:
         logger.error(f"Error getting weekly insights for {creator_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/metrics", response_model=WeeklyMetrics)
@@ -71,4 +71,4 @@ async def get_weekly_metrics(creator_id: str, db: Session = Depends(get_db)):
         return engine.get_weekly_metrics()
     except Exception as e:
         logger.error(f"Error getting weekly metrics for {creator_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -1,65 +1,18 @@
 """
-DM Agent data models and feature flags.
+Data models for DM Agent V2.
 
-Contains all dataclasses used across the DM pipeline
-and environment-based feature toggles.
+- AgentConfig: Agent configuration
+- DMResponse: Response from the DM Agent
+- DetectionResult: Results from Phase 1 (detection)
+- ContextBundle: Results from Phases 2-3 (memory & context)
 """
 
-import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from core.agent_config import AGENT_THRESHOLDS
 from services import LLMProvider
-
-# =============================================================================
-# FEATURE FLAGS (environment-based toggles)
-# =============================================================================
-
-# Cognitive systems
-ENABLE_SENSITIVE_DETECTION = os.getenv("ENABLE_SENSITIVE_DETECTION", "true").lower() == "true"
-ENABLE_FRUSTRATION_DETECTION = os.getenv("ENABLE_FRUSTRATION_DETECTION", "true").lower() == "true"
-ENABLE_CONTEXT_DETECTION = os.getenv("ENABLE_CONTEXT_DETECTION", "true").lower() == "true"
-ENABLE_CONVERSATION_MEMORY = os.getenv("ENABLE_CONVERSATION_MEMORY", "true").lower() == "true"
-ENABLE_GUARDRAILS = os.getenv("ENABLE_GUARDRAILS", "true").lower() == "true"
-ENABLE_OUTPUT_VALIDATION = os.getenv("ENABLE_OUTPUT_VALIDATION", "true").lower() == "true"
-ENABLE_RESPONSE_FIXES = os.getenv("ENABLE_RESPONSE_FIXES", "true").lower() == "true"
-ENABLE_CHAIN_OF_THOUGHT = os.getenv("ENABLE_CHAIN_OF_THOUGHT", "true").lower() == "true"
-
-# P1: Quality
-ENABLE_QUESTION_CONTEXT = os.getenv("ENABLE_QUESTION_CONTEXT", "true").lower() == "true"
-ENABLE_QUERY_EXPANSION = os.getenv("ENABLE_QUERY_EXPANSION", "true").lower() == "true"
-ENABLE_REFLEXION = os.getenv("ENABLE_REFLEXION", "true").lower() == "true"
-# P2: Intelligence
-ENABLE_LEAD_CATEGORIZER = os.getenv("ENABLE_LEAD_CATEGORIZER", "true").lower() == "true"
-ENABLE_CONVERSATION_STATE = os.getenv("ENABLE_CONVERSATION_STATE", "true").lower() == "true"
-ENABLE_FACT_TRACKING = os.getenv("ENABLE_FACT_TRACKING", "true").lower() == "true"
-# P3: Personalization
-ENABLE_ADVANCED_PROMPTS = os.getenv("ENABLE_ADVANCED_PROMPTS", "true").lower() == "true"
-ENABLE_DNA_TRIGGERS = os.getenv("ENABLE_DNA_TRIGGERS", "true").lower() == "true"
-ENABLE_DNA_AUTO_CREATE = os.getenv("ENABLE_DNA_AUTO_CREATE", "true").lower() == "true"
-ENABLE_RELATIONSHIP_DETECTION = (
-    os.getenv("ENABLE_RELATIONSHIP_DETECTION", "true").lower() == "true"
-)
-# P4: Full integration
-ENABLE_EDGE_CASE_DETECTION = os.getenv("ENABLE_EDGE_CASE_DETECTION", "true").lower() == "true"
-ENABLE_CITATIONS = os.getenv("ENABLE_CITATIONS", "true").lower() == "true"
-ENABLE_MESSAGE_SPLITTING = os.getenv("ENABLE_MESSAGE_SPLITTING", "true").lower() == "true"
-ENABLE_QUESTION_REMOVAL = os.getenv("ENABLE_QUESTION_REMOVAL", "true").lower() == "true"
-ENABLE_VOCABULARY_EXTRACTION = os.getenv("ENABLE_VOCABULARY_EXTRACTION", "true").lower() == "true"
-ENABLE_SELF_CONSISTENCY = os.getenv("ENABLE_SELF_CONSISTENCY", "false").lower() == "true"
-ENABLE_FINETUNED_MODEL = os.getenv("ENABLE_FINETUNED_MODEL", "false").lower() == "true"
-ENABLE_LEARNING_RULES = os.getenv("ENABLE_LEARNING_RULES", "false").lower() == "true"
-ENABLE_EMAIL_CAPTURE = os.getenv("ENABLE_EMAIL_CAPTURE", "false").lower() == "true"
-ENABLE_BEST_OF_N = os.getenv("ENABLE_BEST_OF_N", "false").lower() == "true"
-ENABLE_GOLD_EXAMPLES = os.getenv("ENABLE_GOLD_EXAMPLES", "false").lower() == "true"
-ENABLE_PREFERENCE_PROFILE = os.getenv("ENABLE_PREFERENCE_PROFILE", "false").lower() == "true"
-
-
-# =============================================================================
-# DATACLASSES
-# =============================================================================
 
 
 @dataclass
@@ -105,8 +58,8 @@ class DetectionResult:
     frustration_level: float = 0.0
     frustration_signals: Any = None
     context_signals: Any = None
-    pool_response: Optional[DMResponse] = None
-    edge_case_response: Optional[DMResponse] = None
+    pool_response: Optional["DMResponse"] = None  # Set if fast path hit
+    edge_case_response: Optional["DMResponse"] = None  # Set if edge case escalation
     cognitive_metadata: Dict[str, Any] = field(default_factory=dict)
 
 

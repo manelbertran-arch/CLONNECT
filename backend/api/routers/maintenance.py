@@ -499,7 +499,7 @@ async def batch_embed_conversations(creator_name: str, batch_size: int = Query(5
         raise
     except Exception as e:
         logger.error(f"[A13] Batch embed error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 
@@ -587,7 +587,7 @@ async def backfill_personality_docs(creator_name: str):
         raise
     except Exception as e:
         logger.error(f"[BACKFILL] personality_docs error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 
@@ -617,7 +617,7 @@ async def reload_personality(creator_name: str):
         }
     except Exception as e:
         logger.error(f"[HOT-RELOAD] Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # =============================================================================
@@ -665,7 +665,7 @@ async def analyze_style(creator_name: str, force: bool = Query(default=False)):
         }
     except Exception as e:
         logger.error(f"[ECHO] Style analysis failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/style-profile/{creator_name}")
@@ -726,7 +726,7 @@ async def get_lead_commitments(creator_name: str, lead_platform_id: str):
         }
     except Exception as e:
         logger.error(f"[ECHO] Commitments query failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/echo-status/{creator_name}")

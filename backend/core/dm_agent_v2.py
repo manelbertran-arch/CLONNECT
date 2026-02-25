@@ -1,67 +1,75 @@
 """
-DM Responder Agent V2 — Re-export shim.
+DM Responder Agent V2 — Re-export hub.
 
-All logic has been decomposed into core.dm.* modules.
+All implementation lives in `core.dm.*` submodules.
 This file re-exports every public symbol for backward compatibility.
-
-Modules:
-- core.dm.models       — Dataclasses + feature flags
-- core.dm.helpers      — Utility functions (voseo, truncation, product matching)
-- core.dm.detection    — Phase 1: Sensitive content, frustration, pool, edge cases
-- core.dm.context      — Phase 2-3: Intent, memory, RAG, context assembly
-- core.dm.generation   — Phase 4: LLM prompt + generation
-- core.dm.postprocessing — Phase 5: Guardrails, validation, background tasks
-- core.dm.public_api   — Knowledge, follower detail, status updates
-- core.dm.agent        — Orchestrator class + factory
 """
 
-# Re-export everything from the dm package
-from core.dm import (  # noqa: F401
-    AgentConfig,
-    ContextBundle,
-    DMResponse,
-    DMResponderAgent,
-    DMResponderAgentV2,
-    DetectionResult,
-    Intent,
-    NON_CACHEABLE_INTENTS,
+# --- Text utilities ---
+from core.dm.text_utils import (  # noqa: F401
+    _strip_accents,
+    _message_mentions_product,
+    _truncate_at_boundary,
+    _smart_truncate_context,
     apply_voseo,
+    NON_CACHEABLE_INTENTS,
+    _PRODUCT_STOPWORDS,
+)
+
+# --- Data models ---
+from core.dm.models import (  # noqa: F401
+    AgentConfig,
+    DMResponse,
+    DetectionResult,
+    ContextBundle,
+)
+
+# --- Response strategy ---
+from core.dm.strategy import _determine_response_strategy  # noqa: F401
+
+# --- Helper functions ---
+from core.dm.helpers import (  # noqa: F401
+    format_rag_context,
+    get_lead_stage,
+    get_history_from_follower,
+    get_conversation_summary,
+    error_response,
+    detect_platform,
+)
+
+# --- Post-response processing ---
+from core.dm.post_response import (  # noqa: F401
+    background_post_response,
+    sync_post_response,
+    update_follower_memory,
+    update_lead_score,
+    step_email_capture,
+    check_and_notify_escalation,
+    trigger_identity_resolution,
+)
+
+# --- Knowledge management ---
+from core.dm.knowledge import (  # noqa: F401
+    add_knowledge,
+    add_knowledge_batch,
+    clear_knowledge,
+)
+
+# --- Follower API ---
+from core.dm.follower_api import (  # noqa: F401
+    get_follower_detail,
+    enrich_from_database,
+    save_manual_message,
+    update_follower_status,
+)
+
+# --- Agent class + factory (the core) ---
+from core.dm.agent import (  # noqa: F401
+    DMResponderAgentV2,
+    DMResponderAgent,
     get_dm_agent,
     invalidate_dm_agent_cache,
-    _determine_response_strategy,
-    _message_mentions_product,
-    _smart_truncate_context,
-    _strip_accents,
-    _truncate_at_boundary,
-    # Feature flags
-    ENABLE_ADVANCED_PROMPTS,
-    ENABLE_BEST_OF_N,
-    ENABLE_CHAIN_OF_THOUGHT,
-    ENABLE_CITATIONS,
-    ENABLE_CONTEXT_DETECTION,
-    ENABLE_CONVERSATION_MEMORY,
-    ENABLE_CONVERSATION_STATE,
-    ENABLE_DNA_AUTO_CREATE,
-    ENABLE_DNA_TRIGGERS,
-    ENABLE_EDGE_CASE_DETECTION,
-    ENABLE_EMAIL_CAPTURE,
-    ENABLE_FACT_TRACKING,
-    ENABLE_FINETUNED_MODEL,
-    ENABLE_FRUSTRATION_DETECTION,
-    ENABLE_GOLD_EXAMPLES,
-    ENABLE_GUARDRAILS,
-    ENABLE_LEAD_CATEGORIZER,
-    ENABLE_LEARNING_RULES,
-    ENABLE_MESSAGE_SPLITTING,
-    ENABLE_OUTPUT_VALIDATION,
-    ENABLE_PREFERENCE_PROFILE,
-    ENABLE_QUERY_EXPANSION,
-    ENABLE_QUESTION_CONTEXT,
-    ENABLE_QUESTION_REMOVAL,
-    ENABLE_REFLEXION,
-    ENABLE_RELATIONSHIP_DETECTION,
-    ENABLE_RESPONSE_FIXES,
-    ENABLE_SELF_CONSISTENCY,
-    ENABLE_SENSITIVE_DETECTION,
-    ENABLE_VOCABULARY_EXTRACTION,
 )
+
+# Re-export Intent for callers that do `from core.dm_agent_v2 import Intent`
+from services.intent_service import Intent  # noqa: F401

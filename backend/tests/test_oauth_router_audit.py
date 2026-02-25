@@ -36,10 +36,10 @@ class TestOauthCallbackMock:
         """GET /oauth/instagram/start should return auth_url when app_id is set."""
         with patch.dict(os.environ, {"INSTAGRAM_APP_ID": "123456789"}):
             # Need to reload the module-level constant
-            import api.routers.oauth as oauth_mod
+            import api.routers.oauth.instagram as ig_mod
 
-            original_app_id = oauth_mod.INSTAGRAM_APP_ID
-            oauth_mod.INSTAGRAM_APP_ID = "123456789"
+            original_app_id = ig_mod.INSTAGRAM_APP_ID
+            ig_mod.INSTAGRAM_APP_ID = "123456789"
 
             try:
                 response = client.get("/oauth/instagram/start?creator_id=test_creator")
@@ -50,7 +50,7 @@ class TestOauthCallbackMock:
                 assert "state" in data
                 assert "scopes_requested" in data
             finally:
-                oauth_mod.INSTAGRAM_APP_ID = original_app_id
+                ig_mod.INSTAGRAM_APP_ID = original_app_id
 
 
 # ---------------------------------------------------------------------------
@@ -61,20 +61,20 @@ class TestInvalidTokenHandling:
 
     def test_instagram_start_fails_without_app_id(self, client):
         """GET /oauth/instagram/start should return 500 if no app_id configured."""
-        import api.routers.oauth as oauth_mod
+        import api.routers.oauth.instagram as ig_mod
 
-        original_app = oauth_mod.INSTAGRAM_APP_ID
-        original_meta = oauth_mod.META_APP_ID
-        oauth_mod.INSTAGRAM_APP_ID = ""
-        oauth_mod.META_APP_ID = ""
+        original_app = ig_mod.INSTAGRAM_APP_ID
+        original_meta = ig_mod.META_APP_ID
+        ig_mod.INSTAGRAM_APP_ID = ""
+        ig_mod.META_APP_ID = ""
 
         try:
             response = client.get("/oauth/instagram/start?creator_id=test")
             assert response.status_code == 500
             assert "not configured" in response.json()["detail"]
         finally:
-            oauth_mod.INSTAGRAM_APP_ID = original_app
-            oauth_mod.META_APP_ID = original_meta
+            ig_mod.INSTAGRAM_APP_ID = original_app
+            ig_mod.META_APP_ID = original_meta
 
 
 # ---------------------------------------------------------------------------

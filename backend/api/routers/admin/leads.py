@@ -494,4 +494,4 @@ async def merge_duplicate_leads(creator_id: str, admin: str = Depends(require_ad
     except Exception as e:
         session.rollback()
         logger.error(f"Error merging duplicates: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
