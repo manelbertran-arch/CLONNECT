@@ -65,6 +65,11 @@ async def instagram_webhook_receive(request: Request):
         payload = await request.json()
         signature = request.headers.get("X-Hub-Signature-256", "")
 
+        # Validate minimum webhook structure (Meta always sends 'object' + 'entry')
+        if not payload.get("object") and not payload.get("entry"):
+            logger.warning(f"Invalid webhook payload: missing 'object' and 'entry' fields")
+            raise HTTPException(status_code=400, detail="Invalid webhook payload")
+
         # 1. Extract ALL possible Instagram IDs from payload
         instagram_ids = extract_all_instagram_ids(payload)
 
