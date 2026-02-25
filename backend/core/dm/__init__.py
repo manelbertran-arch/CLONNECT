@@ -1,38 +1,30 @@
 """
-DM Responder Agent V2 — Re-export shim.
+core.dm — Modular DM Agent package.
 
-All logic has been decomposed into core.dm.* modules.
-This file re-exports every public symbol for backward compatibility.
-
-Modules:
-- core.dm.models       — Dataclasses + feature flags
-- core.dm.helpers      — Utility functions (voseo, truncation, product matching)
-- core.dm.detection    — Phase 1: Sensitive content, frustration, pool, edge cases
-- core.dm.context      — Phase 2-3: Intent, memory, RAG, context assembly
-- core.dm.generation   — Phase 4: LLM prompt + generation
-- core.dm.postprocessing — Phase 5: Guardrails, validation, background tasks
-- core.dm.public_api   — Knowledge, follower detail, status updates
-- core.dm.agent        — Orchestrator class + factory
+Re-exports all public symbols for backward compatibility
+with `from core.dm import ...` style imports.
 """
 
-# Re-export everything from the dm package
-from core.dm import (  # noqa: F401
-    AgentConfig,
-    ContextBundle,
-    DMResponse,
+from core.dm.agent import (
     DMResponderAgent,
     DMResponderAgentV2,
-    DetectionResult,
-    Intent,
-    NON_CACHEABLE_INTENTS,
-    apply_voseo,
     get_dm_agent,
     invalidate_dm_agent_cache,
+)
+from core.dm.helpers import (
+    NON_CACHEABLE_INTENTS,
     _determine_response_strategy,
     _message_mentions_product,
     _smart_truncate_context,
     _strip_accents,
     _truncate_at_boundary,
+    apply_voseo,
+)
+from core.dm.models import (
+    AgentConfig,
+    ContextBundle,
+    DMResponse,
+    DetectionResult,
     # Feature flags
     ENABLE_ADVANCED_PROMPTS,
     ENABLE_BEST_OF_N,
@@ -65,3 +57,25 @@ from core.dm import (  # noqa: F401
     ENABLE_SENSITIVE_DETECTION,
     ENABLE_VOCABULARY_EXTRACTION,
 )
+
+# Re-export Intent for backward compatibility
+from services.intent_service import Intent
+
+__all__ = [
+    "AgentConfig",
+    "ContextBundle",
+    "DMResponse",
+    "DMResponderAgent",
+    "DMResponderAgentV2",
+    "DetectionResult",
+    "Intent",
+    "NON_CACHEABLE_INTENTS",
+    "apply_voseo",
+    "get_dm_agent",
+    "invalidate_dm_agent_cache",
+    "_determine_response_strategy",
+    "_message_mentions_product",
+    "_smart_truncate_context",
+    "_strip_accents",
+    "_truncate_at_boundary",
+]
