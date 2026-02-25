@@ -1,16 +1,14 @@
-"""Media processing, thumbnails, and profile pic endpoints."""
-import json
+"""Media processing, thumbnails, link previews, and profile pic endpoints."""
 import logging
-import os
 import re
-from typing import Dict
+from typing import Dict, Optional
 
 from api.auth import require_admin
 from fastapi import APIRouter, Depends, HTTPException
 
 logger = logging.getLogger(__name__)
 
-# URL patterns (needed by generate_link_previews)
+# URL patterns for link preview detection
 INSTAGRAM_URL_REGEX = re.compile(
     r"https?://(?:www\.)?instagram\.com/(?:p|reel|tv)/([A-Za-z0-9_-]+)"
 )
@@ -19,6 +17,68 @@ YOUTUBE_URL_REGEX = re.compile(
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+async def generate_link_preview(url: str, msg_metadata: Dict) -> Dict:
+    """
+    Generate preview for a URL and add to metadata.
+    For YouTube: uses official thumbnail API (instant)
+    For Instagram: uses Microlink API for thumbnail
+    """
+    try:
+        # YouTube - use official thumbnail (instant, no browser needed)
+        youtube_match = YOUTUBE_URL_REGEX.search(url)
+        if youtube_match:
+            video_id = youtube_match.group(1)
+            return {
+                **msg_metadata,
+                "type": "shared_video",
+                "platform": "youtube",
+                "url": url,
+                "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+                "video_id": video_id,
+            }
+
+        # Instagram - use Microlink API for thumbnail
+        instagram_match = INSTAGRAM_URL_REGEX.search(url)
+        if instagram_match:
+            try:
+                from api.services.screenshot_service import get_microlink_preview
+
+                microlink_result = await get_microlink_preview(url)
+                if microlink_result and microlink_result.get("thumbnail_url"):
+                    return {
+                        **msg_metadata,
+                        "type": "shared_post",
+                        "platform": "instagram",
+                        "url": url,
+                        "thumbnail_url": microlink_result["thumbnail_url"],
+                        "title": microlink_result.get("title"),
+                        "author": microlink_result.get("author"),
+                    }
+            except Exception as e:
+                logger.warning(f"Microlink error for {url}: {e}")
+
+            # Fallback: mark for later processing if Microlink fails
+            return {
+                **msg_metadata,
+                "type": "shared_post",
+                "platform": "instagram",
+                "url": url,
+                "needs_thumbnail": True,
+            }
+    except Exception as e:
+        logger.warning(f"Error generating link preview for {url}: {e}")
+
+    return msg_metadata
+
+
+def detect_url_in_metadata(msg_metadata: Dict) -> Optional[str]:
+    """Extract URL from message metadata if present"""
+    url = msg_metadata.get("url", "")
+    if url and url.startswith("http"):
+        return url
+    return None
 
 
 @router.post("/generate-thumbnails/{creator_id}")
@@ -117,91 +177,17 @@ async def generate_thumbnails(creator_id: str, limit: int = 10, admin: str = Dep
         return {"error": str(e)}
 
 
-@router.post("/test-shared-post/{creator_id}/{lead_id}")
-async def insert_test_shared_post(creator_id: str, lead_id: str, admin: str = Depends(require_admin)):
-    """
-    Insert a test shared_post message with thumbnail for frontend testing.
-    """
-    try:
-        import uuid
-        from datetime import datetime, timezone
-
-        from api.database import DATABASE_URL, SessionLocal
-        from api.models import Creator, Lead, Message
-
-        if not DATABASE_URL or not SessionLocal:
-            return {"error": "Database not configured"}
-
-        # Get a real Instagram preview
-        from api.services.screenshot_service import get_microlink_preview
-
-        test_url = "https://www.instagram.com/p/C3xK7ZmOQVz/"
-        preview = await get_microlink_preview(test_url)
-
-        session = SessionLocal()
-        try:
-            # Verify creator and lead exist
-            creator = session.query(Creator).filter_by(name=creator_id).first()
-            if not creator:
-                return {"error": f"Creator {creator_id} not found"}
-
-            lead = session.query(Lead).filter_by(id=uuid.UUID(lead_id)).first()
-            if not lead:
-                return {"error": f"Lead {lead_id} not found"}
-
-            # Create test message with shared_post
-            msg_metadata = {
-                "type": "shared_post",
-                "platform": "instagram",
-                "url": test_url,
-                "thumbnail_url": preview.get("thumbnail_url") if preview else None,
-                "title": preview.get("title") if preview else "Instagram Post",
-                "author": preview.get("author") if preview else None,
-            }
-
-            test_msg = Message(
-                lead_id=lead.id,
-                role="user",
-                content="Mira este post! 👀",
-                msg_metadata=msg_metadata,
-                created_at=datetime.now(timezone.utc),
-            )
-            session.add(test_msg)
-            session.commit()
-
-            return {
-                "status": "success",
-                "message_id": str(test_msg.id),
-                "metadata": msg_metadata,
-                "lead_username": lead.username,
-            }
-
-        finally:
-            session.close()
-
-    except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        return {"error": str(e)}
-
-
-# =============================================================================
-# GHOST REACTIVATION - Reactivación automática de leads fantasma
-# =============================================================================
-
-
 @router.post("/update-profile-pics/{creator_id}")
 async def update_profile_pics(creator_id: str, limit: int = 20, admin: str = Depends(require_admin)):
     """
     Endpoint ligero para actualizar SOLO fotos de perfil de Instagram.
 
     No hace sync de mensajes, solo obtiene profile_pic para leads existentes.
-    Procesa en batches pequeños para evitar timeout.
+    Procesa en batches pequenos para evitar timeout.
 
     Args:
         creator_id: ID del creator
-        limit: Máximo leads a procesar (default: 20)
+        limit: Maximo leads a procesar (default: 20)
 
     Returns:
         {"updated": 15, "failed": 2, "total": 17, "remaining": 5}
@@ -238,8 +224,6 @@ async def update_profile_pics(creator_id: str, limit: int = 20, admin: str = Dep
 
         access_token = creator.instagram_token
         # Use correct API based on token type
-        # IGAAT tokens (start with IGAAT) use graph.instagram.com
-        # EAA tokens (Page tokens) use graph.facebook.com
         if access_token.startswith("IGAAT"):
             api_base = "https://graph.instagram.com/v21.0"
         else:
@@ -357,7 +341,6 @@ async def generate_link_previews(creator_id: str, limit: int = 50, admin: str = 
 
     from api.database import SessionLocal
     from api.models import Creator, Lead, Message
-    from api.routers.admin.sync_dm import detect_url_in_metadata, generate_link_preview
     from core.link_preview import extract_link_preview, extract_urls
 
     session = SessionLocal()
@@ -378,7 +361,6 @@ async def generate_link_previews(creator_id: str, limit: int = 50, admin: str = 
             return {"status": "error", "error": f"Creator not found: {creator_id}"}
 
         # Find messages with URLs using JOIN (avoids N+1)
-        # Single query: messages -> leads -> creator
         messages = (
             session.query(Message)
             .join(Lead, Message.lead_id == Lead.id)

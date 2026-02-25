@@ -1,7 +1,5 @@
-"""One-off fixes and migration endpoints."""
-import json
+"""One-off fixes for leads, emojis, Instagram IDs, and unique constraints."""
 import logging
-import os
 
 from api.auth import require_admin
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,131 +9,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-@router.post("/run-migration/email-capture")
-async def run_email_capture_migration(admin: str = Depends(require_admin)):
-    """
-    Run migration to add email capture tables and columns.
-    Safe to run multiple times (uses IF NOT EXISTS).
-    """
-    try:
-        from api.database import SessionLocal
-        from sqlalchemy import text
-
-        session = SessionLocal()
-        try:
-            # Add email_capture_config column
-            session.execute(
-                text(
-                    """
-                ALTER TABLE creators
-                ADD COLUMN IF NOT EXISTS email_capture_config JSONB DEFAULT NULL
-            """
-                )
-            )
-
-            # Create unified_profiles table
-            session.execute(
-                text(
-                    """
-                CREATE TABLE IF NOT EXISTS unified_profiles (
-                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    email VARCHAR(255) UNIQUE NOT NULL,
-                    name VARCHAR(255),
-                    phone VARCHAR(50),
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-                )
-            """
-                )
-            )
-
-            # Create platform_identities table
-            session.execute(
-                text(
-                    """
-                CREATE TABLE IF NOT EXISTS platform_identities (
-                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    unified_profile_id UUID REFERENCES unified_profiles(id),
-                    creator_id UUID REFERENCES creators(id),
-                    platform VARCHAR(50) NOT NULL,
-                    platform_user_id VARCHAR(255) NOT NULL,
-                    username VARCHAR(255),
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-                )
-            """
-                )
-            )
-
-            # Create unique index
-            session.execute(
-                text(
-                    """
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_platform_identity_unique
-                ON platform_identities(platform, platform_user_id)
-            """
-                )
-            )
-
-            # Create email_ask_tracking table
-            session.execute(
-                text(
-                    """
-                CREATE TABLE IF NOT EXISTS email_ask_tracking (
-                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    creator_id UUID REFERENCES creators(id),
-                    platform VARCHAR(50) NOT NULL,
-                    platform_user_id VARCHAR(255) NOT NULL,
-                    ask_level INTEGER DEFAULT 0,
-                    last_asked_at TIMESTAMP WITH TIME ZONE,
-                    declined_count INTEGER DEFAULT 0,
-                    captured_email VARCHAR(255),
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-                )
-            """
-                )
-            )
-
-            # Create index for fast lookups
-            session.execute(
-                text(
-                    """
-                CREATE INDEX IF NOT EXISTS idx_email_ask_tracking_lookup
-                ON email_ask_tracking(platform, platform_user_id)
-            """
-                )
-            )
-
-            session.commit()
-            logger.info("Email capture migration completed successfully")
-
-            return {
-                "status": "success",
-                "message": "Migration completed",
-                "tables_created": ["unified_profiles", "platform_identities", "email_ask_tracking"],
-                "columns_added": ["creators.email_capture_config"],
-            }
-        finally:
-            session.close()
-
-    except Exception as e:
-        logger.error(f"Migration failed: {e}")
-        return {"status": "error", "error": str(e)}
-
-
 @router.post("/fix-lead-timestamps/{creator_id}")
 async def fix_lead_timestamps(creator_id: str, admin: str = Depends(require_admin)):
     """
-    Corrige las fechas de last_contact_at basándose en los mensajes guardados.
+    Corrige las fechas de last_contact_at basandose en los mensajes guardados.
 
-    El problema: last_contact_at se estaba guardando con el timestamp del último
-    mensaje de la conversación (incluyendo mensajes del bot), pero para FANTASMA
-    necesitamos el último mensaje del USUARIO.
+    El problema: last_contact_at se estaba guardando con el timestamp del ultimo
+    mensaje de la conversacion (incluyendo mensajes del bot), pero para FANTASMA
+    necesitamos el ultimo mensaje del USUARIO.
 
-    Esta función:
+    Esta funcion:
     1. Lee todos los mensajes de cada lead
     2. Calcula first_contact y last_contact correctamente
-    3. last_contact = último mensaje role=user
+    3. last_contact = ultimo mensaje role=user
     """
     try:
         from api.database import SessionLocal
@@ -216,7 +102,7 @@ async def fix_lead_timestamps(creator_id: str, admin: str = Depends(require_admi
                 if all_timestamps:
                     lead.first_contact_at = min(all_timestamps)
 
-                # last_contact = último mensaje del USUARIO
+                # last_contact = ultimo mensaje del USUARIO
                 if user_timestamps:
                     lead.last_contact_at = max(user_timestamps)
                     stats["leads_updated"] += 1
@@ -262,8 +148,8 @@ async def fix_reaction_emojis(admin: str = Depends(require_admin)):
     """
     Fix reaction emojis missing the variation selector.
 
-    The problem: Hearts stored as "❤" (U+2764) render as white/black text.
-    The fix: Add variation selector to make "❤️" (U+2764 U+FE0F) render as red emoji.
+    The problem: Hearts stored as "\u2764" (U+2764) render as white/black text.
+    The fix: Add variation selector to make "\u2764\ufe0f" (U+2764 U+FE0F) render as red emoji.
     """
     try:
         from api.database import SessionLocal
@@ -279,8 +165,8 @@ async def fix_reaction_emojis(admin: str = Depends(require_admin)):
                 if msg.msg_metadata and isinstance(msg.msg_metadata, dict):
                     emoji = msg.msg_metadata.get("emoji")
                     # Check if it's the heart without variation selector
-                    if emoji == "❤" or emoji == "\u2764":
-                        msg.msg_metadata = {**msg.msg_metadata, "emoji": "❤️"}
+                    if emoji == "\u2764" or emoji == "\u2764":
+                        msg.msg_metadata = {**msg.msg_metadata, "emoji": "\u2764\ufe0f"}
                         fixed_count += 1
 
             session.commit()
@@ -438,6 +324,7 @@ async def fix_instagram_page_id(creator_id: str, admin: str = Depends(require_ad
 
         page_id = None
         page_name = None
+        pages = []
 
         # Return token debug info in all responses
         token_debug = {
