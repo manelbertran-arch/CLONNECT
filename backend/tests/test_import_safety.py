@@ -137,5 +137,54 @@ class TestInstagramHandlerImportSafety(unittest.TestCase):
             self.assertTrue(hasattr(mod, name), f"core.instagram_modules missing: {name}")
 
 
+class TestCopilotServiceImportSafety(unittest.TestCase):
+    """Test that copilot_service decomposed modules import correctly."""
+
+    def test_import_copilot_models(self):
+        mod = importlib.import_module("core.copilot.models")
+        self.assertTrue(hasattr(mod, "PendingResponse"))
+        self.assertTrue(hasattr(mod, "DEBOUNCE_SECONDS"))
+        self.assertTrue(hasattr(mod, "is_non_text_message"))
+
+    def test_import_copilot_service(self):
+        mod = importlib.import_module("core.copilot.service")
+        self.assertTrue(hasattr(mod, "CopilotService"))
+        self.assertTrue(hasattr(mod, "get_copilot_service"))
+
+    def test_import_copilot_lifecycle(self):
+        mod = importlib.import_module("core.copilot.lifecycle")
+        self.assertTrue(hasattr(mod, "create_pending_response_impl"))
+        self.assertTrue(hasattr(mod, "get_pending_responses_impl"))
+
+    def test_import_copilot_actions(self):
+        mod = importlib.import_module("core.copilot.actions")
+        self.assertTrue(hasattr(mod, "approve_response_impl"))
+        self.assertTrue(hasattr(mod, "discard_response_impl"))
+        self.assertTrue(hasattr(mod, "auto_discard_pending_for_lead_impl"))
+
+    def test_import_copilot_messaging(self):
+        mod = importlib.import_module("core.copilot.messaging")
+        self.assertTrue(hasattr(mod, "send_message_impl"))
+        self.assertTrue(hasattr(mod, "schedule_debounced_regen_impl"))
+
+    def test_import_copilot_package(self):
+        """Test that core.copilot.__init__ re-exports all symbols."""
+        mod = importlib.import_module("core.copilot")
+        for name in [
+            "CopilotService", "get_copilot_service",
+            "PendingResponse", "DEBOUNCE_SECONDS", "is_non_text_message",
+        ]:
+            self.assertTrue(hasattr(mod, name), f"core.copilot missing: {name}")
+
+    def test_backward_compat_copilot_service(self):
+        """Test that the original core.copilot_service re-exports work."""
+        mod = importlib.import_module("core.copilot_service")
+        for name in [
+            "CopilotService", "get_copilot_service",
+            "PendingResponse", "DEBOUNCE_SECONDS", "is_non_text_message",
+        ]:
+            self.assertTrue(hasattr(mod, name), f"core.copilot_service missing: {name}")
+
+
 if __name__ == "__main__":
     unittest.main()
