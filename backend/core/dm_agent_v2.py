@@ -1748,49 +1748,17 @@ class DMResponderAgentV2:
     # PUBLIC API METHODS
     # ═══════════════════════════════════════════════════════════════════════
 
-    def add_knowledge(self, content: str, metadata: Optional[Dict] = None) -> str:
-        """
-        Add knowledge to RAG index.
+    def add_knowledge(self, content, metadata=None):
+        from core.dm.knowledge import add_knowledge
+        return add_knowledge(self, content, metadata)
 
-        Args:
-            content: Document content
-            metadata: Optional metadata
+    def add_knowledge_batch(self, documents):
+        from core.dm.knowledge import add_knowledge_batch
+        return add_knowledge_batch(self, documents)
 
-        Returns:
-            Document ID
-        """
-        self.semantic_rag.add_document(
-            doc_id=f"manual_{len(self.semantic_rag._documents)}",
-            text=content,
-            metadata=metadata or {},
-        )
-        return f"manual_{len(self.semantic_rag._documents) - 1}"
-
-    def add_knowledge_batch(self, documents: List[Dict[str, Any]]) -> List[str]:
-        """
-        Add multiple documents to RAG index.
-
-        Args:
-            documents: List of dicts with 'content' and optional 'metadata'
-
-        Returns:
-            List of document IDs
-        """
-        doc_ids = []
-        for doc in documents:
-            self.semantic_rag.add_document(
-                doc_id=f"batch_{len(self.semantic_rag._documents)}",
-                text=doc.get("content", ""),
-                metadata=doc.get("metadata", {}),
-            )
-            doc_id = f"batch_{len(self.semantic_rag._documents) - 1}"
-            doc_ids.append(doc_id)
-        return doc_ids
-
-    def clear_knowledge(self) -> None:
-        """Clear all knowledge from RAG index."""
-        self.semantic_rag._documents.clear()
-        self.semantic_rag._doc_list.clear()
+    def clear_knowledge(self):
+        from core.dm.knowledge import clear_knowledge
+        return clear_knowledge(self)
 
     def get_stats(self) -> Dict[str, Any]:
         """
