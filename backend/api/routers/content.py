@@ -98,7 +98,7 @@ async def add_content(request: AddContentRequest):
         return {"status": "ok", "doc_id": doc_id}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/search")
@@ -109,7 +109,7 @@ async def search_content(creator_id: str, query: str, top_k: int = 3):
         return {"status": "ok", "results": results, "count": len(results)}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=503, detail="Internal server error")
 
 
 @router.get("/search-debug")
@@ -254,7 +254,7 @@ async def content_stats(creator_id: str = None):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/setup-pgvector")
@@ -452,7 +452,7 @@ async def generate_embeddings_for_existing(creator_id: str, batch_size: int = 10
         raise
     except Exception as e:
         logger.error(f"Error generating embeddings: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=503, detail="Embedding service unavailable")
 
 
 @router.delete("/{creator_id}/clear")
@@ -506,7 +506,7 @@ async def clear_content(creator_id: str):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/bulk-load")
@@ -583,4 +583,4 @@ async def bulk_load_content(request: BulkContentRequest):
         return {"status": "ok", "chunks_loaded": loaded, "creator_id": request.creator_id}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -28,6 +28,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from core.agent_config import AGENT_THRESHOLDS
+
 # P1: QUALITY - Question context, query expansion, reflexion
 from core.bot_question_analyzer import QuestionType, get_bot_question_analyzer, is_short_affirmation
 
@@ -307,9 +309,9 @@ class AgentConfig:
 
     llm_provider: LLMProvider = LLMProvider.OPENAI
     llm_model: Optional[str] = None
-    temperature: float = 0.7
-    max_tokens: int = 1024
-    rag_similarity_threshold: float = 0.3
+    temperature: float = AGENT_THRESHOLDS.temperature
+    max_tokens: int = AGENT_THRESHOLDS.max_tokens
+    rag_similarity_threshold: float = AGENT_THRESHOLDS.rag_similarity_threshold
     rag_top_k: int = 3
 
 
@@ -811,11 +813,11 @@ class DMResponderAgentV2:
         if ENABLE_SENSITIVE_DETECTION:
             try:
                 sensitive_result = detect_sensitive_content(message)
-                if sensitive_result and sensitive_result.confidence >= 0.7:
+                if sensitive_result and sensitive_result.confidence >= AGENT_THRESHOLDS.sensitive_confidence:
                     logger.warning(f"Sensitive content detected: {sensitive_result.category}")
                     cognitive_metadata["sensitive_detected"] = True
                     cognitive_metadata["sensitive_category"] = sensitive_result.category
-                    if sensitive_result.confidence >= 0.85:
+                    if sensitive_result.confidence >= AGENT_THRESHOLDS.sensitive_escalation:
                         crisis_response = get_crisis_resources(language="es")
                         result.pool_response = DMResponse(
                             content=crisis_response,
@@ -878,7 +880,7 @@ class DMResponderAgentV2:
                     context=pool_context,
                     creator_id=self.creator_id,
                 )
-                if pool_result.matched and pool_result.confidence >= 0.8:
+                if pool_result.matched and pool_result.confidence >= AGENT_THRESHOLDS.pool_confidence:
                     import random as _rng
                     if _rng.random() < 0.30:
                         multi_bubbles = self.response_variator.try_multi_bubble(
@@ -1556,7 +1558,7 @@ class DMResponderAgentV2:
         full_prompt = "\n\n".join(prompt_parts)
 
         # Cap total context to ~6000 tokens to control LLM cost/latency
-        _MAX_CONTEXT_CHARS = 24000  # ~6000 tokens
+        _MAX_CONTEXT_CHARS = AGENT_THRESHOLDS.max_context_chars
         if len(system_prompt) > _MAX_CONTEXT_CHARS:
             original_len = len(system_prompt)
             system_prompt = _truncate_at_boundary(system_prompt, _MAX_CONTEXT_CHARS)
@@ -1963,7 +1965,7 @@ class DMResponderAgentV2:
                 creator_id=self.creator_id,
             )
         except Exception:
-            scored_confidence = 0.7
+            scored_confidence = AGENT_THRESHOLDS.default_scored_confidence
 
         _dm_metadata = {
             "model": llm_response.model,
@@ -2877,7 +2879,7 @@ DMResponderAgent = DMResponderAgentV2
 
 _dm_agent_cache: Dict[str, DMResponderAgentV2] = {}
 _dm_agent_cache_timestamp: Dict[str, float] = {}
-_DM_AGENT_CACHE_TTL = 600  # 10 minutes
+_DM_AGENT_CACHE_TTL = AGENT_THRESHOLDS.agent_cache_ttl
 
 
 def get_dm_agent(creator_id: str) -> DMResponderAgentV2:

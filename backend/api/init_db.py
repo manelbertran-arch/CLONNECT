@@ -231,14 +231,14 @@ def run_migrations(engine):
     ]
 
     with engine.connect() as conn:
+        # --- Phase 1: Batch add new columns ---
+        pending_additions = []
         for table, column, col_type in migrations:
             try:
-                # Validate all identifiers against whitelists (SQL injection prevention)
                 _validate_migration_table(table)
                 _validate_migration_column(column)
                 _validate_migration_col_type(col_type)
 
-                # Check if column exists (parameterized query for values)
                 result = conn.execute(
                     text(
                         "SELECT column_name FROM information_schema.columns "
@@ -247,23 +247,28 @@ def run_migrations(engine):
                     {"table": table, "column": column},
                 )
                 if result.fetchone() is None:
-                    # Column doesn't exist, add it
-                    # DDL: table/column names validated above, col_type whitelisted
-                    conn.execute(text(f'ALTER TABLE "{table}" ADD COLUMN "{column}" {col_type}'))
-                    conn.commit()
-                    logger.info("Added column %s to %s", column, table)
+                    pending_additions.append((table, column, col_type))
             except Exception as e:
-                logger.error("Migration error for %s.%s: %s", table, column, e)
+                logger.error("Migration check error for %s.%s: %s", table, column, e)
 
-        # Apply column type alterations
+        if pending_additions:
+            logger.info("Applying %d pending column additions...", len(pending_additions))
+            for table, column, col_type in pending_additions:
+                conn.execute(text(f'ALTER TABLE "{table}" ADD COLUMN "{column}" {col_type}'))
+                logger.info("  Added %s.%s (%s)", table, column, col_type)
+            conn.commit()  # Single atomic commit for all additions
+            logger.info("Column additions complete: %d columns added", len(pending_additions))
+        else:
+            logger.info("No pending column additions")
+
+        # --- Phase 2: Batch alter column types ---
+        pending_alterations = []
         for table, column, new_type in alterations:
             try:
-                # Validate all identifiers against whitelists (SQL injection prevention)
                 _validate_migration_table(table)
                 _validate_migration_column(column)
                 _validate_migration_col_type(new_type)
 
-                # Check current column type (parameterized query for values)
                 result = conn.execute(
                     text(
                         "SELECT data_type FROM information_schema.columns "
@@ -273,14 +278,21 @@ def run_migrations(engine):
                 )
                 row = result.fetchone()
                 if row and row[0] != "text":
-                    # Alter column type (DDL: identifiers validated above)
-                    conn.execute(
-                        text(f'ALTER TABLE "{table}" ALTER COLUMN "{column}" TYPE {new_type}')
-                    )
-                    conn.commit()
-                    logger.info("Altered column %s.%s to %s", table, column, new_type)
+                    pending_alterations.append((table, column, new_type))
             except Exception as e:
-                logger.error("Alteration error for %s.%s: %s", table, column, e)
+                logger.error("Alteration check error for %s.%s: %s", table, column, e)
+
+        if pending_alterations:
+            logger.info("Applying %d pending column alterations...", len(pending_alterations))
+            for table, column, new_type in pending_alterations:
+                conn.execute(
+                    text(f'ALTER TABLE "{table}" ALTER COLUMN "{column}" TYPE {new_type}')
+                )
+                logger.info("  Altered %s.%s → %s", table, column, new_type)
+            conn.commit()  # Single atomic commit for all alterations
+            logger.info("Column alterations complete: %d columns altered", len(pending_alterations))
+        else:
+            logger.info("No pending column alterations")
 
 
 def init_database():

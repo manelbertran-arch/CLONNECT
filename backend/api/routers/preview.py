@@ -77,14 +77,14 @@ async def get_screenshot(
             }
 
         return JSONResponse(
-            status_code=500,
+            status_code=502,
             content={"success": False, "error": "Failed to capture screenshot", "url": url}
             )
     except Exception as e:
         logger.error(f"Screenshot error for {url}: {e}")
         return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e), "url": url}
+            status_code=502,
+            content={"success": False, "error": "Failed to capture screenshot", "url": url}
         )
 
 
@@ -116,14 +116,14 @@ async def get_link_preview_endpoint(
             }
         else:
             return JSONResponse(
-                status_code=500,
+                status_code=502,
                 content={"success": False, "error": "Failed to get preview", "url": url}
             )
     except Exception as e:
         logger.error(f"Link preview error for {url}: {e}")
         return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e), "url": url}
+            status_code=502,
+            content={"success": False, "error": "Failed to get link preview", "url": url}
         )
 
 
@@ -153,14 +153,14 @@ async def get_instagram_preview(
             }
         else:
             return JSONResponse(
-                status_code=500,
+                status_code=502,
                 content={"success": False, "error": "Failed to capture Instagram preview", "url": url}
             )
     except Exception as e:
         logger.error(f"Instagram preview error for {url}: {e}")
         return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e), "url": url}
+            status_code=502,
+            content={"success": False, "error": "Failed to capture Instagram preview", "url": url}
         )
 
 
@@ -190,12 +190,12 @@ async def get_youtube_preview(
             }
         else:
             return JSONResponse(
-                status_code=500,
+                status_code=502,
                 content={"success": False, "error": "Failed to get YouTube preview", "url": url}
             )
     except Exception as e:
         logger.error(f"YouTube preview error for {url}: {e}")
         return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e), "url": url}
+            status_code=502,
+            content={"success": False, "error": "Failed to get YouTube preview", "url": url}
         )

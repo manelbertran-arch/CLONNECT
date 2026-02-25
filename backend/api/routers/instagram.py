@@ -427,7 +427,7 @@ async def set_ice_breakers(creator_id: str, ice_breakers: List[Dict[str, str]]):
         raise
     except Exception as e:
         logger.error(f"Error setting ice breakers: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=503, detail="Internal server error")
 
 
 @router.get("/icebreakers/{creator_id}")
@@ -470,7 +470,7 @@ async def get_ice_breakers(creator_id: str):
         raise
     except Exception as e:
         logger.error(f"Error getting ice breakers: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=503, detail="Internal server error")
 
 
 @router.delete("/icebreakers/{creator_id}")
@@ -516,7 +516,7 @@ async def delete_ice_breakers(creator_id: str):
         raise
     except Exception as e:
         logger.error(f"Error deleting ice breakers: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=503, detail="Internal server error")
 
 
 @router.post("/persistent-menu/{creator_id}")
@@ -592,7 +592,7 @@ async def set_persistent_menu(creator_id: str, menu_items: List[Dict[str, Any]])
         raise
     except Exception as e:
         logger.error(f"Error setting persistent menu: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=503, detail="Internal server error")
 
 
 # =============================================================================
@@ -935,7 +935,7 @@ async def connect_instagram_page(
         raise
     except Exception as e:
         logger.error(f"Error connecting Instagram page: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/status/{creator_id}")
@@ -980,7 +980,7 @@ async def get_instagram_status(creator_id: str):
         raise
     except Exception as e:
         logger.error(f"Error getting Instagram status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/creators")
@@ -1018,4 +1018,4 @@ async def list_instagram_creators():
 
     except Exception as e:
         logger.error(f"Error listing Instagram creators: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

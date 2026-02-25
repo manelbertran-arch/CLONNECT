@@ -224,7 +224,7 @@ async def ingest_website_v2(request: IngestV2Request, db=Depends(get_db)):
         import traceback
 
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=503, detail="Internal server error")
 
 
 @router.post("/preview")
@@ -261,7 +261,7 @@ async def preview_detection(request: IngestV2Request):
 
     except Exception as e:
         logger.error(f"Preview error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=503, detail="Internal server error")
 
 
 @router.get("/verify/{creator_id}")
@@ -328,7 +328,7 @@ async def verify_stored_products(creator_id: str, db=Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Verify error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # =============================================================================
@@ -432,7 +432,7 @@ async def ingest_instagram_v2_endpoint(request: InstagramV2Request):
         import traceback
 
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=503, detail="Internal server error")
 
 
 @router.get("/instagram/{creator_id}/status")
@@ -464,7 +464,7 @@ async def get_instagram_ingestion_status(creator_id: str):
 
     except Exception as e:
         logger.error(f"Status check error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # =============================================================================
@@ -531,7 +531,7 @@ async def ingest_youtube_v2_endpoint(request: YouTubeV2Request):
         import traceback
 
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=503, detail="Internal server error")
 
 
 @router.get("/youtube/{creator_id}/status")
@@ -564,7 +564,7 @@ async def get_youtube_ingestion_status(creator_id: str):
 
     except Exception as e:
         logger.error(f"YouTube status check error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # =============================================================================
@@ -972,4 +972,4 @@ async def get_data_status(creator_id: str):
         raise
     except Exception as e:
         logger.error(f"Data status error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

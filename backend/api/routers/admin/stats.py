@@ -175,3 +175,14 @@ async def admin_recent_alerts(limit: int = 50, admin: str = Depends(require_admi
     except Exception as e:
         logger.error(f"Error getting alerts: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/feature-flags")
+async def admin_feature_flags(admin: str = Depends(require_admin)):
+    """View all feature flags and their current values."""
+    from core.feature_flags import flags
+    return {
+        "flags": flags.to_dict(),
+        "active": flags.active_count(),
+        "inactive": flags.inactive_count(),
+    }

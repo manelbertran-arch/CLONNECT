@@ -49,7 +49,7 @@ async def stripe_webhook(request: Request):
 
     except Exception as e:
         logger.error(f"Stripe webhook error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/hotmart")
@@ -75,7 +75,7 @@ async def hotmart_webhook(request: Request):
 
     except Exception as e:
         logger.error(f"Hotmart webhook error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/paypal")
@@ -118,7 +118,7 @@ async def paypal_webhook(request: Request):
 
     except Exception as e:
         logger.error(f"PayPal webhook error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ---------------------------------------------------------
@@ -152,7 +152,7 @@ async def calendly_webhook(request: Request):
 
     except Exception as e:
         logger.error(f"Calendly webhook error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/calcom")
@@ -184,4 +184,4 @@ async def calcom_webhook(request: Request):
 
     except Exception as e:
         logger.error(f"Cal.com webhook error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

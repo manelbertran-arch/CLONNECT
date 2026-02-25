@@ -145,7 +145,7 @@ async def process_dm(payload: ProcessDMRequest):
 
     except Exception as e:
         logger.error(f"Error processing DM: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=503, detail="LLM service unavailable")
 
 
 @router.get("/conversations/{creator_id}")
@@ -392,7 +392,7 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0):
 
     except Exception as e:
         logger.error(f"get_conversations error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/conversations/{creator_id}/{follower_id}/mark-read")
@@ -441,7 +441,7 @@ async def mark_conversation_read(creator_id: str, follower_id: str):
 
     except Exception as e:
         logger.error(f"mark_conversation_read error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/debug/{creator_id}")
@@ -580,7 +580,7 @@ async def get_dm_metrics(creator_id: str):
         return {"status": "ok", **metrics}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/follower/{creator_id}/{follower_id}")
@@ -699,7 +699,7 @@ async def get_follower_detail(creator_id: str, follower_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/send/{creator_id}")
@@ -811,7 +811,7 @@ async def send_manual_message(creator_id: str, request: SendMessageRequest):
         raise
     except Exception as e:
         logger.error(f"Error sending manual message: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/send-media/{creator_id}")
@@ -1009,7 +1009,7 @@ async def update_follower_status(
         raise
     except Exception as e:
         logger.error(f"Error updating follower status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============ CONVERSATION ACTIONS ============
@@ -1123,7 +1123,7 @@ async def delete_conversation_endpoint(creator_id: str, conversation_id: str):
             raise
         except Exception as e:
             logger.error(f"PostgreSQL delete failed for {conversation_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"Delete failed: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
     # Fallback to JSON files (non-DB setups only)
     try:
         file_path = f"data/followers/{creator_id}/{conversation_id}.json"
@@ -1136,7 +1136,7 @@ async def delete_conversation_endpoint(creator_id: str, conversation_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============ ARCHIVED/SPAM MANAGEMENT ============
