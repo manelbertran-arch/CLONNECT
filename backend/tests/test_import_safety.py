@@ -186,5 +186,104 @@ class TestCopilotServiceImportSafety(unittest.TestCase):
             self.assertTrue(hasattr(mod, name), f"core.copilot_service missing: {name}")
 
 
+class TestDbServiceImportSafety(unittest.TestCase):
+    """Test that db_service decomposed modules import correctly.
+
+    Note: These tests may be skipped if fastapi is not installed
+    (required by api.utils.creator_resolver which is imported by many modules).
+    """
+
+    def _try_import(self, module_name):
+        """Import module, skip test if optional dependency missing."""
+        try:
+            return importlib.import_module(module_name)
+        except ModuleNotFoundError as e:
+            if "fastapi" in str(e) or "sqlalchemy" in str(e):
+                self.skipTest(f"Optional dependency not installed: {e}")
+            raise
+
+    def test_import_db_ops_common(self):
+        mod = importlib.import_module("api.services.db_ops.common")
+        self.assertTrue(hasattr(mod, "get_session"))
+        self.assertTrue(hasattr(mod, "DATABASE_URL"))
+        self.assertTrue(hasattr(mod, "USE_POSTGRES"))
+
+    def test_import_db_ops_creators(self):
+        mod = self._try_import("api.services.db_ops.creators")
+        self.assertTrue(hasattr(mod, "get_creator_by_name"))
+        self.assertTrue(hasattr(mod, "get_instagram_credentials"))
+        self.assertTrue(hasattr(mod, "get_or_create_creator"))
+        self.assertTrue(hasattr(mod, "update_creator"))
+        self.assertTrue(hasattr(mod, "toggle_bot"))
+
+    def test_import_db_ops_leads(self):
+        mod = self._try_import("api.services.db_ops.leads")
+        self.assertTrue(hasattr(mod, "get_leads"))
+        self.assertTrue(hasattr(mod, "create_lead"))
+        self.assertTrue(hasattr(mod, "update_lead"))
+        self.assertTrue(hasattr(mod, "delete_lead"))
+        self.assertTrue(hasattr(mod, "get_lead_by_id"))
+        # Re-exported from leads_async
+        self.assertTrue(hasattr(mod, "get_or_create_lead"))
+
+    def test_import_db_ops_leads_async(self):
+        mod = self._try_import("api.services.db_ops.leads_async")
+        self.assertTrue(hasattr(mod, "get_lead_by_platform_id"))
+        self.assertTrue(hasattr(mod, "create_lead_async"))
+        self.assertTrue(hasattr(mod, "get_or_create_lead"))
+
+    def test_import_db_ops_analytics(self):
+        mod = self._try_import("api.services.db_ops.analytics")
+        self.assertTrue(hasattr(mod, "get_conversations_with_counts"))
+        self.assertTrue(hasattr(mod, "get_dashboard_metrics"))
+        self.assertTrue(hasattr(mod, "get_creator_stats"))
+
+    def test_import_db_ops_messages(self):
+        mod = self._try_import("api.services.db_ops.messages")
+        self.assertTrue(hasattr(mod, "save_message"))
+        self.assertTrue(hasattr(mod, "get_messages"))
+        self.assertTrue(hasattr(mod, "get_messages_by_lead_id"))
+
+    def test_import_db_ops_conversations(self):
+        mod = self._try_import("api.services.db_ops.conversations")
+        self.assertTrue(hasattr(mod, "archive_conversation"))
+        self.assertTrue(hasattr(mod, "delete_conversation"))
+        self.assertTrue(hasattr(mod, "mark_conversation_spam"))
+
+    def test_import_db_ops_products(self):
+        mod = self._try_import("api.services.db_ops.products")
+        self.assertTrue(hasattr(mod, "get_products"))
+        self.assertTrue(hasattr(mod, "create_product"))
+        self.assertTrue(hasattr(mod, "update_product"))
+        self.assertTrue(hasattr(mod, "delete_product"))
+
+    def test_import_db_ops_knowledge(self):
+        mod = self._try_import("api.services.db_ops.knowledge")
+        self.assertTrue(hasattr(mod, "get_knowledge_items"))
+        self.assertTrue(hasattr(mod, "add_knowledge_item"))
+        self.assertTrue(hasattr(mod, "get_full_knowledge"))
+
+    def test_backward_compat_db_service(self):
+        """Test that api.services.db_service re-exports all functions."""
+        mod = self._try_import("api.services.db_service")
+        for name in [
+            "get_session", "DATABASE_URL", "USE_POSTGRES",
+            "get_creator_by_name", "get_instagram_credentials",
+            "get_or_create_creator", "update_creator", "toggle_bot",
+            "get_leads", "create_lead", "update_lead", "delete_lead", "get_lead_by_id",
+            "get_lead_by_platform_id", "create_lead_async", "get_or_create_lead",
+            "get_conversations_with_counts", "get_dashboard_metrics", "get_creator_stats",
+            "save_message", "get_messages", "get_message_count",
+            "get_messages_by_lead_id", "get_recent_messages", "count_user_messages_by_lead_id",
+            "archive_conversation", "mark_conversation_spam",
+            "reset_conversation_status", "delete_conversation",
+            "get_products", "create_product", "update_product", "delete_product",
+            "get_knowledge_items", "add_knowledge_item", "delete_knowledge_item",
+            "update_knowledge_item", "get_knowledge_about", "update_knowledge_about",
+            "get_full_knowledge",
+        ]:
+            self.assertTrue(hasattr(mod, name), f"api.services.db_service missing: {name}")
+
+
 if __name__ == "__main__":
     unittest.main()
