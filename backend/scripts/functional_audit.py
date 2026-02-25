@@ -18,10 +18,20 @@ BASE = os.getenv("API_BASE", "https://www.clonnectapp.com")
 ADMIN_KEY = os.getenv("ADMIN_KEY", "clonnect_admin_secret_2024")
 CREATOR = os.getenv("TEST_CREATOR", "stefano_bonanno")
 TIMEOUT = 15  # seconds
+REQUEST_DELAY = float(os.getenv("REQUEST_DELAY", "1.2"))  # seconds between requests (rate limit safe)
 
 # ─── Helpers ─────────────────────────────────────────────────────────────
+_last_request_time = 0.0
+
 def _req(method, path, headers=None, body=None, timeout=TIMEOUT):
     """Make HTTP request, return (status_code, body_dict_or_str, elapsed_ms)."""
+    global _last_request_time
+    # Rate limit: wait between requests to avoid server rate limiting
+    elapsed_since_last = time.time() - _last_request_time
+    if elapsed_since_last < REQUEST_DELAY:
+        time.sleep(REQUEST_DELAY - elapsed_since_last)
+    _last_request_time = time.time()
+
     url = f"{BASE}{path}"
     hdrs = headers or {}
     data = None
