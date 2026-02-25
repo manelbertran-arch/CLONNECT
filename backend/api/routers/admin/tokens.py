@@ -88,7 +88,7 @@ async def get_oauth_status(creator_id: str, admin: str = Depends(require_admin))
 
 
 @router.post("/refresh-all-tokens")
-async def refresh_all_instagram_tokens():
+async def refresh_all_instagram_tokens(admin: str = Depends(require_admin)):
     """
     Cron job: Revisar todos los tokens de Instagram y refrescar los que expiran pronto.
 
@@ -114,7 +114,7 @@ async def refresh_all_instagram_tokens():
 
 
 @router.post("/refresh-token/{creator_id}")
-async def refresh_creator_token(creator_id: str):
+async def refresh_creator_token(creator_id: str, admin: str = Depends(require_admin)):
     """
     Refrescar el token de Instagram de un creator específico.
 
@@ -141,7 +141,7 @@ async def refresh_creator_token(creator_id: str):
 
 
 @router.post("/exchange-token/{creator_id}")
-async def exchange_short_lived_token(creator_id: str, short_lived_token: str):
+async def exchange_short_lived_token(creator_id: str, short_lived_token: str, admin: str = Depends(require_admin)):
     """
     Convertir un token short-lived (1-2h) a long-lived (60 días).
 
@@ -202,7 +202,7 @@ async def exchange_short_lived_token(creator_id: str, short_lived_token: str):
 
 
 @router.post("/set-token/{creator_id}")
-async def set_creator_token(creator_id: str, token: str, instagram_user_id: str = None):
+async def set_creator_token(creator_id: str, token: str, instagram_user_id: str = None, admin: str = Depends(require_admin)):
     """
     Set Instagram token directly for a creator.
 
@@ -260,7 +260,7 @@ async def set_creator_token(creator_id: str, token: str, instagram_user_id: str 
 
 
 @router.post("/set-page-token/{creator_id}")
-async def set_page_access_token(creator_id: str, token: str):
+async def set_page_access_token(creator_id: str, token: str, admin: str = Depends(require_admin)):
     """
     Manually set a Page Access Token for Instagram Messaging.
 
@@ -322,7 +322,7 @@ async def set_page_access_token(creator_id: str, token: str):
 
 
 @router.post("/fix-instagram-ids/{creator_id}")
-async def fix_instagram_ids(creator_id: str):
+async def fix_instagram_ids(creator_id: str, admin: str = Depends(require_admin)):
     """
     Fix instagram_user_id using the real ID from the token, and clean up ghost leads.
     """
