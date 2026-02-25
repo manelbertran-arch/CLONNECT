@@ -157,13 +157,18 @@ def register_static_routes(app: "FastAPI"):
         if full_path.startswith(api_prefixes):
             raise HTTPException(status_code=404, detail="API route not found")
 
-        # Block dotfiles (.env, .git, .htaccess, etc.) and common sensitive paths
+        # Block dotfiles (.env, .git, .htaccess, etc.) and path traversal
         path_parts = full_path.split("/")
         if any(part.startswith(".") for part in path_parts if part):
-            raise HTTPException(status_code=404)
+            raise HTTPException(status_code=400, detail="Invalid path")
         sensitive_extensions = (".env", ".ini", ".cfg", ".conf", ".log", ".bak", ".sql", ".sh")
         if full_path.lower().endswith(sensitive_extensions):
-            raise HTTPException(status_code=404)
+            raise HTTPException(status_code=400, detail="Invalid path")
+        # Block common sensitive filesystem paths (after HTTP client normalizes ../)
+        blocked_paths = ("etc/passwd", "etc/shadow", "proc/self", "proc/version",
+                         "windows/system32", "boot.ini", "wp-admin", "wp-login")
+        if any(full_path.lower().startswith(p) or f"/{p}" in full_path.lower() for p in blocked_paths):
+            raise HTTPException(status_code=400, detail="Blocked path")
 
         index_path = os.path.join(_static_dir, "index.html")
         if os.path.exists(index_path):
