@@ -1692,55 +1692,16 @@ class DMResponderAgentV2:
 
 
     def _format_rag_context(self, rag_results: List[Dict]) -> str:
-        """Format RAG results as context for the prompt."""
-        if not rag_results:
-            return ""
-
-        context_parts = ["Informacion relevante:"]
-        for result in rag_results[:3]:
-            content = result.get("content", "")[:200]
-            score = result.get("score", 0)
-            context_parts.append(f"- [{score:.2f}] {content}")
-
-        return "\n".join(context_parts)
+        from core.dm.helpers import format_rag_context
+        return format_rag_context(self, rag_results)
 
     def _get_lead_stage(self, follower, metadata: Dict) -> str:
-        """Get current lead stage for user."""
-        if metadata.get("lead_stage"):
-            return metadata["lead_stage"]
-        # Try advanced categorizer first
-        if ENABLE_LEAD_CATEGORIZER:
-            try:
-                messages = follower.last_messages[-20:] if follower.last_messages else []
-                category, score, reason = get_lead_categorizer().categorize(
-                    messages=messages,
-                    is_customer=follower.is_customer,
-                )
-                logger.debug(f"Lead categorizer: {category.value} ({reason})")
-                return category.value
-            except Exception as e:
-                logger.debug(f"Lead categorizer failed: {e}")
-        # Fallback to simple score-based logic
-        if follower.is_customer:
-            return LeadStage.CLIENTE.value
-        if follower.purchase_intent_score >= 0.7:
-            return LeadStage.CALIENTE.value
-        if follower.purchase_intent_score >= 0.4:
-            return LeadStage.INTERESADO.value
-        return LeadStage.NUEVO.value
+        from core.dm.helpers import get_lead_stage
+        return get_lead_stage(self, follower, metadata)
 
     def _get_history_from_follower(self, follower) -> List[Dict[str, str]]:
-        """Extract conversation history from follower memory."""
-        history = []
-        for msg in follower.last_messages[-20:]:
-            if isinstance(msg, dict):
-                history.append(
-                    {
-                        "role": msg.get("role", "user"),
-                        "content": msg.get("content", ""),
-                    }
-                )
-        return history
+        from core.dm.helpers import get_history_from_follower
+        return get_history_from_follower(self, follower)
 
     async def _background_post_response(
         self,
@@ -2176,30 +2137,12 @@ class DMResponderAgentV2:
             logger.error(f"Failed to send escalation notification: {e}")
 
     def _get_conversation_summary(self, follower) -> str:
-        """Get a brief summary of recent conversation for notification."""
-        if not follower.last_messages:
-            return "Sin historial previo"
-
-        # Get last 3 exchanges
-        recent = follower.last_messages[-6:]
-        summary_parts = []
-        for msg in recent:
-            if isinstance(msg, dict):
-                role = "👤" if msg.get("role") == "user" else "🤖"
-                content = msg.get("content", "")[:100]
-                summary_parts.append(f"{role} {content}")
-
-        return "\n".join(summary_parts) if summary_parts else "Sin historial"
+        from core.dm.helpers import get_conversation_summary
+        return get_conversation_summary(self, follower)
 
     def _error_response(self, error: str) -> DMResponse:
-        """Generate error response."""
-        return DMResponse(
-            content="Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
-            intent="ERROR",
-            lead_stage=LeadStage.NUEVO.value,
-            confidence=0.0,
-            metadata={"error": error},
-        )
+        from core.dm.helpers import error_response
+        return error_response(self, error)
 
     def _trigger_identity_resolution(self, sender_id: str, platform: str) -> None:
         """Fire-and-forget identity resolution for a lead."""
@@ -2387,14 +2330,8 @@ class DMResponderAgentV2:
         return result
 
     def _detect_platform(self, follower_id: str) -> str:
-        """Detect platform from follower_id prefix."""
-        if follower_id.startswith("ig_"):
-            return "instagram"
-        if follower_id.startswith("tg_"):
-            return "telegram"
-        if follower_id.startswith("wa_"):
-            return "whatsapp"
-        return "instagram"  # Default
+        from core.dm.helpers import detect_platform
+        return detect_platform(self, follower_id)
 
     async def _enrich_from_database(
         self, result: Dict[str, Any], follower_id: str
