@@ -74,43 +74,69 @@ async def admin_all_conversations(creator_id: Optional[str] = None, limit: int =
     Opcionalmente filtrar por creator_id.
     Requiere CLONNECT_ADMIN_KEY.
 
-    Uses asyncio.gather() for parallel fetching across creators.
+    Uses direct DB query for fast response (avoids instantiating N agents).
     """
-    import asyncio
+    from sqlalchemy import text
 
-    from api.routers.dm import get_dm_agent
-    from core.creator_config import CreatorConfigManager
+    from api.database import SessionLocal
 
     try:
-        config_manager = CreatorConfigManager()
-        if creator_id:
-            creators = [creator_id]
-        else:
-            creators = config_manager.list_creators()
+        session = SessionLocal()
+        try:
+            params: dict = {"limit": min(limit, 500)}
+            if creator_id:
+                sql = text("""
+                    SELECT
+                        l.id::text           AS id,
+                        l.platform_user_id   AS platform_user_id,
+                        l.username           AS username,
+                        l.display_name       AS display_name,
+                        l.status             AS status,
+                        l.last_contact_at    AS last_contact,
+                        c.name               AS creator_id
+                    FROM leads l
+                    JOIN creators c ON c.id = l.creator_id
+                    WHERE c.name = :creator_id
+                    ORDER BY l.last_contact_at DESC NULLS LAST
+                    LIMIT :limit
+                """)
+                params["creator_id"] = creator_id
+            else:
+                sql = text("""
+                    SELECT
+                        l.id::text           AS id,
+                        l.platform_user_id   AS platform_user_id,
+                        l.username           AS username,
+                        l.display_name       AS display_name,
+                        l.status             AS status,
+                        l.last_contact_at    AS last_contact,
+                        c.name               AS creator_id
+                    FROM leads l
+                    JOIN creators c ON c.id = l.creator_id
+                    ORDER BY l.last_contact_at DESC NULLS LAST
+                    LIMIT :limit
+                """)
 
-        async def fetch_creator_conversations(cid: str):
-            try:
-                agent = get_dm_agent(cid)
-                conversations = await agent.get_all_conversations(limit)
-                for conv in conversations:
-                    conv["creator_id"] = cid
-                return conversations
-            except Exception as e:
-                logger.warning(f"Failed to get conversations for {cid}: {e}")
-                return []
-
-        results = await asyncio.gather(
-            *[fetch_creator_conversations(cid) for cid in creators]
-        )
-        all_conversations = [conv for result in results for conv in result]
-
-        # Ordenar por última actividad
-        all_conversations.sort(key=lambda x: x.get("last_contact", ""), reverse=True)
+            rows = session.execute(sql, params).fetchall()
+            conversations = [
+                {
+                    "id": row[0],
+                    "platform_user_id": row[1],
+                    "username": row[2] or row[1],
+                    "display_name": row[3] or row[2] or row[1],
+                    "status": row[4],
+                    "last_contact": row[5].isoformat() if row[5] else None,
+                    "creator_id": row[6],
+                }
+                for row in rows
+            ]
+        finally:
+            session.close()
 
         return {
             "status": "ok",
-            "conversations": all_conversations[:limit],
-            "total": len(all_conversations),
+            "conversations": conversations,
+            "total": len(conversations),
         }
 
     except Exception as e:
