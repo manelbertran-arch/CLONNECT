@@ -97,7 +97,7 @@ DEMO_RESET_ENABLED = os.getenv("ENABLE_DEMO_RESET", "true").lower() == "true"
 
 
 @router.post("/test-full-sync/{creator_id}/{username}")
-async def test_full_sync_conversation(creator_id: str, username: str):
+async def test_full_sync_conversation(creator_id: str, username: str, admin: str = Depends(require_admin)):
     """
     TEST ENDPOINT: Sincronizar TODOS los mensajes de una conversación específica
     usando paginación completa.
@@ -529,7 +529,7 @@ async def test_full_sync_conversation(creator_id: str, username: str):
 
 
 @router.post("/run-migration/email-capture")
-async def run_email_capture_migration():
+async def run_email_capture_migration(admin: str = Depends(require_admin)):
     """
     Run migration to add email capture tables and columns.
     Safe to run multiple times (uses IF NOT EXISTS).
@@ -641,7 +641,7 @@ async def run_email_capture_migration():
 
 
 @router.post("/clean-and-sync/{creator_id}")
-async def clean_and_sync(creator_id: str, max_convs: int = 10):
+async def clean_and_sync(creator_id: str, max_convs: int = 10, admin: str = Depends(require_admin)):
     """
     Limpia mensajes huérfanos y hace sync limpio.
 
@@ -686,7 +686,7 @@ async def clean_and_sync(creator_id: str, max_convs: int = 10):
 
 
 @router.post("/simple-dm-sync/{creator_id}")
-async def simple_dm_sync(creator_id: str, max_convs: int = 10):
+async def simple_dm_sync(creator_id: str, max_convs: int = 10, admin: str = Depends(require_admin)):
     """
     [DEPRECATED] Use /onboarding/sync-instagram-dms-background instead.
 
@@ -1239,7 +1239,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
 
 
 @router.post("/generate-thumbnails/{creator_id}")
-async def generate_thumbnails(creator_id: str, limit: int = 10):
+async def generate_thumbnails(creator_id: str, limit: int = 10, admin: str = Depends(require_admin)):
     """
     Generate thumbnails for messages with needs_thumbnail=true.
     Processes Instagram posts/reels using Playwright screenshots.
@@ -1335,7 +1335,7 @@ async def generate_thumbnails(creator_id: str, limit: int = 10):
 
 
 @router.post("/test-shared-post/{creator_id}/{lead_id}")
-async def insert_test_shared_post(creator_id: str, lead_id: str):
+async def insert_test_shared_post(creator_id: str, lead_id: str, admin: str = Depends(require_admin)):
     """
     Insert a test shared_post message with thumbnail for frontend testing.
     """
@@ -1409,7 +1409,7 @@ async def insert_test_shared_post(creator_id: str, lead_id: str):
 
 
 @router.post("/start-sync/{creator_id}")
-async def start_sync(creator_id: str, background_tasks: BackgroundTasks):
+async def start_sync(creator_id: str, background_tasks: BackgroundTasks, admin: str = Depends(require_admin)):
     """
     Inicia sincronización de DMs en background.
 
@@ -1460,7 +1460,7 @@ async def sync_status(creator_id: str, admin: str = Depends(require_admin)):
 
 
 @router.post("/sync-continue/{creator_id}")
-async def sync_continue(creator_id: str, background_tasks: BackgroundTasks):
+async def sync_continue(creator_id: str, background_tasks: BackgroundTasks, admin: str = Depends(require_admin)):
     """
     Continúa el sync si hay jobs pendientes.
     Útil para reanudar después de rate limit.
@@ -1494,7 +1494,7 @@ async def sync_continue(creator_id: str, background_tasks: BackgroundTasks):
 
 
 @router.post("/fix-lead-timestamps/{creator_id}")
-async def fix_lead_timestamps(creator_id: str):
+async def fix_lead_timestamps(creator_id: str, admin: str = Depends(require_admin)):
     """
     Corrige las fechas de last_contact_at basándose en los mensajes guardados.
 
@@ -1633,7 +1633,7 @@ async def fix_lead_timestamps(creator_id: str):
 
 
 @router.post("/update-profile-pics/{creator_id}")
-async def update_profile_pics(creator_id: str, limit: int = 20):
+async def update_profile_pics(creator_id: str, limit: int = 20, admin: str = Depends(require_admin)):
     """
     Endpoint ligero para actualizar SOLO fotos de perfil de Instagram.
 
@@ -1780,7 +1780,7 @@ async def update_profile_pics(creator_id: str, limit: int = 20):
 
 
 @router.post("/generate-link-previews/{creator_id}")
-async def generate_link_previews(creator_id: str, limit: int = 50):
+async def generate_link_previews(creator_id: str, limit: int = 50, admin: str = Depends(require_admin)):
     """
     Generate link previews for existing messages that have URLs but no preview.
 
@@ -1912,7 +1912,7 @@ async def generate_link_previews(creator_id: str, limit: int = 50):
 
 @router.post("/sync-leads/{creator_id}")
 async def sync_leads_from_conversations(
-    creator_id: str, recategorize: bool = False, limit: int = 100
+    creator_id: str, recategorize: bool = False, limit: int = 100, admin: str = Depends(require_admin)
 ):
     """
     Sync and categorize leads from their conversations.
@@ -2093,7 +2093,7 @@ async def sync_leads_from_conversations(
 
 
 @router.post("/test-ingestion-v2/{creator_id}")
-async def test_ingestion_v2(creator_id: str, website_url: str):
+async def test_ingestion_v2(creator_id: str, website_url: str, admin: str = Depends(require_admin)):
     """
     Test endpoint to run IngestionV2Pipeline directly.
 
@@ -2141,7 +2141,7 @@ async def test_ingestion_v2(creator_id: str, website_url: str):
 # ADMIN PANEL ENDPOINTS (moved from main.py)
 # ---------------------------------------------------------
 @router.post("/backup")
-async def admin_create_backup(creators_only: bool = False):
+async def admin_create_backup(creators_only: bool = False, admin: str = Depends(require_admin)):
     """
     [ADMIN] Create a database backup.
     Exports critical data to JSON files.
@@ -2185,7 +2185,7 @@ async def admin_create_backup(creators_only: bool = False):
 
 
 @router.get("/backups")
-async def admin_list_backups():
+async def admin_list_backups(admin: str = Depends(require_admin)):
     """
     [ADMIN] List available backups.
     """
@@ -2217,7 +2217,7 @@ async def admin_list_backups():
 
 
 @router.api_route("/fix-reaction-emojis", methods=["GET", "POST"])
-async def fix_reaction_emojis():
+async def fix_reaction_emojis(admin: str = Depends(require_admin)):
     """
     Fix reaction emojis missing the variation selector.
 
@@ -2258,7 +2258,7 @@ async def fix_reaction_emojis():
 
 
 @router.post("/apply-unique-constraint")
-async def apply_unique_constraint():
+async def apply_unique_constraint(admin: str = Depends(require_admin)):
     """
     Apply UniqueConstraint to leads table to prevent duplicates.
     Steps:
@@ -2364,7 +2364,7 @@ async def apply_unique_constraint():
 
 
 @router.post("/fix-instagram-page-id/{creator_id}")
-async def fix_instagram_page_id(creator_id: str):
+async def fix_instagram_page_id(creator_id: str, admin: str = Depends(require_admin)):
     """
     Fetch and save the Facebook Page ID for a creator.
 
@@ -2552,7 +2552,7 @@ async def fix_instagram_page_id(creator_id: str):
 
 
 @router.post("/add-instagram-id/{creator_id}/{instagram_id}")
-async def add_instagram_id(creator_id: str, instagram_id: str):
+async def add_instagram_id(creator_id: str, instagram_id: str, admin: str = Depends(require_admin)):
     """Add an Instagram ID to a creator's additional_ids for webhook routing."""
     from core.webhook_routing import add_instagram_id_to_creator, clear_routing_cache
 
@@ -2565,7 +2565,7 @@ async def add_instagram_id(creator_id: str, instagram_id: str):
 
 
 @router.post("/fix-lead-duplicates")
-async def fix_lead_duplicates():
+async def fix_lead_duplicates(admin: str = Depends(require_admin)):
     """
     Fix all duplicate leads and add unique constraint.
     1. Find all duplicates (same creator_id + platform_user_id)
