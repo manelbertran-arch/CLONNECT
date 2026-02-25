@@ -1,28 +1,21 @@
 """
-Instagram Router - Multi-Creator Support
+Instagram Webhook Handlers - Multi-Creator Support
 
-BLOQUE 1+2: Multi-Creator Routing for Instagram Webhooks.
+Handles webhook verification, message routing, and story interactions.
 Routes incoming webhooks to the correct creator based on page_id.
-
-Features:
-- page_id → creator_id mapping via database lookup
-- Dynamic handler creation per creator
-- Ice Breakers support
-- Stories Reply handling
-- Persistent Menu configuration
 """
 
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
 logger = logging.getLogger("clonnect-instagram")
 
-router = APIRouter(prefix="/instagram", tags=["instagram"])
+router = APIRouter()
 
 # Cache for Instagram handlers per creator
 _creator_handlers: Dict[str, Any] = {}
@@ -33,7 +26,7 @@ _CREATOR_LOOKUP_CACHE_TTL = 300  # 5 minutes
 
 
 # =============================================================================
-# MULTI-CREATOR ROUTING: page_id → creator_id
+# MULTI-CREATOR ROUTING: page_id -> creator_id
 # =============================================================================
 
 
@@ -219,26 +212,6 @@ def extract_page_id_from_payload(payload: Dict[str, Any]) -> Optional[str]:
 
 
 # =============================================================================
-# DEBUG/CACHE ENDPOINTS
-# =============================================================================
-
-@router.get("/clear-cache")
-async def clear_instagram_cache():
-    """Clear handler and lookup caches - useful for debugging"""
-    global _creator_handlers, _creator_by_page_id_cache
-    handlers_cleared = len(_creator_handlers)
-    lookups_cleared = len(_creator_by_page_id_cache)
-    _creator_handlers.clear()
-    _creator_by_page_id_cache.clear()
-    return {
-        "status": "ok",
-        "handlers_cleared": handlers_cleared,
-        "lookups_cleared": lookups_cleared,
-        "code_version": "V2_FIX_2026-01-29"
-    }
-
-
-# =============================================================================
 # WEBHOOK ENDPOINTS
 # =============================================================================
 
@@ -345,254 +318,6 @@ async def instagram_webhook_receive(request: Request):
         logger.error(traceback.format_exc())
         # Return 200 to acknowledge receipt (prevents infinite retries)
         return {"status": "error", "error": str(e)}
-
-
-# =============================================================================
-# BLOQUE 3: ICE BREAKERS + PERSISTENT MENU
-# =============================================================================
-
-
-@router.post("/icebreakers/{creator_id}")
-async def set_ice_breakers(creator_id: str, ice_breakers: List[Dict[str, str]]):
-    """
-    Set Ice Breakers for a creator's Instagram.
-
-    Ice Breakers are conversation starters shown to users when they open
-    a new conversation. Meta allows up to 4 ice breakers.
-
-    Request body:
-    [
-        {"question": "¿Cuánto cuestan tus servicios?", "payload": "PRICING"},
-        {"question": "¿Qué incluye el programa?", "payload": "FEATURES"},
-        {"question": "¿Cómo puedo reservar?", "payload": "BOOKING"},
-        {"question": "Quiero más información", "payload": "INFO"}
-    ]
-    """
-    try:
-        import httpx
-        from api.database import SessionLocal
-        from api.models import Creator
-
-        # Get creator's token
-        session = SessionLocal()
-        try:
-            creator = session.query(Creator).filter_by(name=creator_id).first()
-            if not creator:
-                raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
-
-            if not creator.instagram_token or not creator.instagram_page_id:
-                raise HTTPException(status_code=400, detail="Creator has no Instagram connection")
-
-            access_token = creator.instagram_token
-            page_id = creator.instagram_page_id
-        finally:
-            session.close()
-
-        # Validate ice breakers (max 4)
-        if len(ice_breakers) > 4:
-            raise HTTPException(status_code=400, detail="Maximum 4 ice breakers allowed")
-
-        # Format for Meta API
-        formatted_icebreakers = [
-            {"question": ib["question"], "payload": ib.get("payload", ib["question"][:20])}
-            for ib in ice_breakers
-        ]
-
-        # Set ice breakers via Meta API
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"https://graph.facebook.com/v21.0/{page_id}/messenger_profile",
-                params={"access_token": access_token},
-                json={"ice_breakers": formatted_icebreakers},
-            )
-
-            result = response.json()
-
-            if "error" in result:
-                logger.error(f"Failed to set ice breakers: {result['error']}")
-                raise HTTPException(
-                    status_code=400, detail=result["error"].get("message", "Unknown error")
-                )
-
-            logger.info(f"Set {len(ice_breakers)} ice breakers for {creator_id}")
-
-            return {
-                "status": "ok",
-                "creator_id": creator_id,
-                "ice_breakers_set": len(ice_breakers),
-                "ice_breakers": formatted_icebreakers,
-            }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error setting ice breakers: {e}")
-        raise HTTPException(status_code=503, detail="Internal server error")
-
-
-@router.get("/icebreakers/{creator_id}")
-async def get_ice_breakers(creator_id: str):
-    """
-    Get current Ice Breakers for a creator.
-    """
-    try:
-        import httpx
-        from api.database import SessionLocal
-        from api.models import Creator
-
-        session = SessionLocal()
-        try:
-            creator = session.query(Creator).filter_by(name=creator_id).first()
-            if not creator:
-                raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
-
-            if not creator.instagram_token or not creator.instagram_page_id:
-                return {"status": "ok", "ice_breakers": [], "info": "No Instagram connection"}
-
-            access_token = creator.instagram_token
-            page_id = creator.instagram_page_id
-        finally:
-            session.close()
-
-        # Get ice breakers via Meta API
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                f"https://graph.facebook.com/v21.0/{page_id}/messenger_profile",
-                params={"access_token": access_token, "fields": "ice_breakers"},
-            )
-
-            result = response.json()
-            ice_breakers = result.get("data", [{}])[0].get("ice_breakers", [])
-
-            return {"status": "ok", "creator_id": creator_id, "ice_breakers": ice_breakers}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting ice breakers: {e}")
-        raise HTTPException(status_code=503, detail="Internal server error")
-
-
-@router.delete("/icebreakers/{creator_id}")
-async def delete_ice_breakers(creator_id: str):
-    """
-    Delete all Ice Breakers for a creator.
-    """
-    try:
-        import httpx
-        from api.database import SessionLocal
-        from api.models import Creator
-
-        session = SessionLocal()
-        try:
-            creator = session.query(Creator).filter_by(name=creator_id).first()
-            if not creator:
-                raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
-
-            access_token = creator.instagram_token
-            page_id = creator.instagram_page_id
-        finally:
-            session.close()
-
-        if not access_token or not page_id:
-            return {"status": "ok", "info": "No Instagram connection"}
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.delete(
-                f"https://graph.facebook.com/v21.0/{page_id}/messenger_profile",
-                params={"access_token": access_token},
-                json={"fields": ["ice_breakers"]},
-            )
-
-            result = response.json()
-
-            if result.get("success"):
-                logger.info(f"Deleted ice breakers for {creator_id}")
-                return {"status": "ok", "deleted": True}
-            else:
-                return {"status": "ok", "deleted": False, "result": result}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting ice breakers: {e}")
-        raise HTTPException(status_code=503, detail="Internal server error")
-
-
-@router.post("/persistent-menu/{creator_id}")
-async def set_persistent_menu(creator_id: str, menu_items: List[Dict[str, Any]]):
-    """
-    Set Persistent Menu for a creator's Instagram.
-
-    The persistent menu appears as a hamburger menu in the chat.
-
-    Request body example:
-    [
-        {
-            "type": "postback",
-            "title": "Ver servicios",
-            "payload": "SERVICES"
-        },
-        {
-            "type": "postback",
-            "title": "Reservar cita",
-            "payload": "BOOKING"
-        },
-        {
-            "type": "web_url",
-            "title": "Visitar web",
-            "url": "https://example.com"
-        }
-    ]
-    """
-    try:
-        import httpx
-        from api.database import SessionLocal
-        from api.models import Creator
-
-        session = SessionLocal()
-        try:
-            creator = session.query(Creator).filter_by(name=creator_id).first()
-            if not creator:
-                raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
-
-            access_token = creator.instagram_token
-            page_id = creator.instagram_page_id
-        finally:
-            session.close()
-
-        if not access_token or not page_id:
-            raise HTTPException(status_code=400, detail="No Instagram connection")
-
-        # Format persistent menu
-        persistent_menu = [
-            {"locale": "default", "composer_input_disabled": False, "call_to_actions": menu_items}
-        ]
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"https://graph.facebook.com/v21.0/{page_id}/messenger_profile",
-                params={"access_token": access_token},
-                json={"persistent_menu": persistent_menu},
-            )
-
-            result = response.json()
-
-            if "error" in result:
-                logger.error(f"Failed to set persistent menu: {result['error']}")
-                raise HTTPException(
-                    status_code=400, detail=result["error"].get("message", "Unknown error")
-                )
-
-            logger.info(f"Set persistent menu for {creator_id} with {len(menu_items)} items")
-
-            return {"status": "ok", "creator_id": creator_id, "menu_items_set": len(menu_items)}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error setting persistent menu: {e}")
-        raise HTTPException(status_code=503, detail="Internal server error")
 
 
 # =============================================================================
@@ -875,147 +600,3 @@ async def _register_story_interaction(
 
     except Exception as e:
         logger.error(f"Failed to register story interaction: {e}")
-
-
-# =============================================================================
-# CONNECT ENDPOINT: Register page_id for a creator
-# =============================================================================
-
-
-@router.post("/connect")
-async def connect_instagram_page(
-    creator_id: str = Query(..., description="Creator name/ID"),
-    page_id: str = Query(..., description="Instagram/Facebook Page ID"),
-    access_token: str = Query(None, description="Page access token (optional if already stored)"),
-    ig_user_id: str = Query(None, description="Instagram User ID (optional, defaults to page_id)"),
-):
-    """
-    Connect/register an Instagram page to a creator.
-
-    This endpoint allows manual registration of a page_id when OAuth flow
-    doesn't capture it automatically, or for testing purposes.
-    """
-    try:
-        from api.database import SessionLocal
-        from api.models import Creator
-
-        session = SessionLocal()
-        try:
-            creator = session.query(Creator).filter_by(name=creator_id).first()
-
-            if not creator:
-                raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
-
-            # Update page_id
-            creator.instagram_page_id = page_id
-
-            # Update instagram_user_id (use page_id as default if not provided)
-            creator.instagram_user_id = ig_user_id or page_id
-
-            # Update token if provided
-            if access_token:
-                creator.instagram_token = access_token
-
-            session.commit()
-
-            logger.info(f"Connected Instagram page {page_id} to creator {creator_id}")
-
-            return {
-                "status": "ok",
-                "creator_id": creator_id,
-                "instagram_page_id": page_id,
-                "instagram_user_id": creator.instagram_user_id,
-                "token_updated": bool(access_token),
-            }
-
-        finally:
-            session.close()
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error connecting Instagram page: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/status/{creator_id}")
-async def get_instagram_status(creator_id: str):
-    """
-    Get Instagram connection status for a creator.
-    """
-    try:
-        from api.database import SessionLocal
-        from api.models import Creator
-
-        session = SessionLocal()
-        try:
-            creator = session.query(Creator).filter_by(name=creator_id).first()
-
-            if not creator:
-                raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
-
-            connected = bool(creator.instagram_token and creator.instagram_page_id)
-
-            # Get handler stats if connected
-            handler_stats = {}
-            if creator_id in _creator_handlers:
-                handler = _creator_handlers[creator_id]
-                handler_stats = handler.get_status()
-
-            return {
-                "status": "ok",
-                "creator_id": creator_id,
-                "connected": connected,
-                "instagram_page_id": creator.instagram_page_id,
-                "instagram_user_id": creator.instagram_user_id,
-                "bot_active": creator.bot_active,
-                "copilot_mode": creator.copilot_mode,
-                "handler_stats": handler_stats,
-            }
-
-        finally:
-            session.close()
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting Instagram status: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/creators")
-async def list_instagram_creators():
-    """
-    List all creators with Instagram connections.
-    Useful for debugging multi-creator setup.
-    """
-    try:
-        from api.database import SessionLocal
-        from api.models import Creator
-
-        session = SessionLocal()
-        try:
-            creators = session.query(Creator).filter(Creator.instagram_page_id.isnot(None)).all()
-
-            return {
-                "status": "ok",
-                "count": len(creators),
-                "creators": [
-                    {
-                        "creator_id": c.name,
-                        "instagram_page_id": c.instagram_page_id,
-                        "instagram_user_id": c.instagram_user_id,
-                        "bot_active": c.bot_active,
-                        "copilot_mode": c.copilot_mode,
-                        "has_token": bool(c.instagram_token),
-                    }
-                    for c in creators
-                ],
-            }
-
-        finally:
-            session.close()
-
-    except Exception as e:
-        logger.error(f"Error listing Instagram creators: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
