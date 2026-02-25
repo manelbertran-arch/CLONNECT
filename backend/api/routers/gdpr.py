@@ -30,7 +30,7 @@ async def gdpr_export_data(creator_id: str, follower_id: str):
 
     except Exception as e:
         logger.error(f"Error exporting GDPR data: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete("/{creator_id}/delete/{follower_id}")
@@ -44,7 +44,7 @@ async def gdpr_delete_data(creator_id: str, follower_id: str, reason: str = "use
         result = gdpr.delete_user_data(creator_id, follower_id, reason)
 
         if not result["success"]:
-            raise HTTPException(status_code=500, detail=f"Deletion errors: {result['errors']}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
         return {"status": "ok", **result}
 
@@ -52,7 +52,7 @@ async def gdpr_delete_data(creator_id: str, follower_id: str, reason: str = "use
         raise
     except Exception as e:
         logger.error(f"Error deleting GDPR data: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/{creator_id}/anonymize/{follower_id}")
@@ -66,7 +66,7 @@ async def gdpr_anonymize_data(creator_id: str, follower_id: str):
         result = gdpr.anonymize_user_data(creator_id, follower_id)
 
         if not result["success"]:
-            raise HTTPException(status_code=500, detail=f"Anonymization errors: {result['errors']}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
         return {"status": "ok", **result}
 
@@ -74,7 +74,7 @@ async def gdpr_anonymize_data(creator_id: str, follower_id: str):
         raise
     except Exception as e:
         logger.error(f"Error anonymizing GDPR data: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/consent/{follower_id}")
@@ -87,7 +87,7 @@ async def gdpr_get_consent(creator_id: str, follower_id: str):
 
     except Exception as e:
         logger.error(f"Error getting consent status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/{creator_id}/consent/{follower_id}")
@@ -121,7 +121,7 @@ async def gdpr_record_consent(
         raise
     except Exception as e:
         logger.error(f"Error recording consent: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/inventory/{follower_id}")
@@ -134,7 +134,7 @@ async def gdpr_data_inventory(creator_id: str, follower_id: str):
 
     except Exception as e:
         logger.error(f"Error getting data inventory: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/audit/{follower_id}")
@@ -147,4 +147,4 @@ async def gdpr_audit_log(creator_id: str, follower_id: str, limit: int = 50):
 
     except Exception as e:
         logger.error(f"Error getting audit log: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

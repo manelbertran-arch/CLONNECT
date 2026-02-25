@@ -3,6 +3,7 @@ from fastapi import APIRouter, Body, HTTPException
 from datetime import datetime, timedelta, timezone
 import logging
 
+from api.schemas.payments import PurchaseRecord
 from core.payments import get_payment_manager
 from core.sales_tracker import get_sales_tracker
 
@@ -53,20 +54,20 @@ async def get_purchases(creator_id: str, limit: int = 50, offset: int = 0):
 @router.post("/{creator_id}/purchases")
 async def record_purchase(
     creator_id: str,
-    data: dict = Body(...)
+    data: PurchaseRecord,
 ):
     """Record a new purchase manually or from webhook"""
     payment_manager = get_payment_manager()
     sales_tracker = get_sales_tracker()
 
     # Extract data
-    product_id = data.get("product_id", "")
-    product_name = data.get("product_name", "Unknown")
-    amount = float(data.get("amount", 0))
-    currency = data.get("currency", "EUR")
-    platform = data.get("platform", "manual")
-    follower_id = data.get("follower_id", "")
-    external_id = data.get("external_id", "")
+    product_id = data.product_id or ""
+    product_name = data.product_name or "Unknown"
+    amount = float(data.amount or 0)
+    currency = data.currency or "EUR"
+    platform = data.platform or "manual"
+    follower_id = data.follower_id or ""
+    external_id = data.external_id or ""
 
     # Record in payment manager
     purchase = await payment_manager.record_purchase(

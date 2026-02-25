@@ -34,7 +34,7 @@ async def get_topics(creator_id: str, limit: int = 10, db: Session = Depends(get
         return aggregator.get_topics(limit=limit)
     except Exception as e:
         logger.error(f"Error getting topics for {creator_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/passions", response_model=TopicsResponse)
@@ -48,7 +48,7 @@ async def get_passions(creator_id: str, limit: int = 10, db: Session = Depends(g
         return aggregator.get_passions(limit=limit)
     except Exception as e:
         logger.error(f"Error getting passions for {creator_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/frustrations", response_model=ObjectionsResponse)
@@ -62,7 +62,7 @@ async def get_frustrations(creator_id: str, limit: int = 10, db: Session = Depen
         return aggregator.get_frustrations(limit=limit)
     except Exception as e:
         logger.error(f"Error getting frustrations for {creator_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/competition", response_model=CompetitionResponse)
@@ -76,7 +76,7 @@ async def get_competition(creator_id: str, limit: int = 10, db: Session = Depend
         return aggregator.get_competition(limit=limit)
     except Exception as e:
         logger.error(f"Error getting competition for {creator_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/trends", response_model=TrendsResponse)
@@ -90,7 +90,7 @@ async def get_trends(creator_id: str, limit: int = 10, db: Session = Depends(get
         return aggregator.get_trends(limit=limit)
     except Exception as e:
         logger.error(f"Error getting trends for {creator_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/content-requests", response_model=ContentRequestsResponse)
@@ -104,7 +104,7 @@ async def get_content_requests(creator_id: str, limit: int = 10, db: Session = D
         return aggregator.get_content_requests(limit=limit)
     except Exception as e:
         logger.error(f"Error getting content requests for {creator_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/purchase-objections", response_model=ObjectionsResponse)
@@ -118,7 +118,7 @@ async def get_purchase_objections(creator_id: str, limit: int = 10, db: Session 
         return aggregator.get_purchase_objections(limit=limit)
     except Exception as e:
         logger.error(f"Error getting purchase objections for {creator_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{creator_id}/perception", response_model=PerceptionResponse)
@@ -132,4 +132,4 @@ async def get_perception(creator_id: str, db: Session = Depends(get_db)):
         return aggregator.get_perception()
     except Exception as e:
         logger.error(f"Error getting perception for {creator_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

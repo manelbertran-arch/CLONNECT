@@ -248,7 +248,7 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
         from api.utils.error_helpers import safe_error_detail
 
         db.rollback()
-        raise HTTPException(status_code=500, detail=safe_error_detail(e, "create booking link"))
+        raise HTTPException(status_code=400, detail=safe_error_detail(e, "create booking link"))
 
 @router.put("/{creator_id}/links/{link_id}")
 async def update_booking_link(creator_id: str, link_id: str, data: dict = Body(...), db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
@@ -277,7 +277,7 @@ async def update_booking_link(creator_id: str, link_id: str, data: dict = Body(.
         from api.utils.error_helpers import safe_error_detail
 
         db.rollback()
-        raise HTTPException(status_code=500, detail=safe_error_detail(e, "update booking link"))
+        raise HTTPException(status_code=400, detail=safe_error_detail(e, "update booking link"))
 
 @router.delete("/{creator_id}/links/{link_id}")
 async def delete_booking_link(creator_id: str, link_id: str, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):

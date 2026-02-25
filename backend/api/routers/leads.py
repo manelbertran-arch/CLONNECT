@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from api.auth import require_creator_access
 from api.database import get_db
+from api.schemas.leads import LeadCreate, LeadUpdate, LeadStatusUpdate
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dm/leads", tags=["leads"])
@@ -103,7 +104,7 @@ async def get_leads(creator_id: str, limit: int = 100, _auth: str = Depends(requ
         except Exception as e:
             logger.error(f"DB get leads failed for {creator_id}: {e}")
             if not ENABLE_JSON_FALLBACK:
-                raise HTTPException(status_code=500, detail=f"Database error: {e}")
+                raise HTTPException(status_code=500, detail="Internal database error")
             logger.warning(f"[FALLBACK] Returning empty leads for {creator_id}")
     return {"status": "ok", "leads": [], "count": 0}
 
@@ -180,7 +181,7 @@ async def get_lead(creator_id: str, lead_id: str, _auth: str = Depends(require_c
         except Exception as e:
             logger.error(f"DB get lead failed: {e}")
             if not ENABLE_JSON_FALLBACK:
-                raise HTTPException(status_code=500, detail=f"Database error: {e}")
+                raise HTTPException(status_code=500, detail="Internal database error")
             logger.warning(f"[FALLBACK] Trying JSON for lead {lead_id}")
 
     # Fallback to JSON (only if ENABLE_JSON_FALLBACK or not using DB)
@@ -192,11 +193,12 @@ async def get_lead(creator_id: str, lead_id: str, _auth: str = Depends(require_c
 
 
 @router.post("/{creator_id}")
-async def create_lead(creator_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
+async def create_lead(creator_id: str, data: LeadCreate, _auth: str = Depends(require_creator_access)):
+    data_dict = data.model_dump(exclude_unset=True)
     # Try PostgreSQL first
     if USE_DB:
         try:
-            result = db_service.create_lead(creator_id, data)
+            result = db_service.create_lead(creator_id, data_dict)
             if result:
                 return {"status": "ok", "lead": adapt_lead_response(result)}
         except Exception as e:
@@ -204,43 +206,44 @@ async def create_lead(creator_id: str, data: dict = Body(...), _auth: str = Depe
 
     # Fallback to JSON
     try:
-        lead_id = data.get("platform_user_id") or f"manual_{int(time.time())}"
+        lead_id = data_dict.get("platform_user_id") or f"manual_{int(time.time())}"
         now = datetime.now(timezone.utc).isoformat()
         new_lead = {
             "follower_id": lead_id,
             "creator_id": creator_id,
-            "username": data.get("name", "Manual Lead"),
-            "name": data.get("name", "Manual Lead"),
-            "full_name": data.get("name", "Manual Lead"),
+            "username": data_dict.get("name", "Manual Lead"),
+            "name": data_dict.get("name", "Manual Lead"),
+            "full_name": data_dict.get("name", "Manual Lead"),
             "first_contact": now,
             "last_contact": now,
             "total_messages": 0,
             "purchase_intent_score": 0,
             "is_lead": True,
             "is_customer": False,
-            "email": data.get("email", ""),
-            "phone": data.get("phone", ""),
-            "notes": data.get("notes", ""),
-            "platform": data.get("platform", "manual"),
-            "status": data.get("status", "new"),
+            "email": data_dict.get("email", ""),
+            "phone": data_dict.get("phone", ""),
+            "notes": data_dict.get("notes", ""),
+            "platform": data_dict.get("platform", "manual"),
+            "status": data_dict.get("status", "new"),
         }
         _save_lead_json(creator_id, lead_id, new_lead)
         logger.info(f"Created lead {lead_id} via JSON fallback")
         return {"status": "ok", "lead": new_lead}
     except Exception as e:
         logger.error(f"JSON create lead failed: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create lead")
+        raise HTTPException(status_code=400, detail="Failed to create lead: invalid data")
 
 
 @router.post("/{creator_id}/manual")
-async def create_manual_lead(creator_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
+async def create_manual_lead(creator_id: str, data: LeadCreate, _auth: str = Depends(require_creator_access)):
     from api.cache import api_cache
 
+    data_dict = data.model_dump(exclude_unset=True)
     start = time.time()
     # Try PostgreSQL first
     if USE_DB:
         try:
-            result = db_service.create_lead(creator_id, data)
+            result = db_service.create_lead(creator_id, data_dict)
             if result:
                 api_cache.invalidate(f"conversations:{creator_id}")
                 logger.info(f"⏱️ Lead create took {time.time()-start:.2f}s")
@@ -250,40 +253,41 @@ async def create_manual_lead(creator_id: str, data: dict = Body(...), _auth: str
 
     # Fallback to JSON
     try:
-        lead_id = data.get("platform_user_id") or f"manual_{int(time.time())}"
+        lead_id = data_dict.get("platform_user_id") or f"manual_{int(time.time())}"
         now = datetime.now(timezone.utc).isoformat()
         new_lead = {
             "follower_id": lead_id,
             "creator_id": creator_id,
-            "username": data.get("name", "Manual Lead"),
-            "name": data.get("name", "Manual Lead"),
-            "full_name": data.get("name", "Manual Lead"),
+            "username": data_dict.get("name", "Manual Lead"),
+            "name": data_dict.get("name", "Manual Lead"),
+            "full_name": data_dict.get("name", "Manual Lead"),
             "first_contact": now,
             "last_contact": now,
             "total_messages": 0,
             "purchase_intent_score": 0,
             "is_lead": True,
             "is_customer": False,
-            "email": data.get("email", ""),
-            "phone": data.get("phone", ""),
-            "notes": data.get("notes", ""),
-            "platform": data.get("platform", "manual"),
-            "status": data.get("status", "new"),
+            "email": data_dict.get("email", ""),
+            "phone": data_dict.get("phone", ""),
+            "notes": data_dict.get("notes", ""),
+            "platform": data_dict.get("platform", "manual"),
+            "status": data_dict.get("status", "new"),
         }
         _save_lead_json(creator_id, lead_id, new_lead)
         logger.info(f"Created manual lead {lead_id} via JSON fallback")
         return {"status": "ok", "lead": new_lead}
     except Exception as e:
         logger.error(f"JSON create lead failed: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create lead")
+        raise HTTPException(status_code=400, detail="Failed to create lead: invalid data")
 
 
 @router.put("/{creator_id}/{lead_id}")
-async def update_lead(creator_id: str, lead_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
+async def update_lead(creator_id: str, lead_id: str, data: LeadUpdate, _auth: str = Depends(require_creator_access)):
+    data_dict = data.model_dump(exclude_unset=True)
     # Try PostgreSQL first
     if USE_DB:
         try:
-            result = db_service.update_lead(creator_id, lead_id, data)
+            result = db_service.update_lead(creator_id, lead_id, data_dict)
             if result and isinstance(result, dict):
                 return {
                     "status": "ok",
@@ -296,18 +300,18 @@ async def update_lead(creator_id: str, lead_id: str, data: dict = Body(...), _au
     # Fallback to JSON
     lead_data = _load_lead_json(creator_id, lead_id)
     if lead_data:
-        if "name" in data:
-            lead_data["name"] = data["name"]
-            lead_data["username"] = data["name"]
-            lead_data["full_name"] = data["name"]
-        if "email" in data:
-            lead_data["email"] = data["email"]
-        if "phone" in data:
-            lead_data["phone"] = data["phone"]
-        if "notes" in data:
-            lead_data["notes"] = data["notes"]
-        if "status" in data:
-            lead_data["status"] = data["status"]
+        if "name" in data_dict:
+            lead_data["name"] = data_dict["name"]
+            lead_data["username"] = data_dict["name"]
+            lead_data["full_name"] = data_dict["name"]
+        if "email" in data_dict:
+            lead_data["email"] = data_dict["email"]
+        if "phone" in data_dict:
+            lead_data["phone"] = data_dict["phone"]
+        if "notes" in data_dict:
+            lead_data["notes"] = data_dict["notes"]
+        if "status" in data_dict:
+            lead_data["status"] = data_dict["status"]
         _save_lead_json(creator_id, lead_id, lead_data)
         logger.info(f"Updated lead {lead_id} via JSON fallback")
         return {"status": "ok", "message": "Lead updated", "lead": lead_data}
@@ -353,7 +357,7 @@ async def delete_lead(creator_id: str, lead_id: str, _auth: str = Depends(requir
             raise
         except Exception as e:
             logger.warning(f"DB delete lead failed: {e}")
-            raise HTTPException(status_code=500, detail=f"Delete failed: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
     # Fallback to JSON (non-DB setups only)
     path = _get_json_path(creator_id, lead_id)
@@ -371,12 +375,12 @@ async def delete_lead(creator_id: str, lead_id: str, _auth: str = Depends(requir
 
 
 @router.put("/{creator_id}/{lead_id}/status")
-async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
+async def update_lead_status(creator_id: str, lead_id: str, data: LeadStatusUpdate, _auth: str = Depends(require_creator_access)):
     """
     Quick status update for drag & drop in Pipeline.
     Also creates an activity log entry.
     """
-    new_status = data.get("status")
+    new_status = data.status
     if not new_status:
         raise HTTPException(status_code=400, detail="status is required")
 
@@ -452,7 +456,7 @@ async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(..
 
             raise HTTPException(status_code=500, detail=safe_error_detail(e, "lead status update"))
 
-    raise HTTPException(status_code=500, detail="Database not configured")
+    raise HTTPException(status_code=503, detail="Database not configured")
 
 
 # =============================================================================
@@ -613,7 +617,7 @@ async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(
 
             raise HTTPException(status_code=500, detail=safe_error_detail(e, "create activity"))
 
-    raise HTTPException(status_code=500, detail="Database not configured")
+    raise HTTPException(status_code=503, detail="Database not configured")
 
 
 @router.delete("/{creator_id}/{lead_id}/activities/{activity_id}")
@@ -646,7 +650,7 @@ async def delete_lead_activity(creator_id: str, lead_id: str, activity_id: str, 
 
             raise HTTPException(status_code=500, detail=safe_error_detail(e, "delete activity"))
 
-    raise HTTPException(status_code=500, detail="Database not configured")
+    raise HTTPException(status_code=503, detail="Database not configured")
 
 
 # =============================================================================
@@ -815,7 +819,7 @@ async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...)
 
             raise HTTPException(status_code=500, detail=safe_error_detail(e, "create task"))
 
-    raise HTTPException(status_code=500, detail="Database not configured")
+    raise HTTPException(status_code=503, detail="Database not configured")
 
 
 @router.put("/{creator_id}/{lead_id}/tasks/{task_id}")
@@ -896,7 +900,7 @@ async def update_lead_task(creator_id: str, lead_id: str, task_id: str, data: di
 
             raise HTTPException(status_code=500, detail=safe_error_detail(e, "update task"))
 
-    raise HTTPException(status_code=500, detail="Database not configured")
+    raise HTTPException(status_code=503, detail="Database not configured")
 
 
 @router.delete("/{creator_id}/{lead_id}/tasks/{task_id}")
@@ -929,7 +933,7 @@ async def delete_lead_task(creator_id: str, lead_id: str, task_id: str, _auth: s
 
             raise HTTPException(status_code=500, detail=safe_error_detail(e, "delete task"))
 
-    raise HTTPException(status_code=500, detail="Database not configured")
+    raise HTTPException(status_code=503, detail="Database not configured")
 
 
 # =============================================================================

@@ -28,6 +28,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from core.agent_config import AGENT_THRESHOLDS
+
 # P1: QUALITY - Question context, query expansion, reflexion
 from core.bot_question_analyzer import QuestionType, get_bot_question_analyzer, is_short_affirmation
 
@@ -307,9 +309,9 @@ class AgentConfig:
 
     llm_provider: LLMProvider = LLMProvider.OPENAI
     llm_model: Optional[str] = None
-    temperature: float = 0.7
-    max_tokens: int = 1024
-    rag_similarity_threshold: float = 0.3
+    temperature: float = AGENT_THRESHOLDS.temperature
+    max_tokens: int = AGENT_THRESHOLDS.max_tokens
+    rag_similarity_threshold: float = AGENT_THRESHOLDS.rag_similarity_threshold
     rag_top_k: int = 3
 
 
@@ -336,6 +338,49 @@ class DMResponse:
             "metadata": self.metadata,
             "created_at": self.created_at.isoformat(),
         }
+
+
+@dataclass
+class DetectionResult:
+    """Results from Phase 1: Detection."""
+    frustration_level: float = 0.0
+    frustration_signals: Any = None
+    context_signals: Any = None
+    pool_response: Optional["DMResponse"] = None  # Set if fast path hit
+    edge_case_response: Optional["DMResponse"] = None  # Set if edge case escalation
+    cognitive_metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ContextBundle:
+    """Results from Phase 2-3: Memory & Context."""
+    intent: Any = None
+    intent_value: str = ""
+    follower: Any = None
+    dna_context: str = ""
+    state_context: str = ""
+    raw_dna: Any = None
+    memory_context: str = ""
+    commitment_text: str = ""
+    bot_instructions: str = ""
+    rag_results: list = field(default_factory=list)
+    rag_context: str = ""
+    is_friend: bool = False
+    rel_type: str = ""
+    current_stage: str = ""
+    kb_context: str = ""
+    system_prompt: str = ""
+    history: list = field(default_factory=list)
+    user_context: str = ""
+    few_shot_section: str = ""
+    audio_context: str = ""
+    relational_block: str = ""
+    echo_rel_ctx: Any = None
+    friend_context: str = ""
+    citation_context: str = ""
+    advanced_section: str = ""
+    prompt_override: str = ""
+    cognitive_metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 def _determine_response_strategy(
@@ -700,1138 +745,1249 @@ class DMResponderAgentV2:
         sender_id: str,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> DMResponse:
-        """
-        Process an incoming DM and generate a response.
-
-        This is the main orchestration method that coordinates
-        all services to produce a response.
-
-        Args:
-            message: The incoming message text
-            sender_id: Instagram user ID of sender
-            metadata: Additional message metadata
-
-        Returns:
-            DMResponse with generated content and metadata
-        """
+        """Process an incoming DM through the 5-phase pipeline."""
         metadata = metadata or {}
-        cognitive_metadata = {}  # Track cognitive system outputs
-        _t0 = time.monotonic()  # Pipeline timing
+        cognitive_metadata = {}
+        _t0 = time.monotonic()
 
         try:
-            # =================================================================
-            # PRE-PIPELINE: SENSITIVE CONTENT DETECTION (Security)
-            # =================================================================
-            if ENABLE_SENSITIVE_DETECTION:
-                try:
-                    sensitive_result = detect_sensitive_content(message)
-                    if sensitive_result and sensitive_result.confidence >= 0.7:
-                        logger.warning(f"Sensitive content detected: {sensitive_result.category}")
-                        cognitive_metadata["sensitive_detected"] = True
-                        cognitive_metadata["sensitive_category"] = sensitive_result.category
-                        # Return crisis resources for high-confidence sensitive content
-                        if sensitive_result.confidence >= 0.85:
-                            crisis_response = get_crisis_resources(language="es")
-                            return DMResponse(
-                                content=crisis_response,
-                                intent="sensitive_content",
-                                lead_stage="unknown",
-                                confidence=sensitive_result.confidence,
-                                tokens_used=0,
-                                metadata={"sensitive_category": sensitive_result.category},
-                            )
-                except Exception as e:
-                    logger.debug(f"Sensitive detection failed: {e}")
+            # Phase 1: Detection (sensitive content, frustration, pool response, edge cases)
+            detection = await self._phase_detection(message, sender_id, metadata, cognitive_metadata)
+            if detection.pool_response:
+                return detection.pool_response
+            if detection.edge_case_response:
+                return detection.edge_case_response
 
-            # =================================================================
-            # PHASE 1: DETECTION (Frustration, Context, Edge Cases)
-            # =================================================================
-
-            # Step 1a: Detect frustration level
-            frustration_level = 0.0
-            frustration_signals = None
-            if ENABLE_FRUSTRATION_DETECTION and hasattr(self, "frustration_detector"):
-                try:
-                    history = metadata.get("history", [])
-                    prev_messages = [
-                        m.get("content", "") for m in history if m.get("role") == "user"
-                    ]
-                    frustration_signals, frustration_level = (
-                        self.frustration_detector.analyze_message(message, sender_id, prev_messages)
-                    )
-                    if frustration_level > 0.3:
-                        logger.info(f"Frustration detected: {frustration_level:.2f}")
-                        cognitive_metadata["frustration_level"] = frustration_level
-                except Exception as e:
-                    logger.debug(f"Frustration detection failed: {e}")
-
-            # Step 1b: Detect context signals (sarcasm, B2B, etc.)
-            context_signals = None
-            if ENABLE_CONTEXT_DETECTION:
-                try:
-                    history = metadata.get("history", [])
-                    context_signals = detect_context(message, history)
-                    if context_signals and context_signals.alerts:
-                        cognitive_metadata["context_signals"] = context_signals.to_dict()
-                except Exception as e:
-                    logger.debug(f"Context detection failed: {e}")
-
-            # Step 1c: Try pool response for simple messages (fast path)
-            if hasattr(self, "response_variator"):
-                # Skip pool if message mentions a product name (needs LLM)
-                msg_lower = message.lower()
-                mentions_product = False
-                if self.products:
-                    for p in self.products:
-                        pname = p.get("name") or ""
-                        if pname and _message_mentions_product(pname, msg_lower):
-                            mentions_product = True
-                            break
-
-                if not mentions_product and len(message.strip()) <= 80:
-                    # Classify context for pool routing (v10.2)
-                    # Skip pool for messages > 80 chars — they need LLM context
-                    from services.length_controller import classify_lead_context
-                    pool_context = classify_lead_context(message)
-
-                    # Pass conv_id for dedup (v10.3) and context for routing (v10.2)
-                    conv_id = metadata.get("conversation_id", sender_id)
-
-                    pool_result = self.response_variator.try_pool_response(
-                        message,
-                        conv_id=conv_id,
-                        turn_index=metadata.get("turn_index", 0),
-                        context=pool_context,
-                        creator_id=self.creator_id,
-                    )
-                    if pool_result.matched and pool_result.confidence >= 0.8:
-                        # v12: Sometimes use multi-bubble instead of single pool response
-                        # ~30% chance to match creator's natural multi-bubble rate
-                        import random as _rng
-                        if _rng.random() < 0.30:
-                            multi_bubbles = self.response_variator.try_multi_bubble(
-                                message, creator_id=self.creator_id, conv_id=conv_id,
-                            )
-                            if multi_bubbles:
-                                logger.debug(f"Multi-bubble matched: {len(multi_bubbles)} bubbles")
-                                return DMResponse(
-                                    content=multi_bubbles[0],
-                                    intent="pool_response",
-                                    lead_stage="unknown",
-                                    confidence=0.85,
-                                    tokens_used=0,
-                                    metadata={
-                                        "pool_category": "multi_bubble",
-                                        "used_pool": True,
-                                        "message_parts": [
-                                            {"text": b, "delay": 0.8} for b in multi_bubbles
-                                        ],
-                                    },
-                                )
-
-                        logger.debug(f"Pool response matched: {pool_result.category}")
-                        return DMResponse(
-                            content=pool_result.response,
-                            intent="pool_response",
-                            lead_stage="unknown",
-                            confidence=pool_result.confidence,
-                            tokens_used=0,
-                            metadata={"pool_category": pool_result.category, "used_pool": True},
-                        )
-
-            # Step 1d: Edge case detection
-            if ENABLE_EDGE_CASE_DETECTION and hasattr(self, "edge_case_handler"):
-                try:
-                    edge_result = self.edge_case_handler.detect(message)
-                    if edge_result.should_escalate:
-                        logger.info(f"Edge case escalation: {edge_result.edge_type}")
-                        return DMResponse(
-                            content=edge_result.suggested_response
-                            or "Entiendo, déjame consultarlo y te respondo.",
-                            intent="edge_case_escalation",
-                            lead_stage="unknown",
-                            confidence=edge_result.confidence,
-                            metadata={
-                                "edge_type": str(edge_result.edge_type),
-                                "escalated": True,
-                            },
-                        )
-                except Exception as e:
-                    logger.debug(f"Edge case detection failed: {e}")
-
-            # =================================================================
-            # PHASE 2: MEMORY & CONTEXT LOADING
-            # =================================================================
             _t1 = time.monotonic()
             logger.info(f"[TIMING] Phase 1 (detection): {int((_t1 - _t0) * 1000)}ms")
 
-            # Step 2: Classify intent
-            intent = self.intent_classifier.classify(message)
-            intent_value = intent.value if hasattr(intent, "value") else str(intent)
-            logger.debug(f"Intent classified: {intent_value}")
-            _t1a = time.monotonic()
-
-            # Step 2b: Analyze bot's last question for short affirmation context
-            if ENABLE_QUESTION_CONTEXT and is_short_affirmation(message):
-                try:
-                    hist = metadata.get("history", [])
-                    last_bot = next(
-                        (
-                            m.get("content", "")
-                            for m in reversed(hist)
-                            if m.get("role") == "assistant"
-                        ),
-                        None,
-                    )
-                    if last_bot:
-                        q_type, q_conf = get_bot_question_analyzer().analyze_with_confidence(
-                            last_bot
-                        )
-                        if q_type != QuestionType.UNKNOWN:
-                            cognitive_metadata["question_context"] = q_type.value
-                except Exception as e:
-                    logger.debug(f"Question context failed: {e}")
-
-            # =================================================================
-            # PHASE 2-3: PARALLEL DB/IO + CONTEXT LOADING
-            # =================================================================
-            # Run independent DB/IO operations concurrently to reduce latency.
-            # Previously sequential (~3.8s) → now parallel (~1.2s).
-
-            import asyncio
-            from services.dm_agent_context_integration import build_context_prompt as _build_ctx
-            from services.relationship_dna_repository import get_relationship_dna as _get_raw_dna
-
-            async def _load_conv_state():
-                if not ENABLE_CONVERSATION_STATE:
-                    return "", {}
-                try:
-                    state_mgr = get_state_manager()
-                    conv_state = await asyncio.to_thread(
-                        state_mgr.get_state, sender_id, self.creator_id
-                    )
-                    state_ctx = state_mgr.build_enhanced_prompt(conv_state)
-                    return state_ctx, {"conversation_phase": conv_state.phase.value}
-                except Exception as e:
-                    logger.debug(f"Conversation state failed: {e}")
-                    return "", {}
-
-            # Parallel: memory (file I/O) + DNA+PostCtx (2 DB queries) + conv_state (1 DB query) + raw DNA
-            follower, dna_context, (state_context, state_meta), raw_dna = await asyncio.gather(
-                self.memory_store.get_or_create(
-                    creator_id=self.creator_id,
-                    follower_id=sender_id,
-                    username=metadata.get("username", sender_id),
-                ),
-                _build_ctx(self.creator_id, sender_id),
-                _load_conv_state(),
-                asyncio.to_thread(_get_raw_dna, self.creator_id, sender_id),
-            )
-            cognitive_metadata.update(state_meta)
-
-            # Memory recall (per-lead context from past conversations)
-            memory_context = ""
-            if os.getenv("ENABLE_MEMORY_ENGINE", "false").lower() == "true":
-                try:
-                    from services.memory_engine import get_memory_engine
-                    mem_engine = get_memory_engine()
-                    memory_context = await mem_engine.recall(self.creator_id, sender_id, message)
-                    if memory_context:
-                        cognitive_metadata["memory_recalled"] = True
-                        cognitive_metadata["memory_chars"] = len(memory_context)
-                except Exception as e:
-                    logger.debug(f"[MEMORY] recall failed: {e}")
-
-            # ECHO Engine: Load pending commitments for this lead (Sprint 4)
-            commitment_text = ""
-            if os.getenv("ENABLE_COMMITMENT_TRACKING", "true").lower() == "true":
-                try:
-                    from services.commitment_tracker import get_commitment_tracker
-                    tracker = get_commitment_tracker()
-                    commitment_text = await asyncio.to_thread(
-                        tracker.get_pending_text, sender_id
-                    )
-                    if commitment_text:
-                        cognitive_metadata["commitments_pending"] = True
-                except Exception as e:
-                    logger.debug(f"[COMMITMENT] load failed: {e}")
-
-            _bot_instructions = ""
-            if dna_context:
-                logger.debug(f"DNA context loaded for {sender_id}")
-            if raw_dna:
-                _bot_instructions = raw_dna.get("bot_instructions", "") or ""
-                metadata["dna_data"] = raw_dna  # Store for trigger check later
-
-            # Auto-create seed DNA if none exists and lead has some history
-            if ENABLE_DNA_AUTO_CREATE and not dna_context and follower.total_messages >= 2:
-                try:
-                    hist = metadata.get("history", [])
-                    if len(hist) >= 2:
-                        det_result = RelationshipTypeDetector().detect(hist)
-                        detected_type = det_result.get("type", "DESCONOCIDO")
-                        det_confidence = det_result.get("confidence", 0)
-
-                        async def _create_seed_dna():
-                            try:
-                                from services.relationship_dna_repository import (
-                                    create_relationship_dna,
-                                    get_relationship_dna as _get_dna,
-                                )
-                                existing = await asyncio.to_thread(
-                                    _get_dna, self.creator_id, sender_id
-                                )
-                                if existing:
-                                    return  # Already exists, race condition
-                                await asyncio.to_thread(
-                                    create_relationship_dna,
-                                    creator_id=self.creator_id,
-                                    follower_id=sender_id,
-                                    relationship_type=detected_type,
-                                    trust_score=round(det_confidence * 0.3, 2),
-                                    depth_level=0,
-                                )
-                                logger.info(
-                                    f"[DNA-SEED] Created seed DNA for {sender_id}: "
-                                    f"type={detected_type} confidence={det_confidence}"
-                                )
-                            except Exception as e:
-                                logger.debug(f"Seed DNA creation failed: {e}")
-
-                        asyncio.create_task(_create_seed_dna())
-                        cognitive_metadata["relationship_type"] = detected_type
-                        cognitive_metadata["dna_seed_created"] = True
-                except Exception as e:
-                    logger.debug(f"DNA auto-create check failed: {e}")
-
-            _t1b = time.monotonic()
-            logger.info(f"[TIMING] Phase 2 sub: intent={int((_t1a - _t1) * 1000)}ms parallel_io={int((_t1b - _t1a) * 1000)}ms")
-
-            # Fast in-memory operations (no parallelization needed)
-            # RAG retrieval — skip for simple intents that don't need knowledge
-            _SKIP_RAG_INTENTS = {"greeting", "farewell", "thanks", "saludo", "despedida"}
-            rag_query = message
-            if intent_value in _SKIP_RAG_INTENTS:
-                rag_results = []
-                cognitive_metadata["rag_skipped"] = intent_value
-                logger.info(f"[RAG] Skipped for intent={intent_value} (no knowledge needed)")
-            else:
-                if ENABLE_QUERY_EXPANSION:
-                    try:
-                        expanded = get_query_expander().expand(message, max_expansions=2)
-                        if len(expanded) > 1:
-                            rag_query = " ".join(expanded)
-                            cognitive_metadata["query_expanded"] = True
-                    except Exception as e:
-                        logger.debug(f"Query expansion failed: {e}")
-                rag_results = self.semantic_rag.search(
-                    rag_query, top_k=self.config.rag_top_k, creator_id=self.creator_id
-                )
-            if rag_results:
-                logger.info(f"[RAG] query='{rag_query[:50]}' results={len(rag_results)}")
-            else:
-                logger.debug(f"[RAG] query='{rag_query[:50]}' results=0")
-
-            # Note: reranking already happens inside semantic_rag.search()
-            # No need for a second reranking pass here
-            if ENABLE_RERANKING and rag_results:
-                cognitive_metadata["rag_reranked"] = True
-
-            rag_context = self._format_rag_context(rag_results)
-
-            # Relationship type detection (in-memory)
-            if ENABLE_RELATIONSHIP_DETECTION:
-                try:
-                    hist = metadata.get("history", [])
-                    if len(hist) >= 2:
-                        rel_result = RelationshipTypeDetector().detect(hist)
-                        if rel_result.get("confidence", 0) > 0.5:
-                            cognitive_metadata["relationship_type"] = rel_result["type"]
-                except Exception as e:
-                    logger.debug(f"Relationship detection failed: {e}")
-
-            # A1 FIX: Detect friend/family relationship to suppress acquisition behavior
-            _rel_type = cognitive_metadata.get("relationship_type", "")
-            is_friend = _rel_type in ("amigo", "FAMILIA", "AMISTAD_CERCANA", "INTIMA")
-
-            # Lead stage (depends on follower)
-            current_stage = self._get_lead_stage(follower, metadata)
-
-            # Knowledge base lookup (in-memory after first load)
-            kb_context = ""
-            try:
-                from services.knowledge_base import get_knowledge_base
-                kb = get_knowledge_base(self.creator_id)
-                kb_result = kb.lookup(message)
-                if kb_result:
-                    kb_context = f"Info factual relevante: {kb_result}"
-                    logger.debug(f"KB hit for message: {message[:50]}")
-            except Exception as e:
-                logger.debug(f"KB lookup failed: {e}")
-
-            # Step 5: Build prompts - combine style, RAG and DNA context
-            # Include system_prompt_override if provided (for V2 prompt)
-            # PRIORITY: style_prompt first (defines HOW to write)
-            prompt_override = metadata.get("system_prompt_override", "")
-            # Include advanced prompt sections if enabled
-            advanced_section = ""
-            if ENABLE_ADVANCED_PROMPTS:
-                try:
-                    from core.prompt_builder import build_rules_section
-
-                    creator_name = self.personality.get("name", "el creador")
-                    advanced_section = build_rules_section(creator_name)
-                except Exception as e:
-                    logger.debug(f"Advanced prompts failed: {e}")
-            # Load citation context
-            citation_context = ""
-            if ENABLE_CITATIONS:
-                try:
-                    citation_context = get_citation_prompt_section(self.creator_id, message)
-                except Exception as e:
-                    logger.debug(f"Citation loading failed: {e}")
-
-            # A1 FIX: Suppress acquisition/sales for friends/family
-            friend_context = ""
-            if is_friend:
-                if _rel_type == "FAMILIA":
-                    friend_context = (
-                        "IMPORTANTE: Esta persona es FAMILIAR del creador (padre, madre, hijo, etc.). "
-                        "NO intentes vender, ofrecer productos, ni hacer preguntas de cualificación. "
-                        "Habla con cariño y naturalidad. Si pide ayuda, ayúdale directamente. "
-                        "NO uses frases como 'contame qué te trae por acá' ni similares."
-                    )
-                    logger.info("[A1] Family member detected — suppressing acquisition behavior")
-                else:
-                    friend_context = (
-                        "IMPORTANTE: Esta persona es un AMIGO/A del creador, NO un lead. "
-                        "NO intentes vender, ofrecer productos, ni hacer preguntas de cualificación. "
-                        "Habla de forma natural, personal y relajada como con un amigo cercano. "
-                        "NO uses frases como 'contame qué te trae por acá' ni similares."
-                    )
-                    logger.info("[A1] Friend detected — suppressing acquisition behavior")
-
-            # Load few-shot examples from calibration (cap at 2 to reduce prompt size)
-            few_shot_section = ""
-            if self.calibration:
-                try:
-                    from services.calibration_loader import get_few_shot_section
-
-                    few_shot_section = get_few_shot_section(self.calibration, max_examples=2)
-                except Exception as e:
-                    logger.debug(f"Few-shot loading failed: {e}")
-
-            # Build audio context if message comes from audio intelligence
-            audio_context = ""
-            audio_intel = metadata.get("audio_intel")
-            if audio_intel and isinstance(audio_intel, dict):
-                parts = []
-                if audio_intel.get("intent"):
-                    parts.append(f"Intención del audio: {audio_intel['intent']}")
-                entities = audio_intel.get("entities", {})
-                entity_parts = []
-                for key, label in [
-                    ("people", "Personas"), ("places", "Lugares"),
-                    ("dates", "Fechas"), ("numbers", "Cifras"),
-                    ("products", "Productos/servicios"),
-                ]:
-                    vals = entities.get(key, [])
-                    if vals:
-                        entity_parts.append(f"{label}: {', '.join(vals)}")
-                if entity_parts:
-                    parts.append("Datos mencionados: " + ". ".join(entity_parts))
-                actions = audio_intel.get("action_items", [])
-                if actions:
-                    parts.append("Acciones pendientes: " + "; ".join(actions))
-                if audio_intel.get("emotional_tone"):
-                    parts.append(f"Tono: {audio_intel['emotional_tone']}")
-                if parts:
-                    audio_context = (
-                        "CONTEXTO DE AUDIO (mensaje de voz transcrito):\n"
-                        + "\n".join(parts)
-                    )
-                    cognitive_metadata["audio_enriched"] = True
-
-            # ECHO Engine: Generate relational context (Sprint 4)
-            relational_block = ""
-            _echo_rel_ctx = None
-            if os.getenv("ENABLE_RELATIONSHIP_ADAPTER", "true").lower() == "true":
-                try:
-                    from services.relationship_adapter import (
-                        RelationshipAdapter,
-                        style_profile_from_analyzer,
-                    )
-                    from core.style_analyzer import load_profile_from_db
-                    from api.database import SessionLocal
-                    from api.models import Creator
-
-                    # Load StyleProfile for modulation
-                    _sp = None
-                    session = SessionLocal()
-                    try:
-                        creator = session.query(Creator).filter_by(name=self.creator_id).first()
-                        if creator:
-                            _raw_profile = load_profile_from_db(str(creator.id))
-                            _sp = style_profile_from_analyzer(_raw_profile)
-                    finally:
-                        session.close()
-
-                    adapter = RelationshipAdapter()
-                    _rel_type = "DESCONOCIDO"
-                    if isinstance(raw_dna, dict):
-                        _rel_type = raw_dna.get("relationship_type", "DESCONOCIDO")
-
-                    _echo_rel_ctx = adapter.get_relational_context(
-                        lead_status=current_stage,
-                        style_profile=_sp,
-                        commitment_text=commitment_text,
-                        lead_memory_summary=memory_context,
-                        relationship_type=_rel_type,
-                        lead_name=follower.username if hasattr(follower, 'username') else None,
-                        message_count=follower.total_messages if hasattr(follower, 'total_messages') else 0,
-                    )
-                    relational_block = _echo_rel_ctx.prompt_instructions
-                    if relational_block:
-                        cognitive_metadata["relational_adapted"] = True
-                        cognitive_metadata["lead_warmth"] = _echo_rel_ctx.warmth_score
-                except Exception as e:
-                    logger.debug(f"[ECHO] Relationship Adapter failed: {e}")
-
-            # Priority ordering: style first, then knowledge, then context
-            combined_context = "\n\n".join(
-                filter(
-                    None,
-                    [
-                        self.style_prompt,       # HOW to write (highest priority)
-                        friend_context,          # Friend/family override (critical)
-                        relational_block,        # ECHO: Lead-specific behavior (Sprint 4)
-                        rag_context,             # Product/knowledge data
-                        memory_context,          # Per-lead facts (personalization)
-                        few_shot_section,        # Examples of correct responses
-                        dna_context,             # Relationship insights
-                        state_context,           # Conversation phase
-                        audio_context,           # Audio message context
-                        kb_context,              # Factual knowledge base
-                        citation_context,        # Source attribution
-                        advanced_section,        # Anti-hallucination rules
-                        prompt_override,         # Manual override (lowest)
-                    ],
-                )
-            )
-            # A1: Skip products for friends to avoid LLM injecting sales language
-            prompt_products = [] if is_friend else self.products
-            system_prompt = self.prompt_builder.build_system_prompt(
-                products=prompt_products, custom_instructions=combined_context
+            # Phase 2-3: Memory & Context Loading
+            context = await self._phase_memory_and_context(
+                message, sender_id, metadata, cognitive_metadata, detection
             )
 
-            # Get conversation history from follower memory
-            history = self._get_history_from_follower(follower)
-            _t1c = time.monotonic()
-            logger.info(f"[TIMING] Phase 3 sub: fast_ops={int((_t1c - _t1b) * 1000)}ms")
-
-            # Build lead_info from follower memory for richer context
-            _lead_info = {}
-            if follower.interests:
-                _lead_info["interests"] = follower.interests[:5]
-            if follower.objections_raised:
-                _lead_info["objections"] = follower.objections_raised[:5]
-            if follower.products_discussed:
-                _lead_info["products_discussed"] = follower.products_discussed[:5]
-            if follower.purchase_intent_score > 0:
-                _lead_info["purchase_score"] = round(follower.purchase_intent_score, 2)
-            if follower.is_customer:
-                _lead_info["is_customer"] = True
-            if follower.conversation_summary:
-                _lead_info["summary"] = follower.conversation_summary[:200]
-
-            user_context = self.prompt_builder.build_user_context(
-                username=follower.username or sender_id,
-                stage=current_stage,
-                history=history,
-                lead_info=_lead_info if _lead_info else None,
-            )
-
-            # =================================================================
-            # PHASE 4: LLM GENERATION
-            # =================================================================
             _t2 = time.monotonic()
             logger.info(f"[TIMING] Phase 2-3 (context+RAG+prompt): {int((_t2 - _t1) * 1000)}ms")
 
-            # Step 5b: Determine response strategy
-            strategy_hint = _determine_response_strategy(
-                message=message,
-                intent_value=intent_value,
-                relationship_type=_rel_type,
-                is_first_message=(follower.total_messages <= 1),
-                is_friend=is_friend,
-                follower_interests=follower.interests,
-                lead_stage=current_stage,
-            )
-            if strategy_hint:
-                cognitive_metadata["response_strategy"] = strategy_hint.split(".")[0]
-                logger.info(f"[STRATEGY] {strategy_hint.split('.')[0]}")
-
-            # Step 5c: Load learning rules (autolearning feedback loop)
-            learning_rules_section = ""
-            if ENABLE_LEARNING_RULES:
-                try:
-                    from services.learning_rules_service import get_applicable_rules
-
-                    def _load_rules():
-                        from api.database import SessionLocal
-                        from api.models import Creator
-                        _s = SessionLocal()
-                        try:
-                            _c = _s.query(Creator.id).filter_by(name=self.creator_id).first()
-                            if not _c:
-                                return []
-                            return get_applicable_rules(
-                                _c[0], intent=intent_value,
-                                relationship_type=_rel_type,
-                                lead_stage=current_stage,
-                            )
-                        finally:
-                            _s.close()
-
-                    _learning_rules = await asyncio.to_thread(_load_rules)
-                    if _learning_rules:
-                        lines = []
-                        for r in _learning_rules:
-                            lines.append(f"- {r['rule_text']}")
-                            if r.get("example_bad"):
-                                lines.append(f'  NO: "{r["example_bad"]}"')
-                            if r.get("example_good"):
-                                lines.append(f'  SI: "{r["example_good"]}"')
-                        learning_rules_section = (
-                            "=== REGLAS APRENDIDAS (del propio creador) ===\n"
-                            + "\n".join(lines) + "\n"
-                            "=== FIN REGLAS ==="
-                        )
-                        cognitive_metadata["learning_rules_applied"] = len(_learning_rules)
-                        logger.info(f"[LEARNING] Injected {len(_learning_rules)} rules for {sender_id}")
-                except Exception as lr_err:
-                    logger.debug(f"[LEARNING] Rule loading failed: {lr_err}")
-
-            # Step 5d: Load preference profile
-            preference_profile_section = ""
-            if ENABLE_PREFERENCE_PROFILE:
-                try:
-                    from services.preference_profile_service import (
-                        compute_preference_profile,
-                        format_preference_profile_for_prompt,
-                    )
-
-                    def _load_profile():
-                        from api.database import SessionLocal
-                        from api.models import Creator
-                        _s = SessionLocal()
-                        try:
-                            _c = _s.query(Creator.id).filter_by(name=self.creator_id).first()
-                            if not _c:
-                                return None
-                            return compute_preference_profile(_c[0])
-                        finally:
-                            _s.close()
-
-                    _profile = await asyncio.to_thread(_load_profile)
-                    if _profile:
-                        preference_profile_section = format_preference_profile_for_prompt(
-                            _profile, self.creator_id
-                        )
-                        cognitive_metadata["preference_profile"] = True
-                        logger.info(f"[PREFERENCE] Profile applied for {sender_id}")
-                except Exception as pp_err:
-                    logger.debug(f"[PREFERENCE] Profile loading failed: {pp_err}")
-
-            # Step 5e: Load gold examples (few-shot)
-            gold_examples_section = ""
-            if ENABLE_GOLD_EXAMPLES:
-                try:
-                    from services.gold_examples_service import get_matching_examples
-
-                    def _load_examples():
-                        from api.database import SessionLocal
-                        from api.models import Creator
-                        _s = SessionLocal()
-                        try:
-                            _c = _s.query(Creator.id).filter_by(name=self.creator_id).first()
-                            if not _c:
-                                return []
-                            return get_matching_examples(
-                                _c[0], intent=intent_value,
-                                relationship_type=_rel_type,
-                                lead_stage=current_stage,
-                            )
-                        finally:
-                            _s.close()
-
-                    _gold_examples = await asyncio.to_thread(_load_examples)
-                    if _gold_examples:
-                        ex_lines = []
-                        for ex in _gold_examples:
-                            ex_lines.append(
-                                f"Lead: \"{ex['user_message']}\"\n"
-                                f"{self.creator_id}: \"{ex['creator_response']}\""
-                            )
-                        gold_examples_section = (
-                            f"=== EJEMPLOS DE COMO RESPONDE {self.creator_id.upper()} ===\n"
-                            + "\n---\n".join(ex_lines) + "\n"
-                            "=== FIN EJEMPLOS ==="
-                        )
-                        cognitive_metadata["gold_examples_injected"] = len(_gold_examples)
-                        logger.info(f"[FEWSHOT] Injected {len(_gold_examples)} examples for {sender_id}")
-                except Exception as ge_err:
-                    logger.debug(f"[FEWSHOT] Example loading failed: {ge_err}")
-
-            # Step 6: Build full prompt with bot_instructions + strategy + frustration
-            prompt_parts = [user_context]
-            if _bot_instructions:
-                prompt_parts.append(
-                    "=== INSTRUCCIONES ESPECÍFICAS PARA ESTE LEAD ===\n"
-                    f"{_bot_instructions}\n"
-                    "=== FIN INSTRUCCIONES ==="
-                )
-            if learning_rules_section:
-                prompt_parts.append(learning_rules_section)
-            if preference_profile_section:
-                prompt_parts.append(preference_profile_section)
-            if gold_examples_section:
-                prompt_parts.append(gold_examples_section)
-            if strategy_hint:
-                prompt_parts.append(strategy_hint)
-            if frustration_level > 0.5:
-                prompt_parts.append(
-                    f"⚠️ NOTA: El usuario parece frustrado (nivel: {frustration_level:.0%}). "
-                    f"Responde con empatía y ofrece ayuda concreta."
-                )
-            prompt_parts.append(f"Mensaje actual:\n<user_message>\n{message}\n</user_message>")
-            full_prompt = "\n\n".join(prompt_parts)
-
-            # Cap total context to ~6000 tokens to control LLM cost/latency
-            _MAX_CONTEXT_CHARS = 24000  # ~6000 tokens
-            if len(system_prompt) > _MAX_CONTEXT_CHARS:
-                original_len = len(system_prompt)
-                system_prompt = _truncate_at_boundary(system_prompt, _MAX_CONTEXT_CHARS)
-                cognitive_metadata["prompt_truncated"] = True
-                logger.warning(f"[PROMPT] Truncated system prompt from {original_len} to {len(system_prompt)} chars")
-
-            # Log prompt size for latency diagnosis
-            _est_tokens = len(system_prompt) // 4
-            _section_sizes = {
-                k: len(v) for k, v in [
-                    ("style", self.style_prompt or ""),
-                    ("relational", relational_block),
-                    ("rag", rag_context), ("memory", memory_context),
-                    ("fewshot", few_shot_section), ("dna", dna_context),
-                    ("state", state_context), ("kb", kb_context),
-                    ("advanced", advanced_section),
-                ] if v
-            }
-            logger.info(
-                f"[TIMING] System prompt: {len(system_prompt)} chars (~{_est_tokens} tokens) "
-                f"sections={_section_sizes}"
+            # Phase 3b: Prompt Construction
+            full_prompt = self._phase_prompt_construction(
+                message, sender_id, metadata, context, detection, cognitive_metadata
             )
 
-            # LLM generation: Flash-Lite → GPT-4o-mini (2 providers, nothing else)
-            # Path: webhook → process_dm() → generate_dm_response() → gemini/openai
-            from core.providers.gemini_provider import generate_dm_response
-
-            llm_messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": full_prompt},
-            ]
-
-            # Best-of-N: generate 3 candidates at different temperatures (copilot only)
-            best_of_n_result = None
-            if ENABLE_BEST_OF_N:
-                try:
-                    from core.copilot_service import get_copilot_service
-                    _is_copilot = get_copilot_service().is_copilot_enabled(self.creator_id)
-                    if _is_copilot:
-                        from core.best_of_n import generate_best_of_n, serialize_candidates
-                        best_of_n_result = await generate_best_of_n(
-                            llm_messages, 150, intent_value, "llm_generation", self.creator_id
-                        )
-                except Exception as bon_err:
-                    logger.debug("[BestOfN] Failed, using single call: %s", bon_err)
-
-            if best_of_n_result:
-                llm_result = {
-                    "content": best_of_n_result.best.content,
-                    "model": best_of_n_result.best.model,
-                    "provider": best_of_n_result.best.provider,
-                    "latency_ms": best_of_n_result.total_latency_ms,
-                }
-                cognitive_metadata["best_of_n"] = serialize_candidates(best_of_n_result)
-            else:
-                # A4/A5: generate_dm_response returns dict with model/provider/latency
-                # ECHO: Use dynamic max_tokens/temperature from Relationship Adapter
-                _llm_max_tokens = 150
-                _llm_temperature = 0.7
-                if _echo_rel_ctx:
-                    _llm_max_tokens = _echo_rel_ctx.llm_max_tokens
-                    _llm_temperature = _echo_rel_ctx.llm_temperature
-                llm_result = await generate_dm_response(
-                    llm_messages,
-                    max_tokens=_llm_max_tokens,
-                    temperature=_llm_temperature,
-                )
+            # Phase 4: LLM Generation
+            llm_response = await self._phase_llm_generation(
+                message, full_prompt, context.system_prompt, context, cognitive_metadata
+            )
 
             _t3 = time.monotonic()
             logger.info(f"[TIMING] LLM call: {int((_t3 - _t2) * 1000)}ms")
 
-            if llm_result:
-                llm_response = LLMResponse(
-                    content=llm_result["content"],
-                    model=llm_result.get("model", "unknown"),
-                    tokens_used=0,
-                    metadata={
-                        "provider": llm_result.get("provider", "unknown"),
-                        "latency_ms": llm_result.get("latency_ms", 0),
-                    },
-                )
-            else:
-                # Both Flash-Lite and GPT-4o-mini failed — emergency fallback
-                logger.error("Primary cascade failed, using llm_service emergency fallback")
-                llm_response = await self.llm_service.generate(
-                    prompt=full_prompt, system_prompt=system_prompt
-                )
-
-            # Phase 4b: Self-consistency validation (expensive, default OFF)
-            if ENABLE_SELF_CONSISTENCY:
-                try:
-                    validator = get_self_consistency_validator(self.llm_service)
-                    consistency = await validator.validate_response(
-                        query=message,
-                        response=llm_response.content,
-                        system_prompt=system_prompt,
-                    )
-                    if not consistency.is_consistent and consistency.response:
-                        logger.info(
-                            f"Self-consistency: replaced (conf={consistency.confidence:.2f})"
-                        )
-                        llm_response.content = consistency.response
-                        cognitive_metadata["self_consistency_replaced"] = True
-                except Exception as e:
-                    logger.debug(f"Self-consistency failed: {e}")
-
-            # =================================================================
-            # PHASE 5: POST-PROCESSING (Guardrails, Length Control)
-            # =================================================================
-
-            response_content = llm_response.content
-
-            # A2 FIX: Detect and break repetitive loops
-            try:
-                recent_bot_msgs = [
-                    m["content"] for m in history
-                    if m.get("role") == "assistant" and m.get("content")
-                ][-3:]
-                if recent_bot_msgs and response_content:
-                    resp_norm = response_content.strip().lower()[:50]
-                    for prev in recent_bot_msgs:
-                        prev_norm = prev.strip().lower()[:50]
-                        if resp_norm and prev_norm and resp_norm == prev_norm:
-                            logger.warning(
-                                "[A2] Repetitive loop detected — response matches recent message"
-                            )
-                            cognitive_metadata["loop_detected"] = True
-                            # Break the loop with a short, generic continuation
-                            response_content = "Contame más"
-                            llm_response.content = response_content
-                            break
-            except Exception as e:
-                logger.debug(f"Loop detection failed: {e}")
-
-            # Step 7a: Output validation (prices, links)
-            if ENABLE_OUTPUT_VALIDATION:
-                try:
-                    # Build known prices from products
-                    known_prices = {
-                        p.get("name", ""): p.get("price", 0)
-                        for p in self.products
-                        if p.get("price")
-                    }
-                    price_issues = validate_prices(response_content, known_prices)
-                    if price_issues:
-                        logger.warning(f"Output validation: {len(price_issues)} price issues")
-                        cognitive_metadata["output_validation_issues"] = [
-                            i.details for i in price_issues
-                        ]
-                    # Build known links from products
-                    known_links = [p.get("url", "") for p in self.products if p.get("url")]
-                    link_issues, corrected = validate_links(response_content, known_links)
-                    if link_issues:
-                        logger.warning(f"Output validation: {len(link_issues)} link issues")
-                        response_content = corrected  # Apply corrections
-                except Exception as e:
-                    logger.debug(f"Output validation failed: {e}")
-
-            # Step 7a2: Apply response fixes (typos, formatting, patterns)
-            if ENABLE_RESPONSE_FIXES:
-                try:
-                    fixed_response = apply_all_response_fixes(
-                        response_content, creator_id=self.creator_id,
-                    )
-                    if fixed_response and fixed_response != response_content:
-                        logger.debug("Response fixes applied")
-                        response_content = fixed_response
-                except Exception as e:
-                    logger.debug(f"Response fixes failed: {e}")
-
-            # Step 7a2b: Tone enforcement (emoji/excl/question rates from calibration)
-            if self.calibration:
-                try:
-                    from services.tone_enforcer import enforce_tone
-
-                    response_content = enforce_tone(
-                        response_content, self.calibration,
-                        sender_id=sender_id, message=message,
-                    )
-                except Exception as e:
-                    logger.debug(f"Tone enforcement failed: {e}")
-
-            # Step 7a2c: Question removal
-            if ENABLE_QUESTION_REMOVAL:
-                try:
-                    response_content = process_questions(response_content, message)
-                except Exception as e:
-                    logger.debug(f"Question removal failed: {e}")
-
-            # Step 7a3: Reflexion analysis for response quality
-            if ENABLE_REFLEXION:
-                try:
-                    prev_bot = [
-                        m.get("content", "")
-                        for m in metadata.get("history", [])
-                        if m.get("role") == "assistant"
-                    ]
-                    r_result = get_reflexion_engine().analyze_response(
-                        response=response_content,
-                        user_message=message,
-                        previous_bot_responses=prev_bot[-5:],
-                    )
-                    if r_result.needs_revision:
-                        cognitive_metadata["reflexion_issues"] = r_result.issues
-                        cognitive_metadata["reflexion_severity"] = r_result.severity
-                except Exception as e:
-                    logger.debug(f"Reflexion failed: {e}")
-
-            # Step 7b: Apply guardrails validation
-            if ENABLE_GUARDRAILS and hasattr(self, "guardrails"):
-                try:
-                    # Build allowed URLs from creator's products and booking links
-                    creator_urls = []
-                    for p in self.products:
-                        url = p.get("url", "")
-                        if url:
-                            creator_urls.append(url)
-                    # Extract unique domains from product URLs for whitelist
-                    creator_domains = set()
-                    for u in creator_urls:
-                        # Extract domain: "https://www.example.com/path" -> "example.com"
-                        try:
-                            domain = u.split("//")[-1].split("/")[0].replace("www.", "")
-                            creator_domains.add(domain)
-                        except Exception as e:
-                            logger.warning(f"Failed to parse URL domain '{u}': {e}")
-                    guardrail_result = self.guardrails.validate_response(
-                        query=message,
-                        response=response_content,
-                        context={
-                            "products": self.products,
-                            "allowed_urls": list(creator_domains),
-                        },
-                    )
-                    if not guardrail_result.get("valid", True):
-                        logger.warning(f"Guardrail triggered: {guardrail_result.get('reason')}")
-                        if guardrail_result.get("corrected_response"):
-                            response_content = guardrail_result["corrected_response"]
-                        cognitive_metadata["guardrail_triggered"] = guardrail_result.get("reason")
-                except Exception as e:
-                    logger.debug(f"Guardrails check failed: {e}")
-
-            # Step 7b: Apply soft length guidance based on message type
-            try:
-                msg_type = detect_message_type(message)
-                response_content = enforce_length(response_content, message)
-                cognitive_metadata["message_type"] = msg_type
-            except Exception as e:
-                logger.debug(f"Length control failed: {e}")
-
-            # Step 7c: Format response for Instagram
-            formatted_content = self.instagram_service.format_message(response_content)
-
-            # Step 7d: Inject payment link for purchase_intent if missing
-            if intent_value.lower() in ("purchase_intent", "want_to_buy") and self.products:
-                msg_lower = message.lower()
-                resp_lower = formatted_content.lower()
-                for p in self.products:
-                    pname = p.get("name") or ""
-                    plink = p.get("payment_link") or p.get("url") or ""
-                    # Match product in user message OR bot response
-                    mentioned = (
-                        _message_mentions_product(pname, msg_lower)
-                        or _message_mentions_product(pname, resp_lower)
-                    )
-                    if pname and mentioned and plink and plink not in resp_lower:
-                        formatted_content = f"{formatted_content}\n\n{plink}"
-                        cognitive_metadata["payment_link_injected"] = plink
-                        logger.info(f"[Step 7d] Injected payment link for '{pname}': {plink}")
-                        break
-
-            _t4 = time.monotonic()
-            logger.info(f"[TIMING] Phase 5 (post-processing): {int((_t4 - _t3) * 1000)}ms")
-
-            # CloneScore real-time logging (non-blocking, CPU-only style_fidelity)
-            if os.getenv("ENABLE_CLONE_SCORE", "false").lower() == "true":
-                try:
-                    from services.clone_score_engine import CloneScoreEngine
-                    cs_engine = CloneScoreEngine()
-                    score_result = await cs_engine.evaluate_single(
-                        self.creator_id, message, formatted_content, {}
-                    )
-                    cognitive_metadata["clone_score"] = score_result.get("overall_score", 0)
-                    _style = score_result.get("dimension_scores", {}).get("style_fidelity", 0)
-                    logger.info(f"[CLONE_SCORE] style={_style:.1f}")
-                except Exception as e:
-                    logger.debug(f"[CLONE_SCORE] eval failed: {e}")
-
-            # Step 9: Update lead score (synchronous - needed for response)
-            new_stage = self._update_lead_score(follower, intent_value, metadata)
-
-            # Step 9c: Email capture (non-blocking) — disabled by default
-            if ENABLE_EMAIL_CAPTURE:
-                try:
-                    formatted_content = self._step_email_capture(
-                        message=message,
-                        formatted_content=formatted_content,
-                        intent_value=intent_value,
-                        sender_id=sender_id,
-                        follower=follower,
-                        platform=metadata.get("platform", "instagram"),
-                        cognitive_metadata=cognitive_metadata,
-                    )
-                except Exception as e:
-                    logger.warning(f"Email capture step failed (non-blocking): {e}")
-
-            # Steps 8, 8b, 9b: Run in background thread (non-blocking)
-            asyncio.create_task(
-                self._background_post_response(
-                    follower=follower,
-                    message=message,
-                    formatted_content=formatted_content,
-                    intent_value=intent_value,
-                    sender_id=sender_id,
-                    metadata=metadata,
-                    cognitive_metadata=cognitive_metadata,
-                )
+            # Phase 5: Post-processing
+            result = await self._phase_postprocessing(
+                message, sender_id, metadata, llm_response, context, detection, cognitive_metadata
             )
-
-            # Memory extraction (extract facts from conversation — fire-and-forget)
-            if os.getenv("ENABLE_MEMORY_ENGINE", "false").lower() == "true":
-                try:
-                    from services.memory_engine import get_memory_engine
-                    mem_engine = get_memory_engine()
-                    conversation_msgs = [
-                        {"role": "user", "content": message},
-                        {"role": "assistant", "content": formatted_content},
-                    ]
-                    asyncio.create_task(
-                        mem_engine.add(self.creator_id, sender_id, conversation_msgs)
-                    )
-                except Exception as e:
-                    logger.debug(f"[MEMORY] extraction failed: {e}")
-
-            # ECHO Engine: Detect commitments in bot response (Sprint 4 — fire-and-forget)
-            if os.getenv("ENABLE_COMMITMENT_TRACKING", "true").lower() == "true":
-                try:
-                    from services.commitment_tracker import get_commitment_tracker
-
-                    async def _detect_commitments():
-                        try:
-                            tracker = get_commitment_tracker()
-                            tracker.detect_and_store(
-                                response_text=formatted_content,
-                                creator_id=self.creator_id,
-                                lead_id=sender_id,
-                            )
-                        except Exception as e:
-                            logger.debug(f"[COMMITMENT] detection failed: {e}")
-
-                    asyncio.create_task(_detect_commitments())
-                except Exception as e:
-                    logger.debug(f"[COMMITMENT] setup failed: {e}")
-
-            # Step 10: Escalation notification (async, lightweight)
-            asyncio.create_task(
-                self._check_and_notify_escalation(
-                    intent_value=intent_value,
-                    follower=follower,
-                    sender_id=sender_id,
-                    message=message,
-                    metadata=metadata,
-                )
-            )
-
-            # Step 10b: Message splitting (store in metadata for caller)
-            message_parts = None
-            if ENABLE_MESSAGE_SPLITTING:
-                try:
-                    splitter = get_message_splitter()
-                    if splitter.should_split(formatted_content):
-                        parts = splitter.split(formatted_content, message)
-                        message_parts = [{"text": p.text, "delay": p.delay_before} for p in parts]
-                        logger.debug(f"Message split into {len(parts)} parts")
-                except Exception as e:
-                    logger.debug(f"Message splitting failed: {e}")
 
             _t5 = time.monotonic()
             logger.info(
                 f"[TIMING] TOTAL: {int((_t5 - _t0) * 1000)}ms "
                 f"(detect={int((_t1 - _t0) * 1000)} ctx+rag={int((_t2 - _t1) * 1000)} "
-                f"llm={int((_t3 - _t2) * 1000)} post={int((_t4 - _t3) * 1000)} "
-                f"mem+nurture={int((_t5 - _t4) * 1000)})"
+                f"llm={int((_t3 - _t2) * 1000)} post={int((_t5 - _t3) * 1000)})"
             )
-            # A4: Include model/provider/latency in metadata for auditing
-            llm_meta = llm_response.metadata or {}
-
-            # Confidence scoring (multi-factor)
-            try:
-                from core.confidence_scorer import calculate_confidence
-                scored_confidence = calculate_confidence(
-                    intent=intent_value,
-                    response_text=formatted_content,
-                    response_type="llm_generation",
-                    creator_id=self.creator_id,
-                )
-            except Exception:
-                scored_confidence = 0.7
-
-            _dm_metadata = {
-                "model": llm_response.model,
-                "provider": llm_meta.get("provider", "unknown"),
-                "latency_ms": llm_meta.get("latency_ms", 0),
-                "rag_results": len(rag_results),
-                "history_length": len(history),
-                "follower_id": sender_id,
-                "message_parts": message_parts,
-            }
-            if cognitive_metadata.get("best_of_n"):
-                _dm_metadata["best_of_n"] = cognitive_metadata["best_of_n"]
-
-            return DMResponse(
-                content=formatted_content,
-                intent=intent_value,
-                lead_stage=new_stage.value if hasattr(new_stage, "value") else str(new_stage),
-                confidence=scored_confidence,
-                tokens_used=llm_response.tokens_used,
-                metadata=_dm_metadata,
-            )
+            return result
 
         except Exception as e:
             logger.error(f"Error processing DM: {e}", exc_info=True)
             return self._error_response(str(e))
+
+    # =========================================================================
+    # PHASE METHODS (extracted from process_dm for testability)
+    # =========================================================================
+
+    async def _phase_detection(
+        self, message: str, sender_id: str, metadata: Dict, cognitive_metadata: Dict
+    ) -> DetectionResult:
+        """Phase 1: Sensitive content, frustration, pool response, edge cases."""
+        result = DetectionResult()
+
+        # PRE-PIPELINE: SENSITIVE CONTENT DETECTION (Security)
+        if ENABLE_SENSITIVE_DETECTION:
+            try:
+                sensitive_result = detect_sensitive_content(message)
+                if sensitive_result and sensitive_result.confidence >= AGENT_THRESHOLDS.sensitive_confidence:
+                    logger.warning(f"Sensitive content detected: {sensitive_result.category}")
+                    cognitive_metadata["sensitive_detected"] = True
+                    cognitive_metadata["sensitive_category"] = sensitive_result.category
+                    if sensitive_result.confidence >= AGENT_THRESHOLDS.sensitive_escalation:
+                        crisis_response = get_crisis_resources(language="es")
+                        result.pool_response = DMResponse(
+                            content=crisis_response,
+                            intent="sensitive_content",
+                            lead_stage="unknown",
+                            confidence=sensitive_result.confidence,
+                            tokens_used=0,
+                            metadata={"sensitive_category": sensitive_result.category},
+                        )
+                        return result
+            except Exception as e:
+                logger.debug(f"Sensitive detection failed: {e}")
+
+        # Step 1a: Detect frustration level
+        if ENABLE_FRUSTRATION_DETECTION and hasattr(self, "frustration_detector"):
+            try:
+                history = metadata.get("history", [])
+                prev_messages = [
+                    m.get("content", "") for m in history if m.get("role") == "user"
+                ]
+                result.frustration_signals, result.frustration_level = (
+                    self.frustration_detector.analyze_message(message, sender_id, prev_messages)
+                )
+                if result.frustration_level > 0.3:
+                    logger.info(f"Frustration detected: {result.frustration_level:.2f}")
+                    cognitive_metadata["frustration_level"] = result.frustration_level
+            except Exception as e:
+                logger.debug(f"Frustration detection failed: {e}")
+
+        # Step 1b: Detect context signals (sarcasm, B2B, etc.)
+        if ENABLE_CONTEXT_DETECTION:
+            try:
+                history = metadata.get("history", [])
+                result.context_signals = detect_context(message, history)
+                if result.context_signals and result.context_signals.alerts:
+                    cognitive_metadata["context_signals"] = result.context_signals.to_dict()
+            except Exception as e:
+                logger.debug(f"Context detection failed: {e}")
+
+        # Step 1c: Try pool response for simple messages (fast path)
+        if hasattr(self, "response_variator"):
+            msg_lower = message.lower()
+            mentions_product = False
+            if self.products:
+                for p in self.products:
+                    pname = p.get("name") or ""
+                    if pname and _message_mentions_product(pname, msg_lower):
+                        mentions_product = True
+                        break
+
+            if not mentions_product and len(message.strip()) <= 80:
+                from services.length_controller import classify_lead_context
+                pool_context = classify_lead_context(message)
+                conv_id = metadata.get("conversation_id", sender_id)
+
+                pool_result = self.response_variator.try_pool_response(
+                    message,
+                    conv_id=conv_id,
+                    turn_index=metadata.get("turn_index", 0),
+                    context=pool_context,
+                    creator_id=self.creator_id,
+                )
+                if pool_result.matched and pool_result.confidence >= AGENT_THRESHOLDS.pool_confidence:
+                    import random as _rng
+                    if _rng.random() < 0.30:
+                        multi_bubbles = self.response_variator.try_multi_bubble(
+                            message, creator_id=self.creator_id, conv_id=conv_id,
+                        )
+                        if multi_bubbles:
+                            logger.debug(f"Multi-bubble matched: {len(multi_bubbles)} bubbles")
+                            result.pool_response = DMResponse(
+                                content=multi_bubbles[0],
+                                intent="pool_response",
+                                lead_stage="unknown",
+                                confidence=0.85,
+                                tokens_used=0,
+                                metadata={
+                                    "pool_category": "multi_bubble",
+                                    "used_pool": True,
+                                    "message_parts": [
+                                        {"text": b, "delay": 0.8} for b in multi_bubbles
+                                    ],
+                                },
+                            )
+                            return result
+
+                    logger.debug(f"Pool response matched: {pool_result.category}")
+                    result.pool_response = DMResponse(
+                        content=pool_result.response,
+                        intent="pool_response",
+                        lead_stage="unknown",
+                        confidence=pool_result.confidence,
+                        tokens_used=0,
+                        metadata={"pool_category": pool_result.category, "used_pool": True},
+                    )
+                    return result
+
+        # Step 1d: Edge case detection
+        if ENABLE_EDGE_CASE_DETECTION and hasattr(self, "edge_case_handler"):
+            try:
+                edge_result = self.edge_case_handler.detect(message)
+                if edge_result.should_escalate:
+                    logger.info(f"Edge case escalation: {edge_result.edge_type}")
+                    result.edge_case_response = DMResponse(
+                        content=edge_result.suggested_response
+                        or "Entiendo, déjame consultarlo y te respondo.",
+                        intent="edge_case_escalation",
+                        lead_stage="unknown",
+                        confidence=edge_result.confidence,
+                        metadata={
+                            "edge_type": str(edge_result.edge_type),
+                            "escalated": True,
+                        },
+                    )
+                    return result
+            except Exception as e:
+                logger.debug(f"Edge case detection failed: {e}")
+
+        return result
+
+
+    async def _phase_memory_and_context(
+        self, message: str, sender_id: str, metadata: Dict,
+        cognitive_metadata: Dict, detection: DetectionResult,
+    ) -> ContextBundle:
+        """Phase 2-3: Intent classification, parallel DB/IO, context assembly."""
+        ctx = ContextBundle()
+        _t1 = time.monotonic()
+
+        # Step 2: Classify intent
+        intent = self.intent_classifier.classify(message)
+        intent_value = intent.value if hasattr(intent, "value") else str(intent)
+        logger.debug(f"Intent classified: {intent_value}")
+        _t1a = time.monotonic()
+
+        # Step 2b: Analyze bot's last question for short affirmation context
+        if ENABLE_QUESTION_CONTEXT and is_short_affirmation(message):
+            try:
+                hist = metadata.get("history", [])
+                last_bot = next(
+                    (
+                        m.get("content", "")
+                        for m in reversed(hist)
+                        if m.get("role") == "assistant"
+                    ),
+                    None,
+                )
+                if last_bot:
+                    q_type, q_conf = get_bot_question_analyzer().analyze_with_confidence(
+                        last_bot
+                    )
+                    if q_type != QuestionType.UNKNOWN:
+                        cognitive_metadata["question_context"] = q_type.value
+            except Exception as e:
+                logger.debug(f"Question context failed: {e}")
+
+        # =================================================================
+        # PHASE 2-3: PARALLEL DB/IO + CONTEXT LOADING
+        # =================================================================
+        # Run independent DB/IO operations concurrently to reduce latency.
+        # Previously sequential (~3.8s) → now parallel (~1.2s).
+
+        import asyncio
+        from services.dm_agent_context_integration import build_context_prompt as _build_ctx
+        from services.relationship_dna_repository import get_relationship_dna as _get_raw_dna
+
+        async def _load_conv_state():
+            if not ENABLE_CONVERSATION_STATE:
+                return "", {}
+            try:
+                state_mgr = get_state_manager()
+                conv_state = await asyncio.to_thread(
+                    state_mgr.get_state, sender_id, self.creator_id
+                )
+                state_ctx = state_mgr.build_enhanced_prompt(conv_state)
+                return state_ctx, {"conversation_phase": conv_state.phase.value}
+            except Exception as e:
+                logger.debug(f"Conversation state failed: {e}")
+                return "", {}
+
+        # Parallel: memory (file I/O) + DNA+PostCtx (2 DB queries) + conv_state (1 DB query) + raw DNA
+        follower, dna_context, (state_context, state_meta), raw_dna = await asyncio.gather(
+            self.memory_store.get_or_create(
+                creator_id=self.creator_id,
+                follower_id=sender_id,
+                username=metadata.get("username", sender_id),
+            ),
+            _build_ctx(self.creator_id, sender_id),
+            _load_conv_state(),
+            asyncio.to_thread(_get_raw_dna, self.creator_id, sender_id),
+        )
+        cognitive_metadata.update(state_meta)
+
+        # Memory recall (per-lead context from past conversations)
+        memory_context = ""
+        if os.getenv("ENABLE_MEMORY_ENGINE", "false").lower() == "true":
+            try:
+                from services.memory_engine import get_memory_engine
+                mem_engine = get_memory_engine()
+                memory_context = await mem_engine.recall(self.creator_id, sender_id, message)
+                if memory_context:
+                    cognitive_metadata["memory_recalled"] = True
+                    cognitive_metadata["memory_chars"] = len(memory_context)
+            except Exception as e:
+                logger.debug(f"[MEMORY] recall failed: {e}")
+
+        # ECHO Engine: Load pending commitments for this lead (Sprint 4)
+        commitment_text = ""
+        if os.getenv("ENABLE_COMMITMENT_TRACKING", "true").lower() == "true":
+            try:
+                from services.commitment_tracker import get_commitment_tracker
+                tracker = get_commitment_tracker()
+                commitment_text = await asyncio.to_thread(
+                    tracker.get_pending_text, sender_id
+                )
+                if commitment_text:
+                    cognitive_metadata["commitments_pending"] = True
+            except Exception as e:
+                logger.debug(f"[COMMITMENT] load failed: {e}")
+
+        _bot_instructions = ""
+        if dna_context:
+            logger.debug(f"DNA context loaded for {sender_id}")
+        if raw_dna:
+            _bot_instructions = raw_dna.get("bot_instructions", "") or ""
+            metadata["dna_data"] = raw_dna  # Store for trigger check later
+
+        # Auto-create seed DNA if none exists and lead has some history
+        if ENABLE_DNA_AUTO_CREATE and not dna_context and follower.total_messages >= 2:
+            try:
+                hist = metadata.get("history", [])
+                if len(hist) >= 2:
+                    det_result = RelationshipTypeDetector().detect(hist)
+                    detected_type = det_result.get("type", "DESCONOCIDO")
+                    det_confidence = det_result.get("confidence", 0)
+
+                    async def _create_seed_dna():
+                        try:
+                            from services.relationship_dna_repository import (
+                                create_relationship_dna,
+                                get_relationship_dna as _get_dna,
+                            )
+                            existing = await asyncio.to_thread(
+                                _get_dna, self.creator_id, sender_id
+                            )
+                            if existing:
+                                return  # Already exists, race condition
+                            await asyncio.to_thread(
+                                create_relationship_dna,
+                                creator_id=self.creator_id,
+                                follower_id=sender_id,
+                                relationship_type=detected_type,
+                                trust_score=round(det_confidence * 0.3, 2),
+                                depth_level=0,
+                            )
+                            logger.info(
+                                f"[DNA-SEED] Created seed DNA for {sender_id}: "
+                                f"type={detected_type} confidence={det_confidence}"
+                            )
+                        except Exception as e:
+                            logger.debug(f"Seed DNA creation failed: {e}")
+
+                    asyncio.create_task(_create_seed_dna())
+                    cognitive_metadata["relationship_type"] = detected_type
+                    cognitive_metadata["dna_seed_created"] = True
+            except Exception as e:
+                logger.debug(f"DNA auto-create check failed: {e}")
+
+        _t1b = time.monotonic()
+        logger.info(f"[TIMING] Phase 2 sub: intent={int((_t1a - _t1) * 1000)}ms parallel_io={int((_t1b - _t1a) * 1000)}ms")
+
+        # Fast in-memory operations (no parallelization needed)
+        # RAG retrieval — skip for simple intents that don't need knowledge
+        _SKIP_RAG_INTENTS = {"greeting", "farewell", "thanks", "saludo", "despedida"}
+        rag_query = message
+        if intent_value in _SKIP_RAG_INTENTS:
+            rag_results = []
+            cognitive_metadata["rag_skipped"] = intent_value
+            logger.info(f"[RAG] Skipped for intent={intent_value} (no knowledge needed)")
+        else:
+            if ENABLE_QUERY_EXPANSION:
+                try:
+                    expanded = get_query_expander().expand(message, max_expansions=2)
+                    if len(expanded) > 1:
+                        rag_query = " ".join(expanded)
+                        cognitive_metadata["query_expanded"] = True
+                except Exception as e:
+                    logger.debug(f"Query expansion failed: {e}")
+            rag_results = self.semantic_rag.search(
+                rag_query, top_k=self.config.rag_top_k, creator_id=self.creator_id
+            )
+        if rag_results:
+            logger.info(f"[RAG] query='{rag_query[:50]}' results={len(rag_results)}")
+        else:
+            logger.debug(f"[RAG] query='{rag_query[:50]}' results=0")
+
+        # Note: reranking already happens inside semantic_rag.search()
+        # No need for a second reranking pass here
+        if ENABLE_RERANKING and rag_results:
+            cognitive_metadata["rag_reranked"] = True
+
+        rag_context = self._format_rag_context(rag_results)
+
+        # Relationship type detection (in-memory)
+        if ENABLE_RELATIONSHIP_DETECTION:
+            try:
+                hist = metadata.get("history", [])
+                if len(hist) >= 2:
+                    rel_result = RelationshipTypeDetector().detect(hist)
+                    if rel_result.get("confidence", 0) > 0.5:
+                        cognitive_metadata["relationship_type"] = rel_result["type"]
+            except Exception as e:
+                logger.debug(f"Relationship detection failed: {e}")
+
+        # A1 FIX: Detect friend/family relationship to suppress acquisition behavior
+        _rel_type = cognitive_metadata.get("relationship_type", "")
+        is_friend = _rel_type in ("amigo", "FAMILIA", "AMISTAD_CERCANA", "INTIMA")
+
+        # Lead stage (depends on follower)
+        current_stage = self._get_lead_stage(follower, metadata)
+
+        # Knowledge base lookup (in-memory after first load)
+        kb_context = ""
+        try:
+            from services.knowledge_base import get_knowledge_base
+            kb = get_knowledge_base(self.creator_id)
+            kb_result = kb.lookup(message)
+            if kb_result:
+                kb_context = f"Info factual relevante: {kb_result}"
+                logger.debug(f"KB hit for message: {message[:50]}")
+        except Exception as e:
+            logger.debug(f"KB lookup failed: {e}")
+
+        # Step 5: Build prompts - combine style, RAG and DNA context
+        # Include system_prompt_override if provided (for V2 prompt)
+        # PRIORITY: style_prompt first (defines HOW to write)
+        prompt_override = metadata.get("system_prompt_override", "")
+        # Include advanced prompt sections if enabled
+        advanced_section = ""
+        if ENABLE_ADVANCED_PROMPTS:
+            try:
+                from core.prompt_builder import build_rules_section
+
+                creator_name = self.personality.get("name", "el creador")
+                advanced_section = build_rules_section(creator_name)
+            except Exception as e:
+                logger.debug(f"Advanced prompts failed: {e}")
+        # Load citation context
+        citation_context = ""
+        if ENABLE_CITATIONS:
+            try:
+                citation_context = get_citation_prompt_section(self.creator_id, message)
+            except Exception as e:
+                logger.debug(f"Citation loading failed: {e}")
+
+        # A1 FIX: Suppress acquisition/sales for friends/family
+        friend_context = ""
+        if is_friend:
+            if _rel_type == "FAMILIA":
+                friend_context = (
+                    "IMPORTANTE: Esta persona es FAMILIAR del creador (padre, madre, hijo, etc.). "
+                    "NO intentes vender, ofrecer productos, ni hacer preguntas de cualificación. "
+                    "Habla con cariño y naturalidad. Si pide ayuda, ayúdale directamente. "
+                    "NO uses frases como 'contame qué te trae por acá' ni similares."
+                )
+                logger.info("[A1] Family member detected — suppressing acquisition behavior")
+            else:
+                friend_context = (
+                    "IMPORTANTE: Esta persona es un AMIGO/A del creador, NO un lead. "
+                    "NO intentes vender, ofrecer productos, ni hacer preguntas de cualificación. "
+                    "Habla de forma natural, personal y relajada como con un amigo cercano. "
+                    "NO uses frases como 'contame qué te trae por acá' ni similares."
+                )
+                logger.info("[A1] Friend detected — suppressing acquisition behavior")
+
+        # Load few-shot examples from calibration (cap at 2 to reduce prompt size)
+        few_shot_section = ""
+        if self.calibration:
+            try:
+                from services.calibration_loader import get_few_shot_section
+
+                few_shot_section = get_few_shot_section(self.calibration, max_examples=2)
+            except Exception as e:
+                logger.debug(f"Few-shot loading failed: {e}")
+
+        # Build audio context if message comes from audio intelligence
+        audio_context = ""
+        audio_intel = metadata.get("audio_intel")
+        if audio_intel and isinstance(audio_intel, dict):
+            parts = []
+            if audio_intel.get("intent"):
+                parts.append(f"Intención del audio: {audio_intel['intent']}")
+            entities = audio_intel.get("entities", {})
+            entity_parts = []
+            for key, label in [
+                ("people", "Personas"), ("places", "Lugares"),
+                ("dates", "Fechas"), ("numbers", "Cifras"),
+                ("products", "Productos/servicios"),
+            ]:
+                vals = entities.get(key, [])
+                if vals:
+                    entity_parts.append(f"{label}: {', '.join(vals)}")
+            if entity_parts:
+                parts.append("Datos mencionados: " + ". ".join(entity_parts))
+            actions = audio_intel.get("action_items", [])
+            if actions:
+                parts.append("Acciones pendientes: " + "; ".join(actions))
+            if audio_intel.get("emotional_tone"):
+                parts.append(f"Tono: {audio_intel['emotional_tone']}")
+            if parts:
+                audio_context = (
+                    "CONTEXTO DE AUDIO (mensaje de voz transcrito):\n"
+                    + "\n".join(parts)
+                )
+                cognitive_metadata["audio_enriched"] = True
+
+        # ECHO Engine: Generate relational context (Sprint 4)
+        relational_block = ""
+        _echo_rel_ctx = None
+        if os.getenv("ENABLE_RELATIONSHIP_ADAPTER", "true").lower() == "true":
+            try:
+                from services.relationship_adapter import (
+                    RelationshipAdapter,
+                    style_profile_from_analyzer,
+                )
+                from core.style_analyzer import load_profile_from_db
+                from api.database import SessionLocal
+                from api.models import Creator
+
+                # Load StyleProfile for modulation
+                _sp = None
+                session = SessionLocal()
+                try:
+                    creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                    if creator:
+                        _raw_profile = load_profile_from_db(str(creator.id))
+                        _sp = style_profile_from_analyzer(_raw_profile)
+                finally:
+                    session.close()
+
+                adapter = RelationshipAdapter()
+                _rel_type = "DESCONOCIDO"
+                if isinstance(raw_dna, dict):
+                    _rel_type = raw_dna.get("relationship_type", "DESCONOCIDO")
+
+                _echo_rel_ctx = adapter.get_relational_context(
+                    lead_status=current_stage,
+                    style_profile=_sp,
+                    commitment_text=commitment_text,
+                    lead_memory_summary=memory_context,
+                    relationship_type=_rel_type,
+                    lead_name=follower.username if hasattr(follower, 'username') else None,
+                    message_count=follower.total_messages if hasattr(follower, 'total_messages') else 0,
+                )
+                relational_block = _echo_rel_ctx.prompt_instructions
+                if relational_block:
+                    cognitive_metadata["relational_adapted"] = True
+                    cognitive_metadata["lead_warmth"] = _echo_rel_ctx.warmth_score
+            except Exception as e:
+                logger.debug(f"[ECHO] Relationship Adapter failed: {e}")
+
+        # Priority ordering: style first, then knowledge, then context
+        combined_context = "\n\n".join(
+            filter(
+                None,
+                [
+                    self.style_prompt,       # HOW to write (highest priority)
+                    friend_context,          # Friend/family override (critical)
+                    relational_block,        # ECHO: Lead-specific behavior (Sprint 4)
+                    rag_context,             # Product/knowledge data
+                    memory_context,          # Per-lead facts (personalization)
+                    few_shot_section,        # Examples of correct responses
+                    dna_context,             # Relationship insights
+                    state_context,           # Conversation phase
+                    audio_context,           # Audio message context
+                    kb_context,              # Factual knowledge base
+                    citation_context,        # Source attribution
+                    advanced_section,        # Anti-hallucination rules
+                    prompt_override,         # Manual override (lowest)
+                ],
+            )
+        )
+        # A1: Skip products for friends to avoid LLM injecting sales language
+        prompt_products = [] if is_friend else self.products
+        system_prompt = self.prompt_builder.build_system_prompt(
+            products=prompt_products, custom_instructions=combined_context
+        )
+
+        # Get conversation history from follower memory
+        history = self._get_history_from_follower(follower)
+        _t1c = time.monotonic()
+        logger.info(f"[TIMING] Phase 3 sub: fast_ops={int((_t1c - _t1b) * 1000)}ms")
+
+        # Build lead_info from follower memory for richer context
+        _lead_info = {}
+        if follower.interests:
+            _lead_info["interests"] = follower.interests[:5]
+        if follower.objections_raised:
+            _lead_info["objections"] = follower.objections_raised[:5]
+        if follower.products_discussed:
+            _lead_info["products_discussed"] = follower.products_discussed[:5]
+        if follower.purchase_intent_score > 0:
+            _lead_info["purchase_score"] = round(follower.purchase_intent_score, 2)
+        if follower.is_customer:
+            _lead_info["is_customer"] = True
+        if follower.conversation_summary:
+            _lead_info["summary"] = follower.conversation_summary[:200]
+
+        user_context = self.prompt_builder.build_user_context(
+            username=follower.username or sender_id,
+            stage=current_stage,
+            history=history,
+            lead_info=_lead_info if _lead_info else None,
+        )
+
+        _t2 = time.monotonic()
+        logger.info(f"[TIMING] Phase 2-3 (context+RAG+prompt): {int((_t2 - _t1) * 1000)}ms")
+
+        # Populate context bundle for downstream phases
+        ctx.intent = intent
+        ctx.intent_value = intent_value
+        ctx.follower = follower
+        ctx.dna_context = dna_context
+        ctx.state_context = state_context
+        ctx.raw_dna = raw_dna
+        ctx.memory_context = memory_context
+        ctx.commitment_text = commitment_text
+        ctx.bot_instructions = _bot_instructions
+        ctx.rag_results = rag_results
+        ctx.rag_context = rag_context
+        ctx.is_friend = is_friend
+        ctx.rel_type = _rel_type
+        ctx.current_stage = current_stage
+        ctx.kb_context = kb_context
+        ctx.system_prompt = system_prompt
+        ctx.history = history
+        ctx.user_context = user_context
+        ctx.few_shot_section = few_shot_section
+        ctx.audio_context = audio_context
+        ctx.relational_block = relational_block
+        ctx.echo_rel_ctx = _echo_rel_ctx
+        ctx.friend_context = friend_context
+        ctx.citation_context = citation_context
+        ctx.advanced_section = advanced_section
+        ctx.prompt_override = prompt_override
+        ctx.cognitive_metadata = cognitive_metadata
+        return ctx
+
+    def _phase_prompt_construction(
+        self, message: str, sender_id: str, metadata: Dict,
+        context: ContextBundle, detection: DetectionResult,
+        cognitive_metadata: Dict,
+    ) -> str:
+        """Phase 3b: Strategy, learning rules, gold examples, prompt assembly.
+
+        NOTE: Prompt construction is currently integrated into _phase_llm_generation
+        because the learning rules and gold examples require async DB calls.
+        This method returns a placeholder; the actual prompt is built in Phase 4.
+        """
+        return ""  # Actual prompt built in _phase_llm_generation
+
+    async def _phase_llm_generation(
+        self, message: str, full_prompt: str, system_prompt: str,
+        context: ContextBundle, cognitive_metadata: Dict,
+    ) -> "LLMResponse":
+        """Phase 4: Prompt finalization + LLM call with fallback chain."""
+        _t2 = time.monotonic()
+        # Alias context fields for code compatibility
+        intent_value = context.intent_value
+        _rel_type = context.rel_type
+        follower = context.follower
+        is_friend = context.is_friend
+        current_stage = context.current_stage
+        _bot_instructions = context.bot_instructions
+        user_context = context.user_context
+        relational_block = context.relational_block
+        rag_context = context.rag_context
+        memory_context = context.memory_context
+        few_shot_section = context.few_shot_section
+        dna_context = context.dna_context
+        state_context = context.state_context
+        kb_context = context.kb_context
+        advanced_section = context.advanced_section
+        _echo_rel_ctx = context.echo_rel_ctx
+        history = context.history
+        rag_results = context.rag_results
+        frustration_level = cognitive_metadata.get("frustration_level", 0) if isinstance(cognitive_metadata, dict) else 0
+        sender_id = follower.follower_id if hasattr(follower, 'follower_id') else ""
+
+        # Step 5b: Determine response strategy
+        strategy_hint = _determine_response_strategy(
+            message=message,
+            intent_value=intent_value,
+            relationship_type=_rel_type,
+            is_first_message=(follower.total_messages <= 1),
+            is_friend=is_friend,
+            follower_interests=follower.interests,
+            lead_stage=current_stage,
+        )
+        if strategy_hint:
+            cognitive_metadata["response_strategy"] = strategy_hint.split(".")[0]
+            logger.info(f"[STRATEGY] {strategy_hint.split('.')[0]}")
+
+        # Step 5c: Load learning rules (autolearning feedback loop)
+        learning_rules_section = ""
+        if ENABLE_LEARNING_RULES:
+            try:
+                from services.learning_rules_service import get_applicable_rules
+
+                def _load_rules():
+                    from api.database import SessionLocal
+                    from api.models import Creator
+                    _s = SessionLocal()
+                    try:
+                        _c = _s.query(Creator.id).filter_by(name=self.creator_id).first()
+                        if not _c:
+                            return []
+                        return get_applicable_rules(
+                            _c[0], intent=intent_value,
+                            relationship_type=_rel_type,
+                            lead_stage=current_stage,
+                        )
+                    finally:
+                        _s.close()
+
+                _learning_rules = await asyncio.to_thread(_load_rules)
+                if _learning_rules:
+                    lines = []
+                    for r in _learning_rules:
+                        lines.append(f"- {r['rule_text']}")
+                        if r.get("example_bad"):
+                            lines.append(f'  NO: "{r["example_bad"]}"')
+                        if r.get("example_good"):
+                            lines.append(f'  SI: "{r["example_good"]}"')
+                    learning_rules_section = (
+                        "=== REGLAS APRENDIDAS (del propio creador) ===\n"
+                        + "\n".join(lines) + "\n"
+                        "=== FIN REGLAS ==="
+                    )
+                    cognitive_metadata["learning_rules_applied"] = len(_learning_rules)
+                    logger.info(f"[LEARNING] Injected {len(_learning_rules)} rules for {sender_id}")
+            except Exception as lr_err:
+                logger.debug(f"[LEARNING] Rule loading failed: {lr_err}")
+
+        # Step 5d: Load preference profile
+        preference_profile_section = ""
+        if ENABLE_PREFERENCE_PROFILE:
+            try:
+                from services.preference_profile_service import (
+                    compute_preference_profile,
+                    format_preference_profile_for_prompt,
+                )
+
+                def _load_profile():
+                    from api.database import SessionLocal
+                    from api.models import Creator
+                    _s = SessionLocal()
+                    try:
+                        _c = _s.query(Creator.id).filter_by(name=self.creator_id).first()
+                        if not _c:
+                            return None
+                        return compute_preference_profile(_c[0])
+                    finally:
+                        _s.close()
+
+                _profile = await asyncio.to_thread(_load_profile)
+                if _profile:
+                    preference_profile_section = format_preference_profile_for_prompt(
+                        _profile, self.creator_id
+                    )
+                    cognitive_metadata["preference_profile"] = True
+                    logger.info(f"[PREFERENCE] Profile applied for {sender_id}")
+            except Exception as pp_err:
+                logger.debug(f"[PREFERENCE] Profile loading failed: {pp_err}")
+
+        # Step 5e: Load gold examples (few-shot)
+        gold_examples_section = ""
+        if ENABLE_GOLD_EXAMPLES:
+            try:
+                from services.gold_examples_service import get_matching_examples
+
+                def _load_examples():
+                    from api.database import SessionLocal
+                    from api.models import Creator
+                    _s = SessionLocal()
+                    try:
+                        _c = _s.query(Creator.id).filter_by(name=self.creator_id).first()
+                        if not _c:
+                            return []
+                        return get_matching_examples(
+                            _c[0], intent=intent_value,
+                            relationship_type=_rel_type,
+                            lead_stage=current_stage,
+                        )
+                    finally:
+                        _s.close()
+
+                _gold_examples = await asyncio.to_thread(_load_examples)
+                if _gold_examples:
+                    ex_lines = []
+                    for ex in _gold_examples:
+                        ex_lines.append(
+                            f"Lead: \"{ex['user_message']}\"\n"
+                            f"{self.creator_id}: \"{ex['creator_response']}\""
+                        )
+                    gold_examples_section = (
+                        f"=== EJEMPLOS DE COMO RESPONDE {self.creator_id.upper()} ===\n"
+                        + "\n---\n".join(ex_lines) + "\n"
+                        "=== FIN EJEMPLOS ==="
+                    )
+                    cognitive_metadata["gold_examples_injected"] = len(_gold_examples)
+                    logger.info(f"[FEWSHOT] Injected {len(_gold_examples)} examples for {sender_id}")
+            except Exception as ge_err:
+                logger.debug(f"[FEWSHOT] Example loading failed: {ge_err}")
+
+        # Step 6: Build full prompt with bot_instructions + strategy + frustration
+        prompt_parts = [user_context]
+        if _bot_instructions:
+            prompt_parts.append(
+                "=== INSTRUCCIONES ESPECÍFICAS PARA ESTE LEAD ===\n"
+                f"{_bot_instructions}\n"
+                "=== FIN INSTRUCCIONES ==="
+            )
+        if learning_rules_section:
+            prompt_parts.append(learning_rules_section)
+        if preference_profile_section:
+            prompt_parts.append(preference_profile_section)
+        if gold_examples_section:
+            prompt_parts.append(gold_examples_section)
+        if strategy_hint:
+            prompt_parts.append(strategy_hint)
+        if frustration_level > 0.5:
+            prompt_parts.append(
+                f"⚠️ NOTA: El usuario parece frustrado (nivel: {frustration_level:.0%}). "
+                f"Responde con empatía y ofrece ayuda concreta."
+            )
+        prompt_parts.append(f"Mensaje actual:\n<user_message>\n{message}\n</user_message>")
+        full_prompt = "\n\n".join(prompt_parts)
+
+        # Cap total context to ~6000 tokens to control LLM cost/latency
+        _MAX_CONTEXT_CHARS = AGENT_THRESHOLDS.max_context_chars
+        if len(system_prompt) > _MAX_CONTEXT_CHARS:
+            original_len = len(system_prompt)
+            system_prompt = _truncate_at_boundary(system_prompt, _MAX_CONTEXT_CHARS)
+            cognitive_metadata["prompt_truncated"] = True
+            logger.warning(f"[PROMPT] Truncated system prompt from {original_len} to {len(system_prompt)} chars")
+
+        # Log prompt size for latency diagnosis
+        _est_tokens = len(system_prompt) // 4
+        _section_sizes = {
+            k: len(v) for k, v in [
+                ("style", self.style_prompt or ""),
+                ("relational", relational_block),
+                ("rag", rag_context), ("memory", memory_context),
+                ("fewshot", few_shot_section), ("dna", dna_context),
+                ("state", state_context), ("kb", kb_context),
+                ("advanced", advanced_section),
+            ] if v
+        }
+        logger.info(
+            f"[TIMING] System prompt: {len(system_prompt)} chars (~{_est_tokens} tokens) "
+            f"sections={_section_sizes}"
+        )
+
+        # LLM generation: Flash-Lite → GPT-4o-mini (2 providers, nothing else)
+        # Path: webhook → process_dm() → generate_dm_response() → gemini/openai
+        from core.providers.gemini_provider import generate_dm_response
+
+        llm_messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": full_prompt},
+        ]
+
+        # Best-of-N: generate 3 candidates at different temperatures (copilot only)
+        best_of_n_result = None
+        if ENABLE_BEST_OF_N:
+            try:
+                from core.copilot_service import get_copilot_service
+                _is_copilot = get_copilot_service().is_copilot_enabled(self.creator_id)
+                if _is_copilot:
+                    from core.best_of_n import generate_best_of_n, serialize_candidates
+                    best_of_n_result = await generate_best_of_n(
+                        llm_messages, 150, intent_value, "llm_generation", self.creator_id
+                    )
+            except Exception as bon_err:
+                logger.debug("[BestOfN] Failed, using single call: %s", bon_err)
+
+        if best_of_n_result:
+            llm_result = {
+                "content": best_of_n_result.best.content,
+                "model": best_of_n_result.best.model,
+                "provider": best_of_n_result.best.provider,
+                "latency_ms": best_of_n_result.total_latency_ms,
+            }
+            cognitive_metadata["best_of_n"] = serialize_candidates(best_of_n_result)
+        else:
+            # A4/A5: generate_dm_response returns dict with model/provider/latency
+            # ECHO: Use dynamic max_tokens/temperature from Relationship Adapter
+            _llm_max_tokens = 150
+            _llm_temperature = 0.7
+            if _echo_rel_ctx:
+                _llm_max_tokens = _echo_rel_ctx.llm_max_tokens
+                _llm_temperature = _echo_rel_ctx.llm_temperature
+            llm_result = await generate_dm_response(
+                llm_messages,
+                max_tokens=_llm_max_tokens,
+                temperature=_llm_temperature,
+            )
+
+        _t3 = time.monotonic()
+        logger.info(f"[TIMING] LLM call: {int((_t3 - _t2) * 1000)}ms")
+
+        if llm_result:
+            llm_response = LLMResponse(
+                content=llm_result["content"],
+                model=llm_result.get("model", "unknown"),
+                tokens_used=0,
+                metadata={
+                    "provider": llm_result.get("provider", "unknown"),
+                    "latency_ms": llm_result.get("latency_ms", 0),
+                },
+            )
+        else:
+            # Both Flash-Lite and GPT-4o-mini failed — emergency fallback
+            logger.error("Primary cascade failed, using llm_service emergency fallback")
+            llm_response = await self.llm_service.generate(
+                prompt=full_prompt, system_prompt=system_prompt
+            )
+
+        # Phase 4b: Self-consistency validation (expensive, default OFF)
+        if ENABLE_SELF_CONSISTENCY:
+            try:
+                validator = get_self_consistency_validator(self.llm_service)
+                consistency = await validator.validate_response(
+                    query=message,
+                    response=llm_response.content,
+                    system_prompt=system_prompt,
+                )
+                if not consistency.is_consistent and consistency.response:
+                    logger.info(
+                        f"Self-consistency: replaced (conf={consistency.confidence:.2f})"
+                    )
+                    llm_response.content = consistency.response
+                    cognitive_metadata["self_consistency_replaced"] = True
+            except Exception as e:
+                logger.debug(f"Self-consistency failed: {e}")
+
+        return llm_response
+
+    async def _phase_postprocessing(
+        self, message: str, sender_id: str, metadata: Dict,
+        llm_response: "LLMResponse", context: ContextBundle,
+        detection: DetectionResult, cognitive_metadata: Dict,
+    ) -> DMResponse:
+        """Phase 5: Guardrails, validation, formatting, scoring."""
+        _t3 = time.monotonic()
+        # Alias context fields for code compatibility
+        intent_value = context.intent_value
+        follower = context.follower
+        history = context.history
+        rag_results = context.rag_results
+
+        response_content = llm_response.content
+
+        # A2 FIX: Detect and break repetitive loops
+        try:
+            recent_bot_msgs = [
+                m["content"] for m in history
+                if m.get("role") == "assistant" and m.get("content")
+            ][-3:]
+            if recent_bot_msgs and response_content:
+                resp_norm = response_content.strip().lower()[:50]
+                for prev in recent_bot_msgs:
+                    prev_norm = prev.strip().lower()[:50]
+                    if resp_norm and prev_norm and resp_norm == prev_norm:
+                        logger.warning(
+                            "[A2] Repetitive loop detected — response matches recent message"
+                        )
+                        cognitive_metadata["loop_detected"] = True
+                        # Break the loop with a short, generic continuation
+                        response_content = "Contame más"
+                        llm_response.content = response_content
+                        break
+        except Exception as e:
+            logger.debug(f"Loop detection failed: {e}")
+
+        # Step 7a: Output validation (prices, links)
+        if ENABLE_OUTPUT_VALIDATION:
+            try:
+                # Build known prices from products
+                known_prices = {
+                    p.get("name", ""): p.get("price", 0)
+                    for p in self.products
+                    if p.get("price")
+                }
+                price_issues = validate_prices(response_content, known_prices)
+                if price_issues:
+                    logger.warning(f"Output validation: {len(price_issues)} price issues")
+                    cognitive_metadata["output_validation_issues"] = [
+                        i.details for i in price_issues
+                    ]
+                # Build known links from products
+                known_links = [p.get("url", "") for p in self.products if p.get("url")]
+                link_issues, corrected = validate_links(response_content, known_links)
+                if link_issues:
+                    logger.warning(f"Output validation: {len(link_issues)} link issues")
+                    response_content = corrected  # Apply corrections
+            except Exception as e:
+                logger.debug(f"Output validation failed: {e}")
+
+        # Step 7a2: Apply response fixes (typos, formatting, patterns)
+        if ENABLE_RESPONSE_FIXES:
+            try:
+                fixed_response = apply_all_response_fixes(
+                    response_content, creator_id=self.creator_id,
+                )
+                if fixed_response and fixed_response != response_content:
+                    logger.debug("Response fixes applied")
+                    response_content = fixed_response
+            except Exception as e:
+                logger.debug(f"Response fixes failed: {e}")
+
+        # Step 7a2b: Tone enforcement (emoji/excl/question rates from calibration)
+        if self.calibration:
+            try:
+                from services.tone_enforcer import enforce_tone
+
+                response_content = enforce_tone(
+                    response_content, self.calibration,
+                    sender_id=sender_id, message=message,
+                )
+            except Exception as e:
+                logger.debug(f"Tone enforcement failed: {e}")
+
+        # Step 7a2c: Question removal
+        if ENABLE_QUESTION_REMOVAL:
+            try:
+                response_content = process_questions(response_content, message)
+            except Exception as e:
+                logger.debug(f"Question removal failed: {e}")
+
+        # Step 7a3: Reflexion analysis for response quality
+        if ENABLE_REFLEXION:
+            try:
+                prev_bot = [
+                    m.get("content", "")
+                    for m in metadata.get("history", [])
+                    if m.get("role") == "assistant"
+                ]
+                r_result = get_reflexion_engine().analyze_response(
+                    response=response_content,
+                    user_message=message,
+                    previous_bot_responses=prev_bot[-5:],
+                )
+                if r_result.needs_revision:
+                    cognitive_metadata["reflexion_issues"] = r_result.issues
+                    cognitive_metadata["reflexion_severity"] = r_result.severity
+            except Exception as e:
+                logger.debug(f"Reflexion failed: {e}")
+
+        # Step 7b: Apply guardrails validation
+        if ENABLE_GUARDRAILS and hasattr(self, "guardrails"):
+            try:
+                # Build allowed URLs from creator's products and booking links
+                creator_urls = []
+                for p in self.products:
+                    url = p.get("url", "")
+                    if url:
+                        creator_urls.append(url)
+                # Extract unique domains from product URLs for whitelist
+                creator_domains = set()
+                for u in creator_urls:
+                    # Extract domain: "https://www.example.com/path" -> "example.com"
+                    try:
+                        domain = u.split("//")[-1].split("/")[0].replace("www.", "")
+                        creator_domains.add(domain)
+                    except Exception as e:
+                        logger.warning(f"Failed to parse URL domain '{u}': {e}")
+                guardrail_result = self.guardrails.validate_response(
+                    query=message,
+                    response=response_content,
+                    context={
+                        "products": self.products,
+                        "allowed_urls": list(creator_domains),
+                    },
+                )
+                if not guardrail_result.get("valid", True):
+                    logger.warning(f"Guardrail triggered: {guardrail_result.get('reason')}")
+                    if guardrail_result.get("corrected_response"):
+                        response_content = guardrail_result["corrected_response"]
+                    cognitive_metadata["guardrail_triggered"] = guardrail_result.get("reason")
+            except Exception as e:
+                logger.debug(f"Guardrails check failed: {e}")
+
+        # Step 7b: Apply soft length guidance based on message type
+        try:
+            msg_type = detect_message_type(message)
+            response_content = enforce_length(response_content, message)
+            cognitive_metadata["message_type"] = msg_type
+        except Exception as e:
+            logger.debug(f"Length control failed: {e}")
+
+        # Step 7c: Format response for Instagram
+        formatted_content = self.instagram_service.format_message(response_content)
+
+        # Step 7d: Inject payment link for purchase_intent if missing
+        if intent_value.lower() in ("purchase_intent", "want_to_buy") and self.products:
+            msg_lower = message.lower()
+            resp_lower = formatted_content.lower()
+            for p in self.products:
+                pname = p.get("name") or ""
+                plink = p.get("payment_link") or p.get("url") or ""
+                # Match product in user message OR bot response
+                mentioned = (
+                    _message_mentions_product(pname, msg_lower)
+                    or _message_mentions_product(pname, resp_lower)
+                )
+                if pname and mentioned and plink and plink not in resp_lower:
+                    formatted_content = f"{formatted_content}\n\n{plink}"
+                    cognitive_metadata["payment_link_injected"] = plink
+                    logger.info(f"[Step 7d] Injected payment link for '{pname}': {plink}")
+                    break
+
+        _t4 = time.monotonic()
+        logger.info(f"[TIMING] Phase 5 (post-processing): {int((_t4 - _t3) * 1000)}ms")
+
+        # CloneScore real-time logging (non-blocking, CPU-only style_fidelity)
+        if os.getenv("ENABLE_CLONE_SCORE", "false").lower() == "true":
+            try:
+                from services.clone_score_engine import CloneScoreEngine
+                cs_engine = CloneScoreEngine()
+                score_result = await cs_engine.evaluate_single(
+                    self.creator_id, message, formatted_content, {}
+                )
+                cognitive_metadata["clone_score"] = score_result.get("overall_score", 0)
+                _style = score_result.get("dimension_scores", {}).get("style_fidelity", 0)
+                logger.info(f"[CLONE_SCORE] style={_style:.1f}")
+            except Exception as e:
+                logger.debug(f"[CLONE_SCORE] eval failed: {e}")
+
+        # Step 9: Update lead score (synchronous - needed for response)
+        new_stage = self._update_lead_score(follower, intent_value, metadata)
+
+        # Step 9c: Email capture (non-blocking) — disabled by default
+        if ENABLE_EMAIL_CAPTURE:
+            try:
+                formatted_content = self._step_email_capture(
+                    message=message,
+                    formatted_content=formatted_content,
+                    intent_value=intent_value,
+                    sender_id=sender_id,
+                    follower=follower,
+                    platform=metadata.get("platform", "instagram"),
+                    cognitive_metadata=cognitive_metadata,
+                )
+            except Exception as e:
+                logger.warning(f"Email capture step failed (non-blocking): {e}")
+
+        # Steps 8, 8b, 9b: Run in background thread (non-blocking)
+        asyncio.create_task(
+            self._background_post_response(
+                follower=follower,
+                message=message,
+                formatted_content=formatted_content,
+                intent_value=intent_value,
+                sender_id=sender_id,
+                metadata=metadata,
+                cognitive_metadata=cognitive_metadata,
+            )
+        )
+
+        # Memory extraction (extract facts from conversation — fire-and-forget)
+        if os.getenv("ENABLE_MEMORY_ENGINE", "false").lower() == "true":
+            try:
+                from services.memory_engine import get_memory_engine
+                mem_engine = get_memory_engine()
+                conversation_msgs = [
+                    {"role": "user", "content": message},
+                    {"role": "assistant", "content": formatted_content},
+                ]
+                asyncio.create_task(
+                    mem_engine.add(self.creator_id, sender_id, conversation_msgs)
+                )
+            except Exception as e:
+                logger.debug(f"[MEMORY] extraction failed: {e}")
+
+        # ECHO Engine: Detect commitments in bot response (Sprint 4 — fire-and-forget)
+        if os.getenv("ENABLE_COMMITMENT_TRACKING", "true").lower() == "true":
+            try:
+                from services.commitment_tracker import get_commitment_tracker
+
+                async def _detect_commitments():
+                    try:
+                        tracker = get_commitment_tracker()
+                        tracker.detect_and_store(
+                            response_text=formatted_content,
+                            creator_id=self.creator_id,
+                            lead_id=sender_id,
+                        )
+                    except Exception as e:
+                        logger.debug(f"[COMMITMENT] detection failed: {e}")
+
+                asyncio.create_task(_detect_commitments())
+            except Exception as e:
+                logger.debug(f"[COMMITMENT] setup failed: {e}")
+
+        # Step 10: Escalation notification (async, lightweight)
+        asyncio.create_task(
+            self._check_and_notify_escalation(
+                intent_value=intent_value,
+                follower=follower,
+                sender_id=sender_id,
+                message=message,
+                metadata=metadata,
+            )
+        )
+
+        # Step 10b: Message splitting (store in metadata for caller)
+        message_parts = None
+        if ENABLE_MESSAGE_SPLITTING:
+            try:
+                splitter = get_message_splitter()
+                if splitter.should_split(formatted_content):
+                    parts = splitter.split(formatted_content, message)
+                    message_parts = [{"text": p.text, "delay": p.delay_before} for p in parts]
+                    logger.debug(f"Message split into {len(parts)} parts")
+            except Exception as e:
+                logger.debug(f"Message splitting failed: {e}")
+
+        _t5 = time.monotonic()
+        logger.info(
+            f"[TIMING] Phase 5 (post+mem+nurture): {int((_t5 - _t3) * 1000)}ms "
+            f"(guardrails={int((_t4 - _t3) * 1000)} async={int((_t5 - _t4) * 1000)})"
+        )
+        # A4: Include model/provider/latency in metadata for auditing
+        llm_meta = llm_response.metadata or {}
+
+        # Confidence scoring (multi-factor)
+        try:
+            from core.confidence_scorer import calculate_confidence
+            scored_confidence = calculate_confidence(
+                intent=intent_value,
+                response_text=formatted_content,
+                response_type="llm_generation",
+                creator_id=self.creator_id,
+            )
+        except Exception:
+            scored_confidence = AGENT_THRESHOLDS.default_scored_confidence
+
+        _dm_metadata = {
+            "model": llm_response.model,
+            "provider": llm_meta.get("provider", "unknown"),
+            "latency_ms": llm_meta.get("latency_ms", 0),
+            "rag_results": len(rag_results),
+            "history_length": len(history),
+            "follower_id": sender_id,
+            "message_parts": message_parts,
+        }
+        if cognitive_metadata.get("best_of_n"):
+            _dm_metadata["best_of_n"] = cognitive_metadata["best_of_n"]
+
+        return DMResponse(
+            content=formatted_content,
+            intent=intent_value,
+            lead_stage=new_stage.value if hasattr(new_stage, "value") else str(new_stage),
+            confidence=scored_confidence,
+            tokens_used=llm_response.tokens_used,
+            metadata=_dm_metadata,
+        )
+
 
     def _format_rag_context(self, rag_results: List[Dict]) -> str:
         """Format RAG results as context for the prompt."""
@@ -2723,7 +2879,7 @@ DMResponderAgent = DMResponderAgentV2
 
 _dm_agent_cache: Dict[str, DMResponderAgentV2] = {}
 _dm_agent_cache_timestamp: Dict[str, float] = {}
-_DM_AGENT_CACHE_TTL = 600  # 10 minutes
+_DM_AGENT_CACHE_TTL = AGENT_THRESHOLDS.agent_cache_ttl
 
 
 def get_dm_agent(creator_id: str) -> DMResponderAgentV2:

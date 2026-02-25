@@ -5,6 +5,8 @@ import os
 
 from fastapi import APIRouter, Body, HTTPException
 
+from api.schemas.messages import SendMessage, FollowerStatusUpdate
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dm", tags=["messages"])
 
@@ -232,9 +234,9 @@ async def get_follower_detail(creator_id: str, follower_id: str):
 
 
 @router.post("/send/{creator_id}")
-async def send_message(creator_id: str, data: dict = Body(...)):
-    follower_id = data.get("follower_id")
-    message_text = data.get("message", "")
+async def send_message(creator_id: str, data: SendMessage):
+    follower_id = data.follower_id
+    message_text = data.message
     if not follower_id or not message_text:
         raise HTTPException(status_code=400, detail="follower_id and message required")
 
@@ -329,8 +331,8 @@ async def send_message(creator_id: str, data: dict = Body(...)):
 
 
 @router.put("/follower/{creator_id}/{follower_id}/status")
-async def update_follower_status(creator_id: str, follower_id: str, data: dict = Body(...)):
-    new_status = data.get("status", "nuevo")
+async def update_follower_status(creator_id: str, follower_id: str, data: FollowerStatusUpdate):
+    new_status = data.status
 
     # V3 categories — 6 flat statuses
     # Legacy mapping for backward compatibility

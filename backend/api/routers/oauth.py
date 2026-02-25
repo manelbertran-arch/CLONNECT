@@ -1016,7 +1016,7 @@ async def instagram_oauth_start(creator_id: str, website_url: str = None):
     app_id = META_APP_ID
 
     if not app_id:
-        raise HTTPException(status_code=500, detail="META_APP_ID not configured")
+        raise HTTPException(status_code=503, detail="Instagram OAuth is not configured on this server")
 
     # Store state for CSRF protection - include website_url if provided
     # Format: creator_id:random_token:website_url_base64 (or empty if no website)
@@ -1329,7 +1329,7 @@ async def whatsapp_oauth_start(creator_id: str):
     """
     whatsapp_app_id = os.getenv("WHATSAPP_META_APP_ID", META_APP_ID)
     if not whatsapp_app_id:
-        raise HTTPException(status_code=500, detail="WHATSAPP_META_APP_ID not configured")
+        raise HTTPException(status_code=503, detail="WhatsApp OAuth is not configured on this server")
 
     # Store state for CSRF protection
     state = f"{creator_id}:{secrets.token_urlsafe(16)}"
@@ -1556,7 +1556,7 @@ async def whatsapp_embedded_signup(payload: dict):
     whatsapp_app_id = os.getenv("WHATSAPP_META_APP_ID", META_APP_ID)
     whatsapp_app_secret = os.getenv("WHATSAPP_APP_SECRET", META_APP_SECRET)
     if not whatsapp_app_id or not whatsapp_app_secret:
-        raise HTTPException(status_code=500, detail="WhatsApp not configured on server")
+        raise HTTPException(status_code=503, detail="WhatsApp OAuth is not configured on this server")
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -1664,7 +1664,7 @@ async def whatsapp_embedded_signup(payload: dict):
         raise
     except Exception as e:
         logger.error(f"WhatsApp Embedded Signup error: {e}")
-        raise HTTPException(status_code=500, detail=f"WhatsApp signup failed: {str(e)}")
+        raise HTTPException(status_code=502, detail="WhatsApp signup failed due to an unexpected error")
 
 
 # =============================================================================
@@ -1680,7 +1680,7 @@ async def stripe_oauth_start(creator_id: str):
     stripe_secret_key = os.getenv("STRIPE_SECRET_KEY", "").strip()
 
     if not stripe_secret_key:
-        raise HTTPException(status_code=500, detail="STRIPE_SECRET_KEY not configured")
+        raise HTTPException(status_code=503, detail="Stripe is not configured on this server")
 
     logger.info(f"Starting Stripe Connect for creator: {creator_id}")
 
@@ -1728,7 +1728,7 @@ async def stripe_oauth_start(creator_id: str):
 
     except httpx.RequestError as e:
         logger.error(f"Stripe API request error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to connect to Stripe")
+        raise HTTPException(status_code=502, detail="Failed to connect to Stripe")
 
 
 @router.get("/stripe/callback")
@@ -1829,7 +1829,7 @@ PAYPAL_MODE = os.getenv("PAYPAL_MODE", "sandbox")  # sandbox or live
 async def paypal_oauth_start(creator_id: str):
     """Start PayPal OAuth flow"""
     if not PAYPAL_CLIENT_ID:
-        raise HTTPException(status_code=500, detail="PAYPAL_CLIENT_ID not configured")
+        raise HTTPException(status_code=503, detail="PayPal OAuth is not configured on this server")
 
     state = f"{creator_id}:{secrets.token_urlsafe(16)}"
 
@@ -1857,7 +1857,7 @@ async def paypal_oauth_callback(code: str = Query(...), state: str = Query("")):
     import httpx
 
     if not PAYPAL_CLIENT_ID or not PAYPAL_CLIENT_SECRET:
-        raise HTTPException(status_code=500, detail="PayPal credentials not configured")
+        raise HTTPException(status_code=503, detail="PayPal OAuth is not configured on this server")
 
     creator_id = state.split(":")[0] if ":" in state else "manel"
 
@@ -1950,7 +1950,7 @@ async def debug_google_config():
 async def google_oauth_start(creator_id: str):
     """Start Google OAuth flow for Calendar/Meet access"""
     if not GOOGLE_CLIENT_ID:
-        raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID not configured")
+        raise HTTPException(status_code=503, detail="Google OAuth is not configured on this server")
 
     state = f"{creator_id}:{secrets.token_urlsafe(16)}"
 
@@ -2268,7 +2268,7 @@ async def force_refresh_google(creator_id: str):
     except Exception as e:
         from api.utils.error_helpers import safe_error_detail
 
-        raise HTTPException(status_code=500, detail=safe_error_detail(e, "Google token refresh"))
+        raise HTTPException(status_code=502, detail=safe_error_detail(e, "Google token refresh"))
 
 
 async def _save_google_connection(

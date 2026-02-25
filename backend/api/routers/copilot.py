@@ -205,7 +205,7 @@ async def discard_all_pending(creator_id: str, _auth: str = Depends(require_crea
     except Exception as e:
         logger.error(f"[Copilot] Error in discard-all: {e}")
         session.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 
@@ -295,7 +295,7 @@ async def toggle_copilot_mode(creator_id: str, request: ToggleRequest, _auth: st
     except Exception as e:
         logger.error(f"[Copilot] Error toggling mode: {e}")
         session.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 
@@ -438,7 +438,7 @@ async def get_notifications(creator_id: str, since: Optional[str] = None, _auth:
         raise
     except Exception as e:
         logger.error(f"[Copilot] Error getting notifications: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 
@@ -556,7 +556,7 @@ async def get_pending_for_lead(creator_id: str, lead_id: str, _auth: str = Depen
         raise
     except Exception as e:
         logger.error(f"[Copilot] Error getting pending for lead: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 
@@ -686,7 +686,7 @@ async def track_manual_response(
     except Exception as e:
         logger.error(f"[Copilot] Error tracking manual response: {e}")
         session.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 
@@ -946,7 +946,7 @@ async def get_copilot_stats(
         raise
     except Exception as e:
         logger.error(f"[Copilot] Error getting stats: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 
@@ -1200,7 +1200,7 @@ async def get_learning_progress(
         raise
     except Exception as e:
         logger.error(f"[Copilot] Error getting learning progress: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 
@@ -1376,7 +1376,7 @@ async def get_copilot_comparisons(
         raise
     except Exception as e:
         logger.error(f"[Copilot] Error getting comparisons: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 
@@ -1522,7 +1522,7 @@ async def get_copilot_history(
         raise
     except Exception as e:
         logger.error(f"[Copilot] Error getting history: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         session.close()
 
