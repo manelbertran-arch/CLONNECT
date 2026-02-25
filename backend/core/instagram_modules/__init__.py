@@ -4,4 +4,6 @@ from core.instagram_modules.lead_manager import LeadManager
 from core.instagram_modules.message_sender import MessageSender
 from core.instagram_modules.message_store import MessageStore
 
-__all__ = ["MessageSender", "LeadManager", "MessageStore", "CommentHandler"]
+__all__ = [
+    "MessageSender", "LeadManager", "MessageStore", "CommentHandler",
+]
