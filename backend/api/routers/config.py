@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 import logging
 import os
 
-from api.auth import require_creator_access
+from api.auth import require_admin, require_creator_access
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/creator/config", tags=["config"])
@@ -212,7 +212,7 @@ async def update_email_capture_config(creator_id: str, config: dict = Body(...),
 # =============================================================================
 
 @router.get("/unified-profile/{email}")
-async def get_unified_profile_by_email(email: str):
+async def get_unified_profile_by_email(email: str, admin: str = Depends(require_admin)):
     """
     Get unified profile by email with all linked platform identities.
     """
