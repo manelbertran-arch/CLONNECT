@@ -90,7 +90,6 @@ async def admin_all_conversations(creator_id: Optional[str] = None, limit: int =
                         l.id::text           AS id,
                         l.platform_user_id   AS platform_user_id,
                         l.username           AS username,
-                        l.display_name       AS display_name,
                         l.status             AS status,
                         l.last_contact_at    AS last_contact,
                         c.name               AS creator_id
@@ -107,7 +106,6 @@ async def admin_all_conversations(creator_id: Optional[str] = None, limit: int =
                         l.id::text           AS id,
                         l.platform_user_id   AS platform_user_id,
                         l.username           AS username,
-                        l.display_name       AS display_name,
                         l.status             AS status,
                         l.last_contact_at    AS last_contact,
                         c.name               AS creator_id
@@ -123,10 +121,10 @@ async def admin_all_conversations(creator_id: Optional[str] = None, limit: int =
                     "id": row[0],
                     "platform_user_id": row[1],
                     "username": row[2] or row[1],
-                    "display_name": row[3] or row[2] or row[1],
-                    "status": row[4],
-                    "last_contact": row[5].isoformat() if row[5] else None,
-                    "creator_id": row[6],
+                    "display_name": row[2] or row[1],
+                    "status": row[3],
+                    "last_contact": row[4].isoformat() if row[4] else None,
+                    "creator_id": row[5],
                 }
                 for row in rows
             ]
