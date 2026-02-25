@@ -285,5 +285,63 @@ class TestDbServiceImportSafety(unittest.TestCase):
             self.assertTrue(hasattr(mod, name), f"api.services.db_service missing: {name}")
 
 
+class TestStartupImportSafety(unittest.TestCase):
+    """Test that startup decomposed modules import correctly.
+
+    Note: These tests may be skipped if fastapi is not installed.
+    """
+
+    def _try_import(self, module_name):
+        """Import module, skip test if optional dependency missing."""
+        try:
+            return importlib.import_module(module_name)
+        except ModuleNotFoundError as e:
+            if "fastapi" in str(e):
+                self.skipTest(f"Optional dependency not installed: {e}")
+            raise
+
+    def test_import_startup_tasks_handlers(self):
+        mod = self._try_import("api.startup_tasks.handlers")
+        self.assertTrue(hasattr(mod, "register_startup_handlers"))
+
+    def test_import_startup_tasks_jobs_maintenance(self):
+        mod = self._try_import("api.startup_tasks.jobs_maintenance")
+        self.assertTrue(hasattr(mod, "register_maintenance_jobs"))
+        self.assertTrue(hasattr(mod, "token_refresh_job"))
+        self.assertTrue(hasattr(mod, "score_decay_job"))
+        self.assertTrue(hasattr(mod, "reconciliation_job"))
+
+    def test_import_startup_tasks_jobs_ai(self):
+        mod = self._try_import("api.startup_tasks.jobs_ai")
+        self.assertTrue(hasattr(mod, "register_ai_jobs"))
+        self.assertTrue(hasattr(mod, "copilot_daily_eval_job"))
+        self.assertTrue(hasattr(mod, "clone_score_daily_job"))
+        self.assertTrue(hasattr(mod, "memory_decay_job"))
+
+    def test_import_startup_tasks_jobs_infra(self):
+        mod = self._try_import("api.startup_tasks.jobs_infra")
+        self.assertTrue(hasattr(mod, "register_infra_jobs"))
+        self.assertTrue(hasattr(mod, "keep_alive_job"))
+        self.assertTrue(hasattr(mod, "evolution_health_check_job"))
+        self.assertTrue(hasattr(mod, "message_retry_job"))
+
+    def test_import_startup_tasks_cache(self):
+        mod = self._try_import("api.startup_tasks.cache")
+        self.assertTrue(hasattr(mod, "do_prewarm"))
+        self.assertTrue(hasattr(mod, "do_cache_refresh"))
+
+    def test_import_startup_tasks_package(self):
+        """Test that api.startup_tasks.__init__ re-exports register_startup_handlers."""
+        mod = self._try_import("api.startup_tasks")
+        self.assertTrue(hasattr(mod, "register_startup_handlers"))
+
+    def test_backward_compat_startup(self):
+        """Test that the original api.startup re-exports work."""
+        mod = self._try_import("api.startup")
+        self.assertTrue(hasattr(mod, "register_startup_handlers"))
+        self.assertTrue(hasattr(mod, "_do_prewarm"))
+        self.assertTrue(hasattr(mod, "_do_cache_refresh"))
+
+
 if __name__ == "__main__":
     unittest.main()
