@@ -17,10 +17,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 
-try:
-    from core.auth import get_auth_manager, is_admin_key, validate_api_key
-except ImportError:
-    from api.core.auth import get_auth_manager, is_admin_key, validate_api_key
+from core.auth import get_auth_manager, is_admin_key, validate_api_key
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 import bcrypt

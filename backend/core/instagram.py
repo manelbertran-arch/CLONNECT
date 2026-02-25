@@ -600,9 +600,8 @@ class InstagramContentIngester:
     async def ingest_document(self, file_path: str, doc_type: str = "pdf") -> dict:
         """Ingestar documento adicional (PDF, texto)"""
         try:
-            from core.multimodal import MultiModalProcessor
-
-            processor = MultiModalProcessor()
+            # NOTE: core.multimodal was never implemented; this path is unreachable
+            raise NotImplementedError("MultiModalProcessor not available")
 
             if doc_type == "pdf":
                 content = processor.process_pdf(file_path)
