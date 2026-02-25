@@ -17,7 +17,7 @@ Configuration (env vars):
     CHUNKING_MODE=semantic           # 'semantic' or 'fixed' (default: semantic)
     CHUNK_MAX_SIZE=800               # Max chars per chunk
     CHUNK_MIN_SIZE=100               # Min chars per chunk
-    CHUNK_OVERLAP_SENTENCES=1        # Sentences to overlap for context
+    CHUNK_OVERLAP_SENTENCES=2        # Sentences to overlap for context
 """
 
 import os
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 CHUNKING_MODE = os.getenv("CHUNKING_MODE", "semantic")  # 'semantic' or 'fixed'
 CHUNK_MAX_SIZE = int(os.getenv("CHUNK_MAX_SIZE", "800"))
 CHUNK_MIN_SIZE = int(os.getenv("CHUNK_MIN_SIZE", "100"))
-CHUNK_OVERLAP_SENTENCES = int(os.getenv("CHUNK_OVERLAP_SENTENCES", "1"))
+CHUNK_OVERLAP_SENTENCES = int(os.getenv("CHUNK_OVERLAP_SENTENCES", "2"))
 
 
 # =============================================================================

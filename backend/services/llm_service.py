@@ -3,6 +3,9 @@ LLM (Large Language Model) Service.
 
 Extracted from dm_agent.py as part of REFACTOR-PHASE2.
 Provides unified interface for multiple LLM providers.
+
+NOTE: Groq provider code is retained for backward compatibility but not used in production.
+Active production LLM path: core/providers/gemini_provider.py (Gemini + GPT-4o-mini)
 """
 import logging
 import os

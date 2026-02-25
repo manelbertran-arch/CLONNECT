@@ -220,6 +220,59 @@ def _truncate_at_boundary(text: str, max_chars: int) -> str:
     return truncated
 
 
+def _smart_truncate_context(system_prompt: str, max_chars: int) -> str:
+    """Truncate context preserving recent conversation and key sections.
+
+    Priority order (highest first):
+    1. System instructions (persona, rules) — never truncated
+    2. Recent conversation history (last messages)
+    3. RAG context
+    4. Older conversation history
+    """
+    if len(system_prompt) <= max_chars:
+        return system_prompt
+
+    # Find the conversation history section (usually marked by a header)
+    history_markers = [
+        "Historial de conversación",
+        "Conversation history",
+        "Últimos mensajes",
+        "Recent messages",
+        "<user_message>",
+    ]
+
+    history_start = -1
+    for marker in history_markers:
+        idx = system_prompt.find(marker)
+        if idx > 0:
+            history_start = idx
+            break
+
+    if history_start > 0:
+        # Split into pre-history (instructions + RAG) and history
+        pre_history = system_prompt[:history_start]
+        history = system_prompt[history_start:]
+
+        # Allocate: 60% for instructions+RAG, 40% for conversation history
+        pre_budget = int(max_chars * 0.6)
+        history_budget = max_chars - min(len(pre_history), pre_budget)
+
+        # Truncate pre-history from the middle (keep start + end)
+        if len(pre_history) > pre_budget:
+            keep_start = int(pre_budget * 0.7)
+            keep_end = pre_budget - keep_start
+            pre_history = pre_history[:keep_start] + "\n...[context truncated]...\n" + pre_history[-keep_end:]
+
+        # Truncate history from the START (keep recent messages at the end)
+        if len(history) > history_budget:
+            history = "...[older messages truncated]...\n" + history[-(history_budget - 40):]
+
+        return pre_history + history
+
+    # Fallback: simple truncation at sentence boundary
+    return _truncate_at_boundary(system_prompt, max_chars)
+
+
 # =============================================================================
 # NON-CACHEABLE INTENTS (backward compatibility)
 # =============================================================================
@@ -1557,13 +1610,13 @@ class DMResponderAgentV2:
         prompt_parts.append(f"Mensaje actual:\n<user_message>\n{message}\n</user_message>")
         full_prompt = "\n\n".join(prompt_parts)
 
-        # Cap total context to ~6000 tokens to control LLM cost/latency
+        # Cap total context to ~12K tokens to control LLM cost/latency
         _MAX_CONTEXT_CHARS = AGENT_THRESHOLDS.max_context_chars
         if len(system_prompt) > _MAX_CONTEXT_CHARS:
             original_len = len(system_prompt)
-            system_prompt = _truncate_at_boundary(system_prompt, _MAX_CONTEXT_CHARS)
+            system_prompt = _smart_truncate_context(system_prompt, _MAX_CONTEXT_CHARS)
             cognitive_metadata["prompt_truncated"] = True
-            logger.warning(f"[PROMPT] Truncated system prompt from {original_len} to {len(system_prompt)} chars")
+            logger.info(f"[PROMPT] Smart-truncated system prompt from {original_len} to {len(system_prompt)} chars")
 
         # Log prompt size for latency diagnosis
         _est_tokens = len(system_prompt) // 4
