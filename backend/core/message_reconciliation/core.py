@@ -1,14 +1,8 @@
 """
-Message Reconciliation System
+Reconciliation logic for message reconciliation.
 
-Automatic reconciliation of Instagram messages between API and database.
-Runs as part of the nurturing scheduler to ensure no messages are lost.
-
-Features:
-- Periodic reconciliation every 5 minutes
-- Startup reconciliation of last 24 hours
-- Gap detection health check
-- No duplicates (checks by platform_message_id)
+Core reconciliation functions including per-creator reconciliation,
+cycle management, gap detection, and status reporting.
 """
 
 import asyncio
@@ -16,7 +10,14 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-import httpx
+from core.message_reconciliation.enrichment import (
+    _fetch_profile_for_lead,
+    _queue_profile_enrichment,
+)
+from core.message_reconciliation.fetcher import (
+    get_db_message_ids,
+    get_instagram_conversations,
+)
 
 logger = logging.getLogger("clonnect-reconciliation")
 
@@ -24,23 +25,6 @@ logger = logging.getLogger("clonnect-reconciliation")
 RECONCILIATION_LOOKBACK_HOURS = 24  # How far back to check on startup
 RECONCILIATION_INTERVAL_MINUTES = 5  # How often to run periodic reconciliation
 MAX_CONVERSATIONS_PER_CYCLE = 20  # Limit per reconciliation cycle (reduced to avoid API limits)
-
-
-async def _fetch_profile_for_lead(user_id: str, access_token: str) -> Dict[str, Any]:
-    """
-    Fetch Instagram profile for a lead.
-    Returns dict with username, name, profile_pic or empty dict on failure.
-    """
-    try:
-        from core.instagram_profile import fetch_instagram_profile_with_retry
-
-        result = await fetch_instagram_profile_with_retry(user_id, access_token, max_retries=1)
-        if result.success and result.profile:
-            return result.profile
-    except Exception as e:
-        logger.debug(f"[Reconciliation] Profile fetch failed for {user_id}: {e}")
-
-    return {}
 
 
 def _extract_media_from_attachments(attachments: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -155,253 +139,6 @@ def _extract_media_from_attachments(attachments: List[Dict[str, Any]]) -> Dict[s
         result["url"] = media_url
 
     return result
-
-
-async def _queue_profile_enrichment(creator_id: str, user_id: str) -> None:
-    """Queue a lead for profile enrichment retry."""
-    try:
-        from api.database import SessionLocal
-        from api.models import SyncQueue
-
-        session = SessionLocal()
-        try:
-            # Check if already queued
-            existing = (
-                session.query(SyncQueue)
-                .filter_by(
-                    creator_id=creator_id,
-                    conversation_id=f"profile_retry:{user_id}",
-                )
-                .filter(SyncQueue.status.in_(["pending", "processing"]))
-                .first()
-            )
-            if existing:
-                return
-
-            queue_item = SyncQueue(
-                creator_id=creator_id,
-                conversation_id=f"profile_retry:{user_id}",
-                status="pending",
-                attempts=0,
-            )
-            session.add(queue_item)
-            session.commit()
-            logger.debug(f"[Reconciliation] Queued profile retry for {user_id}")
-
-        finally:
-            session.close()
-
-    except Exception as e:
-        logger.error(f"[Reconciliation] Failed to queue profile retry: {e}")
-
-
-async def enrich_leads_without_profile(
-    creator_id: str, access_token: str, limit: int = 10
-) -> Dict[str, int]:
-    """
-    Find and enrich leads that don't have profile info.
-    Called periodically to fix leads created without profiles.
-
-    Returns:
-        Dict with counts: processed, enriched, failed
-    """
-    from api.database import SessionLocal
-    from api.models import Creator, Lead
-
-    result = {"processed": 0, "enriched": 0, "failed": 0, "queued": 0}
-
-    session = SessionLocal()
-    try:
-        # Get creator
-        creator = session.query(Creator).filter_by(name=creator_id).first()
-        if not creator:
-            return result
-
-        # Find leads without username
-        leads_to_enrich = (
-            session.query(Lead)
-            .filter(
-                Lead.creator_id == creator.id,
-                Lead.platform == "instagram",
-                (Lead.username.is_(None)) | (Lead.username == ""),
-            )
-            .limit(limit)
-            .all()
-        )
-
-        for lead in leads_to_enrich:
-            result["processed"] += 1
-
-            # Extract user_id from platform_user_id (ig_XXXXX -> XXXXX)
-            user_id = lead.platform_user_id.replace("ig_", "")
-
-            # Try to fetch profile
-            profile = await _fetch_profile_for_lead(user_id, access_token)
-
-            if profile.get("username"):
-                lead.username = profile["username"]
-                lead.full_name = profile.get("name") or lead.full_name
-                lead.profile_pic_url = profile.get("profile_pic") or lead.profile_pic_url
-
-                # Clear pending flag
-                if lead.context and isinstance(lead.context, dict):
-                    lead.context.pop("profile_pending", None)
-
-                session.commit()
-                result["enriched"] += 1
-                logger.info(f"[Reconciliation] Enriched lead {user_id} -> @{profile['username']}")
-            else:
-                # Queue for retry
-                await _queue_profile_enrichment(creator_id, user_id)
-                result["queued"] += 1
-                result["failed"] += 1
-
-    except Exception as e:
-        logger.error(f"[Reconciliation] Error enriching leads: {e}")
-
-    finally:
-        session.close()
-
-    return result
-
-
-async def get_instagram_conversations(
-    access_token: str,
-    ig_user_id: str,
-    since: Optional[datetime] = None,
-    limit: int = 20,
-) -> List[Dict[str, Any]]:
-    """
-    Fetch conversations from Instagram API with messages.
-
-    Args:
-        access_token: Instagram access token
-        ig_user_id: Instagram user ID (page_id for creator)
-        since: Only fetch messages since this time
-        limit: Max conversations to fetch (default 20 to avoid API limits)
-
-    Returns:
-        List of conversations with messages
-    """
-    conversations = []
-
-    # Determine API base
-    api_base = "https://graph.instagram.com/v21.0"
-    if access_token.startswith("EAA"):
-        api_base = "https://graph.facebook.com/v21.0"
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        try:
-            # First, fetch conversation IDs only (smaller request)
-            url = f"{api_base}/{ig_user_id}/conversations"
-            params = {
-                "fields": "id,participants",
-                "access_token": access_token,
-                "limit": limit,
-            }
-
-            resp = await client.get(url, params=params)
-
-            if resp.status_code != 200:
-                logger.error(f"[Reconciliation] API error: {resp.status_code} - {resp.text[:200]}")
-                return []
-
-            data = resp.json()
-            conv_list = data.get("data", [])
-
-            logger.debug(f"[Reconciliation] Fetched {len(conv_list)} conversation IDs")
-
-            # Then fetch messages for each conversation separately
-            for conv in conv_list:
-                conv_id = conv.get("id")
-                if not conv_id:
-                    continue
-
-                try:
-                    # Fetch messages for this conversation using /messages endpoint
-                    # This format returns more attachment data (story, share, etc.)
-                    msg_url = f"{api_base}/{conv_id}/messages"
-                    msg_params = {
-                        "fields": "id,message,from,to,created_time,attachments,story,share,shares,sticker",
-                        "access_token": access_token,
-                        "limit": 25,
-                    }
-
-                    msg_resp = await client.get(msg_url, params=msg_params)
-
-                    if msg_resp.status_code == 200:
-                        msg_data = msg_resp.json()
-                        # Format response to match expected structure
-                        conv["messages"] = {"data": msg_data.get("data", [])}
-                        conversations.append(conv)
-                    else:
-                        logger.debug(f"[Reconciliation] Could not fetch messages for {conv_id}")
-                        # Still add conversation without messages
-                        conversations.append(conv)
-
-                    # Small delay to avoid rate limits
-                    await asyncio.sleep(0.1)
-
-                except Exception as e:
-                    logger.debug(f"[Reconciliation] Error fetching messages for {conv_id}: {e}")
-                    conversations.append(conv)
-
-            logger.debug(
-                f"[Reconciliation] Fetched {len(conversations)} conversations with messages"
-            )
-
-        except Exception as e:
-            logger.error(f"[Reconciliation] Error fetching conversations: {e}")
-
-    return conversations
-
-
-async def get_db_message_ids(
-    creator_id: str,
-    since: Optional[datetime] = None,
-) -> set:
-    """
-    Get all platform_message_ids from database for a creator.
-
-    Args:
-        creator_id: Creator name/ID
-        since: Only get messages since this time
-
-    Returns:
-        Set of platform_message_ids
-    """
-    def _query_message_ids():
-        from api.database import SessionLocal
-        from api.models import Creator, Lead, Message
-
-        message_ids = set()
-        session = SessionLocal()
-        try:
-            creator = session.query(Creator).filter_by(name=creator_id).first()
-            if not creator:
-                logger.warning(f"[Reconciliation] Creator {creator_id} not found")
-                return message_ids
-
-            leads = session.query(Lead).filter_by(creator_id=creator.id).all()
-            lead_ids = [lead.id for lead in leads]
-            if not lead_ids:
-                return message_ids
-
-            query = session.query(Message.platform_message_id).filter(
-                Message.lead_id.in_(lead_ids),
-                Message.platform_message_id.isnot(None),
-            )
-            if since:
-                query = query.filter(Message.created_at >= since)
-
-            results = query.all()
-            message_ids = {r[0] for r in results if r[0]}
-            logger.debug(f"[Reconciliation] Found {len(message_ids)} existing messages in DB")
-            return message_ids
-        finally:
-            session.close()
-
-    return await asyncio.to_thread(_query_message_ids)
 
 
 async def reconcile_messages_for_creator(
@@ -979,57 +716,6 @@ async def check_message_gaps() -> Dict[str, Any]:
 # State for tracking last reconciliation
 _last_reconciliation: Optional[str] = None
 _reconciliation_count: int = 0
-
-
-async def run_startup_reconciliation():
-    """
-    Run reconciliation on server startup.
-    Recovers messages from the last 24 hours.
-    """
-    global _last_reconciliation, _reconciliation_count
-
-    logger.info(
-        f"[Reconciliation] Starting startup reconciliation (last {RECONCILIATION_LOOKBACK_HOURS}h)"
-    )
-
-    try:
-        result = await run_reconciliation_cycle(lookback_hours=RECONCILIATION_LOOKBACK_HOURS)
-
-        _last_reconciliation = datetime.now(timezone.utc).isoformat()
-        _reconciliation_count += 1
-
-        if result["total_inserted"] > 0:
-            logger.info(
-                f"[Reconciliation] Startup complete: recovered {result['total_inserted']} messages"
-            )
-        else:
-            logger.info("[Reconciliation] Startup complete: no missing messages found")
-
-        return result
-
-    except Exception as e:
-        logger.error(f"[Reconciliation] Startup reconciliation failed: {e}")
-        return {"error": str(e)}
-
-
-async def run_periodic_reconciliation():
-    """
-    Run periodic reconciliation (called by scheduler).
-    Checks for messages from the last hour.
-    """
-    global _last_reconciliation, _reconciliation_count
-
-    try:
-        result = await run_reconciliation_cycle(lookback_hours=1)
-
-        _last_reconciliation = datetime.now(timezone.utc).isoformat()
-        _reconciliation_count += 1
-
-        return result
-
-    except Exception as e:
-        logger.error(f"[Reconciliation] Periodic reconciliation failed: {e}")
-        return {"error": str(e)}
 
 
 def get_reconciliation_status() -> Dict[str, Any]:
