@@ -33,7 +33,6 @@ from core.bot_question_analyzer import QuestionType, get_bot_question_analyzer, 
 
 # FULL INTEGRATION - Citations, message splitting, question removal, self-consistency
 from core.citation_service import get_citation_prompt_section
-from core.context_detector import detect_all as detect_context
 from core.conversation_state import get_state_manager
 
 # DETECTORES - Detect frustration, context, sensitive content
@@ -59,7 +58,6 @@ from core.reasoning.chain_of_thought import ChainOfThoughtReasoner
 from core.reasoning.self_consistency import get_self_consistency_validator
 from core.reflexion_engine import get_reflexion_engine
 from core.response_fixes import apply_all_response_fixes
-from core.sensitive_detector import detect_sensitive_content, get_crisis_resources
 
 # MEMORIA AVANZADA - Conversation facts tracking
 from models.conversation_memory import ConversationMemory
@@ -117,9 +115,7 @@ from core.dm.strategy import _determine_response_strategy
 
 
 # Feature flags for cognitive systems
-ENABLE_SENSITIVE_DETECTION = os.getenv("ENABLE_SENSITIVE_DETECTION", "true").lower() == "true"
 ENABLE_FRUSTRATION_DETECTION = os.getenv("ENABLE_FRUSTRATION_DETECTION", "true").lower() == "true"
-ENABLE_CONTEXT_DETECTION = os.getenv("ENABLE_CONTEXT_DETECTION", "true").lower() == "true"
 ENABLE_CONVERSATION_MEMORY = os.getenv("ENABLE_CONVERSATION_MEMORY", "true").lower() == "true"
 ENABLE_GUARDRAILS = os.getenv("ENABLE_GUARDRAILS", "true").lower() == "true"
 ENABLE_OUTPUT_VALIDATION = os.getenv("ENABLE_OUTPUT_VALIDATION", "true").lower() == "true"
@@ -142,7 +138,6 @@ ENABLE_RELATIONSHIP_DETECTION = (
     os.getenv("ENABLE_RELATIONSHIP_DETECTION", "true").lower() == "true"
 )
 # P4: Full integration
-ENABLE_EDGE_CASE_DETECTION = os.getenv("ENABLE_EDGE_CASE_DETECTION", "true").lower() == "true"
 ENABLE_CITATIONS = os.getenv("ENABLE_CITATIONS", "true").lower() == "true"
 ENABLE_MESSAGE_SPLITTING = os.getenv("ENABLE_MESSAGE_SPLITTING", "true").lower() == "true"
 ENABLE_QUESTION_REMOVAL = os.getenv("ENABLE_QUESTION_REMOVAL", "true").lower() == "true"
@@ -497,137 +492,8 @@ class DMResponderAgentV2:
     async def _phase_detection(
         self, message: str, sender_id: str, metadata: Dict, cognitive_metadata: Dict
     ) -> DetectionResult:
-        """Phase 1: Sensitive content, frustration, pool response, edge cases."""
-        result = DetectionResult()
-
-        # PRE-PIPELINE: SENSITIVE CONTENT DETECTION (Security)
-        if ENABLE_SENSITIVE_DETECTION:
-            try:
-                sensitive_result = detect_sensitive_content(message)
-                if sensitive_result and sensitive_result.confidence >= AGENT_THRESHOLDS.sensitive_confidence:
-                    logger.warning(f"Sensitive content detected: {sensitive_result.category}")
-                    cognitive_metadata["sensitive_detected"] = True
-                    cognitive_metadata["sensitive_category"] = sensitive_result.category
-                    if sensitive_result.confidence >= AGENT_THRESHOLDS.sensitive_escalation:
-                        crisis_response = get_crisis_resources(language="es")
-                        result.pool_response = DMResponse(
-                            content=crisis_response,
-                            intent="sensitive_content",
-                            lead_stage="unknown",
-                            confidence=sensitive_result.confidence,
-                            tokens_used=0,
-                            metadata={"sensitive_category": sensitive_result.category},
-                        )
-                        return result
-            except Exception as e:
-                logger.debug(f"Sensitive detection failed: {e}")
-
-        # Step 1a: Detect frustration level
-        if ENABLE_FRUSTRATION_DETECTION and hasattr(self, "frustration_detector"):
-            try:
-                history = metadata.get("history", [])
-                prev_messages = [
-                    m.get("content", "") for m in history if m.get("role") == "user"
-                ]
-                result.frustration_signals, result.frustration_level = (
-                    self.frustration_detector.analyze_message(message, sender_id, prev_messages)
-                )
-                if result.frustration_level > 0.3:
-                    logger.info(f"Frustration detected: {result.frustration_level:.2f}")
-                    cognitive_metadata["frustration_level"] = result.frustration_level
-            except Exception as e:
-                logger.debug(f"Frustration detection failed: {e}")
-
-        # Step 1b: Detect context signals (sarcasm, B2B, etc.)
-        if ENABLE_CONTEXT_DETECTION:
-            try:
-                history = metadata.get("history", [])
-                result.context_signals = detect_context(message, history)
-                if result.context_signals and result.context_signals.alerts:
-                    cognitive_metadata["context_signals"] = result.context_signals.to_dict()
-            except Exception as e:
-                logger.debug(f"Context detection failed: {e}")
-
-        # Step 1c: Try pool response for simple messages (fast path)
-        if hasattr(self, "response_variator"):
-            msg_lower = message.lower()
-            mentions_product = False
-            if self.products:
-                for p in self.products:
-                    pname = p.get("name") or ""
-                    if pname and _message_mentions_product(pname, msg_lower):
-                        mentions_product = True
-                        break
-
-            if not mentions_product and len(message.strip()) <= 80:
-                from services.length_controller import classify_lead_context
-                pool_context = classify_lead_context(message)
-                conv_id = metadata.get("conversation_id", sender_id)
-
-                pool_result = self.response_variator.try_pool_response(
-                    message,
-                    conv_id=conv_id,
-                    turn_index=metadata.get("turn_index", 0),
-                    context=pool_context,
-                    creator_id=self.creator_id,
-                )
-                if pool_result.matched and pool_result.confidence >= AGENT_THRESHOLDS.pool_confidence:
-                    import random as _rng
-                    if _rng.random() < 0.30:
-                        multi_bubbles = self.response_variator.try_multi_bubble(
-                            message, creator_id=self.creator_id, conv_id=conv_id,
-                        )
-                        if multi_bubbles:
-                            logger.debug(f"Multi-bubble matched: {len(multi_bubbles)} bubbles")
-                            result.pool_response = DMResponse(
-                                content=multi_bubbles[0],
-                                intent="pool_response",
-                                lead_stage="unknown",
-                                confidence=0.85,
-                                tokens_used=0,
-                                metadata={
-                                    "pool_category": "multi_bubble",
-                                    "used_pool": True,
-                                    "message_parts": [
-                                        {"text": b, "delay": 0.8} for b in multi_bubbles
-                                    ],
-                                },
-                            )
-                            return result
-
-                    logger.debug(f"Pool response matched: {pool_result.category}")
-                    result.pool_response = DMResponse(
-                        content=pool_result.response,
-                        intent="pool_response",
-                        lead_stage="unknown",
-                        confidence=pool_result.confidence,
-                        tokens_used=0,
-                        metadata={"pool_category": pool_result.category, "used_pool": True},
-                    )
-                    return result
-
-        # Step 1d: Edge case detection
-        if ENABLE_EDGE_CASE_DETECTION and hasattr(self, "edge_case_handler"):
-            try:
-                edge_result = self.edge_case_handler.detect(message)
-                if edge_result.should_escalate:
-                    logger.info(f"Edge case escalation: {edge_result.edge_type}")
-                    result.edge_case_response = DMResponse(
-                        content=edge_result.suggested_response
-                        or "Entiendo, déjame consultarlo y te respondo.",
-                        intent="edge_case_escalation",
-                        lead_stage="unknown",
-                        confidence=edge_result.confidence,
-                        metadata={
-                            "edge_type": str(edge_result.edge_type),
-                            "escalated": True,
-                        },
-                    )
-                    return result
-            except Exception as e:
-                logger.debug(f"Edge case detection failed: {e}")
-
-        return result
+        from core.dm.phases.detection import phase_detection
+        return await phase_detection(self, message, sender_id, metadata, cognitive_metadata)
 
 
     async def _phase_memory_and_context(
