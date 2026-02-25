@@ -2,6 +2,7 @@
 Memory Engine API endpoints.
 
 Provides REST access to per-lead memories:
+- GET /memory/stats/{creator_id}           — Memory stats for a creator
 - GET /memory/{creator_id}/{lead_id}       — Retrieve active memories
 - DELETE /memory/{creator_id}/{lead_id}     — GDPR forget (delete all)
 - POST /memory/{creator_id}/consolidate    — Manual decay trigger
@@ -16,6 +17,66 @@ from api.auth import require_creator_access
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/memory", tags=["memory"])
+
+
+@router.get("/stats/{creator_id}")
+async def get_memory_stats(
+    creator_id: str,
+    _auth=Depends(require_creator_access),
+):
+    """Get memory engine stats for a creator (fact counts, summary counts)."""
+    from services.memory_engine import ENABLE_MEMORY_ENGINE
+
+    if not ENABLE_MEMORY_ENGINE:
+        return {"enabled": False, "total_facts": 0, "active_facts": 0, "leads_with_memories": 0, "total_summaries": 0}
+
+    from api.database import SessionLocal
+    from api.models import Creator
+    from sqlalchemy import text
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        cid = str(creator.id)
+
+        total_facts = session.execute(
+            text("SELECT COUNT(*) FROM lead_memories WHERE creator_id = CAST(:cid AS uuid)"),
+            {"cid": cid},
+        ).scalar() or 0
+
+        active_facts = session.execute(
+            text("SELECT COUNT(*) FROM lead_memories WHERE creator_id = CAST(:cid AS uuid) AND is_active = true"),
+            {"cid": cid},
+        ).scalar() or 0
+
+        leads_with_memories = session.execute(
+            text("SELECT COUNT(DISTINCT lead_id) FROM lead_memories WHERE creator_id = CAST(:cid AS uuid) AND is_active = true"),
+            {"cid": cid},
+        ).scalar() or 0
+
+        total_summaries = session.execute(
+            text("SELECT COUNT(*) FROM conversation_summaries WHERE creator_id = CAST(:cid AS uuid)"),
+            {"cid": cid},
+        ).scalar() or 0
+
+        return {
+            "enabled": True,
+            "creator_id": creator_id,
+            "total_facts": total_facts,
+            "active_facts": active_facts,
+            "leads_with_memories": leads_with_memories,
+            "total_summaries": total_summaries,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Memory] Error getting stats: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+    finally:
+        session.close()
 
 
 @router.get("/{creator_id}/{lead_id}")
