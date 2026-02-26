@@ -85,7 +85,7 @@ def curl_post(path, body='{}', auth=True):
     h = f'-H "X-API-Key: {KEY}"' if auth else ''
     return f"""curl -s -o /dev/null -w "%{{http_code}}|%{{time_total}}" --max-time 20 {h} -X POST -H "Content-Type: application/json" -d '{body}' "{BASE}{path}" """
 
-TOTAL = 130  # Approximate, updated at end
+TOTAL = 131  # Approximate, updated at end
 
 print('=' * 60)
 print('CLONNECT MASSIVE E2E TEST v2 — CAPAS 0-6')
@@ -124,8 +124,9 @@ test('DM compra', curl_post('/dm/process', '{"creator_id":"' + CREATOR + '","mes
 test('DM emoji', curl_post('/dm/process', '{"creator_id":"' + CREATOR + '","message":"genial","sender_id":"e2e_test_003"}'), expect=200)
 long_msg = 'a' * 500
 test('DM largo', curl_post('/dm/process', '{"creator_id":"' + CREATOR + '","message":"' + long_msg + '","sender_id":"e2e_test_004"}'), expect=200)
-test('Copilot pending', curl_get(f'/copilot/{CREATOR}/pending'), expect=[200, 500])
+test('Copilot pending', curl_get(f'/copilot/{CREATOR}/pending'), expect=200)
 test('Copilot status', curl_get(f'/copilot/{CREATOR}/status'), expect=200)
+test('Copilot suggest (nuevo endpoint)', curl_post(f'/copilot/{CREATOR}/suggest', '{"lead_id":"00000000-0000-0000-0000-000000000001"}'), expect=[404, 422])
 test('Content search (GET)', curl_get(f'/content/search?creator_id={CREATOR}&query=fitness'), expect=200)
 test('Citations search (POST)', curl_post('/citations/search', '{"query":"fitness","creator_id":"' + CREATOR + '"}'), expect=200)
 test('Clone score', curl_get(f'/clone-score/{CREATOR}'), expect=200)
@@ -177,7 +178,7 @@ creator_gets = [
     (f'/clone-score/{CREATOR}', 200),
     (f'/payments/{CREATOR}/revenue', 200),
     (f'/booking-links/{CREATOR}', 200),
-    (f'/bot/{CREATOR}/status', [200, 404]),
+    (f'/bot/{CREATOR}/status', 200),
     ('/preview/status', 200),
     (f'/leads/{CREATOR}/unified', 200),
 ]
