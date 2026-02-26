@@ -105,14 +105,14 @@ async def admin_list_creators(admin: str = Depends(require_admin)):
                     c.name                          AS name,
                     c.instagram_user_id             AS instagram_user_id,
                     c.bot_active                    AS is_active,
-                    c.updated_at                    AS updated_at,
+                    c.created_at                    AS created_at,
                     COUNT(DISTINCT l.id)            AS total_leads,
                     COUNT(DISTINCT m.id)            AS total_messages,
                     COUNT(DISTINCT CASE WHEN l.status = 'caliente' THEN l.id END) AS hot_leads
                 FROM creators c
                 LEFT JOIN leads l ON l.creator_id = c.id
                 LEFT JOIN messages m ON m.lead_id = l.id
-                GROUP BY c.id, c.name, c.instagram_user_id, c.bot_active, c.updated_at
+                GROUP BY c.id, c.name, c.instagram_user_id, c.bot_active, c.created_at
                 ORDER BY c.name
             """)).fetchall()
         finally:
@@ -125,7 +125,7 @@ async def admin_list_creators(admin: str = Depends(require_admin)):
                 "instagram_user_id": row[2],
                 "is_active": bool(row[3]),
                 "pause_reason": None,
-                "updated_at": row[4].isoformat() if row[4] else None,
+                "created_at": row[4].isoformat() if row[4] else None,
                 "total_leads": row[5] or 0,
                 "total_messages": row[6] or 0,
                 "hot_leads": row[7] or 0,
