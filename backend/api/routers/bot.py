@@ -84,14 +84,39 @@ async def get_bot_status(
 ):
     """
     Obtener estado del bot para un creador.
+    Looks up from DB (authoritative) with file-based config as fallback.
     """
     from api.auth import require_creator_or_admin
+    from api.database import SessionLocal
+    from sqlalchemy import text
 
     await require_creator_or_admin(creator_id, x_api_key)
 
-    status = config_manager.get_bot_status(creator_id)
+    # Try DB first (authoritative for all creators)
+    try:
+        session = SessionLocal()
+        try:
+            row = session.execute(
+                text("SELECT id, name, bot_active FROM creators WHERE name = :name LIMIT 1"),
+                {"name": creator_id},
+            ).fetchone()
+        finally:
+            session.close()
 
-    if not status.get("exists"):
+        if row:
+            return {
+                "status": "ok",
+                "creator_id": creator_id,
+                "exists": True,
+                "active": bool(row[2]),
+                "source": "db",
+            }
+    except Exception as e:
+        logger.debug(f"DB lookup failed for bot status {creator_id}: {e}")
+
+    # Fallback: file-based config
+    file_status = config_manager.get_bot_status(creator_id)
+    if not file_status.get("exists"):
         raise HTTPException(status_code=404, detail="Creator not found")
 
-    return {"status": "ok", "creator_id": creator_id, **status}
+    return {"status": "ok", "creator_id": creator_id, **file_status}
