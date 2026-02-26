@@ -4,6 +4,42 @@
 **Entorno**: Production — https://www.clonnectapp.com (Railway + NeonDB)
 **Beta tester**: stefano_bonanno
 **Estado**: ✅ CAPAS 0–6 COMPLETAS — Capa 7 PENDIENTE (Stefano)
+**Codebase**: 152 390 LOC Python · 33 928 LOC TS/CSS · 895 + 219 archivos
+
+---
+
+## Codebase — Líneas de Código (cloc, 2026-02-26)
+
+> Medido con `cloc`. Excluye: `.venv/`, `node_modules/`, `dist/`, `__pycache__/`, `knowledge_bases/`, `results/`, `backtest_output*/`.
+
+### Por categoría
+
+| Categoría | Lenguaje | Archivos | Blank | Comment | **Code** |
+|-----------|----------|----------|-------|---------|---------|
+| Backend src (api/, core/, services/) | Python | 439 | 20 995 | 22 070 | **82 533** |
+| Tests Python (tests/) | Python | 291 | 11 638 | 8 685 | **37 163** |
+| Scripts (scripts/) | Python | 71 | 4 050 | 4 033 | **17 938** |
+| Migrations (alembic/) | Python | 39 | 455 | 583 | **1 462** |
+| Otros Python (root, massive_test, etc.) | Python | 55 | 3 239 | 3 628 | **13 294** |
+| **Python total** | | **895** | **40 377** | **38 989** | **152 390** |
+| Frontend (src/) | TypeScript | 213 | 3 300 | 1 467 | **31 595** |
+| Frontend tests (.test.ts/tsx) | TypeScript | 19 | 339 | 121 | **2 125** |
+| Estilos | CSS | 6 | 495 | 121 | **2 606** |
+| Scripts JS | JavaScript | 27 | 194 | 561 | **1 213** |
+| **Frontend total** | | **219** | **3 729** | **1 565** | **33 928** |
+| Configs (YAML, TOML, SQL) | varios | 16 | 161 | 147 | **736** |
+| **TOTAL PRODUCTIVO** | | **1 130** | **44 267** | **40 701** | **187 054** |
+
+> Markdown (151 archivos, 65 146 líneas de docs) y JSON de fixtures excluidos del total productivo.
+
+### Ratio test coverage
+
+| Métrica | Valor |
+|---------|-------|
+| LOC bajo test (Python src) | 82 533 |
+| LOC de tests Python | 37 163 |
+| Test/Src ratio | **0.45** (45 líneas de test por cada 100 de src) |
+| Archivos con tests (estimado) | ~220 / 439 (50%) |
 
 ---
 
@@ -398,5 +434,9 @@
 | Optimizaciones de performance | **3** (60×, 13×, −4s DM) |
 | Dead code eliminado | **2 archivos** |
 | Endpoints de alto riesgo documentados para auth | **9** |
+| LOC Python (total) | **152 390** (895 archivos) |
+| LOC Frontend TS/CSS | **33 928** (219 archivos) |
+| LOC total productivo | **187 054** |
+| Ratio test/src | **0.45** (45 líneas test por 100 src) |
 
 **Próximo paso**: Capa 7 — Human in the loop con Stefano Bonanno
