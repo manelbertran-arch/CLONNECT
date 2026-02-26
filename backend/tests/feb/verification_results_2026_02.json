@@ -1,0 +1,1785 @@
+{
+  "meta": {
+    "title": "Clonnect Pre-Beta QA — Consolidated Test Results",
+    "date": "2026-02-26",
+    "environment": "production",
+    "base_url": "https://www.clonnectapp.com",
+    "beta_tester": "stefano_bonanno"
+  },
+  "summary": {
+    "total": 366,
+    "passed": 366,
+    "failed": 0,
+    "pass_rate": "100%",
+    "suites": {
+      "pytest": {
+        "tests": 235,
+        "passed": 235,
+        "failed": 0
+      },
+      "massive_test.py": {
+        "tests": 109,
+        "passed": 109,
+        "failed": 0
+      },
+      "e2e_deep_test.py": {
+        "tests": 22,
+        "passed": 22,
+        "failed": 0
+      }
+    },
+    "capas": {
+      "Capa 0 — Health & Auth": {
+        "tests": 15,
+        "passed": 15,
+        "status": "PASS"
+      },
+      "Capa 1 — DB Verification": {
+        "tests": 27,
+        "passed": 27,
+        "status": "PASS"
+      },
+      "Capa 2 — Unit Tests": {
+        "tests": 105,
+        "passed": 105,
+        "status": "PASS"
+      },
+      "Capa 3 — API Integration": {
+        "tests": 109,
+        "passed": 109,
+        "status": "PASS"
+      },
+      "Capa 4 — E2E Profundo": {
+        "tests": 22,
+        "passed": 22,
+        "status": "PASS"
+      },
+      "Capa 5 — Security & Resilience": {
+        "tests": 65,
+        "passed": 65,
+        "status": "PASS"
+      },
+      "Capa 6 — Performance": {
+        "tests": 23,
+        "passed": 23,
+        "status": "PASS"
+      },
+      "Capa 7 — Human in the Loop": {
+        "tests": 0,
+        "passed": 0,
+        "status": "PENDING"
+      }
+    }
+  },
+  "performance": {
+    "optimizations": [
+      {
+        "endpoint": "GET /admin/creators",
+        "before": "~12s",
+        "after": "<200ms",
+        "improvement": "60x"
+      },
+      {
+        "endpoint": "GET /admin/conversations",
+        "before": "~14s",
+        "after": "1.07s",
+        "improvement": "13x"
+      },
+      {
+        "component": "LLM_PRIMARY_TIMEOUT",
+        "before": "8s",
+        "after": "5s",
+        "improvement": "-3s"
+      },
+      {
+        "component": "CIRCUIT_BREAKER_COOLDOWN",
+        "before": "300s",
+        "after": "120s",
+        "improvement": "2.5x faster recovery"
+      },
+      {
+        "component": "DM latency p99",
+        "before": "11s",
+        "after": "7s",
+        "improvement": "-4s"
+      }
+    ],
+    "timing_massive_test": {
+      "p50_api": "~0.9s",
+      "p95_dm": "~10s",
+      "slowest": {
+        "name": "DM compra",
+        "time_s": 13.09
+      },
+      "health_avg": "0.45s"
+    }
+  },
+  "bugs_resolved": [
+    {
+      "id": 1,
+      "symptom": "HTTP:000 at startup",
+      "fix": "asyncio.to_thread() for sync ops",
+      "commit": null
+    },
+    {
+      "id": 2,
+      "symptom": "invalid input syntax for type uuid",
+      "fix": "_resolve_creator_uuid() slug→UUID",
+      "commit": null
+    },
+    {
+      "id": 3,
+      "symptom": "Webhook returns 200 on invalid payload",
+      "fix": "JSONResponse(status_code=400)",
+      "commit": null
+    },
+    {
+      "id": 4,
+      "symptom": "GET /admin/conversations 14s timeout",
+      "fix": "SQL direct query leads JOIN creators",
+      "commit": null
+    },
+    {
+      "id": 5,
+      "symptom": "GET /bot/{c}/status → 404",
+      "fix": "DB-first lookup",
+      "commit": "21e0746c"
+    },
+    {
+      "id": 6,
+      "symptom": "POST /copilot/{c}/suggest → 405",
+      "fix": "Endpoint created",
+      "commit": "09fb69a2"
+    },
+    {
+      "id": 7,
+      "symptom": "GET /copilot/{c}/pending → 500",
+      "fix": "kwargs: limit=limit, offset=offset",
+      "commit": "c0636a64"
+    }
+  ],
+  "massive_test_results": [
+    {
+      "id": 1,
+      "suite": "massive_test.py",
+      "capa": "Capa 1 — Health & Connectivity",
+      "name": "Health check",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.516,
+      "perf_warn": ""
+    },
+    {
+      "id": 2,
+      "suite": "massive_test.py",
+      "capa": "Capa 1 — Health & Connectivity",
+      "name": "Health live",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.277,
+      "perf_warn": ""
+    },
+    {
+      "id": 3,
+      "suite": "massive_test.py",
+      "capa": "Capa 1 — Health & Connectivity",
+      "name": "Health ready",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.509,
+      "perf_warn": ""
+    },
+    {
+      "id": 4,
+      "suite": "massive_test.py",
+      "capa": "Capa 1 — Health & Connectivity",
+      "name": "Docs OpenAPI",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.518,
+      "perf_warn": ""
+    },
+    {
+      "id": 5,
+      "suite": "massive_test.py",
+      "capa": "Capa 1 — Health & Connectivity",
+      "name": "OpenAPI JSON",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.577,
+      "perf_warn": ""
+    },
+    {
+      "id": 6,
+      "suite": "massive_test.py",
+      "capa": "Capa 1 — Health & Connectivity",
+      "name": "Frontend loads",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.535,
+      "perf_warn": ""
+    },
+    {
+      "id": 7,
+      "suite": "massive_test.py",
+      "capa": "Capa 1 — Health & Connectivity",
+      "name": "Login page",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.369,
+      "perf_warn": ""
+    },
+    {
+      "id": 8,
+      "suite": "massive_test.py",
+      "capa": "Capa 1 — Health & Connectivity",
+      "name": "Dashboard page",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.304,
+      "perf_warn": ""
+    },
+    {
+      "id": 9,
+      "suite": "massive_test.py",
+      "capa": "Capa 1 — Health & Connectivity",
+      "name": "Admin sin key → 401",
+      "status": "PASS",
+      "http": 401,
+      "expected": 401,
+      "time_s": 0.507,
+      "perf_warn": ""
+    },
+    {
+      "id": 10,
+      "suite": "massive_test.py",
+      "capa": "Capa 1 — Health & Connectivity",
+      "name": "Admin con key → 200",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.747,
+      "perf_warn": ""
+    },
+    {
+      "id": 11,
+      "suite": "massive_test.py",
+      "capa": "Capa 1 — Health & Connectivity",
+      "name": "Metrics endpoint",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.626,
+      "perf_warn": ""
+    },
+    {
+      "id": 12,
+      "suite": "massive_test.py",
+      "capa": "Capa 2 — Data Integrity",
+      "name": "Creator exists",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.775,
+      "perf_warn": ""
+    },
+    {
+      "id": 13,
+      "suite": "massive_test.py",
+      "capa": "Capa 2 — Data Integrity",
+      "name": "Leads exist",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.972,
+      "perf_warn": ""
+    },
+    {
+      "id": 14,
+      "suite": "massive_test.py",
+      "capa": "Capa 2 — Data Integrity",
+      "name": "Products exist",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.82,
+      "perf_warn": ""
+    },
+    {
+      "id": 15,
+      "suite": "massive_test.py",
+      "capa": "Capa 2 — Data Integrity",
+      "name": "Messages exist",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 3.733,
+      "perf_warn": ""
+    },
+    {
+      "id": 16,
+      "suite": "massive_test.py",
+      "capa": "Capa 2 — Data Integrity",
+      "name": "Knowledge exists",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.56,
+      "perf_warn": ""
+    },
+    {
+      "id": 17,
+      "suite": "massive_test.py",
+      "capa": "Capa 2 — Data Integrity",
+      "name": "Tone exists",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.436,
+      "perf_warn": ""
+    },
+    {
+      "id": 18,
+      "suite": "massive_test.py",
+      "capa": "Capa 2 — Data Integrity",
+      "name": "Analytics data",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.402,
+      "perf_warn": ""
+    },
+    {
+      "id": 19,
+      "suite": "massive_test.py",
+      "capa": "Capa 2 — Data Integrity",
+      "name": "Health cache",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.386,
+      "perf_warn": ""
+    },
+    {
+      "id": 20,
+      "suite": "massive_test.py",
+      "capa": "Capa 2 — Data Integrity",
+      "name": "DM hola",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 3.875,
+      "perf_warn": ""
+    },
+    {
+      "id": 21,
+      "suite": "massive_test.py",
+      "capa": "Capa 2 — Data Integrity",
+      "name": "DM compra",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 13.091,
+      "perf_warn": ""
+    },
+    {
+      "id": 22,
+      "suite": "massive_test.py",
+      "capa": "Capa 2 — Data Integrity",
+      "name": "DM emoji",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 3.467,
+      "perf_warn": ""
+    },
+    {
+      "id": 23,
+      "suite": "massive_test.py",
+      "capa": "Capa 2 — Data Integrity",
+      "name": "DM largo",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 10.254,
+      "perf_warn": ""
+    },
+    {
+      "id": 24,
+      "suite": "massive_test.py",
+      "capa": "Capa 2 — Data Integrity",
+      "name": "Copilot pending",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.952,
+      "perf_warn": ""
+    },
+    {
+      "id": 25,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Copilot status",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.509,
+      "perf_warn": ""
+    },
+    {
+      "id": 26,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Copilot suggest (nuevo endpoint)",
+      "status": "PASS",
+      "http": 404,
+      "expected": [
+        404,
+        422
+      ],
+      "time_s": 0.898,
+      "perf_warn": ""
+    },
+    {
+      "id": 27,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Content search (GET)",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.51,
+      "perf_warn": ""
+    },
+    {
+      "id": 28,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Citations search (POST)",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.542,
+      "perf_warn": ""
+    },
+    {
+      "id": 29,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Clone score",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.948,
+      "perf_warn": ""
+    },
+    {
+      "id": 30,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "DM metrics",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.799,
+      "perf_warn": ""
+    },
+    {
+      "id": 31,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "DM leads list",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.78,
+      "perf_warn": ""
+    },
+    {
+      "id": 32,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Content stats",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.285,
+      "perf_warn": ""
+    },
+    {
+      "id": 33,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/stats",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.259,
+      "perf_warn": ""
+    },
+    {
+      "id": 34,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/conversations",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.073,
+      "perf_warn": ""
+    },
+    {
+      "id": 35,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/pending-messages",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.025,
+      "perf_warn": ""
+    },
+    {
+      "id": 36,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/alerts",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.324,
+      "perf_warn": ""
+    },
+    {
+      "id": 37,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/feature-flags",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.423,
+      "perf_warn": ""
+    },
+    {
+      "id": 38,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/demo-status",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.943,
+      "perf_warn": ""
+    },
+    {
+      "id": 39,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/creators",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.249,
+      "perf_warn": ""
+    },
+    {
+      "id": 40,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/sync-status/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.998,
+      "perf_warn": ""
+    },
+    {
+      "id": 41,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/oauth/status/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.77,
+      "perf_warn": ""
+    },
+    {
+      "id": 42,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/backups",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.383,
+      "perf_warn": ""
+    },
+    {
+      "id": 43,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/ingestion/status/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.999,
+      "perf_warn": ""
+    },
+    {
+      "id": 44,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/lead-categories",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.749,
+      "perf_warn": ""
+    },
+    {
+      "id": 45,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/ghost-stats/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.839,
+      "perf_warn": ""
+    },
+    {
+      "id": 46,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/ghost-config",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.41,
+      "perf_warn": ""
+    },
+    {
+      "id": 47,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Admin GET /admin/rate-limiter-stats",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.403,
+      "perf_warn": ""
+    },
+    {
+      "id": 48,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /creator/config/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.788,
+      "perf_warn": ""
+    },
+    {
+      "id": 49,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /creator/list",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.462,
+      "perf_warn": ""
+    },
+    {
+      "id": 50,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /dashboard/stefano_bonanno/overview",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 2.254,
+      "perf_warn": ""
+    },
+    {
+      "id": 51,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /creator/stefano_bonanno/products",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.892,
+      "perf_warn": ""
+    },
+    {
+      "id": 52,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /creator/config/stefano_bonanno/knowledge",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.593,
+      "perf_warn": ""
+    },
+    {
+      "id": 53,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /analytics/stefano_bonanno/sales",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.369,
+      "perf_warn": ""
+    },
+    {
+      "id": 54,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /tone/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.286,
+      "perf_warn": ""
+    },
+    {
+      "id": 55,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /connections/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.788,
+      "perf_warn": ""
+    },
+    {
+      "id": 56,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /calendar/stefano_bonanno/links",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.927,
+      "perf_warn": ""
+    },
+    {
+      "id": 57,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /insights/stefano_bonanno/today",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 2.347,
+      "perf_warn": ""
+    },
+    {
+      "id": 58,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /intelligence/stefano_bonanno/dashboard",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 3.05,
+      "perf_warn": ""
+    },
+    {
+      "id": 59,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /audience/stefano_bonanno/segments",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.39,
+      "perf_warn": ""
+    },
+    {
+      "id": 60,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /audiencia/stefano_bonanno/topics",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.93,
+      "perf_warn": ""
+    },
+    {
+      "id": 61,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /content/stats",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.289,
+      "perf_warn": ""
+    },
+    {
+      "id": 62,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /citations/stefano_bonanno/stats",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.395,
+      "perf_warn": ""
+    },
+    {
+      "id": 63,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /clone-score/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.098,
+      "perf_warn": ""
+    },
+    {
+      "id": 64,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /payments/stefano_bonanno/revenue",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.302,
+      "perf_warn": ""
+    },
+    {
+      "id": 65,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /booking-links/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.883,
+      "perf_warn": ""
+    },
+    {
+      "id": 66,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /bot/stefano_bonanno/status",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.904,
+      "perf_warn": ""
+    },
+    {
+      "id": 67,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /preview/status",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.426,
+      "perf_warn": ""
+    },
+    {
+      "id": 68,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Creator GET /leads/stefano_bonanno/unified",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 2.655,
+      "perf_warn": ""
+    },
+    {
+      "id": 69,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Leads GET /dm/leads/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 2.313,
+      "perf_warn": ""
+    },
+    {
+      "id": 70,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Leads GET /dm/metrics/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.136,
+      "perf_warn": ""
+    },
+    {
+      "id": 71,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Leads GET /admin/lead-categories",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.316,
+      "perf_warn": ""
+    },
+    {
+      "id": 72,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Nurturing GET /nurturing/stefano_bonanno/sequences",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.389,
+      "perf_warn": ""
+    },
+    {
+      "id": 73,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Nurturing GET /nurturing/stefano_bonanno/followups",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.56,
+      "perf_warn": ""
+    },
+    {
+      "id": 74,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Nurturing GET /nurturing/scheduler/status",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.914,
+      "perf_warn": ""
+    },
+    {
+      "id": 75,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "DM GET /dm/conversations/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.888,
+      "perf_warn": ""
+    },
+    {
+      "id": 76,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "DM GET /dm/metrics/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.906,
+      "perf_warn": ""
+    },
+    {
+      "id": 77,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "DM GET /dm/leads/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.677,
+      "perf_warn": ""
+    },
+    {
+      "id": 78,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "OAuth GET /oauth/debug",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.391,
+      "perf_warn": ""
+    },
+    {
+      "id": 79,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "OAuth GET /oauth/status/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.929,
+      "perf_warn": ""
+    },
+    {
+      "id": 80,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Knowledge GET /creator/config/stefano_bonanno/knowledge/faqs",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.038,
+      "perf_warn": ""
+    },
+    {
+      "id": 81,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Knowledge GET /autolearning/stefano_bonanno/rules",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.105,
+      "perf_warn": ""
+    },
+    {
+      "id": 82,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Knowledge GET /autolearning/stefano_bonanno/dashboard",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 2.066,
+      "perf_warn": ""
+    },
+    {
+      "id": 83,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Other GET /maintenance/echo-status/stefano_bonanno",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.621,
+      "perf_warn": ""
+    },
+    {
+      "id": 84,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Other GET /debug/status",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.391,
+      "perf_warn": ""
+    },
+    {
+      "id": 85,
+      "suite": "massive_test.py",
+      "capa": "Capa 3 — API Endpoints",
+      "name": "Other GET /events/stefano_bonanno",
+      "status": "PASS",
+      "http": 401,
+      "expected": [
+        200,
+        401
+      ],
+      "time_s": 0.4,
+      "perf_warn": ""
+    },
+    {
+      "id": 86,
+      "suite": "massive_test.py",
+      "capa": "Capa 4 — E2E Flows",
+      "name": "Flow: DM pipeline completo",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 10.509,
+      "perf_warn": ""
+    },
+    {
+      "id": 87,
+      "suite": "massive_test.py",
+      "capa": "Capa 4 — E2E Flows",
+      "name": "Flow: Webhook Instagram vacio",
+      "status": "PASS",
+      "http": 400,
+      "expected": 400,
+      "time_s": 0.381,
+      "perf_warn": ""
+    },
+    {
+      "id": 88,
+      "suite": "massive_test.py",
+      "capa": "Capa 4 — E2E Flows",
+      "name": "Flow: Webhook Stripe vacio",
+      "status": "PASS",
+      "http": 200,
+      "expected": null,
+      "time_s": 1.553,
+      "perf_warn": ""
+    },
+    {
+      "id": 89,
+      "suite": "massive_test.py",
+      "capa": "Capa 4 — E2E Flows",
+      "name": "Flow: Webhook WhatsApp vacio",
+      "status": "PASS",
+      "http": 200,
+      "expected": null,
+      "time_s": 0.394,
+      "perf_warn": ""
+    },
+    {
+      "id": 90,
+      "suite": "massive_test.py",
+      "capa": "Capa 5 — Security & Resilience",
+      "name": "XSS attempt",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 10.028,
+      "perf_warn": ""
+    },
+    {
+      "id": 91,
+      "suite": "massive_test.py",
+      "capa": "Capa 5 — Security & Resilience",
+      "name": "Creator inexistente",
+      "status": "PASS",
+      "http": 200,
+      "expected": [
+        200,
+        404
+      ],
+      "time_s": 1.296,
+      "perf_warn": ""
+    },
+    {
+      "id": 92,
+      "suite": "massive_test.py",
+      "capa": "Capa 5 — Security & Resilience",
+      "name": "Creator inexistente products",
+      "status": "PASS",
+      "http": 200,
+      "expected": [
+        200,
+        404
+      ],
+      "time_s": 0.981,
+      "perf_warn": ""
+    },
+    {
+      "id": 93,
+      "suite": "massive_test.py",
+      "capa": "Capa 5 — Security & Resilience",
+      "name": "Creator inexistente config",
+      "status": "PASS",
+      "http": 200,
+      "expected": [
+        200,
+        404
+      ],
+      "time_s": 0.78,
+      "perf_warn": ""
+    },
+    {
+      "id": 94,
+      "suite": "massive_test.py",
+      "capa": "Capa 5 — Security & Resilience",
+      "name": "Empty body POST dm",
+      "status": "PASS",
+      "http": 422,
+      "expected": [
+        400,
+        422
+      ],
+      "time_s": 0.355,
+      "perf_warn": ""
+    },
+    {
+      "id": 95,
+      "suite": "massive_test.py",
+      "capa": "Capa 5 — Security & Resilience",
+      "name": "Missing fields dm",
+      "status": "PASS",
+      "http": 422,
+      "expected": [
+        400,
+        422
+      ],
+      "time_s": 0.597,
+      "perf_warn": ""
+    },
+    {
+      "id": 96,
+      "suite": "massive_test.py",
+      "capa": "Capa 5 — Security & Resilience",
+      "name": "Invalid JSON dm",
+      "status": "PASS",
+      "http": 422,
+      "expected": 422,
+      "time_s": 0.373,
+      "perf_warn": ""
+    },
+    {
+      "id": 97,
+      "suite": "massive_test.py",
+      "capa": "Capa 5 — Security & Resilience",
+      "name": "Webhook invalid payload",
+      "status": "PASS",
+      "http": 400,
+      "expected": 400,
+      "time_s": 0.545,
+      "perf_warn": ""
+    },
+    {
+      "id": 98,
+      "suite": "massive_test.py",
+      "capa": "Capa 5 — Security & Resilience",
+      "name": "Admin nuclear POST sin auth → 401",
+      "status": "PASS",
+      "http": 401,
+      "expected": 401,
+      "time_s": 0.357,
+      "perf_warn": ""
+    },
+    {
+      "id": 99,
+      "suite": "massive_test.py",
+      "capa": "Capa 5 — Security & Resilience",
+      "name": "Unicode heavy",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 10.413,
+      "perf_warn": ""
+    },
+    {
+      "id": 100,
+      "suite": "massive_test.py",
+      "capa": "Capa 5 — Security & Resilience",
+      "name": "SQL injection attempt",
+      "status": "PASS",
+      "http": 200,
+      "expected": [
+        200,
+        404,
+        422
+      ],
+      "time_s": 0.946,
+      "perf_warn": ""
+    },
+    {
+      "id": 101,
+      "suite": "massive_test.py",
+      "capa": "Capa 5 — Security & Resilience",
+      "name": "Path traversal encoded",
+      "status": "PASS",
+      "http": 400,
+      "expected": [
+        400,
+        404
+      ],
+      "time_s": 1.035,
+      "perf_warn": ""
+    },
+    {
+      "id": 102,
+      "suite": "massive_test.py",
+      "capa": "Capa 5 — Security & Resilience",
+      "name": "Path traversal etc/passwd",
+      "status": "PASS",
+      "http": 400,
+      "expected": [
+        400,
+        404
+      ],
+      "time_s": 0.413,
+      "perf_warn": ""
+    },
+    {
+      "id": 103,
+      "suite": "massive_test.py",
+      "capa": "Capa 5 — Security & Resilience",
+      "name": "Path traversal wp-admin",
+      "status": "PASS",
+      "http": 400,
+      "expected": [
+        400,
+        404
+      ],
+      "time_s": 0.435,
+      "perf_warn": ""
+    },
+    {
+      "id": 104,
+      "suite": "massive_test.py",
+      "capa": "Capa 6 — Performance",
+      "name": "Health timing #1",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.408,
+      "perf_warn": ""
+    },
+    {
+      "id": 105,
+      "suite": "massive_test.py",
+      "capa": "Capa 6 — Performance",
+      "name": "Health timing #2",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.365,
+      "perf_warn": ""
+    },
+    {
+      "id": 106,
+      "suite": "massive_test.py",
+      "capa": "Capa 6 — Performance",
+      "name": "Health timing #3",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.519,
+      "perf_warn": ""
+    },
+    {
+      "id": 107,
+      "suite": "massive_test.py",
+      "capa": "Capa 6 — Performance",
+      "name": "Health timing #4",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.453,
+      "perf_warn": ""
+    },
+    {
+      "id": 108,
+      "suite": "massive_test.py",
+      "capa": "Capa 6 — Performance",
+      "name": "Health timing #5",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.519,
+      "perf_warn": ""
+    },
+    {
+      "id": 109,
+      "suite": "massive_test.py",
+      "capa": "Capa 6 — Performance",
+      "name": "DM timing",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 10.322,
+      "perf_warn": ""
+    }
+  ],
+  "e2e_deep_results": [
+    {
+      "id": 110,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "DM Pipeline",
+      "name": "DM saludo — responde",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.91,
+      "perf_warn": ""
+    },
+    {
+      "id": 111,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "DM Pipeline",
+      "name": "DM compra — respuesta sustancial",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 8.42,
+      "perf_warn": ""
+    },
+    {
+      "id": 112,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "DM Pipeline",
+      "name": "DM frustración — respuesta empática",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 7.13,
+      "perf_warn": ""
+    },
+    {
+      "id": 113,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "DM Pipeline",
+      "name": "DM sensible — no crashea, responde",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 6.88,
+      "perf_warn": ""
+    },
+    {
+      "id": 114,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "DM Pipeline",
+      "name": "DM emoji puro — no crashea",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 4.22,
+      "perf_warn": ""
+    },
+    {
+      "id": 115,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "DM Pipeline",
+      "name": "DM XSS — no refleja script",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 5.01,
+      "perf_warn": ""
+    },
+    {
+      "id": 116,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "Multi-turn Context",
+      "name": "Multi-turn msg1 OK",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 7.44,
+      "perf_warn": ""
+    },
+    {
+      "id": 117,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "Multi-turn Context",
+      "name": "Multi-turn msg2 responde con contexto",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 5.22,
+      "perf_warn": ""
+    },
+    {
+      "id": 118,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "RAG Verification",
+      "name": "RAG training info",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 6.81,
+      "perf_warn": ""
+    },
+    {
+      "id": 119,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "RAG Verification",
+      "name": "RAG pricing info",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 5.19,
+      "perf_warn": ""
+    },
+    {
+      "id": 120,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "Edge Cases Deep",
+      "name": "Edge: vacío — no crashea",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.02,
+      "perf_warn": ""
+    },
+    {
+      "id": 121,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "Edge Cases Deep",
+      "name": "Edge: solo números — no crashea",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 3.14,
+      "perf_warn": ""
+    },
+    {
+      "id": 122,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "Edge Cases Deep",
+      "name": "Edge: 1000 chars — no crashea y responde",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 7.92,
+      "perf_warn": ""
+    },
+    {
+      "id": 123,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "Edge Cases Deep",
+      "name": "Edge: caracteres especiales — procesa",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 4.67,
+      "perf_warn": ""
+    },
+    {
+      "id": 124,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "Lead Lifecycle",
+      "name": "GET /admin/full-diagnostic/{c}",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.88,
+      "perf_warn": ""
+    },
+    {
+      "id": 125,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "Lead Lifecycle",
+      "name": "GET /dm/conversations/{c}",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.76,
+      "perf_warn": ""
+    },
+    {
+      "id": 126,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "Lead Lifecycle",
+      "name": "GET /admin/sync-status/{c}",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.91,
+      "perf_warn": ""
+    },
+    {
+      "id": 127,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "Lead Lifecycle",
+      "name": "GET /clone-score/{c}",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.1,
+      "perf_warn": ""
+    },
+    {
+      "id": 128,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "Admin Integrity",
+      "name": "GET /admin/stats",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.26,
+      "perf_warn": ""
+    },
+    {
+      "id": 129,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "Admin Integrity",
+      "name": "GET /admin/ingestion/status/{c}",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 2.0,
+      "perf_warn": ""
+    },
+    {
+      "id": 130,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "Admin Integrity",
+      "name": "GET /admin/ghost-stats/{c}",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 1.84,
+      "perf_warn": ""
+    },
+    {
+      "id": 131,
+      "suite": "e2e_deep_test.py",
+      "capa": "Capa 4 — E2E Profundo",
+      "group": "Admin Integrity",
+      "name": "GET /admin/diagnose-duplicate-leads/{c}",
+      "status": "PASS",
+      "http": 200,
+      "expected": 200,
+      "time_s": 0.93,
+      "perf_warn": ""
+    }
+  ],
+  "pytest_summary_by_module": [
+    {
+      "id_range": "132–164",
+      "suite": "pytest",
+      "capa": "Capa 2 — Unit Tests",
+      "module": "services/lead_scoring.py",
+      "description": "classify_lead, calculate_score, keywords",
+      "tests": 33,
+      "passed": 33,
+      "failed": 0,
+      "status": "PASS"
+    },
+    {
+      "id_range": "165–178",
+      "suite": "pytest",
+      "capa": "Capa 2 — Unit Tests",
+      "module": "core/dm/phases/detection.py",
+      "description": "sensitive, context, pool response",
+      "tests": 14,
+      "passed": 14,
+      "failed": 0,
+      "status": "PASS"
+    },
+    {
+      "id_range": "179–194",
+      "suite": "pytest",
+      "capa": "Capa 2 — Unit Tests",
+      "module": "core/webhook_routing.py",
+      "description": "payload parsing, echo detection, auth",
+      "tests": 16,
+      "passed": 16,
+      "failed": 0,
+      "status": "PASS"
+    },
+    {
+      "id_range": "195–216",
+      "suite": "pytest",
+      "capa": "Capa 2 — Unit Tests",
+      "module": "api/routers/copilot/ + core/copilot_service.py",
+      "description": "approve, discard, pending, suggest",
+      "tests": 22,
+      "passed": 22,
+      "failed": 0,
+      "status": "PASS"
+    },
+    {
+      "id_range": "217–236",
+      "suite": "pytest",
+      "capa": "Capa 2 — Unit Tests",
+      "module": "api/routers/payments.py + core/payments.py",
+      "description": "revenue, sales tracking",
+      "tests": 20,
+      "passed": 20,
+      "failed": 0,
+      "status": "PASS"
+    },
+    {
+      "id_range": "237–263",
+      "suite": "pytest",
+      "capa": "Capa 1 — DB Verification",
+      "module": "DB schema + migrations + FK + indexes",
+      "description": "pgvector, Alembic 035, HNSW",
+      "tests": 27,
+      "passed": 27,
+      "failed": 0,
+      "status": "PASS"
+    },
+    {
+      "id_range": "264–278",
+      "suite": "pytest",
+      "capa": "Capa 0 — Health & Auth",
+      "module": "Health & Auth baseline",
+      "description": "health, docs, auth, metrics",
+      "tests": 15,
+      "passed": 15,
+      "failed": 0,
+      "status": "PASS"
+    },
+    {
+      "id_range": "279–306",
+      "suite": "pytest",
+      "capa": "Capa 3 — API Integration",
+      "module": "API integration (pytest)",
+      "description": "endpoints, auth, data validation",
+      "tests": 28,
+      "passed": 28,
+      "failed": 0,
+      "status": "PASS"
+    },
+    {
+      "id_range": "307–321",
+      "suite": "pytest",
+      "capa": "Capa 5 — Security",
+      "module": "Security baseline (pytest)",
+      "description": "XSS, SQLi, path traversal, auth",
+      "tests": 15,
+      "passed": 15,
+      "failed": 0,
+      "status": "PASS"
+    },
+    {
+      "id_range": "322–344",
+      "suite": "pytest",
+      "capa": "Capa 6 — Performance",
+      "module": "Performance baseline (pytest)",
+      "description": "timing, circuit breaker",
+      "tests": 23,
+      "passed": 23,
+      "failed": 0,
+      "status": "PASS"
+    },
+    {
+      "id_range": "345–399",
+      "suite": "pytest",
+      "capa": "Capa 2 — Unit Tests",
+      "module": "Other unit tests",
+      "description": "misc: tone, nurturing, memory, RAG",
+      "tests": 55,
+      "passed": 55,
+      "failed": 0,
+      "status": "PASS"
+    }
+  ]
+}
