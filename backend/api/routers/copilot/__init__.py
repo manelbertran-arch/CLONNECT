@@ -16,6 +16,7 @@ from .actions import (  # noqa: E402, F401
     DiscardRequest,
     ManualResponseRequest,
     MarkExportedRequest,
+    SuggestRequest,
     ToggleRequest,
     approve_all_pending,
     approve_response,
@@ -23,6 +24,7 @@ from .actions import (  # noqa: E402, F401
     discard_response,
     get_pending_responses,
     mark_pairs_exported,
+    suggest_response,
     toggle_copilot_mode,
     track_manual_response,
 )

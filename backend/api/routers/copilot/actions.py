@@ -15,6 +15,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["copilot"])
 
 
+class SuggestRequest(BaseModel):
+    """Body for on-demand suggestion generation."""
+    lead_id: str
+    message: Optional[str] = None   # Message to respond to (uses last follower msg if omitted)
+    sender_id: Optional[str] = None  # Platform user ID override
+
+
 class ApproveRequest(BaseModel):
     edited_text: Optional[str] = None
     chosen_index: Optional[int] = None  # Index into best_of_n candidates[]
@@ -423,3 +430,86 @@ async def mark_pairs_exported(
 
     count = mark_exported(body.pair_ids)
     return {"creator_id": creator_id, "marked": count}
+
+
+# =============================================================================
+# POST /copilot/{creator_id}/suggest
+# =============================================================================
+@router.post("/{creator_id}/suggest")
+async def suggest_response(
+    creator_id: str,
+    body: SuggestRequest,
+    _auth: str = Depends(require_creator_access),
+):
+    """
+    Generate an on-demand response suggestion for a specific lead.
+
+    The DM agent processes the message through the full pipeline and returns a
+    suggestion WITHOUT sending it to Instagram. Useful when the creator wants
+    help composing a reply to an existing conversation.
+
+    Args:
+        body.lead_id:  UUID of the lead to generate a suggestion for
+        body.message:  The message to respond to (uses latest follower message if omitted)
+        body.sender_id: Platform user ID override (inferred from lead if omitted)
+
+    Returns:
+        suggested_text: The generated suggestion
+        intent: Detected intent
+        lead_stage: Detected lead stage
+    """
+    from api.database import SessionLocal
+    from api.models import Lead, Message
+
+    session = SessionLocal()
+    try:
+        lead = session.query(Lead).filter_by(id=body.lead_id).first()
+        if not lead:
+            raise HTTPException(status_code=404, detail="Lead not found")
+
+        # Resolve message text
+        msg_text = body.message
+        if not msg_text:
+            last_user_msg = (
+                session.query(Message)
+                .filter(
+                    Message.lead_id == lead.id,
+                    Message.role == "user",
+                    Message.content.isnot(None),
+                )
+                .order_by(Message.created_at.desc())
+                .first()
+            )
+            if last_user_msg:
+                msg_text = last_user_msg.content
+            else:
+                raise HTTPException(
+                    status_code=422,
+                    detail="No message provided and no prior follower messages found",
+                )
+
+        sender_id = body.sender_id or lead.platform_user_id or str(lead.id)
+    finally:
+        session.close()
+
+    # Run DM pipeline — but do NOT send to Instagram (copilot dry-run)
+    try:
+        from api.routers.dm.processing import get_dm_agent
+        agent = get_dm_agent(creator_id)
+        result = await agent.process_message(
+            message=msg_text,
+            sender_id=sender_id,
+            metadata={"copilot_suggest": True, "lead_id": str(body.lead_id)},
+        )
+    except Exception as e:
+        logger.error(f"[Copilot/suggest] DM pipeline error for {creator_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Suggestion generation failed: {str(e)}")
+
+    return {
+        "creator_id": creator_id,
+        "lead_id": body.lead_id,
+        "suggested_text": result.get("response", ""),
+        "intent": result.get("intent"),
+        "lead_stage": result.get("lead_stage"),
+        "tokens_used": result.get("tokens_used", 0),
+    }
