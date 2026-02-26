@@ -63,7 +63,7 @@ async def get_pending_responses(creator_id: str, limit: int = 500, offset: int =
     from core.copilot_service import get_copilot_service
 
     service = get_copilot_service()
-    result = await service.get_pending_responses(creator_id, limit, offset, include_context=include_context)
+    result = await service.get_pending_responses(creator_id, limit=limit, offset=offset, include_context=include_context)
 
     # Handle both old (list) and new (dict with pagination) return formats
     if isinstance(result, dict):
