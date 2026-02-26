@@ -1,19 +1,19 @@
 {
-  "audit_date": "2026-02-25T12:00:41.891552+00:00",
+  "audit_date": "2026-02-25T12:39:58.533909+00:00",
   "base_url": "https://www.clonnectapp.com",
   "test_creator": "stefano_bonanno",
   "groups": {
     "1. Public Endpoints": {
-      "passed": 9,
-      "failed": 0,
+      "passed": 2,
+      "failed": 7,
       "total": 9,
       "tests": [
         {
           "method": "GET",
           "path": "/health",
-          "status": 200,
-          "elapsed_ms": 1212,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15271,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -23,7 +23,7 @@
           "method": "GET",
           "path": "/health/live",
           "status": 200,
-          "elapsed_ms": 909,
+          "elapsed_ms": 4689,
           "ok": true,
           "expected_range": [
             200,
@@ -34,7 +34,7 @@
           "method": "GET",
           "path": "/health/ready",
           "status": 200,
-          "elapsed_ms": 6664,
+          "elapsed_ms": 496,
           "ok": true,
           "expected_range": [
             200,
@@ -44,9 +44,9 @@
         {
           "method": "GET",
           "path": "/",
-          "status": 200,
-          "elapsed_ms": 2269,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15288,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -55,9 +55,9 @@
         {
           "method": "GET",
           "path": "/api",
-          "status": 200,
-          "elapsed_ms": 263,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15287,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -66,9 +66,9 @@
         {
           "method": "GET",
           "path": "/privacy",
-          "status": 200,
-          "elapsed_ms": 350,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15272,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -77,9 +77,9 @@
         {
           "method": "GET",
           "path": "/terms",
-          "status": 200,
-          "elapsed_ms": 331,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15280,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -88,9 +88,9 @@
         {
           "method": "GET",
           "path": "/docs",
-          "status": 200,
-          "elapsed_ms": 345,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15333,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -99,9 +99,9 @@
         {
           "method": "GET",
           "path": "/openapi.json",
-          "status": 200,
-          "elapsed_ms": 1551,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15125,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -110,15 +110,15 @@
       ]
     },
     "2. Admin Auth Denied (no key)": {
-      "passed": 3,
-      "failed": 0,
+      "passed": 1,
+      "failed": 2,
       "total": 3,
       "tests": [
         {
           "method": "GET",
           "path": "/admin/stats",
           "status": 401,
-          "elapsed_ms": 338,
+          "elapsed_ms": 2733,
           "ok": true,
           "expected_range": [
             401,
@@ -128,9 +128,9 @@
         {
           "method": "GET",
           "path": "/admin/creators",
-          "status": 401,
-          "elapsed_ms": 270,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15131,
+          "ok": false,
           "expected_range": [
             401,
             403
@@ -139,9 +139,9 @@
         {
           "method": "GET",
           "path": "/admin/feature-flags",
-          "status": 401,
-          "elapsed_ms": 369,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15286,
+          "ok": false,
           "expected_range": [
             401,
             403
@@ -150,16 +150,16 @@
       ]
     },
     "3. Admin Endpoints": {
-      "passed": 17,
-      "failed": 0,
+      "passed": 0,
+      "failed": 17,
       "total": 17,
       "tests": [
         {
           "method": "GET",
           "path": "/admin/stats",
-          "status": 200,
-          "elapsed_ms": 12652,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15124,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -168,9 +168,9 @@
         {
           "method": "GET",
           "path": "/admin/creators",
-          "status": 200,
-          "elapsed_ms": 8485,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15317,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -179,9 +179,9 @@
         {
           "method": "GET",
           "path": "/admin/feature-flags",
-          "status": 200,
-          "elapsed_ms": 346,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15141,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -190,9 +190,9 @@
         {
           "method": "GET",
           "path": "/admin/conversations",
-          "status": 200,
-          "elapsed_ms": 6826,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15290,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -201,9 +201,9 @@
         {
           "method": "GET",
           "path": "/admin/pending-messages",
-          "status": 200,
-          "elapsed_ms": 964,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15126,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -212,9 +212,9 @@
         {
           "method": "GET",
           "path": "/admin/alerts",
-          "status": 200,
-          "elapsed_ms": 346,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15142,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -223,9 +223,9 @@
         {
           "method": "GET",
           "path": "/admin/demo-status",
-          "status": 200,
-          "elapsed_ms": 1737,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15125,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -234,9 +234,9 @@
         {
           "method": "GET",
           "path": "/admin/rate-limiter-stats",
-          "status": 200,
-          "elapsed_ms": 333,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15167,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -245,9 +245,9 @@
         {
           "method": "GET",
           "path": "/admin/oauth/status/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 642,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15136,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -256,9 +256,9 @@
         {
           "method": "GET",
           "path": "/admin/debug-raw-messages/stefano_bonanno/test_user",
-          "status": 200,
-          "elapsed_ms": 1484,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15121,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -267,9 +267,9 @@
         {
           "method": "GET",
           "path": "/admin/debug-instagram-api/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 2128,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15128,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -278,9 +278,9 @@
         {
           "method": "GET",
           "path": "/admin/full-diagnostic/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 2163,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15139,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -289,9 +289,9 @@
         {
           "method": "GET",
           "path": "/admin/ghost-stats/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 1439,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15139,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -300,9 +300,9 @@
         {
           "method": "GET",
           "path": "/admin/lead-categories",
-          "status": 200,
-          "elapsed_ms": 328,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15169,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -311,9 +311,9 @@
         {
           "method": "GET",
           "path": "/admin/ingestion/status/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 1834,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15126,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -322,9 +322,9 @@
         {
           "method": "GET",
           "path": "/admin/backups",
-          "status": 200,
-          "elapsed_ms": 243,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15139,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -333,9 +333,9 @@
         {
           "method": "GET",
           "path": "/admin/diagnose-duplicate-leads/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 1517,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15132,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -344,16 +344,16 @@
       ]
     },
     "4. Nurturing Scheduler (admin)": {
-      "passed": 3,
-      "failed": 0,
+      "passed": 0,
+      "failed": 3,
       "total": 3,
       "tests": [
         {
           "method": "GET",
           "path": "/nurturing/scheduler/status",
-          "status": 200,
-          "elapsed_ms": 1701,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15137,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -362,9 +362,9 @@
         {
           "method": "GET",
           "path": "/nurturing/reconciliation/status",
-          "status": 200,
-          "elapsed_ms": 337,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15126,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -373,9 +373,9 @@
         {
           "method": "GET",
           "path": "/nurturing/reconciliation/health",
-          "status": 200,
-          "elapsed_ms": 2184,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15181,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -384,16 +384,16 @@
       ]
     },
     "5. Creator-Facing Endpoints": {
-      "passed": 47,
-      "failed": 0,
+      "passed": 17,
+      "failed": 30,
       "total": 47,
       "tests": [
         {
           "method": "GET",
           "path": "/dashboard/stefano_bonanno/overview",
-          "status": 200,
-          "elapsed_ms": 2201,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15140,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -402,9 +402,9 @@
         {
           "method": "GET",
           "path": "/creator/config/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 716,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15127,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -413,9 +413,9 @@
         {
           "method": "GET",
           "path": "/creator/stefano_bonanno/products",
-          "status": 200,
-          "elapsed_ms": 860,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15136,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -424,9 +424,9 @@
         {
           "method": "GET",
           "path": "/payments/stefano_bonanno/revenue",
-          "status": 200,
-          "elapsed_ms": 1134,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15133,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -435,9 +435,9 @@
         {
           "method": "GET",
           "path": "/payments/stefano_bonanno/purchases",
-          "status": 200,
-          "elapsed_ms": 359,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15130,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -446,9 +446,9 @@
         {
           "method": "GET",
           "path": "/calendar/stefano_bonanno/bookings",
-          "status": 200,
-          "elapsed_ms": 763,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15141,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -457,9 +457,9 @@
         {
           "method": "GET",
           "path": "/calendar/stefano_bonanno/links",
-          "status": 200,
-          "elapsed_ms": 684,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15139,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -468,9 +468,9 @@
         {
           "method": "GET",
           "path": "/calendar/stefano_bonanno/stats",
-          "status": 200,
-          "elapsed_ms": 704,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15132,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -479,9 +479,9 @@
         {
           "method": "GET",
           "path": "/creator/config/stefano_bonanno/knowledge",
-          "status": 200,
-          "elapsed_ms": 1388,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15127,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -490,9 +490,9 @@
         {
           "method": "GET",
           "path": "/creator/config/stefano_bonanno/knowledge/faqs",
-          "status": 200,
-          "elapsed_ms": 972,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15153,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -501,9 +501,9 @@
         {
           "method": "GET",
           "path": "/creator/config/stefano_bonanno/knowledge/about",
-          "status": 200,
-          "elapsed_ms": 1407,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15131,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -512,9 +512,9 @@
         {
           "method": "GET",
           "path": "/analytics/stefano_bonanno/sales",
-          "status": 200,
-          "elapsed_ms": 344,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15295,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -523,9 +523,9 @@
         {
           "method": "GET",
           "path": "/intelligence/stefano_bonanno/dashboard",
-          "status": 200,
-          "elapsed_ms": 2991,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15168,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -534,9 +534,9 @@
         {
           "method": "GET",
           "path": "/intelligence/stefano_bonanno/predictions",
-          "status": 200,
-          "elapsed_ms": 820,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15136,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -545,9 +545,9 @@
         {
           "method": "GET",
           "path": "/intelligence/stefano_bonanno/recommendations",
-          "status": 200,
-          "elapsed_ms": 1144,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15168,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -556,9 +556,9 @@
         {
           "method": "GET",
           "path": "/dm/leads/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 1778,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15099,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -567,9 +567,9 @@
         {
           "method": "GET",
           "path": "/dm/leads/stefano_bonanno/escalations",
-          "status": 200,
-          "elapsed_ms": 254,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15149,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -578,9 +578,9 @@
         {
           "method": "GET",
           "path": "/nurturing/stefano_bonanno/sequences",
-          "status": 200,
-          "elapsed_ms": 540,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15142,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -589,9 +589,9 @@
         {
           "method": "GET",
           "path": "/nurturing/stefano_bonanno/followups",
-          "status": 200,
-          "elapsed_ms": 466,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15124,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -600,9 +600,9 @@
         {
           "method": "GET",
           "path": "/nurturing/stefano_bonanno/stats",
-          "status": 200,
-          "elapsed_ms": 343,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15235,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -611,9 +611,9 @@
         {
           "method": "GET",
           "path": "/copilot/stefano_bonanno/status",
-          "status": 200,
-          "elapsed_ms": 1137,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15192,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -622,9 +622,9 @@
         {
           "method": "GET",
           "path": "/copilot/stefano_bonanno/pending",
-          "status": 200,
-          "elapsed_ms": 815,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15132,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -633,9 +633,9 @@
         {
           "method": "GET",
           "path": "/copilot/stefano_bonanno/stats",
-          "status": 200,
-          "elapsed_ms": 2026,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15128,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -645,7 +645,7 @@
           "method": "GET",
           "path": "/copilot/stefano_bonanno/notifications",
           "status": 200,
-          "elapsed_ms": 1006,
+          "elapsed_ms": 4510,
           "ok": true,
           "expected_range": [
             200,
@@ -656,7 +656,7 @@
           "method": "GET",
           "path": "/copilot/stefano_bonanno/history",
           "status": 200,
-          "elapsed_ms": 5739,
+          "elapsed_ms": 6173,
           "ok": true,
           "expected_range": [
             200,
@@ -667,7 +667,7 @@
           "method": "GET",
           "path": "/tone/stefano_bonanno",
           "status": 200,
-          "elapsed_ms": 343,
+          "elapsed_ms": 503,
           "ok": true,
           "expected_range": [
             200,
@@ -678,7 +678,7 @@
           "method": "GET",
           "path": "/tone/profiles",
           "status": 200,
-          "elapsed_ms": 757,
+          "elapsed_ms": 1626,
           "ok": true,
           "expected_range": [
             200,
@@ -689,7 +689,7 @@
           "method": "GET",
           "path": "/clone-score/stefano_bonanno",
           "status": 401,
-          "elapsed_ms": 333,
+          "elapsed_ms": 495,
           "ok": true,
           "expected_range": [
             200,
@@ -700,7 +700,7 @@
           "method": "GET",
           "path": "/clone-score/stefano_bonanno/history",
           "status": 401,
-          "elapsed_ms": 344,
+          "elapsed_ms": 484,
           "ok": true,
           "expected_range": [
             200,
@@ -711,7 +711,7 @@
           "method": "GET",
           "path": "/audience/stefano_bonanno/segments",
           "status": 200,
-          "elapsed_ms": 1401,
+          "elapsed_ms": 9615,
           "ok": true,
           "expected_range": [
             200,
@@ -722,7 +722,7 @@
           "method": "GET",
           "path": "/audience/stefano_bonanno/aggregated",
           "status": 200,
-          "elapsed_ms": 1071,
+          "elapsed_ms": 5374,
           "ok": true,
           "expected_range": [
             200,
@@ -733,7 +733,7 @@
           "method": "GET",
           "path": "/insights/stefano_bonanno/today",
           "status": 200,
-          "elapsed_ms": 2127,
+          "elapsed_ms": 7496,
           "ok": true,
           "expected_range": [
             200,
@@ -743,9 +743,9 @@
         {
           "method": "GET",
           "path": "/insights/stefano_bonanno/weekly",
-          "status": 200,
-          "elapsed_ms": 807,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15144,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -755,7 +755,7 @@
           "method": "GET",
           "path": "/insights/stefano_bonanno/metrics",
           "status": 200,
-          "elapsed_ms": 803,
+          "elapsed_ms": 6747,
           "ok": true,
           "expected_range": [
             200,
@@ -766,7 +766,7 @@
           "method": "GET",
           "path": "/audiencia/stefano_bonanno/topics",
           "status": 200,
-          "elapsed_ms": 615,
+          "elapsed_ms": 12492,
           "ok": true,
           "expected_range": [
             200,
@@ -777,7 +777,7 @@
           "method": "GET",
           "path": "/audiencia/stefano_bonanno/passions",
           "status": 200,
-          "elapsed_ms": 645,
+          "elapsed_ms": 2743,
           "ok": true,
           "expected_range": [
             200,
@@ -787,9 +787,9 @@
         {
           "method": "GET",
           "path": "/audiencia/stefano_bonanno/perception",
-          "status": 200,
-          "elapsed_ms": 667,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15273,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -799,7 +799,7 @@
           "method": "GET",
           "path": "/leads/stefano_bonanno/unified",
           "status": 200,
-          "elapsed_ms": 3385,
+          "elapsed_ms": 7967,
           "ok": true,
           "expected_range": [
             200,
@@ -810,7 +810,7 @@
           "method": "GET",
           "path": "/events/stefano_bonanno",
           "status": 401,
-          "elapsed_ms": 689,
+          "elapsed_ms": 7083,
           "ok": true,
           "expected_range": [
             200,
@@ -820,9 +820,9 @@
         {
           "method": "GET",
           "path": "/bot/stefano_bonanno/status",
-          "status": 401,
-          "elapsed_ms": 329,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15136,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -832,7 +832,7 @@
           "method": "GET",
           "path": "/memory/stefano_bonanno/test_lead",
           "status": 401,
-          "elapsed_ms": 371,
+          "elapsed_ms": 13934,
           "ok": true,
           "expected_range": [
             200,
@@ -842,9 +842,9 @@
         {
           "method": "GET",
           "path": "/autolearning/stefano_bonanno/rules",
-          "status": 200,
-          "elapsed_ms": 1108,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15156,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -854,7 +854,7 @@
           "method": "GET",
           "path": "/autolearning/stefano_bonanno/dashboard",
           "status": 200,
-          "elapsed_ms": 1863,
+          "elapsed_ms": 14031,
           "ok": true,
           "expected_range": [
             200,
@@ -865,7 +865,7 @@
           "method": "GET",
           "path": "/autolearning/stefano_bonanno/stats",
           "status": 200,
-          "elapsed_ms": 1282,
+          "elapsed_ms": 9727,
           "ok": true,
           "expected_range": [
             200,
@@ -875,9 +875,9 @@
         {
           "method": "GET",
           "path": "/autolearning/stefano_bonanno/gold-examples",
-          "status": 200,
-          "elapsed_ms": 1023,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15135,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -886,9 +886,9 @@
         {
           "method": "GET",
           "path": "/metrics/dashboard/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 722,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15146,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -897,9 +897,9 @@
         {
           "method": "GET",
           "path": "/metrics/health/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 1482,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15189,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -908,16 +908,16 @@
       ]
     },
     "6. Connections & OAuth": {
-      "passed": 3,
-      "failed": 0,
+      "passed": 0,
+      "failed": 3,
       "total": 3,
       "tests": [
         {
           "method": "GET",
           "path": "/connections/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 723,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15145,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -926,9 +926,9 @@
         {
           "method": "GET",
           "path": "/oauth/status/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 739,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15127,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -937,9 +937,9 @@
         {
           "method": "GET",
           "path": "/oauth/debug",
-          "status": 200,
-          "elapsed_ms": 350,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15132,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -948,16 +948,16 @@
       ]
     },
     "7. Onboarding": {
-      "passed": 4,
-      "failed": 0,
+      "passed": 0,
+      "failed": 4,
       "total": 4,
       "tests": [
         {
           "method": "GET",
           "path": "/onboarding/stefano_bonanno/status",
-          "status": 200,
-          "elapsed_ms": 1609,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15133,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -966,9 +966,9 @@
         {
           "method": "GET",
           "path": "/onboarding/stefano_bonanno/visual-status",
-          "status": 200,
-          "elapsed_ms": 739,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15140,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -977,9 +977,9 @@
         {
           "method": "GET",
           "path": "/onboarding/progress/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 834,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15138,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -988,9 +988,9 @@
         {
           "method": "GET",
           "path": "/verification/stefano_bonanno",
-          "status": 401,
-          "elapsed_ms": 346,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15156,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -999,16 +999,16 @@
       ]
     },
     "8. Ingestion V2": {
-      "passed": 5,
-      "failed": 0,
+      "passed": 0,
+      "failed": 5,
       "total": 5,
       "tests": [
         {
           "method": "GET",
           "path": "/ingestion/v2/debug/scraper-test",
-          "status": 200,
-          "elapsed_ms": 893,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15147,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1017,9 +1017,9 @@
         {
           "method": "GET",
           "path": "/ingestion/v2/data-status/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 1638,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15152,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1028,9 +1028,9 @@
         {
           "method": "GET",
           "path": "/ingestion/v2/instagram/stefano_bonanno/status",
-          "status": 200,
-          "elapsed_ms": 1691,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15150,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1039,9 +1039,9 @@
         {
           "method": "GET",
           "path": "/ingestion/v2/youtube/stefano_bonanno/status",
-          "status": 200,
-          "elapsed_ms": 1168,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15288,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1050,9 +1050,9 @@
         {
           "method": "GET",
           "path": "/ingestion/v2/verify/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 690,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15161,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1061,16 +1061,16 @@
       ]
     },
     "9. Content & Citations": {
-      "passed": 4,
-      "failed": 0,
+      "passed": 0,
+      "failed": 4,
       "total": 4,
       "tests": [
         {
           "method": "GET",
           "path": "/content/debug",
-          "status": 200,
-          "elapsed_ms": 814,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15145,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1079,9 +1079,9 @@
         {
           "method": "GET",
           "path": "/content/stats",
-          "status": 200,
-          "elapsed_ms": 2989,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15122,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1090,9 +1090,9 @@
         {
           "method": "GET",
           "path": "/citations/stefano_bonanno/stats",
-          "status": 200,
-          "elapsed_ms": 247,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15148,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1101,9 +1101,9 @@
         {
           "method": "GET",
           "path": "/citations/stefano_bonanno/posts-preview",
-          "status": 200,
-          "elapsed_ms": 352,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15126,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1112,16 +1112,16 @@
       ]
     },
     "10. DM & Conversations": {
-      "passed": 3,
-      "failed": 0,
+      "passed": 0,
+      "failed": 3,
       "total": 3,
       "tests": [
         {
           "method": "GET",
           "path": "/dm/conversations/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 656,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15143,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1130,9 +1130,9 @@
         {
           "method": "GET",
           "path": "/dm/debug/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 3564,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15296,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1141,9 +1141,9 @@
         {
           "method": "GET",
           "path": "/dm/metrics/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 713,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15148,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1152,16 +1152,16 @@
       ]
     },
     "11. Webhooks (existence)": {
-      "passed": 3,
-      "failed": 0,
+      "passed": 0,
+      "failed": 3,
       "total": 3,
       "tests": [
         {
           "method": "GET",
           "path": "/webhook/instagram",
-          "status": 403,
-          "elapsed_ms": 265,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15141,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1170,9 +1170,9 @@
         {
           "method": "GET",
           "path": "/instagram/webhook",
-          "status": 403,
-          "elapsed_ms": 863,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15135,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1181,9 +1181,9 @@
         {
           "method": "GET",
           "path": "/webhook/whatsapp",
-          "status": 403,
-          "elapsed_ms": 338,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15127,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1192,16 +1192,16 @@
       ]
     },
     "12. Telegram": {
-      "passed": 4,
-      "failed": 0,
+      "passed": 0,
+      "failed": 4,
       "total": 4,
       "tests": [
         {
           "method": "GET",
           "path": "/telegram/status",
-          "status": 200,
-          "elapsed_ms": 353,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15128,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1210,9 +1210,9 @@
         {
           "method": "GET",
           "path": "/telegram/bots",
-          "status": 200,
-          "elapsed_ms": 346,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15137,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1221,9 +1221,9 @@
         {
           "method": "GET",
           "path": "/telegram/registered-bots",
-          "status": 200,
-          "elapsed_ms": 328,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15123,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1232,9 +1232,9 @@
         {
           "method": "GET",
           "path": "/telegram/diagnose",
-          "status": 200,
-          "elapsed_ms": 1111,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15163,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1243,16 +1243,16 @@
       ]
     },
     "13. Misc (Booking, Preview, Debug, GDPR, Maintenance)": {
-      "passed": 19,
-      "failed": 0,
+      "passed": 3,
+      "failed": 16,
       "total": 19,
       "tests": [
         {
           "method": "GET",
           "path": "/booking-links/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 807,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15149,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1261,9 +1261,9 @@
         {
           "method": "GET",
           "path": "/booking/availability/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 652,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15131,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1272,9 +1272,9 @@
         {
           "method": "GET",
           "path": "/preview/status",
-          "status": 200,
-          "elapsed_ms": 962,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15142,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1283,9 +1283,9 @@
         {
           "method": "GET",
           "path": "/debug/database",
-          "status": 200,
-          "elapsed_ms": 941,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15142,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1294,9 +1294,9 @@
         {
           "method": "GET",
           "path": "/debug/products/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 854,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15147,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1305,9 +1305,9 @@
         {
           "method": "GET",
           "path": "/debug/full-diagnosis",
-          "status": 200,
-          "elapsed_ms": 1856,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15143,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1316,9 +1316,9 @@
         {
           "method": "GET",
           "path": "/debug/agent-config/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 2036,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15135,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1327,9 +1327,9 @@
         {
           "method": "GET",
           "path": "/debug/system-prompt/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 3494,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15137,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1338,9 +1338,9 @@
         {
           "method": "GET",
           "path": "/gdpr/stefano_bonanno/consent/test_follower",
-          "status": 200,
-          "elapsed_ms": 327,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15152,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1349,9 +1349,9 @@
         {
           "method": "GET",
           "path": "/maintenance/profile-picture-stats/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 948,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15112,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1360,9 +1360,9 @@
         {
           "method": "GET",
           "path": "/maintenance/leads-without-photo/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 993,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15159,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1371,9 +1371,9 @@
         {
           "method": "GET",
           "path": "/maintenance/dismissed-leads/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 938,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15140,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1382,9 +1382,9 @@
         {
           "method": "GET",
           "path": "/maintenance/db-indexes",
-          "status": 200,
-          "elapsed_ms": 1015,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15137,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1393,9 +1393,9 @@
         {
           "method": "GET",
           "path": "/maintenance/echo-status/stefano_bonanno",
-          "status": 200,
-          "elapsed_ms": 1966,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15132,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1405,7 +1405,7 @@
           "method": "GET",
           "path": "/instagram/status/stefano_bonanno",
           "status": 200,
-          "elapsed_ms": 816,
+          "elapsed_ms": 11974,
           "ok": true,
           "expected_range": [
             200,
@@ -1415,9 +1415,9 @@
         {
           "method": "GET",
           "path": "/instagram/creators",
-          "status": 200,
-          "elapsed_ms": 701,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15156,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1427,7 +1427,7 @@
           "method": "GET",
           "path": "/instagram/icebreakers/stefano_bonanno",
           "status": 200,
-          "elapsed_ms": 778,
+          "elapsed_ms": 10562,
           "ok": true,
           "expected_range": [
             200,
@@ -1437,9 +1437,9 @@
         {
           "method": "GET",
           "path": "/ai",
-          "status": 200,
-          "elapsed_ms": 344,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15144,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1449,7 +1449,7 @@
           "method": "POST",
           "path": "/audio/transcribe",
           "status": 422,
-          "elapsed_ms": 252,
+          "elapsed_ms": 5271,
           "ok": true,
           "expected_range": [
             400,
@@ -1459,16 +1459,16 @@
       ]
     },
     "14. Auth Endpoints": {
-      "passed": 3,
-      "failed": 0,
+      "passed": 0,
+      "failed": 3,
       "total": 3,
       "tests": [
         {
           "method": "POST",
           "path": "/auth/login",
-          "status": 401,
-          "elapsed_ms": 841,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15146,
+          "ok": false,
           "expected_range": [
             400,
             499
@@ -1477,9 +1477,9 @@
         {
           "method": "POST",
           "path": "/auth/register",
-          "status": 422,
-          "elapsed_ms": 899,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15148,
+          "ok": false,
           "expected_range": [
             400,
             499
@@ -1488,9 +1488,9 @@
         {
           "method": "GET",
           "path": "/auth/keys",
-          "status": 200,
-          "elapsed_ms": 393,
-          "ok": true,
+          "status": 0,
+          "elapsed_ms": 15134,
+          "ok": false,
           "expected_range": [
             200,
             499
@@ -1500,12 +1500,12 @@
     }
   },
   "summary": {
-    "endpoint_tests_passed": 127,
-    "endpoint_tests_failed": 0,
+    "endpoint_tests_passed": 23,
+    "endpoint_tests_failed": 104,
     "endpoint_tests_total": 127,
-    "e2e_passed": 5,
+    "e2e_passed": 2,
     "e2e_total": 5,
-    "overall_pass_rate": "100.0%"
+    "overall_pass_rate": "18.9%"
   },
   "e2e_flows": {
     "results": [
@@ -1513,38 +1513,38 @@
         "name": "instagram_webhook_verification",
         "status": 200,
         "ok": true,
-        "elapsed_ms": 361
+        "elapsed_ms": 2599
       },
       {
         "name": "leads_read",
-        "status": 200,
-        "ok": true,
-        "elapsed_ms": 1839,
-        "lead_count": 100
+        "status": 0,
+        "ok": false,
+        "elapsed_ms": 15133,
+        "lead_count": "?"
       },
       {
         "name": "products_read",
-        "status": 200,
-        "ok": true,
-        "elapsed_ms": 862,
-        "product_count": 2
+        "status": 0,
+        "ok": false,
+        "elapsed_ms": 15128,
+        "product_count": "?"
       },
       {
         "name": "copilot_flow",
         "status_code": 200,
-        "pending_code": 200,
-        "ok": true,
-        "elapsed_ms": 1984
+        "pending_code": 0,
+        "ok": false,
+        "elapsed_ms": 21256
       },
       {
         "name": "oauth_connections",
         "connections_code": 200,
         "oauth_code": 200,
         "ok": true,
-        "elapsed_ms": 1568
+        "elapsed_ms": 8171
       }
     ],
-    "passed": 5,
+    "passed": 2,
     "total": 5
   }
 }
