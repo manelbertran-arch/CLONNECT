@@ -1,1 +1,12 @@
 .docker/
+.venv/
+backtest_output*/
+academic_eval_output/
+results/
+docs/
+knowledge_bases/
+data/
+MASSIVE_TEST_REPORT.json
+MASSIVE_TEST_REPORT.md
+PLAN_SCOUT_MIGRATION.md
+.venv/
