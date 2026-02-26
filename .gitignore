@@ -67,7 +67,9 @@ backend/data/sales/
 backend/backtest_output*/
 backend/academic_eval_output/
 backend/results/
-backend/docs/
+backend/docs/research/
+backend/docs/backtest/
+backend/docs/eval/
 backend/knowledge_bases/
 backend/data/
 backend/MASSIVE_TEST_REPORT.json

@@ -1,0 +1,85 @@
+stateDiagram-v2
+    [*] --> nuevo : Primera DM recibida\nINSERT INTO leads\nscore = 0–25
+
+    %% ─── FROM NUEVO ──────────────────────────────────────────────────────────
+    nuevo --> caliente : purchase keywords detected\nOR interest_strong intent\nFollower asks about price/product\nscore → 45–85
+
+    nuevo --> colaborador : collaboration keywords ≥ 2\n('collab', 'partnership', 'mención')\nscore → 30–60
+
+    nuevo --> amigo : bidirectional social exchange\nboth sides: social keywords\nscore → 15–45
+
+    nuevo --> frío : inactive 14+ days\nsince last message\nscore → 0–10
+
+    %% ─── FROM CALIENTE ───────────────────────────────────────────────────────
+    caliente --> cliente : Payment webhook received\nStripe/Hotmart/PayPal\n[PERMANENT — never downgraded]\nscore → 75–100
+
+    caliente --> frío : inactive 14+ days\nno purchase confirmed\nscore → 0–10
+
+    caliente --> nuevo : signals drop\nno purchase intent\nscore → 0–25
+
+    %% ─── FROM FRÍO ───────────────────────────────────────────────────────────
+    frío --> caliente : Re-engagement\nnew purchase-intent DM\nscore → 45–85
+
+    frío --> nuevo : Re-engagement\ngeneral new DM (low signal)\nscore → 0–25
+
+    %% ─── FROM COLABORADOR ────────────────────────────────────────────────────
+    colaborador --> caliente : shifts to buying intent\npurchase keywords appear\nscore → 45–85
+
+    colaborador --> amigo : social pattern dominates\nscore → 15–45
+
+    %% ─── FROM AMIGO ──────────────────────────────────────────────────────────
+    amigo --> caliente : purchase intent emerges\nscore → 45–85
+
+    amigo --> frío : inactive 14+ days\nscore → 0–10
+
+    %% ─── CLIENTE IS PERMANENT ────────────────────────────────────────────────
+    cliente --> cliente : status PRESERVED\nall future rescores keep cliente\nonly score updates (75–100)
+
+    note right of cliente
+        PROTECTED STATUS:
+        classify_lead() checks
+        existing status first.
+        cliente → NEVER downgraded.
+        Payment webhook is the
+        ONLY entry point.
+    end note
+
+    note right of frío
+        GHOST REACTIVATION:
+        Scheduler detects frío leads
+        that were previously caliente.
+        Triggers re-engagement DM
+        via nurturing engine.
+        services/nurturing_service.py
+    end note
+
+    note right of nuevo
+        LEAD SCORING ALGORITHM (V3):
+
+        Step 1: extract_signals()
+          • purchase_keywords (follower msgs only)
+          • interest_keywords
+          • social_keywords
+          • collaboration_keywords
+          • bidirectional_ratio
+          • days_since_last_contact
+          • total_messages
+
+        Step 2: classify_lead()
+          Priority order:
+          1. cliente (preserved)
+          2. caliente (purchase ≥1 + interest ≥1)
+          3. colaborador (collab ≥2)
+          4. amigo (social both sides)
+          5. frío (inactive ≥14d + history)
+          6. nuevo (default)
+
+        Step 3: calculate_score()
+          Range per category:
+          cliente:     75–100
+          caliente:    45–85
+          colaborador: 30–60
+          amigo:       15–45
+          nuevo:        0–25
+          frío:         0–10
+    end note

@@ -1,0 +1,95 @@
+flowchart TD
+    START(["Incoming user message\n'¿Cuánto cuesta tu curso de marketing?'"])
+
+    %% ─── INTENT GATE ─────────────────────────────────────────────────────────
+    START --> INTENT_CHECK{"Intent requires RAG?\ncore/dm/phases/generation.py"}
+
+    SKIP_INTENTS["Skipped intents (no RAG):\n  greeting · farewell · thanks\n  saludo · despedida\n→ Direct to LLM without retrieval\n  (saves latency + API cost)"]
+
+    INTENT_CHECK -->|"greeting / farewell / thanks"| SKIP_INTENTS
+    INTENT_CHECK -->|"purchase · question · interest\nobjection · information"| EMBED_QUERY
+
+    SKIP_INTENTS --> LLM_DIRECT["LLM called without RAG context\nFaster response (~2s saved)"]
+
+    %% ─── QUERY EMBEDDING ─────────────────────────────────────────────────────
+    EMBED_QUERY["Query Embedding\ncore/embeddings.py\n\nOpenAI text-embedding-3-small\n  input: user message\n  output: [1536] float vector\n  latency: ~200ms"]
+
+    EMBED_QUERY --> CACHE_CHECK{"Cache hit?\n5-min TTL per\n(query_hash, creator_id)"}
+    CACHE_CHECK -->|"✅ Cached"| MERGE_RESULTS
+    CACHE_CHECK -->|"❌ Miss"| PARALLEL_SEARCH
+
+    %% ─── PARALLEL SEARCH ─────────────────────────────────────────────────────
+    PARALLEL_SEARCH["Parallel retrieval\n(asyncio.gather)"]
+    PARALLEL_SEARCH --> SEM_SEARCH
+    PARALLEL_SEARCH --> BM25_SEARCH
+
+    %% ─── SEMANTIC SEARCH ─────────────────────────────────────────────────────
+    SEM_SEARCH["Semantic Search\ncore/rag/semantic.py\n\nSELECT doc_id, content, metadata,\n  1 - (embedding <=> $query_vec) AS score\nFROM rag_documents\nWHERE creator_id = $creator_id\nORDER BY embedding <=> $query_vec\nLIMIT $top_k\n\nIndex: HNSW (ef_construction=64, m=16)\nSimilarity: cosine distance\nThreshold: MIN_SIMILARITY (default 0.3)"]
+
+    SEM_SEARCH --> SEM_FILTER{"Score ≥ threshold?"}
+    SEM_FILTER -->|"❌ All below threshold"| SEM_EMPTY["Semantic: 0 results\n(query too vague or OOD)"]
+    SEM_FILTER -->|"✅ Some above"| SEM_RESULTS["Semantic results:\n  top-k docs with score 0.3–1.0\n  Example:\n  ┌─────────────────────────────────┐\n  │ doc: 'Curso Marketing Digital' │\n  │ score: 0.87                    │\n  │ source: /curso-marketing       │\n  ├─────────────────────────────────┤\n  │ doc: 'El precio del curso...'  │\n  │ score: 0.82                    │\n  │ source: /precios               │\n  └─────────────────────────────────┘"]
+
+    %% ─── BM25 SEARCH ─────────────────────────────────────────────────────────
+    BM25_SEARCH{"BM25 enabled?\nENABLE_BM25_HYBRID=true"}
+    BM25_SEARCH -->|"❌ Disabled"| BM25_SKIP["BM25: skipped"]
+    BM25_SEARCH -->|"✅ Enabled"| BM25_PROC
+
+    BM25_PROC["BM25 Lexical Search\ncore/rag/bm25.py\n\nTokenize query → stems\nScore docs by TF-IDF\nBoosts exact keyword matches:\n  'precio', 'curso', 'marketing'\n→ Catches what semantic misses\n   (typos, acronyms, proper nouns)"]
+    BM25_PROC --> BM25_RESULTS["BM25 results:\n  top-k docs with BM25 score\n  Different ranking from semantic"]
+
+    %% ─── HYBRID FUSION ───────────────────────────────────────────────────────
+    SEM_RESULTS --> MERGE_RESULTS
+    SEM_EMPTY --> MERGE_RESULTS
+    BM25_RESULTS --> MERGE_RESULTS
+    BM25_SKIP --> MERGE_RESULTS
+
+    MERGE_RESULTS["Hybrid Fusion\ncore/rag/bm25.py\n\nWeighted score combination:\n  hybrid_score = (semantic_score × 0.7)\n               + (bm25_score × 0.3)\n\nWeights configurable via env:\n  HYBRID_SEMANTIC_WEIGHT=0.7\n  HYBRID_BM25_WEIGHT=0.3\n\nDeduplicate by doc_id\nKeep top-k (default: 5)"]
+
+    %% ─── RERANKER ────────────────────────────────────────────────────────────
+    MERGE_RESULTS --> RERANK_CHECK{"Reranking enabled?\nENABLE_RERANKING=true"}
+    RERANK_CHECK -->|"❌ Disabled"| INJECT
+    RERANK_CHECK -->|"✅ Enabled"| RERANKER
+
+    RERANKER["Cross-Encoder Reranker\ncore/rag/reranker.py\n\nFor each (query, doc) pair:\n  score = cross_encoder.predict(query, doc)\n  (Full attention between query + doc)\n\nBetter than bi-encoder for ranking\nSlower (~500ms) but more accurate\nRe-sort by cross-encoder score\nKeep top-3"]
+    RERANKER --> INJECT
+
+    %% ─── CONTEXT INJECTION ───────────────────────────────────────────────────
+    INJECT["Context Injection\nservices/prompt_service.py\n\nTop-k documents added to LLM prompt:\n┌──────────────────────────────────────┐\n│ SYSTEM:                              │\n│ [tone instructions]                  │\n│                                      │\n│ Información relevante de tu content: │\n│ ---                                  │\n│ FUENTE: /curso-marketing             │\n│ El curso de Marketing Digital vale   │\n│ $297. Incluye 40 horas de video...   │\n│ ---                                  │\n│ FUENTE: /precios                     │\n│ Precio especial hasta el 28/02...    │\n└──────────────────────────────────────┘"]
+
+    INJECT --> LLM_CALL["LLM Generation\nGemini Flash-Lite / GPT-4o-mini\n\nGenerates response GROUNDED in docs\n✓ Cites real prices from source\n✓ References actual content\n✗ Cannot invent information\n  (guardrails catch hallucinations)"]
+
+    LLM_DIRECT --> LLM_CALL
+
+    LLM_CALL --> GUARD["Guardrails validation\ncore/guardrails.py\n\n✓ Price in response = price in docs?\n✓ No invented statistics\n✓ Citations traceable to source_url\n✓ Length within bounds"]
+
+    GUARD --> RESPONSE(["Response delivered to\ncopilot pending OR\ndirect send"])
+
+    %% ─── CACHE STORE ─────────────────────────────────────────────────────────
+    MERGE_RESULTS --> CACHE_STORE["Store in cache\n5-min TTL\nkey: hash(query + creator_id)"]
+
+    %% ─── INDEXING PATH (separate flow) ──────────────────────────────────────
+    subgraph INDEXING["Indexing Path (Onboarding / Refresh)"]
+        direction LR
+        NEW_DOC["New document\n(post/website/FAQ)"]
+        CHUNK_DOC["Chunker\n512 tokens, 50 overlap"]
+        GEN_EMB["OpenAI embed(chunk)\n→ [1536] vector"]
+        STORE_DOC["INSERT INTO rag_documents\n  content, embedding, metadata\n  source_url (REQUIRED)\n  creator_id"]
+        NEW_DOC --> CHUNK_DOC --> GEN_EMB --> STORE_DOC
+    end
+
+    STORE_DOC -.->|"Available for\nnext search"| SEM_SEARCH
+
+    classDef search fill:#1a4a7a,stroke:#0d2b47,color:#fff
+    classDef decision fill:#7a4a1a,stroke:#5a3010,color:#fff
+    classDef external fill:#ff9900,stroke:#cc7700,color:#000
+    classDef cache fill:#4a2a6a,stroke:#2a0a4a,color:#fff
+    classDef guard fill:#882222,stroke:#661111,color:#fff
+    classDef result fill:#228833,stroke:#116622,color:#fff
+
+    class SEM_SEARCH,BM25_PROC,MERGE_RESULTS,RERANKER,INJECT search
+    class INTENT_CHECK,CACHE_CHECK,SEM_FILTER,BM25_SEARCH,RERANK_CHECK decision
+    class EMBED_QUERY,LLM_CALL external
+    class CACHE_CHECK,CACHE_STORE cache
+    class GUARD guard
+    class RESPONSE result

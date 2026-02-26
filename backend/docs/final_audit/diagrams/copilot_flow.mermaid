@@ -1,0 +1,92 @@
+flowchart TD
+    START(["Follower sends DM\nto creator on Instagram"])
+
+    START --> DM_PROC["DM Pipeline runs\ncore/dm_agent_v2.py\n5-phase processing"]
+    DM_PROC --> GEN_RESP["Response generated\nby LLM (Gemini / GPT-4o-mini)"]
+
+    GEN_RESP --> COPILOT_ON{"creator.copilot_mode = true?"}
+    COPILOT_ON -->|"❌ Autopilot"| AUTO_SEND["Send immediately to Instagram\nNo human review"]
+    COPILOT_ON -->|"✅ Copilot"| DEBOUNCE
+
+    %% ─── DEBOUNCE ─────────────────────────────────────────────────────────────
+    DEBOUNCE["Debounce check (2 seconds)\ncore/copilot/service.py\nPrevent duplicate pending for same lead"]
+    DEBOUNCE --> EXISTING_PEND{"Existing pending\nfor this lead?"}
+    EXISTING_PEND -->|"✅ Yes"| REPLACE["Replace / update\nexisting pending response"]
+    EXISTING_PEND -->|"❌ No"| CREATE_PEND
+
+    REPLACE --> NOTIFY_DASH
+    CREATE_PEND["INSERT INTO messages\n  role = assistant\n  status = pending_approval\n  content = suggested_response\n  confidence_score = 0.0–1.0\n  created_at = now()\ncore/copilot/lifecycle.py"]
+    CREATE_PEND --> NOTIFY_DASH
+
+    %% ─── DASHBOARD ───────────────────────────────────────────────────────────
+    NOTIFY_DASH["Creator Dashboard notified\nGET /copilot/{creator_id}/pending\nReturns: pending_count · pending_responses[]"]
+
+    NOTIFY_DASH --> DASH_VIEW["Creator sees in dashboard:\n  ┌─────────────────────────────┐\n  │ 📨 Juan García              │\n  │ 'Hola! ¿Cuánto cuesta...?' │\n  │                             │\n  │ 🤖 Suggested:               │\n  │ 'Hola Juan! El curso es     │\n  │  $297. Te puedo dar más     │\n  │  info si querés.'           │\n  │                             │\n  │ [✅ Approve] [✏️ Edit] [❌] │\n  └─────────────────────────────┘"]
+
+    DASH_VIEW --> CREATOR_DECISION{"Creator action"}
+
+    %% ─── APPROVE ─────────────────────────────────────────────────────────────
+    CREATOR_DECISION -->|"✅ Approve\n(no edits)"| APPROVE_FLOW
+    APPROVE_FLOW["POST /copilot/{creator_id}/approve/{message_id}\ncore/copilot/actions.py\n\nUPDATE messages SET\n  status = sent\n  approved_at = now()\n  approved_by = creator\n  copilot_action = approved\n  response_time_ms = delta_ms"]
+    APPROVE_FLOW --> SEND_IG
+
+    %% ─── EDIT + APPROVE ──────────────────────────────────────────────────────
+    CREATOR_DECISION -->|"✏️ Edit + Approve\n(text modified)"| EDIT_FLOW
+    EDIT_FLOW["POST /copilot/{creator_id}/approve/{message_id}\nbody: { edited_text: '...' }\n\nUPDATE messages SET\n  content = edited_text\n  status = sent\n  copilot_action = edited\n  edit_diff = compute_diff(original, edited)\n  was_edited = true"]
+    EDIT_FLOW --> SEND_IG
+
+    %% ─── DISCARD ─────────────────────────────────────────────────────────────
+    CREATOR_DECISION -->|"❌ Discard"| DISCARD_FLOW
+    DISCARD_FLOW["POST /copilot/{creator_id}/discard/{message_id}\nbody: { reason: 'wrong tone' } (optional)\n\nUPDATE messages SET\n  status = discarded\n  copilot_action = discarded\n  approved_at = now()  ← (timestamp for latency calc)"]
+    DISCARD_FLOW --> NO_SEND["❌ DM NOT sent to Instagram"]
+    NO_SEND --> LEARN_DISCARD
+
+    %% ─── MANUAL OVERRIDE ─────────────────────────────────────────────────────
+    CREATOR_DECISION -->|"✍️ Manual override\n(write from scratch)"| MANUAL_FLOW
+    MANUAL_FLOW["POST /copilot/{creator_id}/manual/{lead_id}\nbody: { content: '...', response_time_ms: N }\n\n1. Discard existing pending\n2. INSERT new message\n   role=assistant, status=sent\n   copilot_action=manual_override\n   edit_diff vs suggested (if any)"]
+    MANUAL_FLOW --> SEND_IG
+    MANUAL_FLOW --> LEARN_MANUAL
+
+    %% ─── SEND ────────────────────────────────────────────────────────────────
+    SEND_IG["InstagramService.send_message()\nMeta Graph API v21.0\nPOST /{conversation_id}/messages"]
+    SEND_IG --> SEND_OK{"API response?"}
+    SEND_OK -->|"✅ 200 OK"| SENT_OK["✅ DM delivered to follower"]
+    SEND_OK -->|"❌ Rate limit"| RATE_LIMIT["InstagramRateLimiter\nexponential backoff retry"]
+    RATE_LIMIT --> SEND_IG
+    SEND_OK -->|"❌ Token expired"| TOKEN_ERR["Token refresh → retry\ncore/instagram_handler.py"]
+    TOKEN_ERR --> SEND_IG
+
+    SENT_OK --> LEARN_APPROVE
+
+    %% ─── AUTO-LEARNING BRANCH ────────────────────────────────────────────────
+    LEARN_APPROVE["analyze_creator_action('approved')\nservices/autolearning_analyzer.py\n\n→ Reinforce applicable LearningRules\n  (no LLM call needed)\n  UPDATE learning_rules\n  SET times_applied += 1\n  WHERE rule matches intent+stage"]
+
+    LEARN_DISCARD["analyze_creator_action('discarded')\nservices/autolearning_analyzer.py\n\n→ LLM call: why was this discarded?\n  Extract failure pattern:\n    'too_long' | 'wrong_tone' | 'wrong_price' | ...\n  INSERT or UPDATE learning_rules\n  confidence += delta"]
+
+    LEARN_MANUAL["analyze_creator_action('manual_override')\nservices/autolearning_analyzer.py\n\n→ LLM compares suggested vs manual:\n  Extract positive pattern\n  INSERT INTO gold_examples\n    (user_message, creator_response, intent, stage)\n  INSERT INTO preference_pairs\n    (bot_response=suggested, creator_response=manual)"]
+
+    LEARN_APPROVE --> RULES_DB
+    LEARN_DISCARD --> RULES_DB
+    LEARN_MANUAL --> RULES_DB
+
+    RULES_DB[("learning_rules\ngold_examples\npreference_pairs\n\nFed back into next DM prompt\nas few-shot examples + active rules")]
+
+    RULES_DB --> NEXT_DM["Next DM generated with\nimproved rules + examples\n→ Better suggestions over time"]
+
+    %% ─── BULK OPERATIONS ────────────────────────────────────────────────────
+    BULK["Bulk operations available:\n\nPOST /copilot/{creator_id}/discard-all\n→ Bulk discard all pending\n\nPOST /copilot/{creator_id}/approve-all\n→ Approve all pending (trust bot)"]
+    DASH_VIEW -.->|"Bulk action"| BULK
+
+    classDef action fill:#1a4a7a,stroke:#0d2b47,color:#fff
+    classDef decision fill:#7a4a1a,stroke:#5a3010,color:#fff
+    classDef db fill:#336699,stroke:#224488,color:#fff
+    classDef external fill:#ff9900,stroke:#cc7700,color:#000
+    classDef learn fill:#2a6a3a,stroke:#1a4a2a,color:#fff
+    classDef creator fill:#6a1a6a,stroke:#4a0a4a,color:#fff
+
+    class APPROVE_FLOW,EDIT_FLOW,DISCARD_FLOW,MANUAL_FLOW action
+    class COPILOT_ON,EXISTING_PEND,CREATOR_DECISION,SEND_OK decision
+    class RULES_DB db
+    class SEND_IG,RATE_LIMIT external
+    class LEARN_APPROVE,LEARN_DISCARD,LEARN_MANUAL,NEXT_DM learn
+    class DASH_VIEW,NOTIFY_DASH creator

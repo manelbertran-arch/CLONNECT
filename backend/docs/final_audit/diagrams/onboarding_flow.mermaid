@@ -1,0 +1,101 @@
+flowchart TD
+    START(["Nuevo creador\naccede a Clonnect"])
+
+    START --> REGISTER["POST /auth/register\nCreator record created\n  name, email, api_key (SHA256)\n  clone_status = pending\n  onboarding_completed = false\n  copilot_mode = true (default)"]
+
+    REGISTER --> STEP1(["STEP 1 — Instagram OAuth"])
+
+    %% ─── STEP 1: INSTAGRAM OAUTH ─────────────────────────────────────────────
+    STEP1 --> IG_AUTH["GET /oauth/instagram/start\nRedirect to Meta OAuth\n  scope: instagram_manage_messages\n         instagram_manage_comments\n         pages_messaging"]
+
+    IG_AUTH --> META_CONSENT{"Creador da\npermiso en Meta?"}
+    META_CONSENT -->|"❌ Denied"| AUTH_FAIL["Onboarding blocked\nReturn to step 1"]
+    META_CONSENT -->|"✅ Authorized"| IG_CALLBACK
+
+    IG_CALLBACK["GET /oauth/instagram/callback\n?code=AUTH_CODE\n\nExchange code → access_token\nFetch: instagram_user_id\n       instagram_page_id\n       instagram_additional_ids"]
+
+    IG_CALLBACK --> STORE_TOKEN["UPDATE creators SET\n  instagram_token = long_lived_token\n  instagram_user_id = IG_USER_ID\n  instagram_page_id = PAGE_ID\n  token_expires_at = now + 60 days"]
+
+    STORE_TOKEN --> STEP2(["STEP 2 — Webhook Subscription"])
+
+    %% ─── STEP 2: WEBHOOK ─────────────────────────────────────────────────────
+    STEP2 --> WEBHOOK_SUB["POST /admin/instagram/subscribe/{creator_id}\nSubscribe to Meta webhook\n  topic: messages · messaging_seen · comments\n  callback: https://clonnectapp.com/webhook/instagram"]
+
+    WEBHOOK_SUB --> STEP3(["STEP 3 — Fetch Instagram Posts"])
+
+    %% ─── STEP 3: POSTS ───────────────────────────────────────────────────────
+    STEP3 --> FETCH_POSTS["GET graph.facebook.com/v21.0/me/media\n?fields=caption,media_type,timestamp,like_count,comments_count\n\nFetch last 50 posts via Graph API\ncore/instagram.py"]
+
+    FETCH_POSTS --> STORE_POSTS["INSERT INTO instagram_posts\n  post_id, creator_id, caption\n  media_type, likes_count\n  hashtags (extracted), created_at"]
+
+    STORE_POSTS --> STEP4(["STEP 4 — Tone Analysis"])
+
+    %% ─── STEP 4: TONE ────────────────────────────────────────────────────────
+    STEP4 --> TONE_ANALYZE["ToneAnalyzer.analyze(captions)\ningestion/tone_analyzer.py\n\nAnalyzes all post captions:\n  • dialect detection (rioplatense/mexicano/español/neutral)\n  • emoji patterns + frequency\n  • sentence length distribution\n  • vocabulary signature (top N-grams)\n  • formality level (0.0–1.0)\n  • energy level (calm/energetic/intense)"]
+
+    TONE_ANALYZE --> STYLE_EXTRACT["StyleProfileModel extracted\ncore/personality_extraction/\n  doc_d = bot configuration doc\n  doc_e = copilot rules doc"]
+
+    STYLE_EXTRACT --> STORE_TONE["INSERT INTO tone_profiles\n  creator_id, profile_data JSON\n  confidence_score, analyzed_posts_count\n\nSave to data/tone_profiles/{creator_id}.json\n(JSON backup for resilience)"]
+
+    STORE_TONE --> HAS_WEB{"Creator has\nwebsite URL?"}
+
+    %% ─── STEP 5: WEBSITE SCRAPING (OPTIONAL) ─────────────────────────────────
+    HAS_WEB -->|"❌ No"| STEP6
+    HAS_WEB -->|"✅ Yes"| STEP5
+
+    STEP5(["STEP 5 — Website Scraping"])
+
+    STEP5 --> SCRAPE["DeterministicScraper.scrape(website_url)\ningestion/deterministic_scraper.py\n\n✓ NO LLM — pure regex + HTML parsing\n✓ Max 10 pages by default\n✓ Respects robots.txt\n→ Returns: pages[], raw text[]"]
+
+    SCRAPE --> EXTRACT["StructuredExtractor.extract(content)\ningestion/structured_extractor.py\n\nExtracts via regex patterns:\n  • Products (name, price, category)\n  • FAQs (question + answer pairs)\n  • Testimonials\n  • About section\n  • Payment links (Stripe, Hotmart, etc.)\n\nANTI-ALUCINACIÓN:\n  price_verified = true ONLY if regex match\n  source_url REQUIRED for every item\n  confidence score per item (0.0–1.0)"]
+
+    EXTRACT --> STORE_PRODUCTS["INSERT INTO products\n  creator_id, name, category\n  price, currency, payment_link\n  source_url ← REQUIRED\n  price_verified, confidence\n  product_type (course/coaching/resource)"]
+
+    STORE_PRODUCTS --> STEP6
+
+    %% ─── STEP 6: EMBEDDINGS & RAG INDEX ──────────────────────────────────────
+    STEP6(["STEP 6 — Knowledge Base Indexing"])
+
+    STEP6 --> CHUNK["Content Chunker\ningestion/content_store.py\n\nSplit content into semantic chunks:\n  max 512 tokens per chunk\n  overlap 50 tokens\n  source_url preserved per chunk"]
+
+    CHUNK --> EMBED["OpenAI Embeddings API\ntext-embedding-3-small (1536 dims)\n\nFor each chunk:\n  embedding = embed(chunk.text)\n  Batched requests (max 100/batch)"]
+
+    EMBED --> STORE_RAG["INSERT INTO rag_documents\n  creator_id, doc_id, content\n  embedding (pgvector 1536d)\n  metadata JSONB (source, title, type)\n  created_at\n\nHNSW index auto-updated\nEmbeddings PERSIST across deploys"]
+
+    STORE_RAG --> STEP7(["STEP 7 — DM Sync (Historical)"])
+
+    %% ─── STEP 7: DM SYNC ─────────────────────────────────────────────────────
+    STEP7 --> DM_SYNC["POST /admin/sync-dm/{creator_id}\ncore/dm_sync.py\n\nFetch existing DM conversations\nfrom Meta Conversations API\n  cursor-based pagination\n  max 100 conversations"]
+
+    DM_SYNC --> PARSE_CONV["For each conversation:\n  1. Identify follower (platform_user_id)\n  2. Create Lead if not exists\n  3. INSERT messages (role=user/assistant)\n  4. UPDATE lead.score via LeadScoring\n  5. Store in sync_queue for async processing"]
+
+    PARSE_CONV --> STEP8(["STEP 8 — Bot Activation"])
+
+    %% ─── STEP 8: ACTIVATION ──────────────────────────────────────────────────
+    STEP8 --> ACTIVATE["UPDATE creators SET\n  clone_status = complete\n  onboarding_completed = true\n  bot_active = true\n  copilot_mode = true"]
+
+    ACTIVATE --> DONE(["✅ Creator READY\nBot activated in Copilot mode\nWebhook listening for new DMs"])
+
+    %% ─── POST-ONBOARDING OPTIONAL ────────────────────────────────────────────
+    DONE -.->|"Optional: add\nmore content"| EXTRA_CONTENT["Additional content ingestion:\n\n• YouTube transcripts\n  ingestion/youtube_connector.py\n\n• Podcast transcripts\n  ingestion/podcast_connector.py\n\n• Manual FAQ upload\n  POST /knowledge/upload\n\n• Manual product add\n  POST /creator/{id}/products"]
+
+    EXTRA_CONTENT -.-> EMBED
+
+    %% ─── RE-ONBOARDING (REFRESH) ─────────────────────────────────────────────
+    DONE -.->|"Periodic refresh\n(posts changed)"| REFRESH["POST /admin/ingestion/refresh/{creator_id}\n\nRe-runs Steps 3–6:\n  Fetch new posts\n  Re-analyze tone\n  Re-index website\n  Update embeddings (upsert)"]
+
+    classDef step fill:#1a4a7a,stroke:#0d2b47,color:#fff
+    classDef process fill:#555599,stroke:#333377,color:#fff
+    classDef db fill:#336699,stroke:#224488,color:#fff
+    classDef external fill:#ff9900,stroke:#cc7700,color:#000
+    classDef decision fill:#7a4a1a,stroke:#5a3010,color:#fff
+    classDef success fill:#228833,stroke:#116622,color:#fff
+    classDef error fill:#882222,stroke:#661111,color:#fff
+
+    class STEP1,STEP2,STEP3,STEP4,STEP5,STEP6,STEP7,STEP8 step
+    class REGISTER,IG_AUTH,IG_CALLBACK,STORE_TOKEN,WEBHOOK_SUB,FETCH_POSTS,STORE_POSTS,TONE_ANALYZE,STYLE_EXTRACT,STORE_TONE,SCRAPE,EXTRACT,STORE_PRODUCTS,CHUNK,STORE_RAG,DM_SYNC,PARSE_CONV,ACTIVATE process
+    class STORE_PRODUCTS,STORE_TONE,STORE_RAG db
+    class EMBED,FETCH_POSTS,META_CONSENT external
+    class HAS_WEB,META_CONSENT decision
+    class DONE success
+    class AUTH_FAIL error

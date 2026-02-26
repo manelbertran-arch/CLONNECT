@@ -1,0 +1,146 @@
+graph TB
+    subgraph CLIENTS["Clients"]
+        IG_APP["Instagram App\n(Followers)"]
+        WA_APP["WhatsApp\n(Followers)"]
+        TG_APP["Telegram\n(Followers)"]
+        DASHBOARD["Creator Dashboard\nReact 18 / TypeScript"]
+    end
+
+    subgraph RAILWAY["Railway — Production"]
+        subgraph FASTAPI["FastAPI Backend (422 endpoints)"]
+            direction TB
+            WH["Webhooks\n/webhook/instagram\n/webhook/whatsapp\n/webhook/telegram"]
+            DM_R["DM Router\n/dm/*"]
+            CP_R["Copilot Router\n/copilot/*"]
+            AD_R["Admin Router\n/admin/*"]
+            ON_R["Onboarding\n/onboarding/*"]
+            LR_R["Leads Router\n/dm/leads/*"]
+            PY_R["Payments Router\n/payments/*"]
+            BK_R["Booking Router\n/booking/*"]
+        end
+
+        subgraph CORE_AI["Core AI — El Cerebro"]
+            direction TB
+            AG["DMResponderAgentV2\n5-phase orchestrator"]
+            subgraph PHASES["5 Fases DM Pipeline"]
+                P1["Phase 1: Detection\nFrustration · Edge cases"]
+                P2["Phase 2: Context\nIntent · DNA · Memory"]
+                P3["Phase 3: Memory\nState · Commitments"]
+                P4["Phase 4: Generation\nPrompt · LLM · RAG"]
+                P5["Phase 5: Postprocessing\nTone · Guardrails · Length"]
+            end
+            RAG["RAG Engine\nSemantic + BM25 + Reranker"]
+            LS["Lead Scoring V3\n6 categories · score 0-100"]
+            TP["Tone Service\ndialect · voice · vocabulary"]
+            CP_SVC["Copilot Service\napprove · discard · debounce"]
+            AL["AutoLearning\nrule extraction · gold examples"]
+            MEM["Memory Store\nfollower context · state"]
+            DNA["Relationship DNA\nper-follower patterns"]
+            GUARD["Guardrails\nlength · tone · safety"]
+            FRUST["Frustration Detector\n0.0–1.0 level"]
+            IC["Intent Classifier\npurchase · interest · greeting..."]
+        end
+
+        subgraph INGESTION["Ingestion Pipeline"]
+            SCR["DeterministicScraper\nno LLM · regex"]
+            EXT["StructuredExtractor\nproducts · FAQs · prices"]
+            EMB_GEN["Embedding Generator\nOpenAI text-embedding-3-small"]
+        end
+    end
+
+    subgraph NEONDB["NeonDB — PostgreSQL + pgvector"]
+        direction LR
+        T_LEADS[("leads\nmessages\nconversation_state_db")]
+        T_RAG[("rag_documents\npgvector HNSW")]
+        T_RULES[("learning_rules\ngold_examples\npreference_pairs")]
+        T_CREATORS[("creators\ntone_profiles\nstyle_profile_model")]
+        T_PAY[("payment_records\nstripe_events")]
+        T_BOOK[("booking_links\ncalendar_bookings")]
+        T_SYNC[("sync_queue\nsync_state")]
+    end
+
+    subgraph EXTERNAL["External APIs"]
+        META["Meta Graph API v21.0\nInstagram DMs · Conversations"]
+        LLM_GEM["Gemini Flash-Lite\n(primary LLM)"]
+        LLM_OAI["GPT-4o-mini\n(fallback LLM)"]
+        OAI_EMB["OpenAI Embeddings\ntext-embedding-3-small"]
+        STRIPE["Stripe / Hotmart / PayPal\nPayment webhooks"]
+        CDN["Cloudinary CDN\nMedia · thumbnails"]
+        CALENDLY["Calendly / Cal.com\nBooking webhooks"]
+        EVOLUTION["Evolution API\nWhatsApp Business"]
+        TG_API["Telegram Bot API"]
+    end
+
+    %% Client → Backend
+    IG_APP -->|"DM webhook\nPOST /webhook/instagram"| WH
+    WA_APP -->|"Message\nPOST /webhook/whatsapp"| WH
+    TG_APP -->|"Update\nPOST /webhook/telegram"| WH
+    DASHBOARD -->|"REST API calls\n/copilot · /dm · /admin"| CP_R
+    DASHBOARD -->|"REST API calls"| LR_R
+
+    %% Webhooks → Core
+    WH --> AG
+    DM_R --> AG
+    CP_R --> CP_SVC
+
+    %% DM Agent phases
+    AG --> P1 --> P2 --> P3 --> P4 --> P5
+
+    %% Phase dependencies
+    P1 --> FRUST
+    P2 --> IC
+    P2 --> DNA
+    P2 --> MEM
+    P4 --> RAG
+    P4 --> TP
+    P4 --> LLM_GEM
+    P4 --> LLM_OAI
+    P5 --> GUARD
+
+    %% Copilot
+    CP_SVC --> AL
+    AL --> LLM_GEM
+
+    %% Lead Scoring
+    AG --> LS
+
+    %% DB writes
+    AG --> T_LEADS
+    LS --> T_LEADS
+    MEM --> T_LEADS
+    RAG --> T_RAG
+    AL --> T_RULES
+    TP --> T_CREATORS
+    CP_SVC --> T_LEADS
+
+    %% Ingestion
+    SCR --> EXT --> EMB_GEN --> T_RAG
+    ON_R --> SCR
+
+    %% External
+    WH --> META
+    AG -->|"send approved DM"| META
+    RAG --> OAI_EMB
+    EMB_GEN --> OAI_EMB
+    PY_R --> STRIPE
+    BK_R --> CALENDLY
+    WH --> EVOLUTION
+    WH --> TG_API
+    ON_R --> CDN
+
+    %% Payments DB
+    PY_R --> T_PAY
+    BK_R --> T_BOOK
+    WH --> T_SYNC
+
+    classDef external fill:#ff9900,stroke:#ff6600,color:#000
+    classDef db fill:#336699,stroke:#224488,color:#fff
+    classDef core fill:#228833,stroke:#116622,color:#fff
+    classDef api fill:#555599,stroke:#333377,color:#fff
+    classDef client fill:#993333,stroke:#772222,color:#fff
+
+    class META,LLM_GEM,LLM_OAI,OAI_EMB,STRIPE,CDN,CALENDLY,EVOLUTION,TG_API external
+    class T_LEADS,T_RAG,T_RULES,T_CREATORS,T_PAY,T_BOOK,T_SYNC db
+    class AG,RAG,LS,TP,CP_SVC,AL,MEM,DNA,GUARD,FRUST,IC core
+    class WH,DM_R,CP_R,AD_R,ON_R,LR_R,PY_R,BK_R api
+    class IG_APP,WA_APP,TG_APP,DASHBOARD client

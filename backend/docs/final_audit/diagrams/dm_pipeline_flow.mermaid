@@ -1,0 +1,133 @@
+flowchart TD
+    START(["Instagram/WhatsApp/Telegram\nIncoming DM"])
+
+    %% ─── ENTRY ───────────────────────────────────────────────────────────────
+    START --> WEBHOOK["POST /webhook/instagram\napi/routers/messaging_webhooks/instagram_webhook.py"]
+    WEBHOOK --> SIG{"Signature valid?\nHMAC-SHA256"}
+    SIG -->|"❌ Invalid"| REJECT["HTTP 401\nLog: invalid_signature"]
+    SIG -->|"✅ Valid"| PARSE["Parse payload\nextract: sender_id · content · media_type · timestamp"]
+
+    PARSE --> CREATOR{"Creator found\nby page_id / user_id?"}
+    CREATOR -->|"❌ Not found"| UNMATCHED["Store in\nunmatched_webhooks\nLog: no creator for ig_id"]
+    CREATOR -->|"✅ Found"| ECHO{"Echo detection\n(bot's own message?)"}
+    ECHO -->|"✅ Own message"| IGNORE["Ignore silently\nHTTP 200 OK"]
+    ECHO -->|"❌ External"| MEDIA{"Media type?"}
+
+    MEDIA -->|"audio"| TRANSCRIBE["Audio transcription\nservices/audio_handler.py\n→ text content"]
+    MEDIA -->|"image/video"| MEDIA_NOTE["Log media URL\nrespond with text context"]
+    MEDIA -->|"text"| LEAD_LOOKUP
+    TRANSCRIBE --> LEAD_LOOKUP
+    MEDIA_NOTE --> LEAD_LOOKUP
+
+    %% ─── LEAD ────────────────────────────────────────────────────────────────
+    LEAD_LOOKUP["Lead lookup / create\nservices/lead_service.py\nSELECT FROM leads WHERE creator_id + platform_user_id"]
+    LEAD_LOOKUP --> LEAD_EXISTS{"Lead exists?"}
+    LEAD_EXISTS -->|"❌ New follower"| CREATE_LEAD["INSERT INTO leads\nstatus=nuevo, score=0"]
+    LEAD_EXISTS -->|"✅ Existing"| STORE_MSG
+    CREATE_LEAD --> STORE_MSG
+
+    STORE_MSG["INSERT INTO messages\nrole=user · content · platform_message_id\ncore/dm_agent_v2.py"]
+
+    %% ─── PHASE 1: DETECTION ──────────────────────────────────────────────────
+    STORE_MSG --> PH1_HEAD(["PHASE 1 — Detection\ncore/dm/phases/detection.py"])
+
+    PH1_HEAD --> FRUST["FrustrationDetector.detect(content)\ncore/frustration_detector.py\n→ level: 0.0–1.0"]
+    FRUST --> FRUSTLVL{"frustration_level?"}
+    FRUSTLVL -->|"> 0.7 (high)"| ESCALATE["Flag: needs_escalation=true\nOverride tone: empathetic"]
+    FRUSTLVL -->|"≤ 0.7"| POOL
+
+    ESCALATE --> POOL
+    POOL{"Fast-path pool response?\n(greeting / farewell / thanks)"}
+    POOL -->|"✅ Match"| POOL_RESP["Return canned response\nskip LLM — saves cost + latency\ncore/dm/pool_responses.py"]
+    POOL -->|"❌ No match"| PH2_HEAD
+
+    %% ─── PHASE 2: CONTEXT ────────────────────────────────────────────────────
+    PH2_HEAD(["PHASE 2 — Context Building\ncore/dm/phases/context.py"])
+
+    PH2_HEAD --> INTENT["IntentClassifier.classify(content)\nservices/intent_service.py\n→ purchase · interest_strong · interest_soft\n   question · objection · greeting · farewell"]
+    INTENT --> DNA_LOAD["RelationshipDNAService.get_dna(creator_id, follower_id)\nservices/relationship_dna_service.py\n→ vocabulary_uses · vocabulary_avoids · bot_instructions"]
+    DNA_LOAD --> MEM_LOAD["MemoryStore.get(creator_id, follower_id)\ncore/memory.py\n→ interests · products_discussed · purchase_intent_score"]
+    MEM_LOAD --> HIST["Load message history\nlast 10 messages from messages table\ncontext window assembly"]
+
+    %% ─── PHASE 3: MEMORY ─────────────────────────────────────────────────────
+    HIST --> PH3_HEAD(["PHASE 3 — Memory & State\ncore/dm/phases/context.py (contd)"])
+
+    PH3_HEAD --> STATE["ConversationState.load(creator_id, follower_id)\ncore/conversation_state.py\n→ phase: inicio · cualificacion · propuesta · cierre"]
+    STATE --> COMMIT["CommitmentTracker.get(lead_id)\nservices/commitment_tracker.py\n→ open commitments made by follower"]
+    COMMIT --> GOLD["GoldExamples.get_few_shot(intent, lead_stage)\nDELECT FROM gold_examples WHERE intent + lead_stage\n→ few-shot examples for prompt"]
+
+    %% ─── PHASE 4: GENERATION ─────────────────────────────────────────────────
+    GOLD --> PH4_HEAD(["PHASE 4 — Generation\ncore/dm/phases/generation.py"])
+
+    PH4_HEAD --> RAG_SKIP{"Skip RAG?\n(intent = greeting/farewell/thanks)"}
+    RAG_SKIP -->|"✅ Skip"| PROMPT_BUILD
+    RAG_SKIP -->|"❌ Retrieve"| RAG["RAGService.search(content, creator_id)\ncore/rag/semantic.py\n→ top-k documents (cosine similarity + BM25)"]
+    RAG --> RERANK["Reranker.rerank(docs, query)\n(if ENABLE_RERANKING=true)\ncross-encoder scoring"]
+    RERANK --> PROMPT_BUILD
+
+    PROMPT_BUILD["PromptBuilder.build()\nservices/prompt_service.py\n\nSystem prompt:\n  ToneProfile + StyleProfile\n  DNA instructions\n  LearningRules (active)\n  RAG documents\n  Few-shot examples\n\nUser prompt:\n  Conversation history\n  Current message\n  Intent signal\n  Lead stage"]
+
+    PROMPT_BUILD --> LLM_CALL["LLMService.generate()\nservices/llm_service.py\n\nPrimary: Gemini Flash-Lite\n  timeout=5s · circuit_breaker(threshold=2, cooldown=120s)\nFallback: GPT-4o-mini\n  timeout=10s"]
+
+    LLM_CALL --> LLM_OK{"LLM response OK?"}
+    LLM_OK -->|"❌ All failed"| FALLBACK_RESP["Return safe fallback\n'Ahora no puedo responder,\nvolvemos enseguida'"]
+    LLM_OK -->|"✅ Generated"| VALID_RESP
+
+    %% ─── PHASE 5: POST-PROCESSING ────────────────────────────────────────────
+    VALID_RESP --> PH5_HEAD(["PHASE 5 — Post-Processing\ncore/dm/phases/postprocessing.py"])
+
+    PH5_HEAD --> GUARD["Guardrails.validate(response)\ncore/guardrails.py\n✓ Not empty\n✓ Not too long (max_tokens)\n✓ No hallucinated prices\n✓ Dialect matches creator"]
+    GUARD --> GUARD_OK{"Guardrails pass?"}
+    GUARD_OK -->|"❌ Fail"| RETRY["Retry generation\n(max 2 retries)"]
+    RETRY --> LLM_CALL
+    GUARD_OK -->|"✅ Pass"| TONE_ENF
+
+    TONE_ENF["ToneService.enforce_tone(response)\ncore/tone_service.py\n✓ Voseo / tuteo / usted\n✓ Emoji frequency\n✓ Response length normalization"]
+    TONE_ENF --> VARIATOR["ResponseVariator.apply(response)\nservices/response_variator_v2.py\nAdd style variety (avoid repetitive patterns)"]
+
+    %% ─── OUTPUT / COPILOT SPLIT ──────────────────────────────────────────────
+    VARIATOR --> COPILOT_MODE{"creator.copilot_mode?"}
+
+    COPILOT_MODE -->|"✅ True\n(human in the loop)"| PENDING["Create PendingResponse\nINSERT INTO messages\nstatus=pending_approval\ndebounce=2s"]
+    COPILOT_MODE -->|"❌ False\n(autopilot)"| SEND_DIRECT
+
+    PENDING --> NOTIFY["Notify dashboard\n(WebSocket or polling)"]
+    NOTIFY --> CREATOR_ACTION{"Creator action?"}
+
+    CREATOR_ACTION -->|"approve"| SEND_DIRECT
+    CREATOR_ACTION -->|"edit + approve"| EDIT["UPDATE messages SET content=edited_text\ncopilot_action=edited"]
+    EDIT --> SEND_DIRECT
+    CREATOR_ACTION -->|"discard"| DISCARD["UPDATE messages SET status=discarded\ncopilot_action=discarded"]
+    DISCARD --> AUTOLEARN
+
+    SEND_DIRECT["InstagramService.send_message()\ncore/instagram.py\nPOST graph.facebook.com/v21.0\n/{conversation_id}/messages"]
+    SEND_DIRECT --> SEND_OK{"Send OK?"}
+    SEND_OK -->|"❌ Rate limited"| QUEUE["Queue retry\nInstagramRateLimiter backoff"]
+    QUEUE --> SEND_DIRECT
+    SEND_OK -->|"✅ Sent"| UPDATE_MSG
+
+    UPDATE_MSG["UPDATE messages SET status=sent\nUPDATE leads SET score (async)\nUPDATE follower_memory_db"]
+
+    UPDATE_MSG --> AUTOLEARN
+    POOL_RESP --> SEND_DIRECT
+
+    %% ─── AUTO-LEARNING ───────────────────────────────────────────────────────
+    AUTOLEARN["analyze_creator_action() — fire & forget\nservices/autolearning_analyzer.py\n\napprove → reinforce rules (no LLM)\nedit → LLM extracts correction pattern\ndiscard → LLM extracts failure reason\nmanual → store as GoldExample"]
+
+    AUTOLEARN --> RULES_DB[("learning_rules\ngold_examples\npreference_pairs\nPostgreSQL")]
+
+    UPDATE_MSG --> DONE(["HTTP 200 OK\nDone"])
+
+    classDef phase fill:#1a4a7a,stroke:#0d2b47,color:#fff
+    classDef decision fill:#7a4a1a,stroke:#5a3010,color:#fff
+    classDef db fill:#336699,stroke:#224488,color:#fff
+    classDef external fill:#ff9900,stroke:#cc7700,color:#000
+    classDef error fill:#882222,stroke:#661111,color:#fff
+    classDef success fill:#228833,stroke:#116622,color:#fff
+
+    class PH1_HEAD,PH2_HEAD,PH3_HEAD,PH4_HEAD,PH5_HEAD phase
+    class SIG,CREATOR,ECHO,MEDIA,LEAD_EXISTS,FRUSTLVL,POOL,RAG_SKIP,LLM_OK,GUARD_OK,COPILOT_MODE,CREATOR_ACTION,SEND_OK decision
+    class RULES_DB db
+    class SEND_DIRECT,LLM_CALL external
+    class REJECT,UNMATCHED,IGNORE,FALLBACK_RESP error
+    class DONE,UPDATE_MSG success

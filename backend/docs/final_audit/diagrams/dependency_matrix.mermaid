@@ -1,0 +1,153 @@
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "12px"}}}%%
+graph LR
+    subgraph LEGEND["Leyenda"]
+        L1["✅ Depende / usa"]
+        L2["──▶ depende de"]
+    end
+
+    subgraph SYSTEMS["Sistemas"]
+        DM["A1 DM Pipeline\n(dm_agent_v2.py)"]
+        RAG["A2 RAG Engine\n(core/rag/)"]
+        TONE["A3 Tone Service\n(tone_service.py)"]
+        LS["A4 Lead Scoring\n(lead_scoring.py)"]
+        AUD["A5 Audience Intel\n(audience_intelligence.py)"]
+        IG["B1 Instagram Handler\n(instagram_handler.py)"]
+        WA["B2 WhatsApp Handler\n(evolution_webhook.py)"]
+        TG["B3 Telegram Handler\n(telegram_adapter.py)"]
+        CP["B4 Copilot System\n(core/copilot/)"]
+        NUR["B5 Nurturing Engine\n(nurturing_service.py)"]
+        AUTH["C1 Auth & OAuth\n(api/auth.py)"]
+        DB["C2 Database Layer\n(api/models.py)"]
+        OB["C3 Onboarding\n(ingestion/pipeline.py)"]
+        SYNC["C4 Sync Engine\n(dm_sync.py)"]
+        MEDIA["C5 Media Handler\n(cloudinary_service.py)"]
+        DASH["D1 Dashboard\n(routers/dashboard.py)"]
+        CLONE["D2 Clone Score\n(clone_score_engine.py)"]
+        PAY["E1 Payments\n(core/payments/)"]
+        PROD["E2 Products\n(routers/products.py)"]
+        BOOK["E3 Booking\n(routers/booking.py)"]
+    end
+
+    subgraph INFRA["Infraestructura DB"]
+        PG[("PostgreSQL\n NeonDB")]
+        VEC[("pgvector\nHNSW index")]
+    end
+
+    subgraph EXTERNAL_APIS["APIs Externas"]
+        META_API["Meta Graph API\nInstagram"]
+        OAI_EMB_API["OpenAI Embeddings\ntext-embedding-3-small"]
+        GEM_API["Gemini Flash-Lite\n(primary LLM)"]
+        GPT_API["GPT-4o-mini\n(fallback LLM)"]
+        STRIPE_API["Stripe API"]
+        HOTMART_API["Hotmart"]
+        PAYPAL_API["PayPal"]
+        CDN_API["Cloudinary CDN"]
+        CAL_API["Calendly / Cal.com"]
+        EVO_API["Evolution API\n(WhatsApp)"]
+        TG_API_EXT["Telegram Bot API"]
+    end
+
+    %% ─── DM PIPELINE deps ────────────────────────────────────────────────────
+    DM --> RAG
+    DM --> TONE
+    DM --> LS
+    DM --> CP
+    DM --> DB
+    DM --> GEM_API
+    DM --> GPT_API
+    DM --> OAI_EMB_API
+
+    %% ─── RAG ENGINE deps ─────────────────────────────────────────────────────
+    RAG --> VEC
+    RAG --> PG
+    RAG --> OAI_EMB_API
+
+    %% ─── TONE SERVICE deps ───────────────────────────────────────────────────
+    TONE --> PG
+
+    %% ─── LEAD SCORING deps ───────────────────────────────────────────────────
+    LS --> PG
+
+    %% ─── AUDIENCE INTELLIGENCE deps ──────────────────────────────────────────
+    AUD --> PG
+    AUD --> LS
+
+    %% ─── INSTAGRAM HANDLER deps ──────────────────────────────────────────────
+    IG --> META_API
+    IG --> PG
+    IG --> DM
+
+    %% ─── WHATSAPP HANDLER deps ───────────────────────────────────────────────
+    WA --> EVO_API
+    WA --> PG
+    WA --> DM
+
+    %% ─── TELEGRAM HANDLER deps ───────────────────────────────────────────────
+    TG --> TG_API_EXT
+    TG --> PG
+    TG --> DM
+
+    %% ─── COPILOT deps ─────────────────────────────────────────────────────────
+    CP --> PG
+    CP --> META_API
+    CP --> GEM_API
+
+    %% ─── NURTURING ENGINE deps ───────────────────────────────────────────────
+    NUR --> PG
+    NUR --> META_API
+    NUR --> GEM_API
+    NUR --> LS
+    NUR --> TONE
+
+    %% ─── AUTH & OAUTH deps ───────────────────────────────────────────────────
+    AUTH --> PG
+    AUTH --> META_API
+
+    %% ─── ONBOARDING deps ─────────────────────────────────────────────────────
+    OB --> META_API
+    OB --> OAI_EMB_API
+    OB --> CDN_API
+    OB --> PG
+    OB --> VEC
+    OB --> TONE
+    OB --> RAG
+
+    %% ─── SYNC ENGINE deps ────────────────────────────────────────────────────
+    SYNC --> META_API
+    SYNC --> PG
+    SYNC --> LS
+
+    %% ─── MEDIA deps ──────────────────────────────────────────────────────────
+    MEDIA --> CDN_API
+    MEDIA --> PG
+
+    %% ─── DASHBOARD deps ──────────────────────────────────────────────────────
+    DASH --> PG
+
+    %% ─── CLONE SCORE deps ────────────────────────────────────────────────────
+    CLONE --> PG
+    CLONE --> RAG
+    CLONE --> TONE
+    CLONE --> LS
+    CLONE --> GEM_API
+
+    %% ─── PAYMENTS deps ───────────────────────────────────────────────────────
+    PAY --> STRIPE_API
+    PAY --> HOTMART_API
+    PAY --> PAYPAL_API
+    PAY --> PG
+
+    %% ─── PRODUCTS deps ───────────────────────────────────────────────────────
+    PROD --> PG
+
+    %% ─── BOOKING deps ────────────────────────────────────────────────────────
+    BOOK --> CAL_API
+    BOOK --> PG
+
+    classDef system fill:#1a4a7a,stroke:#0d2b47,color:#fff
+    classDef db fill:#336699,stroke:#224488,color:#fff
+    classDef ext fill:#cc7700,stroke:#996600,color:#fff
+
+    class DM,RAG,TONE,LS,AUD,IG,WA,TG,CP,NUR,AUTH,DB,OB,SYNC,MEDIA,DASH,CLONE,PAY,PROD,BOOK system
+    class PG,VEC db
+    class META_API,OAI_EMB_API,GEM_API,GPT_API,STRIPE_API,HOTMART_API,PAYPAL_API,CDN_API,CAL_API,EVO_API,TG_API_EXT ext
