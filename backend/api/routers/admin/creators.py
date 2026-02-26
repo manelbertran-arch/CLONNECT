@@ -103,7 +103,7 @@ async def admin_list_creators(admin: str = Depends(require_admin)):
                 SELECT
                     c.name                          AS creator_id,
                     c.name                          AS name,
-                    c.instagram_handle              AS instagram_handle,
+                    c.instagram_user_id             AS instagram_user_id,
                     c.bot_active                    AS is_active,
                     c.updated_at                    AS updated_at,
                     COUNT(DISTINCT l.id)            AS total_leads,
@@ -112,7 +112,7 @@ async def admin_list_creators(admin: str = Depends(require_admin)):
                 FROM creators c
                 LEFT JOIN leads l ON l.creator_id = c.id
                 LEFT JOIN messages m ON m.lead_id = l.id
-                GROUP BY c.id, c.name, c.instagram_handle, c.bot_active, c.updated_at
+                GROUP BY c.id, c.name, c.instagram_user_id, c.bot_active, c.updated_at
                 ORDER BY c.name
             """)).fetchall()
         finally:
@@ -122,7 +122,7 @@ async def admin_list_creators(admin: str = Depends(require_admin)):
             {
                 "creator_id": row[0],
                 "name": row[1],
-                "instagram_handle": row[2],
+                "instagram_user_id": row[2],
                 "is_active": bool(row[3]),
                 "pause_reason": None,
                 "updated_at": row[4].isoformat() if row[4] else None,
