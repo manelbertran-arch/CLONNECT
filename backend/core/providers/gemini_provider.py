@@ -26,8 +26,8 @@ DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite"
 # CIRCUIT_BREAKER_THRESHOLD consecutive failures.
 _gemini_consecutive_failures = 0
 _gemini_circuit_open_until = 0.0
-CIRCUIT_BREAKER_THRESHOLD = int(os.getenv("GEMINI_CB_THRESHOLD", "3"))
-CIRCUIT_BREAKER_COOLDOWN = int(os.getenv("GEMINI_CB_COOLDOWN", "300"))  # 5 minutes
+CIRCUIT_BREAKER_THRESHOLD = int(os.getenv("GEMINI_CB_THRESHOLD", "2"))
+CIRCUIT_BREAKER_COOLDOWN = int(os.getenv("GEMINI_CB_COOLDOWN", "120"))  # 2 minutes
 
 
 def _gemini_circuit_is_open() -> bool:
@@ -196,7 +196,7 @@ async def generate_simple(
             try:
                 result = await asyncio.wait_for(
                     _call_gemini(model, api_key, system_prompt, prompt, max_tokens, temperature),
-                    timeout=float(os.getenv("LLM_PRIMARY_TIMEOUT", "8")),
+                    timeout=float(os.getenv("LLM_PRIMARY_TIMEOUT", "5")),
                 )
                 if result and result.get("content"):
                     _gemini_record_success()
@@ -305,7 +305,7 @@ async def generate_dm_response(
         logger.info("Circuit breaker open — skipping Gemini, going direct to GPT-4o-mini")
     else:
         try:
-            primary_timeout = float(os.getenv("LLM_PRIMARY_TIMEOUT", "8"))
+            primary_timeout = float(os.getenv("LLM_PRIMARY_TIMEOUT", "5"))
             result = await asyncio.wait_for(
                 generate_response_gemini(messages, max_tokens, temperature),
                 timeout=primary_timeout,
@@ -317,7 +317,7 @@ async def generate_dm_response(
             _gemini_record_failure()
         except asyncio.TimeoutError:
             logger.warning("Flash-Lite timeout after %.0fs, falling back to GPT-4o-mini",
-                            float(os.getenv("LLM_PRIMARY_TIMEOUT", "8")))
+                            float(os.getenv("LLM_PRIMARY_TIMEOUT", "5")))
             _gemini_record_failure()
         except Exception as e:
             logger.warning("Flash-Lite failed: %s, falling back to GPT-4o-mini", e)
