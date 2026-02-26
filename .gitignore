@@ -63,6 +63,17 @@ backend/data/escalations/manel_escalations.jsonl
 backend/data/nurturing/manel_followups.json
 backend/data/sales/
 
+# Research & evaluation outputs (large, not needed for deploy)
+backend/backtest_output*/
+backend/academic_eval_output/
+backend/results/
+backend/docs/
+backend/knowledge_bases/
+backend/data/
+backend/MASSIVE_TEST_REPORT.json
+backend/MASSIVE_TEST_REPORT.md
+backend/PLAN_SCOUT_MIGRATION.md
+
 # Cloned repos for auditing
 Clonnect-creators/
 creator-s-connect-hub/
