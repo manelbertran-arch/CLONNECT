@@ -21,6 +21,7 @@ ENABLE_PREFERENCE_PROFILE = os.getenv("ENABLE_PREFERENCE_PROFILE", "false").lowe
 ENABLE_GOLD_EXAMPLES = os.getenv("ENABLE_GOLD_EXAMPLES", "false").lower() == "true"
 ENABLE_BEST_OF_N = os.getenv("ENABLE_BEST_OF_N", "false").lower() == "true"
 ENABLE_SELF_CONSISTENCY = os.getenv("ENABLE_SELF_CONSISTENCY", "false").lower() == "true"
+ENABLE_CHAIN_OF_THOUGHT = os.getenv("ENABLE_CHAIN_OF_THOUGHT", "false").lower() == "true"
 
 
 async def phase_llm_generation(
@@ -208,6 +209,32 @@ async def phase_llm_generation(
         system_prompt = _smart_truncate_context(system_prompt, _MAX_CONTEXT_CHARS)
         cognitive_metadata["prompt_truncated"] = True
         logger.info(f"[PROMPT] Smart-truncated system prompt from {original_len} to {len(system_prompt)} chars")
+
+    # Step 5f: Chain of Thought reasoning for complex queries
+    # Only fires when flag is ON — adds extra LLM call (500 tokens) for health/product/multi-part queries
+    if ENABLE_CHAIN_OF_THOUGHT and hasattr(agent, "chain_of_thought"):
+        try:
+            _is_complex, _query_type = agent.chain_of_thought._is_complex_query(message)
+            if _is_complex:
+                _cot_result = await agent.chain_of_thought.generate(
+                    message,
+                    context={"creator_name": agent.creator_id, "products": agent.products},
+                )
+                if _cot_result.reasoning_steps:
+                    _cot_section = (
+                        "=== ANÁLISIS PREVIO (Chain of Thought) ===\n"
+                        + "\n".join(f"- {s}" for s in _cot_result.reasoning_steps)
+                        + "\n=== FIN ANÁLISIS ==="
+                    )
+                    system_prompt = system_prompt + "\n\n" + _cot_section
+                    cognitive_metadata["cot_applied"] = True
+                    cognitive_metadata["cot_query_type"] = _query_type
+                    logger.info(
+                        f"[COT] Applied {len(_cot_result.reasoning_steps)} reasoning steps "
+                        f"for {_query_type} query"
+                    )
+        except Exception as _cot_err:
+            logger.debug(f"[COT] Chain of Thought failed: {_cot_err}")
 
     # Log prompt size for latency diagnosis
     _est_tokens = len(system_prompt) // 4
