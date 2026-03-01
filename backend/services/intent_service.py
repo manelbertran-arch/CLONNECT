@@ -120,6 +120,29 @@ class IntentClassifier:
         "cuanto es",
         "me dices el precio",
         "precio",
+        # Variantes hispanomericanas y voseo
+        "cuánto me sale",
+        "cuanto me sale",
+        "cuánto sale",
+        "cuanto sale",
+        # Descuentos y financiación
+        "tiene descuento",
+        "hay descuento",
+        "con descuento",
+        "algún descuento",
+        "algun descuento",
+        "pagar en cuotas",
+        "pago en cuotas",
+        "a plazos",
+        "en cuotas",
+        "financiar",
+        "financiación",
+        "financiacion",
+        "cómo se paga",
+        "como se paga",
+        "formas de pago",
+        "métodos de pago",
+        "metodos de pago",
     ]
 
     # Product question patterns (content/structure questions, not pricing)
@@ -152,6 +175,11 @@ class IntentClassifier:
         "no tengo tiempo", "no me da tiempo", "no tengo disponibilidad",
         "estoy muy ocupado", "estoy muy ocupada", "no puedo ahora",
         "demasiado tiempo", "no tengo hueco",
+        # Variantes comunes
+        "ahora no puedo", "ahora mismo no", "en este momento no puedo",
+        "cuando tenga tiempo", "cuando pueda me uno", "no es el momento",
+        "no es buen momento", "interesante pero ahora no",
+        "me interesa pero ahora no",
     ]
 
     OBJECTION_DOUBT_PATTERNS = [
@@ -164,6 +192,12 @@ class IntentClassifier:
         "lo pienso", "me lo pienso", "lo pensaré", "te aviso",
         "luego te digo", "más adelante", "mas adelante", "en otro momento",
         "ya veré", "ya veremos", "lo considero",
+        # Variantes explícitas de duda/postergación
+        "necesito pensarlo", "tengo que pensarlo", "lo tengo que pensar",
+        "déjame pensarlo", "dejame pensarlo", "lo voy a pensar",
+        "déjame verlo", "dejame verlo", "déjame ver",
+        "me lo pienso y te digo", "me gusta pero necesito pensarlo",
+        "tengo que decidir", "dame tiempo",
     ]
 
     OBJECTION_NOT_FOR_ME_PATTERNS = [
@@ -184,6 +218,14 @@ class IntentClassifier:
     INTEREST_SOFT_PATTERNS = [
         "suena interesante", "me parece interesante", "me llama la atención",
         "me lo estoy pensando", "podría ser interesante", "no está mal",
+        # Voseo argentino/latinoamericano
+        "contame más", "contame mas", "contame",
+        "explicame más", "explicame mas", "explicame",
+        "decime más", "decime mas", "decime",
+        # Interés moderado genérico
+        "me gustaría saber más", "me gustaria saber mas",
+        "me gustaría saber más sobre", "querría saber más",
+        "quisiera saber más", "podés contarme", "podes contarme",
     ]
 
     # Escalation patterns
@@ -192,6 +234,14 @@ class IntentClassifier:
         "con un humano", "con una persona real", "con el creador",
         "quiero que me llames", "prefiero hablar",
         "necesito hablar con alguien",
+        # Variantes con nombre del creador / contacto directo
+        "necesito hablar con", "quiero hablar con", "hablar directamente con",
+        "contactar con", "contactar directamente",
+        "número de teléfono", "numero de telefono",
+        "número de contacto", "numero de contacto",
+        "teléfono de contacto", "cómo te contacto",
+        "como te contacto", "cómo puedo contactarte",
+        "email de contacto", "cómo llego a",
     ]
 
     # Support patterns
@@ -200,6 +250,15 @@ class IntentClassifier:
         "tengo un problema con", "error en", "no me llega",
         "no puedo entrar", "no aparece el contenido", "no veo el contenido",
         "problema técnico", "tengo un error", "fallo técnico",
+        # Variantes de acceso / contenido no recibido
+        "no me llegó", "no me llego", "no me llegó el acceso",
+        "no me llegó el link", "no me llegó el enlace",
+        "no encuentro", "no encuentro el contenido", "no encuentro el video",
+        "no encuentro el vídeo", "no encuentro la clase",
+        "dónde descargo", "donde descargo", "cómo descargo", "como descargo",
+        "no carga", "no abre", "link roto", "enlace roto",
+        "enlace no funciona", "link no funciona",
+        "no aparece", "no veo nada", "pantalla en blanco",
     ]
 
     # Feedback negative patterns
@@ -208,6 +267,18 @@ class IntentClassifier:
         "no vale la pena", "no merece la pena", "me ha decepcionado",
         "no cumplió", "no cumple", "una estafa", "mala calidad",
         "muy mal", "fatal",
+        # Cancelación y devolución
+        "quiero cancelar", "quiero darme de baja", "darme de baja",
+        "cancelar mi suscripción", "cancelar mi suscripcion",
+        "quiero el reembolso", "quiero la devolución", "quiero la devolucion",
+        "pedir devolución", "pedir devolucion",
+        # Decepción explícita
+        "estoy decepcionado", "estoy decepcionada",
+        "me decepcionó", "me ha decepcionado",
+        "no era lo que esperaba", "no es lo que esperaba",
+        "no cumplió mis expectativas", "no cumplió las expectativas",
+        "me arrepiento", "me he arrepentido", "arrepentido de",
+        "fue un error comprarlo", "no lo recomiendo",
     ]
 
     # Booking patterns
@@ -215,6 +286,36 @@ class IntentClassifier:
         "reservar", "agendar", "pedir cita", "hacer una cita",
         "cuando tienes disponibilidad", "próxima sesión",
         "próxima cita", "quiero una sesión",
+    ]
+
+    # Objection: does it actually work? (resultados, testimonios, garantía)
+    OBJECTION_WORKS_PATTERNS = [
+        "funciona de verdad", "de verdad funciona", "realmente funciona",
+        "funciona?", "sirve de algo", "tiene resultados",
+        "resultados reales", "resultados de verdad",
+        "hay testimonios", "casos de éxito", "casos de exito",
+        "alguien lo ha probado", "qué resultados", "que resultados",
+        "garantiza resultados", "te garantiza", "garantizan",
+        "en serio funciona", "funciona para todos",
+    ]
+
+    # Objection: too complicated / hard
+    OBJECTION_COMPLICATED_PATTERNS = [
+        "es muy complicado", "es demasiado complicado", "suena complicado",
+        "me parece complicado", "es muy difícil", "es demasiado difícil",
+        "muy difícil para mí", "no lo entiendo", "no lo entiendo bien",
+        "es confuso", "no me queda claro", "es muy técnico",
+        "me cuesta entenderlo", "parece difícil",
+    ]
+
+    # Objection: already have something similar
+    OBJECTION_ALREADY_HAVE_PATTERNS = [
+        "ya tengo uno", "ya tengo otro", "ya tengo algo parecido",
+        "ya tengo un programa", "ya tengo un curso",
+        "ya compré otro", "ya tengo algo similar",
+        "ya uso algo así", "ya hago algo parecido",
+        "tengo algo parecido", "ya lo hago",
+        "ya lo tengo", "ya tengo esto",
     ]
 
     # Lead magnet patterns
@@ -315,6 +416,15 @@ class IntentClassifier:
 
         if any(p in msg for p in self.OBJECTION_NOT_FOR_ME_PATTERNS):
             return Intent.OBJECTION_NOT_FOR_ME
+
+        if any(p in msg for p in self.OBJECTION_WORKS_PATTERNS):
+            return Intent.OBJECTION_WORKS
+
+        if any(p in msg for p in self.OBJECTION_COMPLICATED_PATTERNS):
+            return Intent.OBJECTION_COMPLICATED
+
+        if any(p in msg for p in self.OBJECTION_ALREADY_HAVE_PATTERNS):
+            return Intent.OBJECTION_ALREADY_HAVE
 
         if any(p in msg for p in self.INTEREST_STRONG_PATTERNS):
             return Intent.INTEREST_STRONG
