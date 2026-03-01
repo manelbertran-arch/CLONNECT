@@ -36,10 +36,13 @@ def _message_mentions_product(product_name: str, msg_lower: str) -> bool:
     """Check if a message mentions a product using fuzzy matching.
 
     Handles long DB names like 'Fitpack Challenge de 11 días: Transforma...'
-    by matching on the short-name segment or >=2 significant brand words.
+    by matching on the short-name segment or >=1 significant brand word.
+
+    BUG-09 fix: lowercases msg internally (caller may pass mixed case),
+    and lowers word-match threshold to 1 for better partial-name detection.
     """
     pname = _strip_accents(product_name.lower().strip())
-    msg = _strip_accents(msg_lower)
+    msg = _strip_accents(msg_lower.lower())  # ensure lowercase regardless of caller
 
     if not pname or len(pname) <= 3:
         return False
@@ -48,7 +51,7 @@ def _message_mentions_product(product_name: str, msg_lower: str) -> bool:
     if pname in msg:
         return True
 
-    # 2. First segment before ':' or '—' delimiter
+    # 2. First segment before ':' or '—' delimiter (e.g., "Fitpack Challenge")
     for sep in [":", "\u2014", " - "]:
         if sep in pname:
             short = pname.split(sep)[0].strip()
@@ -56,11 +59,13 @@ def _message_mentions_product(product_name: str, msg_lower: str) -> bool:
                 return True
             break
 
-    # 3. Brand-word matching: >=2 significant words found in message
-    words = [w for w in pname.split() if len(w) >= 4 and w not in _PRODUCT_STOPWORDS]
-    if len(words) >= 2:
+    # 3. Brand-word matching: >=1 significant word found in message
+    # Strip non-alphanumeric chars (handles "1:1" -> "1" which is too short)
+    cleaned_pname = re.sub(r'[^a-z0-9\s]', ' ', pname)
+    words = [w for w in cleaned_pname.split() if len(w) >= 4 and w not in _PRODUCT_STOPWORDS]
+    if words:
         matches = sum(1 for w in words if w in msg)
-        if matches >= 2:
+        if matches >= 1:
             return True
 
     return False
@@ -220,6 +225,97 @@ def apply_voseo(text: str) -> str:
 
     result = text
     for pattern, replacement in conversions:
-        result = re.sub(pattern, replacement, result)
+        result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
 
     return result
+
+
+# =============================================================================
+# MESSAGE SPLITTER (word- and URL-aware)
+# =============================================================================
+
+def split_message(text: str, max_length: int = 160) -> list:
+    """
+    Split a long message into parts of at most max_length chars.
+
+    Rules:
+    - Never splits mid-word (parts end at space boundaries)
+    - Never splits a URL across two parts (URL always kept intact, even if > max_length)
+    - Non-last parts end with a trailing space to mark word boundary
+
+    Args:
+        text: The message text to split
+        max_length: Maximum characters per part (URLs may exceed this limit)
+
+    Returns:
+        List of message parts
+    """
+    if len(text) <= max_length:
+        return [text]
+
+    # Build a set of (start, end) for all URLs in the text
+    url_pattern = re.compile(r'https?://\S+')
+    url_spans = [(m.start(), m.end()) for m in url_pattern.finditer(text)]
+
+    def _url_covering(pos: int):
+        """Return (start, end) of URL that contains pos, or None."""
+        for start, end in url_spans:
+            if start <= pos < end:
+                return (start, end)
+        return None
+
+    parts = []
+    pos = 0
+
+    while pos < len(text):
+        remaining = text[pos:]
+        if len(remaining) <= max_length:
+            parts.append(remaining.rstrip())
+            break
+
+        target = pos + max_length
+
+        # Check if target lands inside a URL — if so, extend to include full URL
+        url_span = _url_covering(target)
+        if url_span:
+            url_end = url_span[1]
+            # Find the next space after the URL to split there
+            next_space = text.find(' ', url_end)
+            if next_space != -1:
+                parts.append(text[pos:next_space + 1])  # include trailing space
+                pos = next_space + 1
+            else:
+                parts.append(text[pos:])
+                break
+            continue
+
+        # Walk back from target to find a space that isn't inside a URL
+        split_at = None
+        for i in range(target - 1, pos, -1):
+            if text[i] == ' ' and _url_covering(i) is None:
+                split_at = i
+                break
+
+        if split_at is not None:
+            # Split at this space; keep the space so the part ends with ' '
+            parts.append(text[pos:split_at + 1])
+            pos = split_at + 1
+        else:
+            # No valid space — check if we're at the start of a URL
+            url_span_here = _url_covering(pos)
+            if url_span_here:
+                url_end = url_span_here[1]
+                next_space = text.find(' ', url_end)
+                if next_space != -1:
+                    parts.append(text[pos:next_space + 1])
+                    pos = next_space + 1
+                else:
+                    parts.append(text[pos:])
+                    break
+            else:
+                # Force-split at max_length
+                parts.append(text[pos:target])
+                pos = target
+
+    # Strip only trailing whitespace from last part; keep inner spaces intact
+    return [p for p in parts if p.strip()]

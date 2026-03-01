@@ -41,9 +41,9 @@ class FrustrationSignals:
         if self.caps_ratio > 0.3:
             score += 0.15
 
-        # Explicit frustration is very strong
+        # Explicit frustration is very strong (BUG-08: increased from 0.3 to 0.5)
         if self.explicit_frustration:
-            score += 0.3
+            score += 0.5
 
         # Multiple question marks
         score += min(self.question_marks_excess * 0.05, 0.15)
@@ -62,6 +62,7 @@ class FrustrationDetector:
         r'\b(?:te\s+pregunt[eé]\s+\d+\s+veces?)\b',
         r'\b(?:otra\s+vez|de\s+nuevo)\b',
         r'\b(?:esto\s+no\s+(?:funciona|sirve|ayuda))\b',
+        r'\b(?:no\s+funciona)\b',  # BUG-08: also match without "esto"
         r'\b(?:no\s+(?:me\s+)?(?:ayudas?|sirves?))\b',
         r'\b(?:que\s+(?:pesado|molesto|frustrante))\b',
         r'\b(?:me\s+(?:cansas?|hartas?))\b',
@@ -70,6 +71,14 @@ class FrustrationDetector:
         r'\b(?:no\s+(?:vale|sirve)\s+(?:la\s+)?pena)\b',
         r'\b(?:es\s+imposible)\b',
         r'\b(?:sin\s+historias?)\b',
+        # BUG-08: profanity and strong frustration markers
+        r'\b(?:mierda|hostia|joder|coño|puto|puta)\b',
+        r'\b(?:estoy\s+(?:harto|cansado|harta|cansada))\b',
+        r'\b(?:harto\s+de\s+(?:esperar|esto|todo))\b',
+        r'\b(?:nadie\s+me\s+responde)\b',
+        r'\b(?:me\s+ignoran|me\s+ignoráis)\b',
+        r'\b(?:llevas?\s+(?:\d+\s+)?(?:horas?|d[ií]as?)\s+sin\s+responder)\b',
+        r'\b(?:dios\s+m[ií]o|por\s+favor\s+responde)\b',
         # English patterns
         r'\b(?:you\s+don\'?t\s+understand)\b',
         r'\b(?:i\s+(?:already|just)\s+(?:said|asked|told))\b',

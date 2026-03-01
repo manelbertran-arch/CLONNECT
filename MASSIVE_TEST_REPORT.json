@@ -1,0 +1,914 @@
+{
+  "total": 109,
+  "passed": 106,
+  "failed": 2,
+  "warnings": 1,
+  "results": [
+    {
+      "name": "Health check",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.76472,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Health live",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.978812,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Health ready",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.30111,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Docs OpenAPI",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.340438,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "OpenAPI JSON",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.747357,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Frontend loads",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.461791,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Login page",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.549861,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Dashboard page",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.504275,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin sin key \u2192 401",
+      "status": "PASS",
+      "code": 401,
+      "time": 0.426222,
+      "expected": 401,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin con key \u2192 200",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.194341,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Metrics endpoint",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.407378,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator exists",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.14447,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Leads exist",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.920244,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Products exist",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.909789,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Messages exist",
+      "status": "PASS",
+      "code": 200,
+      "time": 4.361138,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Knowledge exists",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.711852,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Tone exists",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.388365,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Analytics data",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.30247,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Health cache",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.323897,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "DM hola",
+      "status": "PASS",
+      "code": 200,
+      "time": 4.563208,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "DM compra",
+      "status": "PASS",
+      "code": 200,
+      "time": 11.948475,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "DM emoji",
+      "status": "PASS",
+      "code": 200,
+      "time": 3.850803,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "DM largo",
+      "status": "PASS",
+      "code": 200,
+      "time": 11.206194,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Copilot pending",
+      "status": "FAIL",
+      "code": 500,
+      "time": 1.432945,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Copilot status",
+      "status": "PASS",
+      "code": 200,
+      "time": 2.119863,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Copilot suggest (nuevo endpoint)",
+      "status": "PASS",
+      "code": 404,
+      "time": 1.070472,
+      "expected": [
+        404,
+        422
+      ],
+      "perf_warn": ""
+    },
+    {
+      "name": "Content search (GET)",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.636078,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Citations search (POST)",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.437026,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Clone score",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.310897,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "DM metrics",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.880427,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "DM leads list",
+      "status": "PASS",
+      "code": 200,
+      "time": 2.33972,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Content stats",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.205064,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/stats",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.927656,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/conversations",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.220079,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/pending-messages",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.066589,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/alerts",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.427586,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/feature-flags",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.346222,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/demo-status",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.859456,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/creators",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.684135,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/sync-status/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.186424,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/oauth/status/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.884075,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/backups",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.350203,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/ingestion/status/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 2.056322,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/lead-categories",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.421081,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/ghost-stats/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.967458,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/ghost-config",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.346697,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin GET /admin/rate-limiter-stats",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.29835,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /creator/config/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.409234,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /creator/list",
+      "status": "FAIL",
+      "code": 0,
+      "time": 15.001967,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /dashboard/stefano_bonanno/overview",
+      "status": "PASS",
+      "code": 200,
+      "time": 9.639357,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /creator/stefano_bonanno/products",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.995537,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /creator/config/stefano_bonanno/knowledge",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.582536,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /analytics/stefano_bonanno/sales",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.377348,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /tone/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.325078,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /connections/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.285693,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /calendar/stefano_bonanno/links",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.886838,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /insights/stefano_bonanno/today",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.516675,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /intelligence/stefano_bonanno/dashboard",
+      "status": "PASS",
+      "code": 200,
+      "time": 3.593822,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /audience/stefano_bonanno/segments",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.547184,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /audiencia/stefano_bonanno/topics",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.883836,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /content/stats",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.216144,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /citations/stefano_bonanno/stats",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.390666,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /clone-score/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.076823,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /payments/stefano_bonanno/revenue",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.42101,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /booking-links/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.657417,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /bot/stefano_bonanno/status",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.18631,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /preview/status",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.331967,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator GET /leads/stefano_bonanno/unified",
+      "status": "PASS",
+      "code": 200,
+      "time": 2.711572,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Leads GET /dm/leads/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 2.039754,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Leads GET /dm/metrics/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.862102,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Leads GET /admin/lead-categories",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.592061,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Nurturing GET /nurturing/stefano_bonanno/sequences",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.393179,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Nurturing GET /nurturing/stefano_bonanno/followups",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.438544,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Nurturing GET /nurturing/scheduler/status",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.308248,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "DM GET /dm/conversations/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.89743,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "DM GET /dm/metrics/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.561431,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "DM GET /dm/leads/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.652751,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "OAuth GET /oauth/debug",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.372293,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "OAuth GET /oauth/status/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.778334,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Knowledge GET /creator/config/stefano_bonanno/knowledge/faqs",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.447655,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Knowledge GET /autolearning/stefano_bonanno/rules",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.220429,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Knowledge GET /autolearning/stefano_bonanno/dashboard",
+      "status": "PASS",
+      "code": 200,
+      "time": 2.707866,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Other GET /maintenance/echo-status/stefano_bonanno",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.450796,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Other GET /debug/status",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.387029,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Other GET /events/stefano_bonanno",
+      "status": "PASS",
+      "code": 401,
+      "time": 0.373491,
+      "expected": [
+        200,
+        401
+      ],
+      "perf_warn": ""
+    },
+    {
+      "name": "Flow: DM pipeline completo",
+      "status": "PASS",
+      "code": 200,
+      "time": 11.501351,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Flow: Webhook Instagram vacio",
+      "status": "PASS",
+      "code": 400,
+      "time": 0.439876,
+      "expected": 400,
+      "perf_warn": ""
+    },
+    {
+      "name": "Flow: Webhook Stripe vacio",
+      "status": "PASS",
+      "code": 200,
+      "time": 2.465977,
+      "expected": null,
+      "perf_warn": ""
+    },
+    {
+      "name": "Flow: Webhook WhatsApp vacio",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.371284,
+      "expected": null,
+      "perf_warn": ""
+    },
+    {
+      "name": "XSS attempt",
+      "status": "PASS",
+      "code": 200,
+      "time": 11.797908,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator inexistente",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.536809,
+      "expected": [
+        200,
+        404
+      ],
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator inexistente products",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.189243,
+      "expected": [
+        200,
+        404
+      ],
+      "perf_warn": ""
+    },
+    {
+      "name": "Creator inexistente config",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.880849,
+      "expected": [
+        200,
+        404
+      ],
+      "perf_warn": ""
+    },
+    {
+      "name": "Empty body POST dm",
+      "status": "PASS",
+      "code": 422,
+      "time": 0.393291,
+      "expected": [
+        400,
+        422
+      ],
+      "perf_warn": ""
+    },
+    {
+      "name": "Missing fields dm",
+      "status": "PASS",
+      "code": 422,
+      "time": 0.382789,
+      "expected": [
+        400,
+        422
+      ],
+      "perf_warn": ""
+    },
+    {
+      "name": "Invalid JSON dm",
+      "status": "PASS",
+      "code": 422,
+      "time": 0.455972,
+      "expected": 422,
+      "perf_warn": ""
+    },
+    {
+      "name": "Webhook invalid payload",
+      "status": "PASS",
+      "code": 400,
+      "time": 0.508141,
+      "expected": 400,
+      "perf_warn": ""
+    },
+    {
+      "name": "Admin nuclear POST sin auth \u2192 401",
+      "status": "PASS",
+      "code": 401,
+      "time": 0.412978,
+      "expected": 401,
+      "perf_warn": ""
+    },
+    {
+      "name": "Unicode heavy",
+      "status": "PASS",
+      "code": 200,
+      "time": 9.406726,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "SQL injection attempt",
+      "status": "PASS",
+      "code": 200,
+      "time": 1.583905,
+      "expected": [
+        200,
+        404,
+        422
+      ],
+      "perf_warn": ""
+    },
+    {
+      "name": "Path traversal encoded",
+      "status": "PASS",
+      "code": 400,
+      "time": 0.377961,
+      "expected": [
+        400,
+        404
+      ],
+      "perf_warn": ""
+    },
+    {
+      "name": "Path traversal etc/passwd",
+      "status": "PASS",
+      "code": 400,
+      "time": 0.288368,
+      "expected": [
+        400,
+        404
+      ],
+      "perf_warn": ""
+    },
+    {
+      "name": "Path traversal wp-admin",
+      "status": "PASS",
+      "code": 400,
+      "time": 0.396121,
+      "expected": [
+        400,
+        404
+      ],
+      "perf_warn": ""
+    },
+    {
+      "name": "Health timing #1",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.37771,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Health timing #2",
+      "status": "WARN",
+      "code": 200,
+      "time": 1.247792,
+      "expected": 200,
+      "perf_warn": " [SLOW: 1.2s > 1.0s]"
+    },
+    {
+      "name": "Health timing #3",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.333696,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Health timing #4",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.403022,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "Health timing #5",
+      "status": "PASS",
+      "code": 200,
+      "time": 0.414639,
+      "expected": 200,
+      "perf_warn": ""
+    },
+    {
+      "name": "DM timing",
+      "status": "PASS",
+      "code": 200,
+      "time": 10.374693,
+      "expected": 200,
+      "perf_warn": ""
+    }
+  ]
+}

@@ -68,7 +68,12 @@ class ResponseGuardrail:
         hallucination_issues = self._check_hallucinations(response, context)
         issues.extend(hallucination_issues)
 
-        # 4. Check response length isn't excessive
+        # 4. BUG-05 fix: Check for off-topic opinions
+        off_topic_redirect = self._check_off_topic(query, response)
+        if off_topic_redirect:
+            issues.append("off_topic_opinion")
+
+        # 5. Check response length isn't excessive
         if len(response) > 2000:
             issues.append("Response too long (>2000 chars)")
 

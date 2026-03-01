@@ -78,6 +78,7 @@ class ReflexionEngine:
     # Patterns for pricing questions
     PRICE_QUESTION_PATTERNS = [
         r'\bcuanto\s+(?:cuesta|vale|es)\b',
+        r'\bcu[aá]nto\s+(?:cuesta|vale|es)\b',  # BUG-04: also match with tilde
         r'\bprecio\b',
         r'\bcoste?\b',
         r'\bhow\s+much\b',

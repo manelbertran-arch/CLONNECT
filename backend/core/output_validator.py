@@ -738,3 +738,67 @@ def quick_validate(response: str, creator_data: CreatorData) -> bool:
         auto_correct=False,
     )
     return result.is_valid
+
+
+class OutputValidator:
+    """
+    Simplified output validator with a clean interface for testing.
+
+    Validates prices and URLs in LLM responses without requiring DB access.
+    """
+
+    PRICE_TOLERANCE = 5.0  # Allow prices within ±5€ of known prices
+
+    def validate(
+        self,
+        response: str,
+        known_prices: list = None,
+        allowed_urls: list = None,
+    ) -> dict:
+        """
+        Validate a response for hallucinated prices and unauthorized URLs.
+
+        Args:
+            response: The LLM-generated response text
+            known_prices: List of known product prices (floats)
+            allowed_urls: List of authorized URL domains
+
+        Returns:
+            dict with: should_escalate, corrected, has_unauthorized_url, issues
+        """
+        import re as _re
+
+        known_prices = known_prices or []
+        allowed_urls = allowed_urls or []
+        issues = []
+        corrected = response
+        should_escalate = False
+        has_unauthorized_url = False
+
+        # Check prices
+        if known_prices:
+            price_matches = _re.findall(r'(\d+(?:[.,]\d{1,2})?)\s*€', response)
+            for price_str in price_matches:
+                price = float(price_str.replace(',', '.'))
+                if not any(abs(price - known) <= self.PRICE_TOLERANCE for known in known_prices):
+                    issues.append(f"Hallucinated price: {price}€ not in known prices {known_prices}")
+                    should_escalate = True
+
+        # Check URLs
+        if allowed_urls:
+            url_matches = _re.findall(r'https?://[^\s]+', response)
+            for url in url_matches:
+                domain_match = _re.search(r'https?://(?:www\.)?([^/\s]+)', url)
+                if domain_match:
+                    domain = domain_match.group(1)
+                    if not any(allowed in domain for allowed in allowed_urls):
+                        has_unauthorized_url = True
+                        corrected = corrected.replace(url, '[enlace removido]')
+                        issues.append(f"Unauthorized URL: {url}")
+
+        return {
+            "should_escalate": should_escalate,
+            "corrected": corrected,
+            "has_unauthorized_url": has_unauthorized_url,
+            "issues": issues,
+        }

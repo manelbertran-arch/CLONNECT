@@ -183,3 +183,39 @@ def serialize_candidates(result: BestOfNResult) -> dict:
         "fallback_used": result.fallback_used,
         "n_candidates": len(result.all_candidates),
     }
+
+
+
+class BestOfNSelector:
+    """Synchronous wrapper for Best-of-N selection with confidence scoring."""
+
+    def calculate_confidence(
+        self,
+        intent: str,
+        response_text: str,
+        response_type: str = "generated",
+        creator_id: str = "",
+    ) -> float:
+        """
+        Calculate confidence score for a candidate response.
+
+        Returns 0.0 for empty responses, higher scores for valid responses.
+        """
+        if not response_text or not response_text.strip():
+            return 0.0
+
+        score = 0.5  # base score
+
+        # Pool responses get a confidence boost
+        if response_type == "pool":
+            score += 0.3
+
+        # Penalize very short responses
+        if len(response_text) < 10:
+            score -= 0.2
+
+        # Penalize very long responses
+        if len(response_text) > 500:
+            score -= 0.1
+
+        return max(0.0, min(1.0, score))

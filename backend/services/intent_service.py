@@ -49,6 +49,12 @@ class Intent(Enum):
     SUPPORT = "support"
     ESCALATION = "escalation"
 
+    # Pricing (separated from product_question for strategy routing)
+    PRICING = "pricing"
+
+    # Feedback
+    FEEDBACK_NEGATIVE = "feedback_negative"
+
     # v10.2: New sub-categories (previously all fell into OTHER)
     HUMOR = "humor"
     REACTION = "reaction"
@@ -101,13 +107,25 @@ class IntentClassifier:
         "lo compro",
     ]
 
-    # Product question patterns
+    # Pricing patterns (separated for strategy routing — strategy.py checks "pricing")
+    PRICING_PATTERNS = [
+        "cuánto cuesta",
+        "cuanto cuesta",
+        "cuánto vale",
+        "cuanto vale",
+        "cuál es el precio",
+        "cual es el precio",
+        "precio de",
+        "cuánto es",
+        "cuanto es",
+        "me dices el precio",
+        "precio",
+    ]
+
+    # Product question patterns (content/structure questions, not pricing)
     PRODUCT_QUESTION_PATTERNS = [
         "qué incluye",
         "que incluye",
-        "cuánto cuesta",
-        "cuanto cuesta",
-        "precio",
         "cómo funciona",
         "como funciona",
         "qué es",
@@ -121,6 +139,89 @@ class IntentClassifier:
         "duracion",
         "garantía",
         "garantia",
+    ]
+
+    # Objection patterns
+    OBJECTION_PRICE_PATTERNS = [
+        "muy caro", "es caro", "demasiado caro", "no me alcanza",
+        "no puedo pagarlo", "no tengo ese presupuesto", "fuera de mi presupuesto",
+        "mucho dinero", "sale muy caro", "no tengo el dinero",
+    ]
+
+    OBJECTION_TIME_PATTERNS = [
+        "no tengo tiempo", "no me da tiempo", "no tengo disponibilidad",
+        "estoy muy ocupado", "estoy muy ocupada", "no puedo ahora",
+        "demasiado tiempo", "no tengo hueco",
+    ]
+
+    OBJECTION_DOUBT_PATTERNS = [
+        "no sé si", "no se si", "no estoy seguro", "no estoy segura",
+        "tengo dudas", "me da miedo que", "funcionará", "no sé si me servirá",
+        "no sé si funciona",
+    ]
+
+    OBJECTION_LATER_PATTERNS = [
+        "lo pienso", "me lo pienso", "lo pensaré", "te aviso",
+        "luego te digo", "más adelante", "mas adelante", "en otro momento",
+        "ya veré", "ya veremos", "lo considero",
+    ]
+
+    OBJECTION_NOT_FOR_ME_PATTERNS = [
+        "no creo que sea para mí", "no creo que sea para mi",
+        "no es para mí", "no es para mi",
+        "no creo que me sirva", "no creo que funcione para mí",
+        "no es lo que busco", "no me encaja",
+    ]
+
+    # Interest patterns
+    INTEREST_STRONG_PATTERNS = [
+        "me interesa mucho", "muy interesado", "muy interesada",
+        "quiero saber más", "quiero saber mas", "cuéntame más",
+        "me interesa bastante", "estoy muy interesado", "estoy muy interesada",
+        "me interesa un montón",
+    ]
+
+    INTEREST_SOFT_PATTERNS = [
+        "suena interesante", "me parece interesante", "me llama la atención",
+        "me lo estoy pensando", "podría ser interesante", "no está mal",
+    ]
+
+    # Escalation patterns
+    ESCALATION_PATTERNS = [
+        "quiero hablar con una persona", "hablar con alguien real",
+        "con un humano", "con una persona real", "con el creador",
+        "quiero que me llames", "prefiero hablar",
+        "necesito hablar con alguien",
+    ]
+
+    # Support patterns
+    SUPPORT_PATTERNS = [
+        "no me funciona el acceso", "no funciona el acceso", "no puedo acceder",
+        "tengo un problema con", "error en", "no me llega",
+        "no puedo entrar", "no aparece el contenido", "no veo el contenido",
+        "problema técnico", "tengo un error", "fallo técnico",
+    ]
+
+    # Feedback negative patterns
+    FEEDBACK_NEGATIVE_PATTERNS = [
+        "malísimo", "muy malo", "pésimo", "horrible", "decepcionante",
+        "no vale la pena", "no merece la pena", "me ha decepcionado",
+        "no cumplió", "no cumple", "una estafa", "mala calidad",
+        "muy mal", "fatal",
+    ]
+
+    # Booking patterns
+    BOOKING_PATTERNS = [
+        "reservar", "agendar", "pedir cita", "hacer una cita",
+        "cuando tienes disponibilidad", "próxima sesión",
+        "próxima cita", "quiero una sesión",
+    ]
+
+    # Lead magnet patterns
+    LEAD_MAGNET_PATTERNS = [
+        "quiero el pdf", "quiero el ebook", "quiero el recurso gratuito",
+        "cómo consigo", "como consigo", "quiero descargar",
+        "el regalo", "recurso gratis", "el bonus gratuito",
     ]
 
     # Thanks patterns
@@ -183,6 +284,9 @@ class IntentClassifier:
         if any(pattern in msg for pattern in self.PURCHASE_PATTERNS):
             return Intent.PURCHASE_INTENT
 
+        if any(pattern in msg for pattern in self.PRICING_PATTERNS):
+            return Intent.PRICING
+
         if any(pattern in msg for pattern in self.PRODUCT_QUESTION_PATTERNS):
             return Intent.PRODUCT_QUESTION
 
@@ -195,6 +299,43 @@ class IntentClassifier:
 
         if any(pattern in msg for pattern in self.GOODBYE_PATTERNS):
             return Intent.GOODBYE
+
+        # Priority 2.5: Objections, interests, escalation, support
+        if any(p in msg for p in self.OBJECTION_PRICE_PATTERNS):
+            return Intent.OBJECTION_PRICE
+
+        if any(p in msg for p in self.OBJECTION_TIME_PATTERNS):
+            return Intent.OBJECTION_TIME
+
+        if any(p in msg for p in self.OBJECTION_DOUBT_PATTERNS):
+            return Intent.OBJECTION_DOUBT
+
+        if any(p in msg for p in self.OBJECTION_LATER_PATTERNS):
+            return Intent.OBJECTION_LATER
+
+        if any(p in msg for p in self.OBJECTION_NOT_FOR_ME_PATTERNS):
+            return Intent.OBJECTION_NOT_FOR_ME
+
+        if any(p in msg for p in self.INTEREST_STRONG_PATTERNS):
+            return Intent.INTEREST_STRONG
+
+        if any(p in msg for p in self.INTEREST_SOFT_PATTERNS):
+            return Intent.INTEREST_SOFT
+
+        if any(p in msg for p in self.ESCALATION_PATTERNS):
+            return Intent.ESCALATION
+
+        if any(p in msg for p in self.SUPPORT_PATTERNS):
+            return Intent.SUPPORT
+
+        if any(p in msg for p in self.FEEDBACK_NEGATIVE_PATTERNS):
+            return Intent.FEEDBACK_NEGATIVE
+
+        if any(p in msg for p in self.BOOKING_PATTERNS):
+            return Intent.BOOKING
+
+        if any(p in msg for p in self.LEAD_MAGNET_PATTERNS):
+            return Intent.LEAD_MAGNET
 
         # Priority 3: v10.2 sub-categories (previously all OTHER)
         msg_clean = msg.rstrip("!").rstrip(".").rstrip("?").strip()

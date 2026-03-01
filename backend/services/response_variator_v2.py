@@ -553,6 +553,10 @@ class ResponseVariatorV2:
         - Pre-classified context support (v10.2)
         - Personality extraction pools (v12) — highest priority
         """
+        # BUG-06 fix: empty/whitespace messages must never match a pool
+        if not lead_message or not lead_message.strip():
+            return PoolMatch(matched=False)
+
         category, confidence = self._detect_category(lead_message, context)
 
         if category is None or confidence < min_confidence:

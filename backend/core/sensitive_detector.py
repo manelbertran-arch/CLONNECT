@@ -63,6 +63,15 @@ SELF_HARM_PATTERNS = [
     r'\bsuicid(?:arme|io|a)\b',  # suicidarme, suicidio, suicida
     # Autolesión explícita
     r'\b(?:autolesion(?:es|arme)?|cortarme|hacerme\s+da[ñn]o)\b',
+    # Frases directas frecuentes en español
+    r'\b(?:me\s+voy\s+a\s+(?:suicidar|matar|hacer\s+da[ñn]o))\b',
+    r'\b(?:voy\s+a\s+(?:suicidarme|matarme|quitarme\s+la\s+vida))\b',
+    r'\b(?:voy\s+a\s+acabar\s+con\s+todo)\b',
+    r'\b(?:quiero\s+(?:quitarme\s+la\s+vida|matarme|acabar\s+con\s+todo))\b',
+    # Métodos específicos
+    r'\b(?:tomar(?:me)?\s+(?:todas?\s+las?\s+)?(?:pastillas|medicamentos))\b',
+    r'\bsobredosis\b',
+    r'\b(?:tirarme\s+(?:de|del|por))\b',
     # English
     r'\b(?:want\s+to\s+(?:die|disappear|end\s+it))\b',
     r'\b(?:self[\s-]?harm|cutting\s+myself)\b',

@@ -78,3 +78,10 @@ def check_send_permission(
         raise SendBlocked("Message blocked — not approved by creator")
     finally:
         session.close()
+
+
+class SendGuard:
+    """Class wrapper around check_send_permission for structured usage."""
+
+    def check(self, creator_id: str, approved: bool = False, caller: str = "unknown") -> bool:
+        return check_send_permission(creator_id, approved=approved, caller=caller)

@@ -427,3 +427,41 @@ def trigger_identity_resolution(agent, sender_id: str, platform: str) -> None:
         asyncio.create_task(resolve_identity(agent.creator_id, lead_id, platform))
     except Exception as e:
         logger.debug(f"[IDENTITY] trigger failed: {e}")
+
+
+def check_response_loop(current_response: str, last_responses: list) -> bool:
+    """
+    Check if current_response is too similar to recent past responses (loop detection).
+
+    Uses first-50-chars comparison for exact match, and word overlap for fuzzy.
+
+    Args:
+        current_response: The response being evaluated
+        last_responses: List of previous bot responses
+
+    Returns:
+        True if a loop is detected, False otherwise
+    """
+    if not current_response or not last_responses:
+        return False
+
+    current_prefix = current_response[:50].strip().lower()
+
+    for prev in last_responses:
+        if not prev:
+            continue
+        prev_prefix = prev[:50].strip().lower()
+
+        # Exact prefix match (first 50 chars)
+        if current_prefix and prev_prefix and current_prefix == prev_prefix:
+            return True
+
+        # High word overlap
+        current_words = set(re.findall(r'\b\w{4,}\b', current_response.lower()))
+        prev_words = set(re.findall(r'\b\w{4,}\b', prev.lower()))
+        if current_words and prev_words:
+            overlap = len(current_words & prev_words) / max(len(current_words), 1)
+            if overlap > 0.8:
+                return True
+
+    return False

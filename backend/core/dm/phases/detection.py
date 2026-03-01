@@ -30,9 +30,9 @@ async def phase_detection(
         try:
             sensitive_result = detect_sensitive_content(message)
             if sensitive_result and sensitive_result.confidence >= AGENT_THRESHOLDS.sensitive_confidence:
-                logger.warning(f"Sensitive content detected: {sensitive_result.category}")
+                logger.warning(f"Sensitive content detected: {sensitive_result.type.value}")
                 cognitive_metadata["sensitive_detected"] = True
-                cognitive_metadata["sensitive_category"] = sensitive_result.category
+                cognitive_metadata["sensitive_category"] = sensitive_result.type.value
                 if sensitive_result.confidence >= AGENT_THRESHOLDS.sensitive_escalation:
                     crisis_response = get_crisis_resources(language="es")
                     result.pool_response = DMResponse(
@@ -41,7 +41,7 @@ async def phase_detection(
                         lead_stage="unknown",
                         confidence=sensitive_result.confidence,
                         tokens_used=0,
-                        metadata={"sensitive_category": sensitive_result.category},
+                        metadata={"sensitive_category": sensitive_result.type.value},
                     )
                     return result
         except Exception as e:

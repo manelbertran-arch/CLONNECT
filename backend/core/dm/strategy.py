@@ -48,30 +48,17 @@ def _determine_response_strategy(
             "Responde relajado y natural. No vendas."
         )
 
-    # Priority 2: Detect concrete help requests
+    # Shared help signals used in Priority 2 and Priority 4
     help_signals = [
         "ayuda", "problema", "no funciona", "no puedo", "error",
         "cómo", "como hago", "necesito", "urgente", "no me deja",
         "no entiendo", "explícame", "explicame", "qué hago", "que hago",
     ]
-    if any(signal in msg_lower for signal in help_signals):
-        return (
-            "ESTRATEGIA: AYUDA. El usuario tiene una necesidad concreta. "
-            "Responde DIRECTAMENTE a lo que necesita. NO saludes genéricamente. "
-            "Si no sabes la respuesta exacta, pregunta detalles específicos."
-        )
 
-    # Priority 3: Product interest -> sales mode
-    if intent_value in ("purchase", "pricing", "product_info"):
-        return (
-            "ESTRATEGIA: VENTA. El usuario muestra interés en productos/servicios. "
-            "Da la información concreta que pide (precio, contenido, duración). "
-            "Añade un CTA suave al final."
-        )
-
-    # Priority 4: First message -> greeting (but check for embedded needs)
+    # Priority 2: BUG-12 fix — First message takes priority over generic help signals
+    # so "Hola, necesito ayuda" gives BIENVENIDA + AYUDA, not just AYUDA
     if is_first_message:
-        # Check if first message contains a question or need
+        # Check if first message contains a question or help need
         if "?" in message or any(s in msg_lower for s in help_signals):
             return (
                 "ESTRATEGIA: BIENVENIDA + AYUDA. Es el primer mensaje y contiene una pregunta. "
@@ -81,6 +68,22 @@ def _determine_response_strategy(
             "ESTRATEGIA: BIENVENIDA. Primer mensaje del usuario. "
             "Saluda brevemente y pregunta en qué puedes ayudar. "
             "NO hagas un saludo genérico largo."
+        )
+
+    # Priority 3: Detect concrete help requests (returning users)
+    if any(signal in msg_lower for signal in help_signals):
+        return (
+            "ESTRATEGIA: AYUDA. El usuario tiene una necesidad concreta. "
+            "Responde DIRECTAMENTE a lo que necesita. NO saludes genéricamente. "
+            "Si no sabes la respuesta exacta, pregunta detalles específicos."
+        )
+
+    # Priority 4: Product interest -> sales mode
+    if intent_value in ("purchase", "pricing", "product_info", "purchase_intent", "product_question"):
+        return (
+            "ESTRATEGIA: VENTA. El usuario muestra interés en productos/servicios. "
+            "Da la información concreta que pide (precio, contenido, duración). "
+            "Añade un CTA suave al final."
         )
 
     # Priority 5: Ghost/reactivation

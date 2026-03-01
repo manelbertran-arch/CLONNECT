@@ -307,22 +307,25 @@ def apply_emoji_limit(response: str, creator_id: str = None) -> str:
     """
     FIX 8: Limit emoji count per message from Doc D §4.3 calibration.
 
-    If max_emojis_per_message is set, removes excess emojis from the end.
+    BUG-11 fix: applies a default limit of 5 when no calibration is available,
+    so responses with 10+ emojis are trimmed even for uncalibrated creators.
     """
     if not response or not creator_id:
         return response
+
+    DEFAULT_MAX_EMOJIS = 5  # BUG-11: default when no calibration
+    max_emojis = DEFAULT_MAX_EMOJIS
 
     try:
         from core.personality_loader import get_calibration_override
 
         override = get_calibration_override(creator_id)
-        if not override:
-            return response
-        max_emojis = override.get("max_emojis_per_message")
-        if max_emojis is None:
-            return response
+        if override:
+            calibrated_max = override.get("max_emojis_per_message")
+            if calibrated_max is not None:
+                max_emojis = calibrated_max
     except Exception:
-        return response
+        pass  # use default
 
     emoji_matches = list(_EMOJI_RE.finditer(response))
     emoji_count = len(emoji_matches)
@@ -465,6 +468,11 @@ def apply_all_response_fixes(
 
     # FIX 9: Global catchphrase removal (after blacklist to catch remaining)
     response = remove_catchphrases(response)
+
+    # BUG-10 fix: if all fixes stripped the response to empty, use a safe fallback
+    if not response.strip():
+        logger.warning("[FIXES] All fixes resulted in empty response — using fallback")
+        return "Estoy aquí para ayudarte. ¿En qué puedo echarte una mano?"
 
     return response
 
