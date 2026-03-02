@@ -151,6 +151,7 @@ def _save_chunks_to_db(creator_id: str, chunks_data: List[dict]) -> bool:
                     ContentChunk.creator_id == creator_id,
                     ContentChunk.chunk_id.in_(chunk_ids_to_check)
                 )
+                .limit(200)
                 .all()
             )
 

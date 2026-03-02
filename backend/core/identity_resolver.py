@@ -521,6 +521,7 @@ async def manual_merge(creator_id: str, lead_ids: List[str]) -> Optional[str]:
             leads = (
                 session.query(Lead)
                 .filter(Lead.creator_id == creator.id, Lead.id.in_(lead_ids))
+                .limit(50)
                 .all()
             )
             if len(leads) < 2:
