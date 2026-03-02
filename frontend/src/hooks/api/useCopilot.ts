@@ -11,7 +11,7 @@ export function useCopilotPending(creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: apiKeys.copilotPending(creatorId),
     queryFn: () => getCopilotPending(creatorId),
-    refetchInterval: 30000,
+    refetchInterval: 15000,
     staleTime: 30000,
     gcTime: 5 * 60 * 1000,
     refetchIntervalInBackground: false,
@@ -22,7 +22,7 @@ export function useCopilotStatus(creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: apiKeys.copilotStatus(creatorId),
     queryFn: () => getCopilotStatus(creatorId),
-    refetchInterval: 30000,
+    refetchInterval: 15000,
     refetchIntervalInBackground: false,
     staleTime: 60000,
     gcTime: 5 * 60 * 1000,
@@ -158,7 +158,7 @@ export function usePendingForLead(leadId: string | null, creatorId: string = get
     enabled: !!leadId,
     staleTime: 10000,
     gcTime: 60000,
-    refetchInterval: 30000,
+    refetchInterval: 15000,
     refetchIntervalInBackground: false,
   });
 }

@@ -5,7 +5,7 @@ export function useDashboard(creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: apiKeys.dashboard(creatorId),
     queryFn: () => getDashboardOverview(creatorId),
-    refetchInterval: 120000,
+    refetchInterval: 60000,
     refetchIntervalInBackground: false,
     staleTime: 30000,
   });
@@ -15,7 +15,7 @@ export function useMetrics(creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: apiKeys.metrics(creatorId),
     queryFn: () => getMetrics(creatorId),
-    refetchInterval: 120000,
+    refetchInterval: 60000,
     refetchIntervalInBackground: false,
     staleTime: 30000,
   });

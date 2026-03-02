@@ -25,7 +25,7 @@ export default function Mensajes() {
   const { data: conversationsData } = useQuery({
     queryKey: ['conversations', creatorId],
     queryFn: () => getConversations(creatorId),
-    refetchInterval: 30000,
+    refetchInterval: 5000,
     refetchIntervalInBackground: false,
   });
 
@@ -33,7 +33,7 @@ export default function Mensajes() {
     queryKey: ['follower', creatorId, conversationId],
     queryFn: () => getFollowerDetail(creatorId, conversationId!),
     enabled: !!conversationId,
-    refetchInterval: 30000,
+    refetchInterval: 5000,
     refetchIntervalInBackground: false,
   });
 
