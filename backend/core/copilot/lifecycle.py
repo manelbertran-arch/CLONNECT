@@ -368,6 +368,7 @@ async def get_pending_responses_impl(
                 session.query(Message.lead_id, Message.content)
                 .filter(Message.lead_id.in_(lead_ids), Message.role == "user")
                 .order_by(Message.lead_id, Message.created_at.desc())
+                .limit(limit * 10)
                 .all()
             )
             seen_leads = set()

@@ -50,8 +50,24 @@ def _try_load_chunks_from_db(creator_id: str) -> Optional[List[dict]]:
                 logger.warning(f"Creator {creator_id} not found in DB")
                 return None
 
-            # Buscar en rag_documents usando el UUID del creator
-            chunks = db.query(RAGDocument).filter(RAGDocument.creator_id == creator.id).all()
+            # Buscar en rag_documents usando el UUID del creator (column-select + LIMIT)
+            chunks = (
+                db.query(
+                    RAGDocument.doc_id,
+                    RAGDocument.source_type,
+                    RAGDocument.content_type,
+                    RAGDocument.source_url,
+                    RAGDocument.title,
+                    RAGDocument.content,
+                    RAGDocument.chunk_index,
+                    RAGDocument.total_chunks,
+                    RAGDocument.extra_data,
+                    RAGDocument.created_at,
+                )
+                .filter(RAGDocument.creator_id == creator.id)
+                .limit(200)
+                .all()
+            )
 
             if not chunks:
                 logger.info(f"No RAG documents found for {creator_id}")

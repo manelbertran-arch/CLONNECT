@@ -136,6 +136,7 @@ def get_applicable_rules(
                 LearningRule.creator_id == creator_db_id,
                 LearningRule.is_active.is_(True),
             )
+            .limit(100)
             .all()
         )
 
@@ -310,6 +311,7 @@ def get_all_active_rules(creator_db_id) -> List[Dict]:
                 LearningRule.is_active.is_(True),
             )
             .order_by(LearningRule.created_at)
+            .limit(100)
             .all()
         )
 

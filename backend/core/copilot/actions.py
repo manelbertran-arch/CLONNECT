@@ -325,6 +325,7 @@ def auto_discard_pending_for_lead_impl(
                 Message.role == "assistant",
                 Message.status == "pending_approval",
             )
+            .limit(20)
             .all()
         )
 

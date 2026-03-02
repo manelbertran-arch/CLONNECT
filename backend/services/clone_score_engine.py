@@ -847,6 +847,7 @@ Responde SOLO con JSON:
             products = (
                 session.query(Product.name, Product.description, Product.price, Product.currency)
                 .filter(Product.creator_id == creator_db_id, Product.is_active.is_(True))
+                .limit(50)
                 .all()
             )
             kb_entries = (

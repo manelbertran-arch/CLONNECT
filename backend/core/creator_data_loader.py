@@ -444,7 +444,7 @@ def load_creator_data(creator_id: str) -> CreatorData:
         data.payment_methods = PaymentMethods.from_json(creator.other_payment_methods or {})
 
         # 2. Load products (single query)
-        products = session.query(Product).filter_by(creator_id=creator_uuid, is_active=True).all()
+        products = session.query(Product).filter_by(creator_id=creator_uuid, is_active=True).limit(50).all()
         for p in products:
             product_info = ProductInfo.from_db_row(p)
             if product_info.is_free:
@@ -457,13 +457,14 @@ def load_creator_data(creator_id: str) -> CreatorData:
         # 3. Load booking links (single query)
         # Note: BookingLink uses creator_id as string, not UUID
         booking_links = (
-            session.query(BookingLink).filter_by(creator_id=creator_id, is_active=True).all()
+            session.query(BookingLink).filter_by(creator_id=creator_id, is_active=True).limit(50).all()
         )
         # Also try with UUID string
         if not booking_links:
             booking_links = (
                 session.query(BookingLink)
                 .filter_by(creator_id=str(creator_uuid), is_active=True)
+                .limit(50)
                 .all()
             )
         for b in booking_links:
@@ -472,7 +473,7 @@ def load_creator_data(creator_id: str) -> CreatorData:
         logger.debug(f"Loaded {len(data.booking_links)} booking links")
 
         # 4. Load FAQs (single query)
-        faqs = session.query(KnowledgeBase).filter_by(creator_id=creator_uuid).all()
+        faqs = session.query(KnowledgeBase).filter_by(creator_id=creator_uuid).limit(50).all()
         for f in faqs:
             data.faqs.append(FAQInfo.from_db_row(f))
 

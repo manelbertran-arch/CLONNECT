@@ -390,7 +390,7 @@ def list_relationship_dnas_by_creator(creator_id: str) -> List[Dict]:
     try:
         from api.models import RelationshipDNAModel
 
-        dnas = session.query(RelationshipDNAModel).filter_by(creator_id=creator_id).all()
+        dnas = session.query(RelationshipDNAModel).filter_by(creator_id=creator_id).limit(100).all()
 
         db_dnas = [_dna_to_dict(dna) for dna in dnas]
 

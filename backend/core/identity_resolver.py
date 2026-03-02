@@ -270,13 +270,14 @@ def _match_by_phone(session, creator_uuid, lead, platform: str) -> Optional[obje
 
 def _match_by_exact_name(session, creator_uuid, lead) -> Optional[object]:
     """TIER 2: exact full name match (case-insensitive)."""
+    from sqlalchemy import func
     from api.models import Lead, UnifiedLead
 
     name = _normalise_name(lead.full_name)
     if not name or len(name) < 3:
         return None
 
-    # Find another lead with the same full name on a DIFFERENT platform
+    # SQL-level case-insensitive exact match across different platforms
     other = (
         session.query(Lead)
         .filter(
@@ -284,27 +285,29 @@ def _match_by_exact_name(session, creator_uuid, lead) -> Optional[object]:
             Lead.id != lead.id,
             Lead.platform != lead.platform,
             Lead.unified_lead_id.isnot(None),
+            func.lower(func.trim(Lead.full_name)) == name,
         )
-        .all()
+        .limit(10)
+        .first()
     )
-    for o in other:
-        if _normalise_name(o.full_name) == name:
-            unified = session.query(UnifiedLead).filter_by(id=o.unified_lead_id).first()
-            if unified:
-                return unified
+    if other:
+        unified = session.query(UnifiedLead).filter_by(id=other.unified_lead_id).first()
+        if unified:
+            return unified
 
     return None
 
 
 def _match_by_username(session, creator_uuid, lead) -> Optional[object]:
     """TIER 2: cross-platform username match."""
+    from sqlalchemy import func
     from api.models import Lead, UnifiedLead
 
     username = (lead.username or "").lower().strip().lstrip("@")
     if not username or len(username) < 3:
         return None
 
-    # Only match across different platforms
+    # SQL-level case-insensitive username match across different platforms
     other = (
         session.query(Lead)
         .filter(
@@ -312,15 +315,15 @@ def _match_by_username(session, creator_uuid, lead) -> Optional[object]:
             Lead.id != lead.id,
             Lead.platform != lead.platform,
             Lead.unified_lead_id.isnot(None),
+            func.lower(func.trim(Lead.username)) == username,
         )
-        .all()
+        .limit(10)
+        .first()
     )
-    for o in other:
-        other_username = (o.username or "").lower().strip().lstrip("@")
-        if other_username == username:
-            unified = session.query(UnifiedLead).filter_by(id=o.unified_lead_id).first()
-            if unified:
-                return unified
+    if other:
+        unified = session.query(UnifiedLead).filter_by(id=other.unified_lead_id).first()
+        if unified:
+            return unified
 
     return None
 

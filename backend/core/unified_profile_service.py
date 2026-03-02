@@ -336,7 +336,7 @@ def get_all_platform_identities(unified_profile_id: str) -> List[Dict[str, Any]]
         try:
             identities = session.query(PlatformIdentity).filter_by(
                 unified_profile_id=UUID(unified_profile_id)
-            ).all()
+            ).limit(50).all()
 
             return [
                 {
@@ -636,7 +636,7 @@ def get_cross_platform_context(
             identities = session.query(PlatformIdentity).filter(
                 PlatformIdentity.unified_profile_id == UUID(unified_profile_id),
                 PlatformIdentity.platform != current_platform
-            ).all()
+            ).limit(50).all()
 
             all_messages = []
             for identity in identities:
