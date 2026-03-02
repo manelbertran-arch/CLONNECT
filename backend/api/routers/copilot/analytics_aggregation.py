@@ -440,6 +440,7 @@ def compute_learning_progress(session, creator):
                 )
                 .group_by(cast(Message.created_at, Date))
                 .order_by(cast(Message.created_at, Date))
+                .limit(100)
                 .all()
             )
 

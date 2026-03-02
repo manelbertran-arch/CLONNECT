@@ -518,7 +518,7 @@ class InsightsEngine:
                 FollowerMemoryDB.last_contact < end_str,
             )
 
-            followers = query.all()
+            followers = query.limit(500).all()
 
             # Calculate metrics
             revenue = 0.0

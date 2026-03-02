@@ -81,7 +81,7 @@ class AudienceAggregator:
                 FollowerMemoryDB.interests.isnot(None),
             )
 
-            followers = query.all()
+            followers = query.limit(500).all()
             total_conversations = len(followers)
 
             # Aggregate interests
@@ -152,7 +152,7 @@ class AudienceAggregator:
                 FollowerMemoryDB.total_messages >= 5,  # High engagement threshold
             )
 
-            followers = query.all()
+            followers = query.limit(500).all()
             total_conversations = len(followers)
 
             # Aggregate topics from long messages
@@ -221,7 +221,7 @@ class AudienceAggregator:
                 FollowerMemoryDB.objections_raised.isnot(None),
             )
 
-            followers = query.all()
+            followers = query.limit(500).all()
             total_with_objections = len([f for f in followers if f.objections_raised])
 
             # Aggregate objections
@@ -305,7 +305,7 @@ class AudienceAggregator:
                 FollowerMemoryDB.last_messages.isnot(None),
             )
 
-            followers = query.all()
+            followers = query.limit(500).all()
 
             # Find @mentions
             mention_pattern = re.compile(r'@([a-zA-Z0-9_]+)')
@@ -490,7 +490,7 @@ class AudienceAggregator:
                 FollowerMemoryDB.last_messages.isnot(None),
             )
 
-            followers = query.all()
+            followers = query.limit(500).all()
 
             # Find questions and group by topic
             topic_questions: Dict[str, List[str]] = {}
@@ -564,7 +564,7 @@ class AudienceAggregator:
                 FollowerMemoryDB.is_customer == False,
             )
 
-            followers = query.all()
+            followers = query.limit(500).all()
             total_with_objections = 0
 
             # Filter purchase-related objections
@@ -659,7 +659,7 @@ class AudienceAggregator:
                 FollowerMemoryDB.last_messages.isnot(None),
             )
 
-            followers = query.all()
+            followers = query.limit(500).all()
             total_analyzed = 0
 
             # Perception aspects

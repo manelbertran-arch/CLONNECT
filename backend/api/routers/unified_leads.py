@@ -96,6 +96,7 @@ async def list_unified_leads(creator_id: str, limit: int = 100, offset: int = 0)
                 channel_leads = (
                     session.query(Lead)
                     .filter(Lead.unified_lead_id == ul.id)
+                    .limit(100)
                     .all()
                 )
                 platforms = list({cl.platform for cl in channel_leads})
@@ -168,6 +169,7 @@ async def get_unified_lead(creator_id: str, unified_id: str):
             channel_leads = (
                 session.query(Lead)
                 .filter(Lead.unified_lead_id == unified.id)
+                .limit(100)
                 .all()
             )
             platforms = list({cl.platform for cl in channel_leads})

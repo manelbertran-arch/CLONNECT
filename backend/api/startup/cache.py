@@ -23,7 +23,7 @@ async def _do_prewarm(SessionLocal):
 
             session = SessionLocal()
             try:
-                creators = session.query(Creator).filter_by(bot_active=True).all()
+                creators = session.query(Creator).filter_by(bot_active=True).limit(50).all()
                 for c in creators:
                     if c.name:
                         active_creators.add(c.name)
@@ -104,7 +104,7 @@ async def _do_cache_refresh(SessionLocal):
         if SessionLocal:
             session = SessionLocal()
             try:
-                creators = session.query(Creator).filter_by(bot_active=True).all()
+                creators = session.query(Creator).filter_by(bot_active=True).limit(50).all()
                 active_creators = [c.name for c in creators if c.name]
             finally:
                 session.close()

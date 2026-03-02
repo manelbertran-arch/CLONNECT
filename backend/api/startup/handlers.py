@@ -191,6 +191,7 @@ def register_startup_handlers(app: "FastAPI"):
                 creators = (
                     session.query(Creator)
                     .filter(Creator.bot_active.is_(True))
+                    .limit(200)
                     .all()
                 )
                 total_updated = 0
@@ -333,6 +334,7 @@ def register_startup_handlers(app: "FastAPI"):
                         Creator.instagram_token.isnot(None),
                         Creator.bot_active.is_(True),
                     )
+                    .limit(200)
                     .all()
                 )
                 creator_list = [
@@ -389,6 +391,7 @@ def register_startup_handlers(app: "FastAPI"):
                 creators = (
                     session.query(Creator.id, Creator.name)
                     .filter(Creator.bot_active.is_(True))
+                    .limit(200)
                     .all()
                 )
                 results = []
@@ -419,6 +422,7 @@ def register_startup_handlers(app: "FastAPI"):
                 creators = (
                     session.query(Creator.id, Creator.name)
                     .filter(Creator.bot_active.is_(True))
+                    .limit(200)
                     .all()
                 )
                 results = []
@@ -449,6 +453,7 @@ def register_startup_handlers(app: "FastAPI"):
                 creators = (
                     session.query(Creator.id, Creator.name)
                     .filter(Creator.bot_active.is_(True))
+                    .limit(200)
                     .all()
                 )
                 for creator_db_id, creator_name in creators:
@@ -505,6 +510,7 @@ def register_startup_handlers(app: "FastAPI"):
                 creators = (
                     session.query(Creator.id, Creator.name)
                     .filter(Creator.bot_active.is_(True))
+                    .limit(200)
                     .all()
                 )
             finally:
@@ -548,6 +554,7 @@ def register_startup_handlers(app: "FastAPI"):
                 creators = (
                     session.query(Creator.id, Creator.name)
                     .filter(Creator.bot_active.is_(True))
+                    .limit(200)
                     .all()
                 )
             finally:
@@ -627,6 +634,7 @@ def register_startup_handlers(app: "FastAPI"):
                 creators = (
                     session.query(Creator.id, Creator.name)
                     .filter(Creator.bot_active.is_(True))
+                    .limit(200)
                     .all()
                 )
             finally:
@@ -664,6 +672,7 @@ def register_startup_handlers(app: "FastAPI"):
                 creators = (
                     session.query(Creator.id, Creator.name)
                     .filter(Creator.bot_active.is_(True))
+                    .limit(200)
                     .all()
                 )
             finally:
@@ -920,6 +929,7 @@ def register_startup_handlers(app: "FastAPI"):
                         Creator.instagram_token_expires_at.isnot(None),
                         Creator.bot_active.is_(True),
                     )
+                    .limit(200)
                     .all()
                 )
                 now = datetime.now(timezone.utc)

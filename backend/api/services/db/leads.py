@@ -191,7 +191,7 @@ def get_conversations_with_counts(
                 (Message.lead_id == max_date_subq.c.lead_id)
                 & (Message.created_at == max_date_subq.c.max_created_at),
             )
-            for msg in last_msg_query.all():
+            for msg in last_msg_query.limit(50).all():
                 last_messages[msg.lead_id] = msg
 
         conversations = []

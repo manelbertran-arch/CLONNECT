@@ -265,6 +265,7 @@ async def get_dashboard(creator_id: str):
                 Message.intent.isnot(None),
             )
             .group_by(Message.intent)
+            .limit(100)
             .all()
         )
 

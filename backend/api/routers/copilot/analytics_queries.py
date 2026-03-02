@@ -402,6 +402,7 @@ def fetch_history(session, creator, offset, limit):
             Message.copilot_action.isnot(None),
         )
         .group_by(Message.copilot_action)
+        .limit(100)
         .all()
     )
 
