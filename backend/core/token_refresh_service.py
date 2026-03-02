@@ -198,8 +198,8 @@ async def check_and_refresh_if_needed(
 
         # Calcular días hasta expiración
         now = datetime.now(timezone.utc)
-        if expires_at.tzinfo:
-            expires_at = expires_at.replace(tzinfo=None)
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
 
         days_until_expiry = (expires_at - now).days
 

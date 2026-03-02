@@ -91,6 +91,7 @@ ALLOWED_COLUMN_TYPES = frozenset(
         "VARCHAR(100)",
         "VARCHAR(20)",
         "VARCHAR(20) DEFAULT 'pending'",
+        "VARCHAR(20) DEFAULT 'product'",
         "VARCHAR(50) DEFAULT 'otro'",
         "VARCHAR(20) DEFAULT 'sent'",
         "VARCHAR(500) DEFAULT ''",
