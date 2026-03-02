@@ -397,7 +397,7 @@ def init_database():
             creator = Creator(
                 email="manel@clonnect.com",
                 name="manel",
-                api_key="clonnect_manel_key",
+                api_key=os.getenv("MANEL_API_KEY", "clonnect_manel_key"),
                 clone_tone="friendly",
                 clone_name="Manel",
                 bot_active=False,  # Test creator — activate manually
@@ -413,7 +413,7 @@ def init_database():
             stefano = Creator(
                 email="stefano@clonnect.com",
                 name="stefano_auto",
-                api_key="clonnect_stefano_key",
+                api_key=os.getenv("STEFANO_API_KEY", "clonnect_stefano_key"),
                 clone_tone="professional",
                 clone_name="Stefano Bonanno",
                 bot_active=False,  # Test creator — activate manually

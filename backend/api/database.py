@@ -34,7 +34,7 @@ if DATABASE_URL:
             pool_size=5,  # 5 base connections per worker
             max_overflow=5,  # 5 overflow (10 max per worker)
             pool_timeout=30,
-            pool_recycle=300,  # Recycle connections every 5 minutes
+            pool_recycle=1800,  # Recycle connections every 30 minutes (was 5min, too aggressive)
             pool_pre_ping=True,  # Test connections before using them
             connect_args={
                 "keepalives": 1,
