@@ -170,6 +170,43 @@ class MemoryEngine:
             logger.debug("[MemoryEngine] _resolve_creator_uuid failed for %s: %s", creator_id, e)
         return creator_id  # Fall back (will fail at DB layer with a clear error)
 
+    def _resolve_lead_uuid(self, creator_uuid: str, lead_id: str) -> str:
+        """Return the DB UUID for a lead, resolving platform_user_id if needed."""
+        try:
+            uuid.UUID(lead_id)
+            return lead_id  # Already a valid UUID
+        except (ValueError, AttributeError):
+            pass
+        # platform_user_id path: look up by creator + platform_user_id
+        try:
+            from api.database import SessionLocal
+            from sqlalchemy import text
+
+            session = SessionLocal()
+            try:
+                row = session.execute(
+                    text(
+                        "SELECT id FROM leads "
+                        "WHERE creator_id = CAST(:cid AS uuid) "
+                        "AND platform_user_id = ANY(ARRAY[:pid, :pid_ig, :pid_wa, :pid_tg]) "
+                        "LIMIT 1"
+                    ),
+                    {
+                        "cid": creator_uuid,
+                        "pid": lead_id,
+                        "pid_ig": f"ig_{lead_id}",
+                        "pid_wa": f"wa_{lead_id}",
+                        "pid_tg": f"tg_{lead_id}",
+                    },
+                ).fetchone()
+                if row:
+                    return str(row[0])
+            finally:
+                session.close()
+        except Exception as e:
+            logger.debug("[MemoryEngine] _resolve_lead_uuid failed for %s: %s", lead_id, e)
+        return lead_id  # Fall back (will fail at DB layer with a clear error)
+
     # ─────────────────────────────────────────────────────────────────────
     # PUBLIC: add() — Extract and store facts from conversation
     # ─────────────────────────────────────────────────────────────────────
@@ -197,6 +234,7 @@ class MemoryEngine:
             return []
 
         creator_id = self._resolve_creator_uuid(creator_id)
+        lead_id = self._resolve_lead_uuid(creator_id, lead_id)
 
         try:
             formatted_msgs = self._format_messages_for_llm(conversation_messages)
@@ -317,6 +355,7 @@ class MemoryEngine:
             return ""
 
         creator_id = self._resolve_creator_uuid(creator_id)
+        lead_id = self._resolve_lead_uuid(creator_id, lead_id)
         cache_key = f"{creator_id}:{lead_id}"
         now = time.time()
         cached_ts = _recall_cache_ts.get(cache_key, 0)
@@ -360,6 +399,7 @@ class MemoryEngine:
     ) -> Optional[ConversationSummaryData]:
         """Generate and store a conversation summary."""
         creator_id = self._resolve_creator_uuid(creator_id)
+        lead_id = self._resolve_lead_uuid(creator_id, lead_id)
         try:
             summary_text = precomputed_summary
             key_topics = precomputed_topics or []
