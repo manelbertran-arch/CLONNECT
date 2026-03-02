@@ -453,7 +453,7 @@ class SemanticRAG:
                 if creator_id:
                     query = query.filter(ContentChunk.creator_id == creator_id)
 
-                chunks = query.all()
+                chunks = query.limit(500).all()
                 loaded = 0
 
                 for chunk in chunks:

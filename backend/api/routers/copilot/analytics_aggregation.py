@@ -194,6 +194,7 @@ def compute_copilot_stats(session, creator, days):
             Message.edit_diff.isnot(None),
             Message.created_at >= since,
         )
+        .limit(100)
         .all()
     )
 
@@ -242,6 +243,7 @@ def compute_copilot_stats(session, creator, days):
                 CopilotEvaluation.eval_type == "daily",
                 CopilotEvaluation.patterns.isnot(None),
             )
+            .limit(100)
             .all()
         )
         pattern_types = set()
@@ -363,6 +365,7 @@ def compute_learning_progress(session, creator):
                 CopilotEvaluation.patterns.isnot(None),
                 CopilotEvaluation.eval_date >= since.date(),
             )
+            .limit(100)
             .all()
         )
 
@@ -405,6 +408,7 @@ def compute_learning_progress(session, creator):
                 CopilotEvaluation.eval_date >= since.date(),
             )
             .order_by(CopilotEvaluation.eval_date)
+            .limit(100)
             .all()
         )
 

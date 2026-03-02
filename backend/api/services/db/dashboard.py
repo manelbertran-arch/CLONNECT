@@ -29,6 +29,7 @@ def get_dashboard_metrics(creator_name: str):
             .filter_by(creator_id=creator.id)
             .filter(not_(Lead.status.in_(["archived", "spam"])))
             .order_by(Lead.last_contact_at.desc())
+            .limit(50)
             .all()
         )
         total_leads = len(leads)
@@ -52,6 +53,7 @@ def get_dashboard_metrics(creator_name: str):
                 )
                 .filter(Message.lead_id.in_(lead_ids))
                 .group_by(Message.lead_id)
+                .limit(50)
                 .all()
             )
 

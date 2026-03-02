@@ -486,6 +486,7 @@ async def get_archived_conversations(creator_id: str):
         try:
             from api.models import Creator, Lead, Message
             from api.services.db_service import get_session
+            from sqlalchemy import func
 
             session = get_session()
             if not session:
@@ -501,15 +502,28 @@ async def get_archived_conversations(creator_id: str):
                     .filter_by(creator_id=creator.id)
                     .filter(Lead.status.in_(["archived", "spam"]))
                     .order_by(Lead.last_contact_at.desc())
+                    .limit(100)
                     .all()
                 )
 
+                # Batch COUNT user messages for all leads — avoids N+1 queries
+                archived_lead_ids = [lead.id for lead in leads]
+                archived_msg_counts: dict = {}
+                if archived_lead_ids:
+                    count_rows = (
+                        session.query(Message.lead_id, func.count(Message.id))
+                        .filter(
+                            Message.lead_id.in_(archived_lead_ids),
+                            Message.role == "user",
+                        )
+                        .group_by(Message.lead_id)
+                        .all()
+                    )
+                    archived_msg_counts = {lead_id: cnt for lead_id, cnt in count_rows}
+
                 conversations = []
                 for lead in leads:
-                    # Only count user messages, not bot responses
-                    msg_count = (
-                        session.query(Message).filter_by(lead_id=lead.id, role="user").count()
-                    )
+                    msg_count = archived_msg_counts.get(lead.id, 0)
                     conversations.append(
                         {
                             "id": str(lead.id),

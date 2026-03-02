@@ -278,6 +278,7 @@ async def get_dashboard(creator_id: str):
                 Message.copilot_action == "edited",
                 Message.intent.isnot(None),
             )
+            .limit(100)
             .all()
         )
 
@@ -379,6 +380,7 @@ async def get_dashboard(creator_id: str):
             )
             .group_by(LearningRule.pattern)
             .order_by(func.sum(LearningRule.times_applied).desc())
+            .limit(100)
             .all()
         )
 
@@ -482,6 +484,7 @@ async def rule_stats(creator_id: str):
             .filter(LearningRule.creator_id == creator.id, LearningRule.is_active.is_(True))
             .group_by(LearningRule.pattern)
             .order_by(func.count(LearningRule.id).desc())
+            .limit(100)
             .all()
         )
         avg_confidence = (

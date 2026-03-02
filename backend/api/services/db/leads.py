@@ -55,7 +55,7 @@ def get_leads(creator_name: str, include_archived: bool = False, limit: int = 10
                 .distinct(Message.lead_id)
                 .order_by(Message.lead_id, desc(Message.created_at))
             )
-            for msg in last_msg_query.all():
+            for msg in last_msg_query.limit(50).all():
                 last_messages[msg.lead_id] = msg
 
         result = []
