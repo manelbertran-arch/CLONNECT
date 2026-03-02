@@ -5,7 +5,10 @@ Contains get_calibration_soft_max, build_length_hint, build_vocabulary_hint,
 and build_question_hint.
 """
 
+import logging
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -34,8 +37,8 @@ def get_calibration_soft_max(
             override = get_calibration_override(creator_id)
             if override and "max_message_length_chars" in override:
                 return override["max_message_length_chars"]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[CALIBRATION] error: {e}")
 
     if not calibration:
         return 60

@@ -200,8 +200,15 @@ async def _save_google_connection(
 
                 if not creator:
                     logger.warning(f"Creator {creator_id} not found, creating...")
-                    creator = Creator(name=creator_id, email=f"{creator_id}@clonnect.com")
-                    session.add(creator)
+                    try:
+                        creator = Creator(name=creator_id, email=f"{creator_id}@clonnect.com")
+                        session.add(creator)
+                        session.flush()
+                    except Exception:
+                        session.rollback()
+                        creator = session.query(Creator).filter_by(name=creator_id).first()
+                        if not creator:
+                            raise
 
                 creator.google_access_token = access_token
                 creator.google_refresh_token = refresh_token

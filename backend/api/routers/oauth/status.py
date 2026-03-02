@@ -29,8 +29,15 @@ async def _save_connection(creator_id: str, platform: str, token: str, extra_id:
 
                 if not creator:
                     logger.warning(f"Creator {creator_id} not found, creating...")
-                    creator = Creator(name=creator_id, email=f"{creator_id}@clonnect.com")
-                    session.add(creator)
+                    try:
+                        creator = Creator(name=creator_id, email=f"{creator_id}@clonnect.com")
+                        session.add(creator)
+                        session.flush()
+                    except Exception:
+                        session.rollback()
+                        creator = session.query(Creator).filter_by(name=creator_id).first()
+                        if not creator:
+                            raise
 
                 if platform == "instagram":
                     creator.instagram_token = token
