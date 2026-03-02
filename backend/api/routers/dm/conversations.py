@@ -218,18 +218,13 @@ async def get_conversations(creator_id: str, limit: int = 30, offset: int = 0):
                         conversations.append(
                             {
                                 "follower_id": lead.platform_user_id,
-                                "id": str(lead.id),
                                 "username": lead.username or lead.platform_user_id,
                                 "name": lead.full_name or lead.username or "",
                                 "platform": lead.platform or "instagram",
                                 "profile_pic_url": lead.profile_pic_url,
-                                "total_messages": msg_count,
                                 "purchase_intent": lead.purchase_intent or 0.0,
-                                "purchase_intent_score": lead.purchase_intent or 0.0,
-                                "score": lead.score or 0,
                                 "status": lead.status or "nuevo",
                                 "relationship_type": lead.relationship_type or "nuevo",
-                                "is_lead": True,
                                 "last_contact": (
                                     lead.last_contact_at.isoformat()
                                     if lead.last_contact_at
@@ -243,10 +238,6 @@ async def get_conversations(creator_id: str, limit: int = 30, offset: int = 0):
                                 "is_verified": is_verified,
                                 # Copilot pending
                                 "has_pending_copilot": pending_copilot > 0,
-                                # CRM fields
-                                "email": ctx.get("email") or lead.email or "",
-                                "phone": ctx.get("phone") or lead.phone or "",
-                                "notes": ctx.get("notes") or lead.notes or "",
                             }
                         )
 
