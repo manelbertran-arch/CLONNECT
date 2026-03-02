@@ -115,6 +115,7 @@ def extract_signals(session, lead) -> Dict[str, Any]:
             Message.content != "",
         )
         .order_by(Message.created_at.asc())
+        .limit(100)
         .all()
     )
 
