@@ -254,7 +254,7 @@ class InsightsEngine:
             )
 
             count = 0
-            for follower in query.all():
+            for follower in query.limit(500).all():
                 if follower.last_messages:
                     # Check if last message is from user
                     last_msg = follower.last_messages[-1] if follower.last_messages else None
@@ -343,7 +343,7 @@ class InsightsEngine:
             )
 
             all_interests = []
-            for row in query.all():
+            for row in query.limit(500).all():
                 if row.interests:
                     all_interests.extend(row.interests)
 
@@ -398,12 +398,12 @@ class InsightsEngine:
             )
 
             this_week_items = []
-            for row in this_week.all():
+            for row in this_week.limit(500).all():
                 if row.products_discussed:
                     this_week_items.extend(row.products_discussed)
 
             last_week_items = []
-            for row in last_week.all():
+            for row in last_week.limit(500).all():
                 if row.products_discussed:
                     last_week_items.extend(row.products_discussed)
 
@@ -459,7 +459,7 @@ class InsightsEngine:
             )
 
             all_products = []
-            for row in query.all():
+            for row in query.limit(500).all():
                 if row.products_discussed:
                     all_products.extend(row.products_discussed)
 
