@@ -8,6 +8,7 @@ export function useRevenue(creatorId: string = getCreatorId(), days: number = 30
     queryFn: () => getRevenueStats(creatorId, days),
     staleTime: 60000,
     refetchInterval: 60000,
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -17,6 +18,7 @@ export function usePurchases(creatorId: string = getCreatorId()) {
     queryFn: () => getPurchases(creatorId),
     staleTime: 30000,
     refetchInterval: 30000,
+    refetchIntervalInBackground: false,
   });
 }
 

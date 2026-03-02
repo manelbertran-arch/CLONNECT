@@ -49,7 +49,7 @@ def _media_description(metadata: dict | None) -> str:
 
 
 @router.get("/conversations/{creator_id}")
-async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0):
+async def get_conversations(creator_id: str, limit: int = 30, offset: int = 0):
     """Listar conversaciones del creador - OPTIMIZED with caching"""
     import time as _time
 

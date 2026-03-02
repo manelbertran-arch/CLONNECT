@@ -104,7 +104,7 @@ export function useEventStream(creatorId: string = getCreatorId()) {
         Date.now() - lastEventTimeRef.current < SSE_HEALTH_THRESHOLD_MS;
 
       if (!sseHealthy) {
-        invalidateAll();
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
       }
     }, POLL_INTERVAL_MS);
 

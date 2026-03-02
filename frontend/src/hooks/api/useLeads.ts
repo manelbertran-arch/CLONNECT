@@ -13,6 +13,7 @@ export function useLeads(creatorId: string = getCreatorId()) {
     queryKey: apiKeys.leads(creatorId),
     queryFn: () => getLeads(creatorId),
     refetchInterval: 30000,
+    refetchIntervalInBackground: false,
     staleTime: 60000,
     gcTime: 5 * 60 * 1000,
   });
@@ -159,6 +160,7 @@ export function useEscalations(creatorId: string = getCreatorId(), limit: number
     queryKey: apiKeys.escalations(creatorId),
     queryFn: () => getEscalations(creatorId, limit),
     refetchInterval: 60000,
+    refetchIntervalInBackground: false,
     staleTime: 30000,
   });
 }

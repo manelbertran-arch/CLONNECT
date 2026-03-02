@@ -8,7 +8,7 @@ import {
 import type { CreateBookingLinkData } from "@/services/api";
 
 export function useBookings(creatorId: string = getCreatorId(), upcoming: boolean = false) {
-  return useQuery({ queryKey: apiKeys.bookings(creatorId, upcoming), queryFn: () => getBookings(creatorId, upcoming), staleTime: 30000, refetchInterval: 30000 });
+  return useQuery({ queryKey: apiKeys.bookings(creatorId, upcoming), queryFn: () => getBookings(creatorId, upcoming), staleTime: 30000, refetchInterval: 30000, refetchIntervalInBackground: false });
 }
 
 export function useCalendarStats(creatorId: string = getCreatorId()) {

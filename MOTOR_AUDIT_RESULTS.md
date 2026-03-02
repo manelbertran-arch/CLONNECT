@@ -8,15 +8,18 @@
 
 ## RESUMEN EJECUTIVO
 
-| Métrica | Valor |
-|---------|-------|
-| Tests ejecutados | 81 |
-| ✅ Pasados | 33 (41%) |
-| ❌ Fallados | 44 (54%) |
-| 💥 Errores de setup | 4 (5%) |
-| Bugs conocidos confirmados | **12/12 (100%)** |
-| Bugs nuevos descubiertos | **5 adicionales** |
-| **Total bugs activos** | **17** |
+| Métrica | Pre-fix | Post-fix |
+|---------|---------|----------|
+| Tests ejecutados | 81 | 81 |
+| ✅ Pasados | 33 (41%) | **81 (100%)** |
+| ❌ Fallados | 44 (54%) | **0 (0%)** |
+| 💥 Errores de setup | 4 (5%) | **0 (0%)** |
+| Bugs conocidos confirmados | 12/12 (100%) | 12/12 (100%) |
+| Bugs nuevos descubiertos | 5 adicionales | 5 adicionales |
+| **Total bugs resueltos** | — | **17/17 (100%)** |
+
+**Commit de fixes**: `7d49b663`
+**Fecha resolución**: 2026-03-01
 
 ---
 
