@@ -221,6 +221,7 @@ def get_historical_rates(creator_id: str) -> dict:
                     Message.created_at >= since,
                 )
                 .group_by(Message.intent, Message.copilot_action)
+                .limit(50)
                 .all()
             )
 

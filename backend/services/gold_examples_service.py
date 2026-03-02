@@ -145,6 +145,7 @@ def get_matching_examples(
                 GoldExample.creator_id == creator_db_id,
                 GoldExample.is_active.is_(True),
             )
+            .limit(20)
             .all()
         )
 

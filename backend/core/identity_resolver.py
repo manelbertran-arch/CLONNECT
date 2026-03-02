@@ -439,6 +439,7 @@ def _refresh_unified(unified, session, creator_uuid) -> None:
     leads = (
         session.query(Lead)
         .filter(Lead.unified_lead_id == unified.id)
+        .limit(100)
         .all()
     )
     if not leads:

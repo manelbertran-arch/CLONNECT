@@ -507,7 +507,7 @@ def batch_recalculate_scores(session, creator_id: str) -> dict:
     if not creator:
         return {"error": f"Creator {creator_id} not found"}
 
-    leads = session.query(Lead).filter_by(creator_id=creator.id).all()
+    leads = session.query(Lead).filter_by(creator_id=creator.id).limit(100).all()
 
     results = {
         "total": len(leads),
