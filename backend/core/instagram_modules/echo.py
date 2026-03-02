@@ -159,8 +159,8 @@ async def record_creator_manual_response(handler, echo_msg: Dict[str, Any]) -> b
                 api_cache.invalidate(
                     f"follower_detail:{handler.creator_id}:{lead.platform_user_id}"
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[Echo] cache invalidation failed: {e}")
 
             try:
                 from api.routers.events import notify_creator
@@ -170,8 +170,8 @@ async def record_creator_manual_response(handler, echo_msg: Dict[str, Any]) -> b
                     "new_message",
                     {"follower_id": lead.platform_user_id, "role": "assistant"},
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[Echo] SSE notify failed: {e}")
 
             logger.info(f"[Echo] Recorded creator manual response to {follower_id}")
             return True
@@ -302,8 +302,8 @@ async def process_reaction_events(handler, payload: Dict[str, Any]) -> int:
                             api_cache.invalidate(
                                 f"follower_detail:{handler.creator_id}:{lead.platform_user_id}"
                             )
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"[Echo:Reaction] cache invalidation failed: {e}")
 
                         try:
                             from api.routers.events import notify_creator
@@ -312,8 +312,8 @@ async def process_reaction_events(handler, payload: Dict[str, Any]) -> int:
                                 "new_message",
                                 {"follower_id": lead.platform_user_id, "role": role},
                             )
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"[Echo:Reaction] SSE notify failed: {e}")
                     finally:
                         session.close()
                 except Exception as e:

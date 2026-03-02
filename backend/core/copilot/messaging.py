@@ -343,8 +343,8 @@ async def _debounced_regeneration_impl(service, lead_key: str):
             api_cache.invalidate(
                 f"follower_detail:{meta['creator_id']}:{meta['follower_id']}"
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[Copilot:Debounce] cache invalidation failed: {e}")
 
         # Notify frontend of updated suggestion
         try:
@@ -355,8 +355,8 @@ async def _debounced_regeneration_impl(service, lead_key: str):
                 "new_message",
                 {"follower_id": meta["follower_id"], "role": "assistant"},
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[Copilot:Debounce] SSE notify failed: {e}")
 
     except Exception as e:
         logger.error(f"[Copilot:Debounce] Regen failed for lead {lead_key}: {e}")

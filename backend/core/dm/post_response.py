@@ -78,8 +78,8 @@ def sync_post_response(
     try:
         from core.copilot_service import get_copilot_service
         is_copilot = get_copilot_service().is_copilot_enabled(agent.creator_id)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"[POST_RESPONSE] copilot check failed: {e}")
 
     if not is_copilot:
         follower.last_messages.append(

@@ -195,8 +195,8 @@ async def create_pending_response_impl(
 
                 api_cache.invalidate(f"conversations:{creator_id}")
                 api_cache.invalidate(f"follower_detail:{creator_id}:{follower_id}")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[COPILOT] cache invalidation failed: {e}")
 
             # Notify frontend
             try:
@@ -207,8 +207,8 @@ async def create_pending_response_impl(
                     "new_message",
                     {"follower_id": follower_id, "role": "user"},
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[COPILOT] SSE notify failed: {e}")
 
             # Schedule debounced regeneration (cancels any previous timer)
             from core.copilot.messaging import schedule_debounced_regen_impl

@@ -117,8 +117,8 @@ class LeadManager:
                         )
                         if oldest_date is None or created_time < oldest_date:
                             oldest_date = created_time
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"[LeadManager] timestamp parse failed: {e}")
 
             return {
                 "messages": messages,
