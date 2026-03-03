@@ -113,6 +113,10 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         .scalar()
                     )
 
+                    # When limit >= 500, return ALL active leads so mixed-platform
+                    # dashboards (IG + WA) show every conversation regardless of
+                    # last_contact_at ordering (WA leads would otherwise bury IG).
+                    effective_limit = total_count if limit >= 500 else limit
                     results = (
                         session.query(
                             Lead,
@@ -124,7 +128,7 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         .filter(*base_filters)
                         .order_by(Lead.last_contact_at.desc())
                         .offset(offset)
-                        .limit(limit)
+                        .limit(effective_limit)
                         .all()
                     )
 
