@@ -1,0 +1,82 @@
+MEGA TEST SEMI REVIEW — WAVE 2 — 16 resultados
+
+
+==================================================
+✅ SA1: BM25 search calidad — precio meditación curso
+[{'doc': 'd1', 'score': 1.765, 'text': 'Curso de mindfulness y meditación, 8 semanas online, 297 eur'}, {'doc': 'd3', 'score': 0.693, 'text': 'Programa de transformación personal, incluye meditación y co'}]
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SB1: Strategy outputs for 4 scenarios
+[{'msg': 'hola, cuánto cuesta el programa', 'strategy': 'ESTRATEGIA: VENTA. El usuario muestra interés en productos/s'}, {'msg': 'te amo, cómo estás mi amor', 'strategy': 'ESTRATEGIA: PERSONAL. Esta persona es cercana (familia/íntim'}, {'msg': 'hola, me podrías ayudar con algo?', 'strategy': 'ESTRATEGIA: BIENVENIDA + AYUDA. Es el primer mensaje y conti'}, {'msg': 'llevas meses sin escribirme', 'strategy': 'ESTRATEGIA: REACTIVACIÓN. El usuario vuelve después de mucho'}]
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SC1: Lead Categorizer — 3 message types
+[{'category': 'caliente', 'score': 0.7, 'reason': 'Keywords de compra: cuesta, cuánto'}, {'category': 'interesado', 'score': 0.25, 'reason': 'Keywords de interés: me interesa'}, {'category': 'nuevo', 'score': 0.1, 'reason': 'Sin señales de intención detectadas'}]
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SD1: Commitment detection — 5 messages
+[{'msg': 'Te envío el link del programa mañana mismo', 'commitments': [{'commitment_text': 'Te envío el link del programa mañana mismo', 'commitment_type': 'delivery', 'due_days': 1}]}, {'msg': 'Quedamos el martes a las 10 en mi oficina', 'commitments': [{'commitment_text': 'Quedamos el martes a las 10 en mi oficina', 'commitment_type': 'meeting', 'due_days': None}]}, {'msg': 'Te confirmo si hay disponibilidad esta semana', 'commitments': [{'commitment_text': 'Te confirmo si hay disponibilidad esta semana', 'commitment_type': 'info_request', 'due_days': 5}]}, {'msg': 'Hago seguimiento de tu caso la próxima semana', 'commitments': [{'commitment_text': 'Hago seguimiento de tu caso la próxima semana', 'commitment_type': 'follow_up', 'due_days': None}]}, {'msg': 'qué tal todo bien por ahí', 'c
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SE1: RelationshipTypeDetector — 3 conversation types
+[{'type': 'INTIMA', 'confidence': 0.95}, {'type': 'CLIENTE', 'confidence': 0.95}, {'type': 'AMISTAD_CERCANA', 'confidence': 0.95}]
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SF1: VocabularyExtractor.extract_all
+{'common_words': ['hermano', 'bueno', 'pues', 'sabes', 'meditar'], 'emojis': [], 'muletillas': ['pues', 'bueno', 'sabes'], 'forbidden_words': ['amor', 'cariño', 'mi vida', 'bebe', 'preciosa']}
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SG1: ResponseVariatorV2 — pools info
+{'pools_count': 17, 'pool_categories': ['greeting', 'confirmation', 'thanks', 'laugh', 'emoji', 'celebration', 'farewell', 'dry']}
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SH1: SalesTracker stats after clicks+sale
+{'total_clicks': 6, 'unique_clickers': 3, 'total_sales': 2, 'unique_buyers': 1, 'total_revenue': 198.0, 'conversion_rate': 0.3333333333333333, 'avg_order_value': 99.0}
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SI1: Autolearning Analyzer status
+{'ENABLE_AUTOLEARNING': False, 'analyze_creator_action_callable': True}
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SJ1: GoldExamplesService config + query
+{'GOLD_MAX_EXAMPLES_IN_PROMPT': 3, 'GOLD_MAX_CHARS_PER_EXAMPLE': 500, 'examples_for_fake_creator': 0, 'module_imported': True}
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SK1: SemanticChunker — long text chunking
+[{'index': 0, 'section': 'Mi Programa de Coaching', 'chars': 84, 'type': 'paragraph'}, {'index': 1, 'section': '¿Qué incluye el programa?', 'chars': 142, 'type': 'paragraph'}, {'index': 2, 'section': 'Precio y condiciones', 'chars': 82, 'type': 'paragraph'}, {'index': 3, 'section': 'Cómo empezamos', 'chars': 116, 'type': 'paragraph'}]
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SL1: DNAUpdateTriggers — 4 scenarios
+[{'scenario': 'First analysis (6 msgs)', 'should_update': True, 'reason': 'first_analysis'}, {'scenario': 'First analysis (3 msgs — too few)', 'should_update': False, 'reason': None}, {'scenario': 'Existing DNA in cooldown (1 hour ago)', 'should_update': False, 'reason': None}, {'scenario': 'Existing DNA stale (40 days ago)', 'should_update': True, 'reason': 'stale'}]
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SM1: AnalyticsManager — track + get_daily_stats
+{'events_count': 4, 'event_types': ['conversion', 'message_received']}
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SN1: Nurturing sequences config review
+{'sequences': ['interest_cold', 'objection_price', 'objection_time', 'objection_doubt', 'objection_later', 'abandoned', 're_engagement', 'post_purchase', 'discount_urgency', 'spots_limited', 'offer_expiring', 'flash_sale'], 'sample_steps': {'interest_cold': [(24, 'Ey! Vi que te interesaba {product_name}. ¿Te quedó'), (72, '¿Qué tal? Solo quería recordarte que {product_name')], 'objection_price': [(48, 'Hola! Estuve pensando en lo que me dijiste sobre e')], 'objection_time': [(48, 'Ey! Sobre lo del tiempo: {product_name} está diseñ')]}}
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SO1: BotOrchestrator — instantiation check
+{'orchestrator_type': 'BotOrchestrator', 'has_edge_handler': True, 'has_variator': True, 'has_memory_service': True}
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SP1: PreferenceProfileService — compute for fake creator
+{'result_for_fake_creator': None, 'type': 'NoneType'}
+REVISIÓN: ¿Output correcto y natural?
