@@ -93,6 +93,14 @@ async def approve_response_impl(
         # Actualizar last_contact del lead
         lead.last_contact_at = now
 
+        # Capture best_of_n BEFORE stripping (needed for preference pairs below)
+        _meta = msg.msg_metadata or {}
+        _bon_candidates = _meta.get("best_of_n", {}).get("candidates")
+
+        # Strip best_of_n — no longer needed once decision is taken
+        if "best_of_n" in _meta:
+            msg.msg_metadata = {k: v for k, v in _meta.items() if k != "best_of_n"}
+
         session.commit()
 
         # Autolearning hook: fire-and-forget rule extraction
@@ -118,8 +126,6 @@ async def approve_response_impl(
         try:
             from services.preference_pairs_service import create_pairs_from_action
 
-            _meta = msg.msg_metadata or {}
-            _bon_candidates = _meta.get("best_of_n", {}).get("candidates")
             asyncio.create_task(create_pairs_from_action(
                 action="edited" if was_edited else "approved",
                 creator_db_id=creator.id,
@@ -225,12 +231,16 @@ async def discard_response_impl(
             delta = now - msg.created_at
             msg.response_time_ms = int(delta.total_seconds() * 1000)
 
-        # A10: Persist discard_reason in msg_metadata (no migration needed)
+        # Capture best_of_n BEFORE stripping (needed for preference pairs below)
+        _meta = msg.msg_metadata or {}
+        _bon_candidates = _meta.get("best_of_n", {}).get("candidates")
+
+        # Build clean metadata: strip best_of_n, optionally add discard_reason
+        _meta_clean = {k: v for k, v in _meta.items() if k != "best_of_n"}
         if discard_reason:
-            meta = msg.msg_metadata or {}
-            meta["discard_reason"] = discard_reason
-            meta["discarded_at"] = now.isoformat()
-            msg.msg_metadata = meta
+            _meta_clean["discard_reason"] = discard_reason
+            _meta_clean["discarded_at"] = now.isoformat()
+        msg.msg_metadata = _meta_clean
 
         session.commit()
 
@@ -260,8 +270,6 @@ async def discard_response_impl(
 
             _cr = session.query(_Cr).filter_by(name=creator_id).first() if not locals().get("_creator") else _creator
             if _cr:
-                _meta = msg.msg_metadata or {}
-                _bon_candidates = _meta.get("best_of_n", {}).get("candidates")
                 asyncio.create_task(create_pairs_from_action(
                     action="discarded",
                     creator_db_id=_cr.id,
@@ -340,7 +348,7 @@ def auto_discard_pending_for_lead_impl(
                 # (suggested_response = bot original, content = creator actual)
                 msg.content = creator_response
                 similarity = service._compute_similarity(msg.suggested_response or "", creator_response)
-                meta = msg.msg_metadata or {}
+                meta = {k: v for k, v in (msg.msg_metadata or {}).items() if k != "best_of_n"}
                 meta["creator_actual_response"] = creator_response[:500]
                 meta["similarity_score"] = similarity
                 meta["resolved_source"] = "direct_reply"
@@ -352,6 +360,9 @@ def auto_discard_pending_for_lead_impl(
             else:
                 msg.status = "discarded"
                 msg.copilot_action = "manual_override"
+                # Strip best_of_n — no longer needed
+                if msg.msg_metadata and "best_of_n" in msg.msg_metadata:
+                    msg.msg_metadata = {k: v for k, v in msg.msg_metadata.items() if k != "best_of_n"}
             count += 1
 
         if count > 0:

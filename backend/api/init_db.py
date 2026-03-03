@@ -378,6 +378,24 @@ def init_database():
     setup_pgvector(engine)
     logger.info("pgvector setup complete!")
 
+    # One-time backfill: strip best_of_n from decided messages (approved/discarded/resolved)
+    # best_of_n averages 813 bytes/row and is only needed while pending_approval.
+    with engine.connect() as conn:
+        try:
+            result = conn.execute(
+                text(
+                    "UPDATE messages "
+                    "SET msg_metadata = msg_metadata - 'best_of_n' "
+                    "WHERE msg_metadata ? 'best_of_n' "
+                    "  AND status NOT IN ('pending_approval')"
+                )
+            )
+            conn.commit()
+            if result.rowcount:
+                logger.info("Backfill: stripped best_of_n from %d decided messages", result.rowcount)
+        except Exception as e:
+            logger.debug("best_of_n backfill skipped: %s", e)
+
     # NOTE: Removed automatic cleanup of booking_links - was causing services to be deleted
     # Only clean up debug test entries if needed
     with engine.connect() as conn:
