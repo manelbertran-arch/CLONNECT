@@ -49,14 +49,14 @@ def _media_description(metadata: dict | None) -> str:
 
 
 @router.get("/conversations/{creator_id}")
-async def get_conversations(creator_id: str, limit: int = 30, offset: int = 0):
+async def get_conversations(creator_id: str, limit: int = 30, offset: int = 0, platform: str = None):
     """Listar conversaciones del creador - OPTIMIZED with caching"""
     import time as _time
 
     from api.cache import api_cache
 
     # Check cache first (60s TTL - matches startup.py cache refresh)
-    cache_key = f"conversations:{creator_id}:{limit}:{offset}"
+    cache_key = f"conversations:{creator_id}:{limit}:{offset}:{platform or 'all'}"
     cached = api_cache.get(cache_key)
     if cached:
         logger.info(f"[CONV] {creator_id}: cache HIT (key={cache_key})")
@@ -98,13 +98,18 @@ async def get_conversations(creator_id: str, limit: int = 30, offset: int = 0):
                         .subquery()
                     )
 
+                    # Base filters
+                    base_filters = [
+                        Lead.creator_id == creator.id,
+                        not_(Lead.status.in_(["archived", "spam"])),
+                    ]
+                    if platform:
+                        base_filters.append(Lead.platform == platform)
+
                     # Count total for pagination
                     total_count = (
                         session.query(func.count(Lead.id))
-                        .filter(
-                            Lead.creator_id == creator.id,
-                            not_(Lead.status.in_(["archived", "spam"])),
-                        )
+                        .filter(*base_filters)
                         .scalar()
                     )
 
@@ -116,10 +121,7 @@ async def get_conversations(creator_id: str, limit: int = 30, offset: int = 0):
                         )
                         .outerjoin(msg_count_subq, Lead.id == msg_count_subq.c.lead_id)
                         .outerjoin(pending_copilot_subq, Lead.id == pending_copilot_subq.c.lead_id)
-                        .filter(
-                            Lead.creator_id == creator.id,
-                            not_(Lead.status.in_(["archived", "spam"])),
-                        )
+                        .filter(*base_filters)
                         .order_by(Lead.last_contact_at.desc())
                         .offset(offset)
                         .limit(limit)
@@ -250,10 +252,7 @@ async def get_conversations(creator_id: str, limit: int = 30, offset: int = 0):
                     # Counts by status for summary cards (single GROUP BY)
                     counts_rows = (
                         session.query(Lead.status, func.count(Lead.id))
-                        .filter(
-                            Lead.creator_id == creator.id,
-                            not_(Lead.status.in_(["archived", "spam"])),
-                        )
+                        .filter(*base_filters)
                         .group_by(Lead.status)
                         .all()
                     )
