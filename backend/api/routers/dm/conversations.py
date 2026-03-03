@@ -49,7 +49,7 @@ def _media_description(metadata: dict | None) -> str:
 
 
 @router.get("/conversations/{creator_id}")
-async def get_conversations(creator_id: str, limit: int = 30, offset: int = 0, platform: str = None):
+async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, platform: str = None):
     """Listar conversaciones del creador - OPTIMIZED with caching"""
     import time as _time
 
@@ -98,7 +98,7 @@ async def get_conversations(creator_id: str, limit: int = 30, offset: int = 0, p
                         .subquery()
                     )
 
-                    # Base filters
+                    # Base filters (platform-aware)
                     base_filters = [
                         Lead.creator_id == creator.id,
                         not_(Lead.status.in_(["archived", "spam"])),
@@ -220,13 +220,18 @@ async def get_conversations(creator_id: str, limit: int = 30, offset: int = 0, p
                         conversations.append(
                             {
                                 "follower_id": lead.platform_user_id,
+                                "id": str(lead.id),
                                 "username": lead.username or lead.platform_user_id,
                                 "name": lead.full_name or lead.username or "",
                                 "platform": lead.platform or "instagram",
                                 "profile_pic_url": lead.profile_pic_url,
+                                "total_messages": msg_count,
                                 "purchase_intent": lead.purchase_intent or 0.0,
+                                "purchase_intent_score": lead.purchase_intent or 0.0,
+                                "score": lead.score or 0,
                                 "status": lead.status or "nuevo",
                                 "relationship_type": lead.relationship_type or "nuevo",
+                                "is_lead": True,
                                 "last_contact": (
                                     lead.last_contact_at.isoformat()
                                     if lead.last_contact_at
@@ -240,6 +245,10 @@ async def get_conversations(creator_id: str, limit: int = 30, offset: int = 0, p
                                 "is_verified": is_verified,
                                 # Copilot pending
                                 "has_pending_copilot": pending_copilot > 0,
+                                # CRM fields
+                                "email": ctx.get("email") or lead.email or "",
+                                "phone": ctx.get("phone") or lead.phone or "",
+                                "notes": ctx.get("notes") or lead.notes or "",
                             }
                         )
 
@@ -476,7 +485,6 @@ async def get_archived_conversations(creator_id: str):
         try:
             from api.models import Creator, Lead, Message
             from api.services.db_service import get_session
-            from sqlalchemy import func
 
             session = get_session()
             if not session:
@@ -492,28 +500,15 @@ async def get_archived_conversations(creator_id: str):
                     .filter_by(creator_id=creator.id)
                     .filter(Lead.status.in_(["archived", "spam"]))
                     .order_by(Lead.last_contact_at.desc())
-                    .limit(100)
                     .all()
                 )
 
-                # Batch COUNT user messages for all leads — avoids N+1 queries
-                archived_lead_ids = [lead.id for lead in leads]
-                archived_msg_counts: dict = {}
-                if archived_lead_ids:
-                    count_rows = (
-                        session.query(Message.lead_id, func.count(Message.id))
-                        .filter(
-                            Message.lead_id.in_(archived_lead_ids),
-                            Message.role == "user",
-                        )
-                        .group_by(Message.lead_id)
-                        .all()
-                    )
-                    archived_msg_counts = {lead_id: cnt for lead_id, cnt in count_rows}
-
                 conversations = []
                 for lead in leads:
-                    msg_count = archived_msg_counts.get(lead.id, 0)
+                    # Only count user messages, not bot responses
+                    msg_count = (
+                        session.query(Message).filter_by(lead_id=lead.id, role="user").count()
+                    )
                     conversations.append(
                         {
                             "id": str(lead.id),
