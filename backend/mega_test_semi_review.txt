@@ -1,0 +1,51 @@
+MEGA TEST SEMI — 10 resultados
+
+==================================================
+✅ SEMI-1: classify 'contame más sobre el programa'
+interest_soft
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SEMI-2: classify 'quiero comprar el curso ya dime el precio'
+purchase_intent
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SEMI-3: detect_sensitive 'estoy muy mal emocionalmente'
+{'type': 'none', 'confidence': 0.0}
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SEMI-4: fix_price_typo en texto real
+El curso cuesta 297€ y el mentoring 497€ al mes
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SEMI-5: clean_raw_ctas en respuesta real
+Es la mejor opción para ti! del programa ya! Aquí el link
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SEMI-6: enforce_length en texto largo tipo objeción
+Entiendo que el precio puede parecer alto, pero lo que realmente estás invirtiendo es en transformar tu vida. Piénsalo así: si sigues haciendo lo mismo, obtendrás los mismos resultados. Este programa te da las herramientas exactas que necesitas. ¿Cuánto vale para ti cambiar tu situación actual?
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SEMI-7: apply_voseo en texto comercial
+Si tenés dudas podés escribirme. tenés todo lo que necesitás para empezar
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SEMI-8: RAG retrieve nutrients
+[{'content': 'Bienestar integral: mente y cuerpo en equilibrio', 'metadata': {}, 'score': 0.3, 'chunk_id': 'chunk_889e924754ab_20260303080633'}, {'content': 'El programa de nutrición incluye 12 semanas de guía personalizada y recetas saludables', 'metadata': {}, 'score': 0.26666666666666666, 'chunk_id': 'chunk_934e39bd2c37_20260303080633'}]
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SEMI-9: enforce_tone con emoji target alto
+Hola buenas tardes, puedo ayudarte con lo que necesites 💪! Todo bien?
+REVISIÓN: ¿Output correcto y natural?
+
+==================================================
+✅ SEMI-10: confidence scores para distintos intents
+{'greeting_pool': 0.825, 'purchase_llm': 0.7, 'error': 0.37}
+REVISIÓN: ¿Output correcto y natural?
