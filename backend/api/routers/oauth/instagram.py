@@ -1056,20 +1056,20 @@ async def oauth_debug():
 @router.get("/instagram/start")
 async def instagram_oauth_start(creator_id: str, website_url: str = None):
     """
-    Start Instagram OAuth flow using Instagram Business Login.
+    Start Instagram OAuth flow using Facebook Login.
 
-    Uses Instagram Business Login (instagram.com/oauth/authorize) with INSTAGRAM_APP_ID
-    to get IGAAT tokens for Instagram messaging.
+    Uses Facebook Login (facebook.com/dialog/oauth) with META_APP_ID to get
+    EAA tokens that have full page access for messaging.
 
     Flow:
     1. User clicks "Connect Instagram"
-    2. Redirected to instagram.com/oauth/authorize
-    3. User logs into Instagram and grants permissions
+    2. Redirected to Facebook Login
+    3. User logs into Facebook and grants permissions
     4. Redirected back with authorization code
-    5. We exchange code for IGAAT access token (api.instagram.com)
-    6. We get instagram_user_id directly from graph.instagram.com/me
+    5. We exchange code for EAA access token
+    6. We discover their Facebook Page and Instagram Business Account
     """
-    app_id = INSTAGRAM_APP_ID
+    app_id = META_APP_ID
 
     if not app_id:
         raise HTTPException(status_code=503, detail="Instagram OAuth is not configured on this server")
@@ -1084,10 +1084,13 @@ async def instagram_oauth_start(creator_id: str, website_url: str = None):
     state = f"{creator_id}:{secrets.token_urlsafe(16)}:{website_encoded}"
     logger.info(f"[OAuth] State with website_url: {website_url}")
 
-    # Instagram Business Login scopes (produces IGAAT tokens)
+    # Facebook Login scopes for Instagram messaging via Pages
     scopes = [
-        "instagram_business_basic",
-        "instagram_business_manage_messages",
+        "instagram_basic",
+        "instagram_manage_messages",
+        "pages_show_list",
+        "pages_manage_metadata",
+        "pages_messaging",
     ]
 
     params = {
@@ -1098,10 +1101,10 @@ async def instagram_oauth_start(creator_id: str, website_url: str = None):
         "state": state,
     }
 
-    auth_url = f"https://www.instagram.com/oauth/authorize?{urlencode(params)}"
+    auth_url = f"https://www.facebook.com/v21.0/dialog/oauth?{urlencode(params)}"
 
     logger.info(
-        f"Instagram OAuth start (IG Business Login) for {creator_id} with app_id={app_id[:6]}... scopes: {scopes}"
+        f"Instagram OAuth start (FB Login) for {creator_id} with app_id={app_id[:6]}... scopes: {scopes}"
     )
     logger.info(f"[DEBUG] OAuth start redirect_uri: {META_REDIRECT_URI}")
 
@@ -1110,7 +1113,7 @@ async def instagram_oauth_start(creator_id: str, website_url: str = None):
         "state": state,
         "scopes_requested": scopes,
         "app_id_used": f"{app_id[:6]}...",
-        "note": "User will login via Instagram Business Login to grant Instagram permissions",
+        "note": "User will login via Facebook Login to grant Instagram + Page permissions",
     }
 
 
@@ -1126,11 +1129,10 @@ async def instagram_oauth_callback(
     error_description: str = Query(None),
 ):
     """
-    Handle Instagram OAuth callback (Instagram Business Login).
+    Handle Instagram OAuth callback.
 
-    Exchanges code at api.instagram.com for short-lived IGAAT,
-    then upgrades to long-lived IGAAT (60 days) via graph.instagram.com.
-    Gets instagram_user_id directly from /me — no Facebook Pages needed.
+    Uses Facebook Login flow: exchanges code at graph.facebook.com for EAA tokens.
+    Then discovers Facebook Pages and Instagram Business Account.
     """
     import httpx
 
@@ -1146,11 +1148,11 @@ async def instagram_oauth_callback(
         logger.error("Instagram OAuth: No code received")
         return RedirectResponse(f"{FRONTEND_URL}/crear-clon?error=instagram_no_code")
 
-    app_id = INSTAGRAM_APP_ID
-    app_secret = INSTAGRAM_APP_SECRET
+    app_id = META_APP_ID
+    app_secret = META_APP_SECRET
 
     if not app_id or not app_secret:
-        logger.error("Instagram OAuth: INSTAGRAM_APP_ID or INSTAGRAM_APP_SECRET not configured")
+        logger.error("Instagram OAuth: META_APP_ID or META_APP_SECRET not configured")
         return RedirectResponse(f"{FRONTEND_URL}/crear-clon?error=instagram_not_configured")
 
     # Extract creator_id and website_url from state
@@ -1170,84 +1172,185 @@ async def instagram_oauth_callback(
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Step 1: Exchange code for short-lived IGAAT token via Instagram API
-            logger.info(f"Exchanging code with app_id={app_id[:6]}... (Instagram Business Login)")
+            # Step 1: Exchange code for short-lived access token via Facebook Graph API
+            logger.info(f"Exchanging code with app_id={app_id[:6]}... (Facebook Login)")
             logger.info(f"[DEBUG] Token exchange redirect_uri: {META_REDIRECT_URI}")
-            token_response = await client.post(
-                "https://api.instagram.com/oauth/access_token",
-                data={
+            token_response = await client.get(
+                "https://graph.facebook.com/v21.0/oauth/access_token",
+                params={
                     "client_id": app_id,
                     "client_secret": app_secret,
-                    "grant_type": "authorization_code",
                     "redirect_uri": META_REDIRECT_URI,
                     "code": code,
                 },
             )
             token_data = token_response.json()
-            logger.info(f"Instagram token response: {token_response.status_code} {token_data}")
+            logger.info(f"Facebook token response: {token_response.status_code}")
 
-            if "error_type" in token_data or "error" in token_data:
-                logger.error(f"Instagram token error: {token_data}")
+            if "error" in token_data:
+                logger.error(f"Facebook token error: {token_data}")
                 return RedirectResponse(f"{FRONTEND_URL}/crear-clon?error=instagram_auth_failed")
 
             short_lived_token = token_data.get("access_token")
-            ig_user_id_from_token = str(token_data.get("user_id", ""))
-            logger.info(f"Got short-lived IGAAT: {short_lived_token[:15]}... user_id={ig_user_id_from_token}")
+            logger.info(f"Got short-lived FB user token: {short_lived_token[:15]}...")
 
-            # Step 2: Exchange for long-lived IGAAT (60 days)
+            # Track ALL Instagram IDs for webhook routing
+            all_instagram_ids = set()
+
+            # Step 2: Exchange for long-lived FB user token (60 days)
             long_token_response = await client.get(
-                "https://graph.instagram.com/access_token",
+                "https://graph.facebook.com/v21.0/oauth/access_token",
                 params={
-                    "grant_type": "ig_exchange_token",
+                    "grant_type": "fb_exchange_token",
+                    "client_id": app_id,
                     "client_secret": app_secret,
-                    "access_token": short_lived_token,
+                    "fb_exchange_token": short_lived_token,
                 },
             )
             long_token_data = long_token_response.json()
 
             if "error" in long_token_data:
                 logger.warning(
-                    f"Could not get long-lived IGAAT: {long_token_data}, using short-lived"
+                    f"Could not get long-lived token: {long_token_data}, using short-lived"
                 )
                 access_token = short_lived_token
             else:
                 access_token = long_token_data.get("access_token", short_lived_token)
-                expires_in = long_token_data.get("expires_in", 0)
-                logger.info(f"Got long-lived IGAAT ({expires_in}s): {access_token[:15]}...")
+                logger.info(f"Got long-lived FB user token (60 days): {access_token[:15]}...")
 
-            # Step 3: Get Instagram user info directly from graph.instagram.com
-            me_response = await client.get(
-                "https://graph.instagram.com/v21.0/me",
+            # Step 3: Get Facebook user info (IG username will come from business account discovery)
+            user_response = await client.get(
+                "https://graph.facebook.com/v21.0/me",
                 params={
-                    "fields": "id,username,name",
+                    "fields": "id,name",
                     "access_token": access_token,
                 },
             )
-            me_data = me_response.json()
-            logger.info(f"Instagram /me response: {me_data}")
+            user_data = user_response.json()
+            logger.info(f"Facebook user info: {user_data}")
 
-            instagram_user_id = me_data.get("id") or ig_user_id_from_token
-            ig_username = me_data.get("username") or me_data.get("name") or "unknown"
-            logger.info(f"IG user: id={instagram_user_id}, username={ig_username}")
+            ig_username = "unknown"  # Will be updated from IG business account
+            instagram_user_id = ""
+
+            # Step 4: Try to get Page Access Token (needed for messaging)
+            # IMPORTANT: Explicitly request access_token field to get Page Access Token
+            page_id = None
+            page_access_token = None
+
+            try:
+                pages_response = await client.get(
+                    "https://graph.facebook.com/v21.0/me/accounts",
+                    params={
+                        "access_token": access_token,
+                        "fields": "id,name,access_token",  # Explicitly request access_token!
+                    },
+                )
+                pages_data = pages_response.json()
+                logger.info(f"Pages response: {len(pages_data.get('data', []))} pages found")
+
+                if pages_data.get("data"):
+                    # Get the first page (most users have one)
+                    page = pages_data["data"][0]
+                    page_id = page["id"]
+                    page_access_token = page.get("access_token")
+
+                    # Add ALL page IDs to additional_ids for webhook routing
+                    for p in pages_data["data"]:
+                        if p.get("id"):
+                            all_instagram_ids.add(str(p["id"]))
+
+                    # Log token type for debugging
+                    if page_access_token:
+                        token_prefix = page_access_token[:10] if page_access_token else "NONE"
+                        logger.info(
+                            f"Got Page Access Token: {token_prefix}... (type: {'PAGE' if page_access_token.startswith('EAA') else 'OTHER'})"
+                        )
+                    else:
+                        logger.warning(f"No access_token in page response! Page data: {page}")
+
+                    logger.info(f"Found Facebook Page: {page_id} ({page.get('name', 'unknown')})")
+
+                    # Try to get Instagram Business Account linked to this page
+                    ig_response = await client.get(
+                        f"https://graph.facebook.com/v21.0/{page_id}",
+                        params={
+                            "fields": "instagram_business_account,name",
+                            "access_token": page_access_token or access_token,
+                        },
+                    )
+                    ig_data = ig_response.json()
+
+                    if ig_data.get("instagram_business_account"):
+                        ig_business_id = ig_data["instagram_business_account"]["id"]
+                        all_instagram_ids.add(str(ig_business_id))
+                        instagram_user_id = ig_business_id
+                        logger.info(f"Found Instagram Business Account: {instagram_user_id}")
+
+                        # Fetch IG username from the business account
+                        try:
+                            ig_user_response = await client.get(
+                                f"https://graph.facebook.com/v21.0/{ig_business_id}",
+                                params={
+                                    "fields": "username",
+                                    "access_token": page_access_token or access_token,
+                                },
+                            )
+                            ig_user_data = ig_user_response.json()
+                            if ig_user_data.get("username"):
+                                ig_username = ig_user_data["username"]
+                                logger.info(f"Got IG username: {ig_username}")
+                        except Exception as username_err:
+                            logger.warning(f"Could not fetch IG username: {username_err}")
+                else:
+                    logger.warning("No Facebook Pages found - using Instagram token directly")
+            except Exception as page_err:
+                logger.warning(f"Could not get Page token: {page_err} - using Instagram token")
+
+            # Determine which token to save
+            # Prefer Page token (EAA) for messaging, fall back to Instagram token (IGAAT)
+            final_access_token = page_access_token or access_token
 
             # Log what we're saving for debugging
-            token_type = "INSTAGRAM (IGAAT)" if access_token.startswith("IGAAT") else "UNKNOWN"
-            logger.info(
-                f"Saving token for {creator_id}: {access_token[:15]}... (type: {token_type})"
+            token_type = (
+                "PAGE (EAA)"
+                if final_access_token.startswith("EAA")
+                else "INSTAGRAM (IGAAT)" if final_access_token.startswith("IGAAT") else "UNKNOWN"
             )
-            logger.info(f"  page_id: None (Instagram Business Login — no FB Pages), ig_user_id: {instagram_user_id}")
+            logger.info(
+                f"Saving token for {creator_id}: {final_access_token[:15]}... (type: {token_type})"
+            )
+            logger.info(f"  page_id: {page_id}, ig_user_id: {instagram_user_id}")
 
-            # Step 4: Save to database
-            # page_id is None with Instagram Business Login (no Facebook Pages involved)
+            if not final_access_token.startswith("EAA"):
+                logger.warning(
+                    "\u26a0\ufe0f Token is NOT a Page token! Using Instagram token - messaging endpoint will use graph.instagram.com"
+                )
+
+            # Step 5: Save to database with ALL collected IDs
+            # Convert set to list for JSON storage
+            additional_ids_list = list(all_instagram_ids)
+            logger.info(
+                f"Collected {len(additional_ids_list)} Instagram IDs: {additional_ids_list}"
+            )
+
             await _save_instagram_connection(
                 creator_id=creator_id,
-                access_token=access_token,
-                page_id=None,
+                access_token=final_access_token,
+                page_id=page_id,
                 instagram_user_id=instagram_user_id,
-                additional_ids=[instagram_user_id] if instagram_user_id else [],
+                additional_ids=additional_ids_list,
             )
 
-            # P0 FIX: Clone creation runs ONLY from /onboarding/start-clone.
+            # NOTE: DO NOT set onboarding_completed=True here!
+            # The /onboarding/start-clone endpoint and _run_clone_creation will handle that
+            # after the user clicks "Crear mi clon" and the actual clone creation completes.
+            # Setting it here causes a race condition where the progress endpoint
+            # returns "complete" immediately before the clone creation even starts.
+
+            # P0 FIX: Auto-onboarding removed. The clone creation pipeline now runs
+            # ONLY from /onboarding/start-clone when the user clicks "Crear mi clon".
+            # This eliminates the race condition where OAuth auto-onboard and clone creation
+            # would both run simultaneously, overwriting each other's progress/status.
             logger.info(
                 "[OAuth] Instagram connected for %s. Clone creation will run from /start-clone.",
                 creator_id,
