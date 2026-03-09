@@ -966,3 +966,16 @@ async def echo_status(creator_name: str):
         }
     finally:
         session.close()
+
+
+@router.post("/run-content-refresh")
+async def trigger_content_refresh(creator_name: str = None):
+    """Trigger content refresh manually. Optionally limit to a single creator."""
+    from services.content_refresh import refresh_all_active_creators, refresh_creator_content
+
+    if creator_name:
+        result = await refresh_creator_content(creator_name)
+        return {"message": f"Content refresh complete for {creator_name}", "result": result}
+    else:
+        summary = await refresh_all_active_creators()
+        return {"message": "Content refresh complete for all active creators", "summary": summary}
