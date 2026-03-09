@@ -141,13 +141,13 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_content_refresh_scheduler())
         logger.info("Content refresh scheduler scheduled (every 24h, 120s delay)")
 
-        # --- Profile pic refresh (every 24h) ---
+        # --- Profile pic refresh (every 6h, 30 leads per batch) ---
         async def _profile_pic_refresh_job():
             from services.profile_pic_refresh import refresh_profile_pics_job
 
             await refresh_profile_pics_job()
 
-        scheduler.register("profile_pic_refresh", _profile_pic_refresh_job, interval_seconds=86400, initial_delay_seconds=90)
+        scheduler.register("profile_pic_refresh", _profile_pic_refresh_job, interval_seconds=21600, initial_delay_seconds=90)
 
         # --- Media capture (every 6h) ---
         from services.media_capture_job import (
