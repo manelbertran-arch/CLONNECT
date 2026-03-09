@@ -175,6 +175,160 @@ async def trigger_profile_pic_refresh():
     return {"message": "Profile pic refresh complete", "stats": stats}
 
 
+@router.post("/refresh-profile-pictures-public/{creator_name}")
+async def refresh_profile_pictures_public(
+    creator_name: str,
+    batch_size: int = Query(default=50, ge=1, le=100, description="Leads per batch"),
+    delay: float = Query(default=2.0, ge=0.5, le=10.0, description="Seconds between API calls"),
+):
+    """
+    Refresh profile pictures using Instagram's public API (no Graph API needed).
+    Fetches pics by username, uploads to Cloudinary for permanent URLs.
+    Runs on the server (Railway IP) to avoid local rate limiting.
+    """
+    import time as _time
+
+    import requests as _requests
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        # Get leads needing refresh
+        leads = (
+            session.query(Lead)
+            .filter(
+                Lead.creator_id == creator.id,
+                Lead.platform == "instagram",
+                Lead.platform_user_id.isnot(None),
+                Lead.username.isnot(None),
+                Lead.username != "",
+                or_(
+                    Lead.profile_pic_url.is_(None),
+                    Lead.profile_pic_url == "",
+                    ~Lead.profile_pic_url.like("%cloudinary%"),
+                ),
+            )
+            .order_by(Lead.last_contact_at.desc().nullslast())
+            .all()
+        )
+
+        total = len(leads)
+        if total == 0:
+            return {"message": "All leads already have Cloudinary pics", "total": 0}
+
+        refreshed = 0
+        failed = 0
+        no_pic = 0
+        rate_limited = False
+
+        # Setup Cloudinary
+        has_cloudinary = False
+        cloudinary_svc = None
+        try:
+            from services.cloudinary_service import get_cloudinary_service
+            cloudinary_svc = get_cloudinary_service()
+            has_cloudinary = cloudinary_svc.is_configured
+        except Exception:
+            pass
+
+        for i, lead in enumerate(leads):
+            username = (lead.username or "").strip().lstrip("@")
+            if not username:
+                failed += 1
+                continue
+
+            try:
+                resp = _requests.get(
+                    f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}",
+                    headers={
+                        "User-Agent": "Instagram 76.0.0.15.395 Android",
+                        "x-ig-app-id": "936619743392459",
+                    },
+                    timeout=10,
+                )
+
+                if resp.status_code in (401, 429):
+                    # Rate limited - pause and retry once
+                    logger.warning(f"[PROFILE_PICS_PUBLIC] Rate limited at lead {i+1}/{total}, pausing 120s")
+                    await asyncio.sleep(120)
+                    resp = _requests.get(
+                        f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}",
+                        headers={
+                            "User-Agent": "Instagram 76.0.0.15.395 Android",
+                            "x-ig-app-id": "936619743392459",
+                        },
+                        timeout=10,
+                    )
+                    if resp.status_code in (401, 429):
+                        rate_limited = True
+                        logger.error(f"[PROFILE_PICS_PUBLIC] Still rate limited, stopping at {i+1}/{total}")
+                        break
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    user = data.get("data", {}).get("user")
+                    if user:
+                        pic_url = user.get("profile_pic_url_hd") or user.get("profile_pic_url")
+                        if pic_url:
+                            final_url = pic_url
+                            # Upload to Cloudinary
+                            if has_cloudinary and cloudinary_svc:
+                                try:
+                                    cloud_result = cloudinary_svc.upload_from_url(
+                                        url=pic_url,
+                                        media_type="image",
+                                        folder=f"clonnect/{creator.name}/profiles",
+                                        public_id=f"profile_{lead.platform_user_id}",
+                                    )
+                                    if cloud_result.success and cloud_result.url:
+                                        final_url = cloud_result.url
+                                except Exception as cloud_err:
+                                    logger.debug(f"[PROFILE_PICS_PUBLIC] Cloudinary error for @{username}: {cloud_err}")
+
+                            lead.profile_pic_url = final_url
+                            refreshed += 1
+                        else:
+                            no_pic += 1
+                    else:
+                        no_pic += 1  # Account may not exist
+                else:
+                    failed += 1
+
+            except Exception as e:
+                failed += 1
+                logger.debug(f"[PROFILE_PICS_PUBLIC] Error for @{username}: {e}")
+
+            # Commit every batch
+            if (i + 1) % batch_size == 0:
+                session.commit()
+                logger.info(f"[PROFILE_PICS_PUBLIC] Batch {(i+1)//batch_size}: {refreshed} ok, {failed} fail, {no_pic} no pic")
+
+            await asyncio.sleep(delay)
+
+        session.commit()
+
+        return {
+            "message": f"Profile pic refresh complete for {creator_name}",
+            "total_leads": total,
+            "refreshed": refreshed,
+            "failed": failed,
+            "no_pic_from_api": no_pic,
+            "rate_limited": rate_limited,
+            "cloudinary_enabled": has_cloudinary,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[PROFILE_PICS_PUBLIC] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
 @router.get("/leads-without-photo/{creator_name}")
 async def list_leads_without_photo(creator_name: str, limit: int = 20):
     """List leads that don't have profile pictures."""
