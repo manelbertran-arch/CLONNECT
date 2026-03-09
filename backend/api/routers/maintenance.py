@@ -79,9 +79,15 @@ async def refresh_profile_pictures(
         query = session.query(Lead).filter(Lead.creator_id == creator.id)
 
         if not force:
-            query = query.filter(or_(Lead.profile_pic_url.is_(None), Lead.profile_pic_url == ""))
-
-        leads = query.order_by(Lead.last_contact_at.desc()).offset(offset).limit(limit).all()
+            # Include NULL/empty AND expired CDN URLs
+            from services.profile_pic_refresh import is_pic_expiring_soon
+            all_leads = query.filter(Lead.platform == "instagram").order_by(Lead.last_contact_at.desc()).all()
+            leads = [
+                l for l in all_leads
+                if not l.profile_pic_url or l.profile_pic_url == "" or is_pic_expiring_soon(l.profile_pic_url)
+            ][offset:offset + limit]
+        else:
+            leads = query.filter(Lead.platform == "instagram").order_by(Lead.last_contact_at.desc()).offset(offset).limit(limit).all()
 
         if not leads:
             return {"message": "No leads to update", "updated": 0, "failed": 0}
@@ -108,14 +114,14 @@ async def refresh_profile_pictures(
                     response = await client.get(
                         f"https://graph.instagram.com/v21.0/{ig_user_id}",
                         params={
-                            "fields": "id,username,name,profile_pic",
+                            "fields": "id,username,name,profile_picture_url",
                             "access_token": creator.instagram_token,
                         },
                     )
 
                     if response.status_code == 200:
                         data = response.json()
-                        profile_pic = data.get("profile_pic")
+                        profile_pic = data.get("profile_picture_url") or data.get("profile_pic")
 
                         if profile_pic:
                             lead.profile_pic_url = profile_pic
