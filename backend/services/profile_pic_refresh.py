@@ -94,17 +94,39 @@ def _refresh_sync() -> dict:
                     continue
 
                 try:
+                    # Use correct API base based on token type (EAA = FB, IGAAT = IG)
+                    api_base = (
+                        "https://graph.facebook.com/v21.0"
+                        if creator.instagram_token and creator.instagram_token.startswith("EAA")
+                        else "https://graph.instagram.com/v21.0"
+                    )
                     resp = requests.get(
-                        f"https://graph.instagram.com/v21.0/{lead.platform_user_id}",
+                        f"{api_base}/{lead.platform_user_id}",
                         params={
-                            "fields": "profile_picture_url",
+                            "fields": "id,username,name,profile_pic",
                             "access_token": creator.instagram_token,
                         },
                         timeout=5,
                     )
                     if resp.status_code == 200:
-                        new_url = resp.json().get("profile_picture_url")
+                        data = resp.json()
+                        new_url = data.get("profile_pic") or data.get("profile_picture_url")
                         if new_url:
+                            # Upload to Cloudinary for permanent (non-expiring) storage
+                            try:
+                                from services.cloudinary_service import get_cloudinary_service
+                                cloudinary_svc = get_cloudinary_service()
+                                if cloudinary_svc.is_configured:
+                                    cloud_result = cloudinary_svc.upload_from_url(
+                                        url=new_url,
+                                        media_type="image",
+                                        folder=f"clonnect/{creator.name}/profiles",
+                                        public_id=f"profile_{lead.platform_user_id}",
+                                    )
+                                    if cloud_result.success and cloud_result.url:
+                                        new_url = cloud_result.url
+                            except Exception as cloud_err:
+                                logger.debug(f"[PROFILE_PICS] Cloudinary upload failed for {lead.platform_user_id}: {cloud_err}")
                             lead.profile_pic_url = new_url
                             total_refreshed += 1
                         else:

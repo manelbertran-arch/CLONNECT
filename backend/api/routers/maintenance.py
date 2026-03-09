@@ -164,6 +164,17 @@ async def refresh_profile_pictures(
         session.close()
 
 
+@router.post("/run-profile-pic-refresh")
+async def trigger_profile_pic_refresh():
+    """
+    Trigger the profile picture refresh job immediately (runs on server).
+    This correctly uses the production Railway environment for API calls.
+    """
+    from services.profile_pic_refresh import refresh_profile_pics_job
+    stats = await refresh_profile_pics_job()
+    return {"message": "Profile pic refresh complete", "stats": stats}
+
+
 @router.get("/leads-without-photo/{creator_name}")
 async def list_leads_without_photo(creator_name: str, limit: int = 20):
     """List leads that don't have profile pictures."""
