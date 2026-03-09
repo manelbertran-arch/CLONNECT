@@ -84,8 +84,16 @@ async def refresh_creator_content(creator_id: str) -> Dict:
                 result["errors"].append(f"Creator {creator_id} has no Instagram token")
                 return result
 
+            # instagram_user_id = IG Business Account ID (for graph.instagram.com/media)
+            # instagram_page_id = Facebook Page ID (for webhook routing / messaging)
+            # When token is EAA (Page token), graph.instagram.com needs IGAAT — use env var fallback
             access_token = creator.instagram_token
-            instagram_business_id = creator.instagram_page_id
+            if access_token and access_token.startswith("EAA"):
+                igaat_fallback = os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
+                if igaat_fallback and igaat_fallback.startswith("IGAAT"):
+                    access_token = igaat_fallback
+
+            instagram_business_id = creator.instagram_user_id or creator.instagram_page_id
             ig_username = creator.name
             creator_name = creator.name
 
