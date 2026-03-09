@@ -980,6 +980,36 @@ def register_startup_handlers(app: "FastAPI"):
 
         scheduler.register("message_retry", _message_retry_job, interval_seconds=60, initial_delay_seconds=60)
 
+        # =====================================================================
+        # Self-health watchdog: restart process if /health/live stops responding
+        # Covers zombie processes (running but unresponsive) not caught by ON_FAILURE
+        # =====================================================================
+        _health_fail_count = {"n": 0}
+
+        async def _self_health_watchdog():
+            import os
+            import aiohttp
+            port = os.getenv("PORT", "8000")
+            url = f"http://127.0.0.1:{port}/health/live"
+            try:
+                timeout = aiohttp.ClientTimeout(total=5)
+                async with aiohttp.ClientSession(timeout=timeout) as _sess:
+                    async with _sess.get(url) as resp:
+                        if resp.status == 200:
+                            _health_fail_count["n"] = 0
+                            return
+                        raise Exception(f"HTTP {resp.status}")
+            except Exception as e:
+                _health_fail_count["n"] += 1
+                logger.warning(
+                    f"[WATCHDOG] Health check failed ({_health_fail_count['n']}/3): {e}"
+                )
+                if _health_fail_count["n"] >= 3:
+                    logger.error("[WATCHDOG] 3 consecutive failures — forcing process exit for Railway restart")
+                    os._exit(1)
+
+        scheduler.register("self_health_watchdog", _self_health_watchdog, interval_seconds=60, initial_delay_seconds=120)
+
         # Start all registered scheduled tasks
         await scheduler.start_all()
 
