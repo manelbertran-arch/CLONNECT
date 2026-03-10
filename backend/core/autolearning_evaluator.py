@@ -81,7 +81,10 @@ async def run_daily_evaluation(creator_id: str, creator_db_id, eval_date: Option
         for action, cnt, avg_rt, avg_conf in rows:
             action_counts[action] = cnt
             total += cnt
-            if avg_rt:
+            # response_time_ms for resolved_externally measures how long after the bot
+            # suggestion the creator manually replied (can be hours, not LLM latency).
+            # Only track for active decisions: approved, edited, discarded, manual_override.
+            if avg_rt and action != "resolved_externally":
                 avg_response_time = round(float(avg_rt))
             if avg_conf:
                 avg_confidence = round(float(avg_conf), 3)
