@@ -120,7 +120,8 @@ def test_get_applicable_rules_context_scoring(mock_session_class):
         confidence=0.5,
     )
 
-    session.query.return_value.filter.return_value.all.return_value = [r1, r2]
+    # The query chain is .filter(...).limit(100).all() — mock through limit()
+    session.query.return_value.filter.return_value.limit.return_value.all.return_value = [r1, r2]
 
     rules = get_applicable_rules(creator_id, intent="question_product")
 

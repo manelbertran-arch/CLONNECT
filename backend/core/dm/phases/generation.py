@@ -104,6 +104,10 @@ async def phase_llm_generation(
                 )
                 cognitive_metadata["learning_rules_applied"] = len(_learning_rules)
                 logger.info(f"[LEARNING] Injected {len(_learning_rules)} rules for {sender_id}")
+
+                # Track injection count (times_applied) — fire-and-forget, no confidence change
+                _injected_ids = [r["id"] for r in _learning_rules]
+                asyncio.create_task(_track_rules_applied(_injected_ids))
         except Exception as lr_err:
             logger.debug(f"[LEARNING] Rule loading failed: {lr_err}")
 
@@ -337,3 +341,29 @@ async def phase_llm_generation(
             logger.debug(f"Self-consistency failed: {e}")
 
     return llm_response
+
+
+async def _track_rules_applied(rule_ids: list) -> None:
+    """Fire-and-forget: increment times_applied for injected rules (without touching confidence)."""
+    try:
+        from api.database import SessionLocal
+        from api.models import LearningRule
+
+        def _do_increment():
+            s = SessionLocal()
+            try:
+                s.query(LearningRule).filter(
+                    LearningRule.id.in_(rule_ids)
+                ).update(
+                    {LearningRule.times_applied: LearningRule.times_applied + 1},
+                    synchronize_session=False,
+                )
+                s.commit()
+            except Exception:
+                s.rollback()
+            finally:
+                s.close()
+
+        await asyncio.to_thread(_do_increment)
+    except Exception:
+        pass  # Never block generation for tracking

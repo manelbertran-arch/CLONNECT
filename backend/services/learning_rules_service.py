@@ -147,7 +147,11 @@ def get_applicable_rules(
 
         scored = []
         for rule in rules:
-            score = 0.0
+            # Base score ensures rules with non-matching context still rank above zero.
+            # Without this, context-specific rules (which are almost all rules) score
+            # exactly 0 and get filtered by `if _ > 0`, injecting nothing.
+            # Context matching raises the score — it's for RANKING, not GATING.
+            score = rule.confidence * 0.1
 
             # Intent/pattern match
             if intent and rule.pattern:
