@@ -347,16 +347,19 @@ async def _track_rules_applied(rule_ids: list) -> None:
     """Fire-and-forget: increment times_applied for injected rules (without touching confidence)."""
     try:
         from api.database import SessionLocal
-        from api.models import LearningRule
+        from sqlalchemy import text
 
         def _do_increment():
             s = SessionLocal()
             try:
-                s.query(LearningRule).filter(
-                    LearningRule.id.in_(rule_ids)
-                ).update(
-                    {LearningRule.times_applied: LearningRule.times_applied + 1},
-                    synchronize_session=False,
+                # Use raw SQL to avoid ORM update() dict-key ambiguity with UUID columns
+                s.execute(
+                    text(
+                        "UPDATE learning_rules "
+                        "SET times_applied = times_applied + 1 "
+                        "WHERE id::text = ANY(:ids)"
+                    ),
+                    {"ids": rule_ids},
                 )
                 s.commit()
             except Exception:
