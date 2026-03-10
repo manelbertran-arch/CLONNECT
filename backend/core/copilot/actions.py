@@ -97,9 +97,19 @@ async def approve_response_impl(
         _meta = msg.msg_metadata or {}
         _bon_candidates = _meta.get("best_of_n", {}).get("candidates")
 
+        # Persist lightweight BoN decision summary before stripping full candidates
+        if _bon_candidates:
+            _chosen_idx = chosen_index if chosen_index is not None else 0
+            _meta["best_of_n_decision"] = {
+                "chosen_index": _chosen_idx,
+                "chosen_confidence": _bon_candidates[_chosen_idx].get("confidence") if _chosen_idx < len(_bon_candidates) else None,
+                "n_candidates": len(_bon_candidates),
+                "best_confidence": _bon_candidates[0].get("confidence") if _bon_candidates else None,
+                "creator_overrode_best": _chosen_idx != 0,
+            }
+
         # Strip best_of_n — no longer needed once decision is taken
-        if "best_of_n" in _meta:
-            msg.msg_metadata = {k: v for k, v in _meta.items() if k != "best_of_n"}
+        msg.msg_metadata = {k: v for k, v in _meta.items() if k != "best_of_n"}
 
         session.commit()
 
@@ -235,6 +245,15 @@ async def discard_response_impl(
         _meta = msg.msg_metadata or {}
         _bon_candidates = _meta.get("best_of_n", {}).get("candidates")
 
+        # Persist lightweight BoN decision summary before stripping
+        if _bon_candidates:
+            _meta["best_of_n_decision"] = {
+                "chosen_index": None,
+                "n_candidates": len(_bon_candidates),
+                "best_confidence": _bon_candidates[0].get("confidence") if _bon_candidates else None,
+                "creator_overrode_best": True,
+            }
+
         # Build clean metadata: strip best_of_n, optionally add discard_reason
         _meta_clean = {k: v for k, v in _meta.items() if k != "best_of_n"}
         if discard_reason:
@@ -348,10 +367,21 @@ def auto_discard_pending_for_lead_impl(
                 # (suggested_response = bot original, content = creator actual)
                 msg.content = creator_response
                 similarity = service._compute_similarity(msg.suggested_response or "", creator_response)
-                meta = {k: v for k, v in (msg.msg_metadata or {}).items() if k != "best_of_n"}
+                _raw_meta = msg.msg_metadata or {}
+                # Capture BoN candidates before stripping
+                msg._bon_candidates = _raw_meta.get("best_of_n", {}).get("candidates")
+                meta = {k: v for k, v in _raw_meta.items() if k != "best_of_n"}
                 meta["creator_actual_response"] = creator_response[:500]
                 meta["similarity_score"] = similarity
                 meta["resolved_source"] = "direct_reply"
+                # Persist lightweight BoN decision summary
+                if msg._bon_candidates:
+                    meta["best_of_n_decision"] = {
+                        "chosen_index": None,
+                        "n_candidates": len(msg._bon_candidates),
+                        "best_confidence": msg._bon_candidates[0].get("confidence") if msg._bon_candidates else None,
+                        "creator_overrode_best": True,
+                    }
                 msg.msg_metadata = meta
                 msg.approved_at = now
                 if msg.created_at:
@@ -372,15 +402,16 @@ def auto_discard_pending_for_lead_impl(
                 logger.info(
                     f"[Copilot] Resolved externally {count} pending suggestion(s) for lead {lead_id}"
                 )
-                # Fire autolearning hook for each resolved suggestion
+                # Fire autolearning + preference pairs hooks for each resolved suggestion
                 for msg in pending:
+                    _creator_db_id = service._get_creator_db_id(creator_id, session)
                     try:
                         from services.autolearning_analyzer import analyze_creator_action
 
                         asyncio.create_task(analyze_creator_action(
                             action="resolved_externally",
                             creator_id=creator_id or "",
-                            creator_db_id=service._get_creator_db_id(creator_id, session),
+                            creator_db_id=_creator_db_id,
                             suggested_response=msg.suggested_response,
                             final_response=creator_response,
                             intent=msg.intent,
@@ -389,6 +420,20 @@ def auto_discard_pending_for_lead_impl(
                         ))
                     except Exception as learn_err:
                         logger.debug(f"[Copilot] Autolearning resolved_externally hook failed: {learn_err}")
+                    try:
+                        from services.preference_pairs_service import create_pairs_from_action
+
+                        asyncio.create_task(create_pairs_from_action(
+                            action="resolved_externally",
+                            creator_db_id=_creator_db_id,
+                            source_message_id=msg.id,
+                            suggested_response=msg.suggested_response,
+                            final_response=creator_response,
+                            intent=msg.intent,
+                            best_of_n_candidates=getattr(msg, "_bon_candidates", None),
+                        ))
+                    except Exception as pairs_err:
+                        logger.debug(f"[Copilot] Preference pairs resolved_externally hook failed: {pairs_err}")
             else:
                 logger.info(
                     f"[Copilot] Auto-discarded {count} pending suggestion(s) for lead {lead_id}"

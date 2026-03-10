@@ -505,7 +505,7 @@ async def suggest_response(
         logger.error(f"[Copilot/suggest] DM pipeline error for {creator_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Suggestion generation failed: {str(e)}")
 
-    return {
+    response = {
         "creator_id": creator_id,
         "lead_id": body.lead_id,
         "suggested_text": result.get("response", ""),
@@ -513,3 +513,10 @@ async def suggest_response(
         "lead_stage": result.get("lead_stage"),
         "tokens_used": result.get("tokens_used", 0),
     }
+
+    # Include Best-of-N candidates if generated
+    bon = (result.get("metadata") or {}).get("best_of_n")
+    if bon and bon.get("candidates"):
+        response["candidates"] = bon["candidates"]
+
+    return response
