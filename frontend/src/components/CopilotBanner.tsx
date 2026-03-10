@@ -3,7 +3,7 @@
  *
  * Minimal design: user message + 3 candidates horizontal + edit/discard.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, X, Edit3, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,9 +18,10 @@ import { getCreatorId } from "@/services/api";
 interface CopilotBannerProps {
   leadId: string | null;
   platform?: string;
+  creatorIsTyping?: boolean;
 }
 
-export function CopilotBanner({ leadId, platform }: CopilotBannerProps) {
+export function CopilotBanner({ leadId, platform, creatorIsTyping }: CopilotBannerProps) {
   const { data, isLoading } = usePendingForLead(leadId);
   const approveMutation = useApproveCopilotResponse(getCreatorId());
   const discardMutation = useDiscardCopilotResponse(getCreatorId());
@@ -28,10 +29,26 @@ export function CopilotBanner({ leadId, platform }: CopilotBannerProps) {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState("");
+  const [hiddenPendingId, setHiddenPendingId] = useState<string | null>(null);
 
   const pending = data?.pending;
 
+  // Hide suggestion when creator starts typing in this conversation
+  useEffect(() => {
+    if (creatorIsTyping && pending?.id) {
+      setHiddenPendingId(pending.id);
+    }
+  }, [creatorIsTyping, pending?.id]);
+
+  // When a new pending arrives (different id), reset the hidden state
+  useEffect(() => {
+    if (pending?.id && pending.id !== hiddenPendingId) {
+      setHiddenPendingId(null);
+    }
+  }, [pending?.id]);
+
   if (isLoading || !pending) return null;
+  if (hiddenPendingId === pending.id) return null;
 
   const candidates = pending.candidates || [];
   const hasCandidates = candidates.length > 0;

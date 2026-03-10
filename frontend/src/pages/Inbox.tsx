@@ -846,8 +846,10 @@ export default function Inbox() {
 
             {/* Copilot Banner — shows pending suggestion inline */}
             <CopilotBanner
+              key={selectedConversation.id || ""}
               leadId={selectedConversation.id || null}
               platform={chatPlatform}
+              creatorIsTyping={message.length > 0}
             />
 
             {/* Input */}

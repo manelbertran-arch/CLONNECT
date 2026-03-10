@@ -121,31 +121,6 @@ async def create_pending_response_impl(
             # Backfill phone for existing WhatsApp leads that are missing it
             lead.phone = "+" + follower_id[3:]
 
-        # ── CHECK: creator actively chatting with this lead right now ──
-        # If creator sent a manual response in the last 10 minutes, skip suggestion.
-        # 10 min = conversation is hot, don't interrupt with bot noise.
-        # After 10 min of silence → bot resumes suggestions for new messages.
-        ten_minutes_ago = now - timedelta(minutes=10)
-        if service.has_creator_reply_after(lead.id, ten_minutes_ago, session):
-            logger.info(
-                f"[Copilot:Skip] Creator actively chatting with lead {lead.id} (last 10min) — skipping suggestion"
-            )
-            # Still save the user message
-            user_msg = Message(
-                lead_id=lead.id,
-                role="user",
-                content=user_message,
-                intent=intent,
-                status="sent",
-                platform_message_id=user_message_id,
-                msg_metadata=msg_metadata,
-            )
-            session.add(user_msg)
-            lead.last_contact_at = now
-            session.commit()
-            pending.lead_id = str(lead.id)
-            return pending
-
         # ── DEDUP CHECK #2: lead already has pending_approval ──
         # Prevents multiple suggestions stacking up for the same lead
         existing_pending = (
