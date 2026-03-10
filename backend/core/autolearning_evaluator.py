@@ -92,6 +92,37 @@ async def run_daily_evaluation(creator_id: str, creator_db_id, eval_date: Option
         manual = action_counts.get("manual_override", 0)
         resolved_ext = action_counts.get("resolved_externally", 0)
 
+        # Clone Accuracy: average similarity_score from resolved_externally messages.
+        # similarity_score (0-1) is computed by the webhook handler when it detects
+        # the creator replied from Instagram. Higher = bot suggestion matched creator's style.
+        clone_accuracy = None
+        clone_accuracy_n = 0
+        if resolved_ext > 0:
+            sim_rows = (
+                session.query(Message.msg_metadata)
+                .join(Lead, Message.lead_id == Lead.id)
+                .filter(
+                    Lead.creator_id == creator_db_id,
+                    Message.role == "assistant",
+                    Message.copilot_action == "resolved_externally",
+                    Message.msg_metadata.isnot(None),
+                    Message.created_at >= since,
+                    Message.created_at < until,
+                )
+                .all()
+            )
+            scores = [
+                float(meta["similarity_score"])
+                for (meta,) in sim_rows
+                if isinstance(meta, dict)
+                and "similarity_score" in meta
+                and isinstance(meta["similarity_score"], (int, float))
+                and 0 <= meta["similarity_score"] <= 1
+            ]
+            if scores:
+                clone_accuracy = round(sum(scores) / len(scores), 3)
+                clone_accuracy_n = len(scores)
+
         metrics = {
             "total_actions": total,
             "approved": approved,
@@ -104,6 +135,10 @@ async def run_daily_evaluation(creator_id: str, creator_db_id, eval_date: Option
             "discard_rate": round(discarded / total, 3) if total else 0,
             "avg_response_time_ms": avg_response_time,
             "avg_confidence": avg_confidence,
+            # Clone Accuracy: how similar was the bot suggestion to what the creator actually sent.
+            # Based on resolved_externally messages where both bot suggestion and creator response exist.
+            "clone_accuracy": clone_accuracy,
+            "clone_accuracy_n": clone_accuracy_n,
         }
 
         # Detect patterns from edit diffs
@@ -259,12 +294,23 @@ async def run_weekly_recalibration(creator_id: str, creator_db_id, week_end: Opt
         edit_rates = [e.metrics.get("edit_rate", 0) for e in daily_evals if e.metrics.get("total_actions", 0) > 0]
         discard_rates = [e.metrics.get("discard_rate", 0) for e in daily_evals if e.metrics.get("total_actions", 0) > 0]
 
+        # Clone Accuracy weekly trend — the primary quality KPI (doesn't depend on copilot approval)
+        clone_scores = [
+            e.metrics.get("clone_accuracy")
+            for e in daily_evals
+            if e.metrics.get("clone_accuracy") is not None
+        ]
+        avg_clone_accuracy = round(sum(clone_scores) / len(clone_scores), 3) if clone_scores else None
+
         metrics = {
             "total_actions": total_actions,
             "days_with_data": len(daily_evals),
             "avg_approval_rate": round(sum(approval_rates) / len(approval_rates), 3) if approval_rates else 0,
             "avg_edit_rate": round(sum(edit_rates) / len(edit_rates), 3) if edit_rates else 0,
             "avg_discard_rate": round(sum(discard_rates) / len(discard_rates), 3) if discard_rates else 0,
+            # Clone Accuracy weekly average: primary signal for bot quality without copilot
+            "avg_clone_accuracy": avg_clone_accuracy,
+            "clone_accuracy_days": len(clone_scores),
         }
 
         # Detect trends
@@ -295,9 +341,11 @@ async def run_weekly_recalibration(creator_id: str, creator_db_id, week_end: Opt
         session.add(weekly_eval)
         session.commit()
 
+        clone_str = f"{avg_clone_accuracy*100:.0f}%" if avg_clone_accuracy is not None else "n/a"
         logger.info(
             f"[AUTOLEARN] Weekly recalibration for {creator_id}: "
-            f"{total_actions} actions, {metrics['avg_approval_rate']*100:.0f}% avg approval, "
+            f"{total_actions} actions, clone_accuracy={clone_str}, "
+            f"approval={metrics['avg_approval_rate']*100:.0f}%, "
             f"{len(recommendations)} recommendations"
         )
         return {"stored": True, "metrics": metrics, "recommendations": recommendations}
@@ -317,12 +365,33 @@ def _generate_weekly_recommendations(daily_evals, metrics: dict) -> list:
     avg_approval = metrics.get("avg_approval_rate", 0)
     avg_edit = metrics.get("avg_edit_rate", 0)
     avg_discard = metrics.get("avg_discard_rate", 0)
+    avg_clone = metrics.get("avg_clone_accuracy")
 
-    # Trend: approval rate improving over the week?
+    # Trend: Clone Accuracy trend over the week (primary KPI — doesn't need copilot approval)
     if len(daily_evals) >= 3:
         first_half = daily_evals[: len(daily_evals) // 2]
         second_half = daily_evals[len(daily_evals) // 2:]
 
+        # Clone accuracy trend (primary)
+        first_clone = [e.metrics.get("clone_accuracy") for e in first_half if e.metrics.get("clone_accuracy") is not None]
+        second_clone = [e.metrics.get("clone_accuracy") for e in second_half if e.metrics.get("clone_accuracy") is not None]
+        if first_clone and second_clone:
+            fc_avg = sum(first_clone) / len(first_clone)
+            sc_avg = sum(second_clone) / len(second_clone)
+            if sc_avg > fc_avg + 0.05:
+                recommendations.append({
+                    "type": "clone_accuracy_improving",
+                    "detail": f"Clone accuracy improved {fc_avg*100:.0f}% → {sc_avg*100:.0f}%",
+                    "action": "none",
+                })
+            elif fc_avg > sc_avg + 0.05:
+                recommendations.append({
+                    "type": "clone_accuracy_degrading",
+                    "detail": f"Clone accuracy dropped {fc_avg*100:.0f}% → {sc_avg*100:.0f}%",
+                    "action": "review_system_prompt",
+                })
+
+        # Approval rate trend (secondary — kept for backwards compat but rarely non-zero)
         first_approval = sum(
             e.metrics.get("approval_rate", 0) for e in first_half
             if e.metrics.get("total_actions", 0) > 0

@@ -30,6 +30,7 @@ _SOURCE_QUALITY = {
     "manual_override": 0.9,
     "approved": 0.8,
     "minor_edit": 0.7,
+    "resolved_externally": 0.75,  # Creator replied from Instagram without using bot suggestion
     "historical": 0.6,   # Mined from historical IG conversations
 }
 
@@ -305,7 +306,8 @@ async def curate_examples(creator_id: str, creator_db_id) -> Dict[str, Any]:
 
     session = SessionLocal()
     try:
-        # Find recent approved/edited/manual messages (last 30 days, was 7)
+        # Find recent copilot-actioned messages (last 30 days).
+        # Include resolved_externally: creator replied from Instagram — that IS the gold response.
         thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
         rows = (
             session.query(Message, Lead)
@@ -313,7 +315,9 @@ async def curate_examples(creator_id: str, creator_db_id) -> Dict[str, Any]:
             .filter(
                 Lead.creator_id == creator_db_id,
                 Message.role == "assistant",
-                Message.copilot_action.in_(["approved", "edited", "manual_override"]),
+                Message.copilot_action.in_(
+                    ["approved", "edited", "manual_override", "resolved_externally"]
+                ),
                 Message.created_at >= thirty_days_ago,
             )
             .order_by(Message.created_at.desc())
@@ -337,7 +341,7 @@ async def curate_examples(creator_id: str, creator_db_id) -> Dict[str, Any]:
             if not user_msg or not user_msg.content:
                 continue
 
-            # Determine source
+            # Determine source and filter low-quality responses
             source = msg.copilot_action or "approved"
             if source == "edited":
                 # Check edit severity — minor edits are good examples
@@ -346,6 +350,11 @@ async def curate_examples(creator_id: str, creator_db_id) -> Dict[str, Any]:
                     source = "minor_edit"
                 else:
                     continue  # Skip heavy edits — not good examples
+            elif source == "resolved_externally":
+                # Creator replied from Instagram — msg.content IS the creator's actual response.
+                # Skip if too short (stickers, reactions, single words).
+                if not msg.content or len(msg.content.strip()) < 10:
+                    continue
 
             result = create_gold_example(
                 creator_db_id=creator_db_id,
