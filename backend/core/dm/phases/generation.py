@@ -344,23 +344,27 @@ async def phase_llm_generation(
 
 
 async def _track_rules_applied(rule_ids: list) -> None:
-    """Fire-and-forget: increment times_applied for injected rules (without touching confidence)."""
+    """Fire-and-forget: increment times_applied for injected rules (without touching confidence).
+    Uses individual ORM updates (max 5 rules) — safe, no array binding issues.
+    """
+    if not rule_ids:
+        return
     try:
+        import uuid as _uuid
         from api.database import SessionLocal
-        from sqlalchemy import text
+        from api.models import LearningRule
 
         def _do_increment():
             s = SessionLocal()
             try:
-                # Use raw SQL to avoid ORM update() dict-key ambiguity with UUID columns
-                s.execute(
-                    text(
-                        "UPDATE learning_rules "
-                        "SET times_applied = times_applied + 1 "
-                        "WHERE id::text = ANY(:ids)"
-                    ),
-                    {"ids": rule_ids},
-                )
+                for rid_str in rule_ids:
+                    try:
+                        rid = _uuid.UUID(rid_str) if isinstance(rid_str, str) else rid_str
+                    except (ValueError, AttributeError):
+                        continue
+                    rule = s.query(LearningRule).filter_by(id=rid).first()
+                    if rule:
+                        rule.times_applied = (rule.times_applied or 0) + 1
                 s.commit()
             except Exception:
                 s.rollback()
