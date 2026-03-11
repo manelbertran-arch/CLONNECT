@@ -1,4 +1,4 @@
-"""Learning models: CopilotEvaluation, LearningRule, GoldExample, PatternAnalysisRun, PreferencePair, CloneScoreEvaluation, CloneScoreTestSet."""
+"""Learning models: CopilotEvaluation, LearningRule, GoldExample, PatternAnalysisRun, PreferencePair, CloneScoreEvaluation, CloneScoreTestSet, LLMUsageLog."""
 import uuid
 
 from sqlalchemy import (
@@ -190,3 +190,26 @@ class CloneScoreTestSet(Base):
     test_pairs = Column(JSONB, nullable=False, server_default="[]")
     is_active = Column(Boolean, server_default="true")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class LLMUsageLog(Base):
+    """Per-call LLM token and cost tracking.
+
+    Inserted fire-and-forget after every Gemini / OpenAI call.
+    Enables exact cost accounting by provider, model, and call_type.
+    """
+    __tablename__ = "llm_usage_log"
+    __table_args__ = (
+        Index("idx_llm_usage_created_at", "created_at"),
+        Index("idx_llm_usage_provider_model", "provider", "model"),
+        {"extend_existing": True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    provider = Column(String(20), nullable=False)       # "gemini" | "openai"
+    model = Column(String(100), nullable=False)         # "gemini-2.5-flash-lite" | "gpt-4o-mini"
+    call_type = Column(String(50), nullable=False)      # "dm_response" | "background"
+    tokens_in = Column(Integer, nullable=False, server_default="0")
+    tokens_out = Column(Integer, nullable=False, server_default="0")
+    latency_ms = Column(Integer, nullable=False, server_default="0")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

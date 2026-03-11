@@ -58,6 +58,54 @@ def _gemini_record_failure():
         )
 
 
+def _log_llm_usage(
+    provider: str,
+    model: str,
+    call_type: str,
+    tokens_in: int,
+    tokens_out: int,
+    latency_ms: int,
+) -> None:
+    """Fire-and-forget: persist one LLM call to llm_usage_log. Never raises."""
+    try:
+        from api.database import SessionLocal
+        from api.models.learning import LLMUsageLog
+
+        s = SessionLocal()
+        try:
+            s.add(LLMUsageLog(
+                provider=provider,
+                model=model,
+                call_type=call_type,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                latency_ms=latency_ms,
+            ))
+            s.commit()
+        except Exception:
+            s.rollback()
+        finally:
+            s.close()
+    except Exception:
+        pass  # Never block generation for logging
+
+
+async def _async_log_usage(result: dict, call_type: str) -> None:
+    """Async wrapper around _log_llm_usage for use with asyncio.create_task."""
+    try:
+        await asyncio.to_thread(
+            _log_llm_usage,
+            result.get("provider", "unknown"),
+            result.get("model", "unknown"),
+            call_type,
+            result.get("tokens_in", 0),
+            result.get("tokens_out", 0),
+            result.get("latency_ms", 0),
+        )
+    except Exception:
+        pass
+
+
 async def _call_gemini(
     model: str,
     api_key: str,
@@ -100,19 +148,20 @@ async def _call_gemini(
 
                 content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
                 usage = data.get("usageMetadata", {})
+                tokens_in = usage.get("promptTokenCount", 0)
+                tokens_out = usage.get("candidatesTokenCount", 0)
 
                 logger.info(
                     "Gemini OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d",
-                    model, latency_ms,
-                    usage.get("promptTokenCount", 0),
-                    usage.get("candidatesTokenCount", 0),
-                    len(content),
+                    model, latency_ms, tokens_in, tokens_out, len(content),
                 )
                 return {
                     "content": content,
                     "model": model,
                     "provider": "gemini",
                     "latency_ms": latency_ms,
+                    "tokens_in": tokens_in,
+                    "tokens_out": tokens_out,
                 }
 
         except httpx.TimeoutException:
@@ -200,6 +249,7 @@ async def generate_simple(
                 )
                 if result and result.get("content"):
                     _gemini_record_success()
+                    asyncio.create_task(_async_log_usage(result, "background"))
                     return result["content"]
                 logger.warning("generate_simple: Gemini returned empty, falling back")
                 _gemini_record_failure()
@@ -214,6 +264,7 @@ async def generate_simple(
     try:
         result = await _call_openai_mini(messages, max_tokens, temperature)
         if result and result.get("content"):
+            asyncio.create_task(_async_log_usage(result, "background"))
             return result["content"]
     except Exception as e:
         logger.error("generate_simple: OpenAI fallback failed: %s", e)
@@ -256,12 +307,11 @@ async def _call_openai_mini(
         content = (response.choices[0].message.content or "").strip()
         latency_ms = int((time.monotonic() - start) * 1000)
         usage = response.usage
+        tokens_in = usage.prompt_tokens if usage else 0
+        tokens_out = usage.completion_tokens if usage else 0
         logger.info(
             "OpenAI fallback OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d",
-            model, latency_ms,
-            usage.prompt_tokens if usage else 0,
-            usage.completion_tokens if usage else 0,
-            len(content),
+            model, latency_ms, tokens_in, tokens_out, len(content),
         )
         if not content:
             return None
@@ -270,6 +320,8 @@ async def _call_openai_mini(
             "model": model,
             "provider": "openai",
             "latency_ms": latency_ms,
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
         }
     except asyncio.TimeoutError:
         logger.error("OpenAI fallback timeout after %.0fs", timeout)
@@ -312,6 +364,7 @@ async def generate_dm_response(
             )
             if result:
                 _gemini_record_success()
+                asyncio.create_task(_async_log_usage(result, "dm_response"))
                 return result
             logger.warning("Flash-Lite returned empty, falling back to GPT-4o-mini")
             _gemini_record_failure()
@@ -327,6 +380,7 @@ async def generate_dm_response(
     try:
         result = await _call_openai_mini(messages, max_tokens, temperature)
         if result:
+            asyncio.create_task(_async_log_usage(result, "dm_response"))
             return result
         logger.error("GPT-4o-mini returned empty")
     except Exception as e:
