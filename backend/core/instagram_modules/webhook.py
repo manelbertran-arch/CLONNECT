@@ -51,13 +51,12 @@ async def handle_webhook_impl(
             import json
             payload_bytes = json.dumps(payload, separators=(",", ":")).encode()
         if not handler.connector.verify_webhook_signature(payload_bytes, signature):
-            logger.warning(
-                "[SigCheck] Invalid webhook signature for creator %s — "
-                "processing anyway (check INSTAGRAM_APP_SECRET env var)",
+            logger.error(
+                "[SigCheck] Invalid webhook signature for creator %s — rejecting",
                 getattr(handler, "creator_id", "unknown"),
             )
             handler.status.errors += 1
-            # NOTE: Do NOT return here — continue processing the webhook
+            return {"status": "error", "reason": "invalid_signature"}
 
     # Extract and record echo messages (creator's manual responses)
     echo_messages = await _extract_echo_messages(handler, payload)
