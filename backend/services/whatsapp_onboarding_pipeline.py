@@ -236,7 +236,11 @@ class WhatsAppOnboardingPipeline:
         return stats
 
     async def _store_messages(self, records: List[dict]) -> dict:
-        """Group records by phone, create Leads, batch-insert Messages."""
+        """Group records by phone, create Leads, batch-insert Messages.
+
+        Deduplicates by platform_message_id to prevent re-inserting
+        historical messages on every Evolution API reconnection.
+        """
         from api.database import SessionLocal
         from api.models import Message
         from api.services.db_service import get_or_create_lead
@@ -256,6 +260,7 @@ class WhatsAppOnboardingPipeline:
         leads_created = 0
         messages_stored = 0
         skipped_empty = 0
+        skipped_duplicate = 0
 
         session = SessionLocal()
         try:
@@ -282,6 +287,30 @@ class WhatsAppOnboardingPipeline:
                 leads_created += 1
                 lead_uuid = lead_result["id"]
 
+                # Pre-fetch existing platform_message_ids for this lead to dedup
+                existing_pmids = set()
+                rows = (
+                    session.query(Message.platform_message_id)
+                    .filter(
+                        Message.lead_id == lead_uuid,
+                        Message.platform_message_id.isnot(None),
+                    )
+                    .all()
+                )
+                existing_pmids = {r[0] for r in rows}
+
+                # Content-based dedup: Evolution API generates new IDs on reconnect
+                # so we also dedup by (content, created_at) to prevent re-imports
+                existing_content_keys = set()
+                content_rows = (
+                    session.query(Message.content, Message.created_at)
+                    .filter(Message.lead_id == lead_uuid)
+                    .all()
+                )
+                for cr in content_rows:
+                    if cr[0] and cr[1]:
+                        existing_content_keys.add((cr[0], str(cr[1])))
+
                 for record in msgs:
                     text = self._extract_text(record)
                     if not text:
@@ -293,14 +322,30 @@ class WhatsAppOnboardingPipeline:
                     msg_id = record.get("key", {}).get("id", "")
                     timestamp = record.get("messageTimestamp")
 
-                    created_at = None
+                    # Skip if this message already exists in DB (by platform_message_id)
+                    if msg_id and msg_id in existing_pmids:
+                        skipped_duplicate += 1
+                        continue
+                    if msg_id:
+                        existing_pmids.add(msg_id)
+
+                    # Parse timestamp for content-based dedup check
+                    _created_at = None
                     if timestamp:
                         try:
-                            created_at = datetime.fromtimestamp(int(timestamp), tz=UTC)
+                            _created_at = datetime.fromtimestamp(int(timestamp), tz=UTC)
                         except (ValueError, TypeError, OSError):
-                            created_at = datetime.now(UTC)
-                    else:
-                        created_at = datetime.now(UTC)
+                            pass
+
+                    # Content-based dedup: skip if same content+timestamp already exists
+                    if _created_at:
+                        content_key = (text, str(_created_at))
+                        if content_key in existing_content_keys:
+                            skipped_duplicate += 1
+                            continue
+                        existing_content_keys.add(content_key)
+
+                    created_at = _created_at or datetime.now(UTC)
 
                     msg = Message(
                         lead_id=lead_uuid,
@@ -336,11 +381,16 @@ class WhatsAppOnboardingPipeline:
         finally:
             session.close()
 
+        logger.info(
+            f"[WA-PIPELINE] _store_messages: stored={messages_stored}, "
+            f"skipped_dup={skipped_duplicate}, skipped_empty={skipped_empty}"
+        )
         return {
             "total_messages": len(records),
             "contacts": len(contacts),
             "leads_created": leads_created,
             "messages_stored": messages_stored,
+            "skipped_duplicate": skipped_duplicate,
             "skipped_empty": skipped_empty,
         }
 

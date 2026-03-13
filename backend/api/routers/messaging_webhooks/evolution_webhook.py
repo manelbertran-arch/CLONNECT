@@ -28,6 +28,10 @@ EVOLUTION_INSTANCE_MAP: Dict[str, str] = {
 # Guard: prevent duplicate WA onboarding pipeline launches
 _wa_pipeline_running: set = set()
 
+# Cooldown: prevent re-running pipeline on frequent reconnects
+_wa_pipeline_last_run: Dict[str, float] = {}
+_WA_PIPELINE_COOLDOWN = 3600  # 1 hour between pipeline runs per creator
+
 # Dedup: Evolution/Baileys sends messages.upsert twice per message.
 # Track processed message IDs with timestamps to skip duplicates.
 _evo_processed_messages: Dict[str, float] = {}
@@ -79,9 +83,16 @@ async def evolution_webhook(request: Request):
         logger.info(f"[EVO:{instance}] Connection update: {state}")
 
         if state == "open":
+            import time as _time
             creator_id = EVOLUTION_INSTANCE_MAP.get(instance)
             if creator_id and creator_id not in _wa_pipeline_running:
+                # Cooldown: skip if pipeline ran recently (Evolution reconnects frequently)
+                last_run = _wa_pipeline_last_run.get(creator_id, 0)
+                if _time.time() - last_run < _WA_PIPELINE_COOLDOWN:
+                    logger.info(f"[EVO:{instance}] Pipeline cooldown active for {creator_id}, skipping")
+                    return {"status": "ok", "event": event, "state": state, "pipeline": "cooldown"}
                 _wa_pipeline_running.add(creator_id)
+                _wa_pipeline_last_run[creator_id] = _time.time()
 
                 async def _run_wa_pipeline():
                     try:
