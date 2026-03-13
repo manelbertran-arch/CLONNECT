@@ -151,13 +151,18 @@ async def instagram_webhook_receive(request: Request):
                 "feed_events_dispatched": feed_events_found,
             }
 
-        # 7. Get handler for this creator and process DMs
+        # 7. Get handler for this creator and process DMs in background
+        # Return 200 immediately so Meta doesn't timeout (Meta SLA = 20s,
+        # LLM processing can take 25-35s due to Gemini→OpenAI fallback chain).
         handler = get_handler_for_creator(creator_info)
-        result = await handler.handle_webhook(payload, signature, raw_body=raw_body)
+        asyncio.create_task(
+            _process_dm_webhook_safe(handler, payload, signature, raw_body, creator_id)
+        )
 
-        logger.info(f"Instagram webhook processed: {result.get('messages_processed', 0)} messages")
+        logger.info(f"[DM-ASYNC] Webhook queued for background processing: creator={creator_id}")
         return {
-            **result,
+            "status": "ok",
+            "processing": "async",
             "creator_id": creator_id,
             "matched_id": matched_id,
             "feed_events_dispatched": feed_events_found,
@@ -170,6 +175,21 @@ async def instagram_webhook_receive(request: Request):
         logger.error(traceback.format_exc())
         # Return 200 to acknowledge receipt (prevents infinite retries from Meta)
         return {"status": "error", "error": str(e)}
+
+
+async def _process_dm_webhook_safe(
+    handler, payload: dict, signature: str, raw_body: bytes, creator_id: str
+):
+    """Process DM webhook in background so Meta gets HTTP 200 immediately."""
+    try:
+        result = await handler.handle_webhook(payload, signature, raw_body=raw_body)
+        processed = result.get("messages_processed", 0)
+        if processed:
+            logger.info(f"[DM-ASYNC] {creator_id}: {processed} message(s) processed")
+        else:
+            logger.info(f"[DM-ASYNC] {creator_id}: no messages (feed/echo/dedup)")
+    except Exception as e:
+        logger.error(f"[DM-ASYNC] Background DM processing failed for {creator_id}: {e}")
 
 
 async def _process_feed_event_safe(creator_info: dict, entry: dict):
