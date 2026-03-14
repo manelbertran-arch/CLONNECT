@@ -109,11 +109,12 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                         # Strip heavy JSONB fields at DB level to avoid transferring large blobs.
                         # audio_intel / thumbnail_base64 / best_of_n / transcript_raw / transcript_full
                         # can be MB each; with 50 messages that can be 50+ MB transferred.
+                        # Guard with jsonb_typeof = 'object' — scalar JSONB values cannot use '-' operator.
                         sql = _text("""
                             SELECT
                                 role, content, status, platform_message_id,
                                 created_at, deleted_at,
-                                CASE WHEN msg_metadata IS NOT NULL
+                                CASE WHEN msg_metadata IS NOT NULL AND jsonb_typeof(msg_metadata) = 'object'
                                     THEN msg_metadata
                                         - 'audio_intel'
                                         - 'thumbnail_base64'
