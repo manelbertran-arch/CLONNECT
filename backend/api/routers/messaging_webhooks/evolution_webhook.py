@@ -122,6 +122,25 @@ async def evolution_webhook(request: Request):
         logger.info(f"[EVO:{instance}] QR code updated")
         return {"status": "ok", "event": event}
 
+    # Handle message deletion ("Delete for everyone")
+    # Evolution/Baileys sends messages.update with messageStubType=REVOKE
+    # Some forks send messages.delete instead
+    if event in ("messages.update", "messages.delete"):
+        data_raw = payload.get("data", {})
+        updates = data_raw if isinstance(data_raw, list) else [data_raw]
+        handled = 0
+        for update in updates:
+            key = update.get("key", {})
+            msg_id = key.get("id", "")
+            stub_type = update.get("messageStubType")
+            # REVOKE = message deleted by sender; also handle messages.delete directly
+            if (stub_type == "REVOKE" or event == "messages.delete") and msg_id:
+                asyncio.create_task(_handle_message_deleted(instance, msg_id, key))
+                handled += 1
+        if handled:
+            logger.info(f"[EVO:{instance}] Message delete: {handled} message(s)")
+        return {"status": "ok", "event": event, "handled": handled}
+
     # Only process incoming messages
     if event != "messages.upsert":
         return {"status": "ok", "ignored": event}
@@ -482,6 +501,89 @@ async def _download_evolution_media(instance: str, data: dict, media_type: str) 
     except Exception as e:
         logger.error(f"[EVO:{instance}] Media download error ({media_type}): {e}")
         return result
+
+
+async def _handle_message_deleted(instance: str, message_id: str, key: dict):
+    """Handle WhatsApp 'Delete for everyone' — soft-delete message in DB.
+
+    - Marks the message with deleted_at timestamp
+    - If the deleted message triggered a pending copilot suggestion, discards it
+    - Removes the message from the in-memory follower cache
+    """
+    from datetime import datetime, timezone
+
+    from api.database import SessionLocal
+    from api.models import Message
+
+    session = SessionLocal()
+    try:
+        msg = (
+            session.query(Message)
+            .filter(Message.platform_message_id == message_id)
+            .first()
+        )
+        if not msg:
+            logger.debug(f"[EVO:{instance}] Delete: message {message_id} not found in DB")
+            return
+
+        now = datetime.now(timezone.utc)
+        msg.deleted_at = now
+        lead_id = msg.lead_id
+
+        # If there's a pending_approval suggestion triggered by this message, discard it
+        pending = (
+            session.query(Message)
+            .filter(
+                Message.lead_id == lead_id,
+                Message.role == "assistant",
+                Message.status == "pending_approval",
+            )
+            .first()
+        )
+        if pending:
+            pending.status = "discarded"
+            pending.copilot_action = "auto_discarded_deleted"
+            pending.approved_at = now
+            logger.info(
+                f"[EVO:{instance}] Delete: discarded pending suggestion {pending.id} "
+                f"(trigger message {message_id} was deleted)"
+            )
+
+        session.commit()
+        logger.info(
+            f"[EVO:{instance}] Delete: marked message {message_id} as deleted "
+            f"(lead={lead_id})"
+        )
+
+        # Remove from in-memory follower cache
+        try:
+            remote_jid = key.get("remoteJid", "")
+            sender = remote_jid.replace("@s.whatsapp.net", "").replace("@g.us", "")
+            if sender:
+                creator_id = EVOLUTION_INSTANCE_MAP.get(instance)
+                if creator_id:
+                    from services.memory_service import MemoryStore
+
+                    store = MemoryStore()
+                    follower_id = f"wa_{sender}"
+                    cache_key = f"{creator_id}:{follower_id}"
+                    if cache_key in store._cache:
+                        follower = store._cache[cache_key]
+                        original_len = len(follower.last_messages)
+                        follower.last_messages = [
+                            m for m in follower.last_messages
+                            if not (isinstance(m, dict) and m.get("platform_message_id") == message_id)
+                        ]
+                        if len(follower.last_messages) < original_len:
+                            logger.debug(f"[EVO:{instance}] Delete: removed from memory cache")
+        except Exception as cache_err:
+            logger.debug(f"[EVO:{instance}] Delete: cache cleanup skipped: {cache_err}")
+
+    except Exception as e:
+        logger.error(f"[EVO:{instance}] Delete handler error: {e}")
+        session.rollback()
+    finally:
+        session.close()
 
 
 async def _save_evolution_outgoing_message(

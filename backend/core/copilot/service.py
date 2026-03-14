@@ -154,15 +154,29 @@ class CopilotService:
         """
         from api.models import Message
 
-        # Fetch recent messages (up to 50 to find session boundaries)
+        # Fetch recent messages (up to 200 to find session boundaries after dedup)
+        # Exclude soft-deleted messages (WhatsApp "Delete for everyone")
         query = session.query(Message.role, Message.content, Message.created_at).filter(
             Message.lead_id == lead_id,
             Message.status.in_(["sent", "edited", "pending_approval"]),
+            Message.deleted_at.is_(None),
         )
         if before_timestamp:
             query = query.filter(Message.created_at < before_timestamp)
 
-        recent = query.order_by(Message.created_at.desc()).limit(50).all()
+        raw_recent = query.order_by(Message.created_at.desc()).limit(200).all()
+
+        # Deduplicate: keep only the first occurrence of each (role, content) pair
+        # within a 5-second window (same message stored multiple times)
+        recent = []
+        seen = set()
+        for msg in raw_recent:
+            # Round timestamp to 5-second buckets for dedup
+            ts_bucket = int(msg.created_at.timestamp() // 5) if msg.created_at else 0
+            dedup_key = (msg.role, (msg.content or "")[:100], ts_bucket)
+            if dedup_key not in seen:
+                seen.add(dedup_key)
+                recent.append(msg)
 
         if not recent:
             return []

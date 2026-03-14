@@ -142,6 +142,7 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                             "timestamp": m.created_at.isoformat() if m.created_at else None,
                                             "platform_message_id": m.platform_message_id,
                                             "metadata": _slim_metadata(m.msg_metadata),
+                                            **({"deleted_at": m.deleted_at.isoformat()} if m.deleted_at else {}),
                                         }
                                         for m in messages
                                     ],

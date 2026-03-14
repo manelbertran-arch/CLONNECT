@@ -143,6 +143,7 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         .filter(
                             Message.lead_id.in_(lead_ids),
                             Message.status.in_(["sent", "edited"]),
+                            Message.deleted_at.is_(None),
                         )
                         .group_by(Message.lead_id)
                         .subquery()
@@ -155,7 +156,10 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                             (Message.lead_id == last_msg_subq.c.lead_id)
                             & (Message.created_at == last_msg_subq.c.max_date),
                         )
-                        .filter(Message.status.in_(["sent", "edited"]))
+                        .filter(
+                            Message.status.in_(["sent", "edited"]),
+                            Message.deleted_at.is_(None),
+                        )
                         .all()
                     )
 

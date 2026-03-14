@@ -14,6 +14,7 @@ _MEDIA_HASH_PATTERN = re.compile(r"^[A-Za-z0-9+/=]{15,}$")
 _ATTACHMENT_PLACEHOLDERS = {
     "sent an attachment",
     "[media]",
+    "[image]",
     "[imagen]",
     "[video]",
     "[audio]",
@@ -47,6 +48,15 @@ def is_non_text_message(content: str) -> bool:
 
     # "Shared a post/reel" from IG handler
     if stripped.lower().startswith("shared a "):
+        return True
+
+    # Emoji-prefixed media placeholders from Evolution webhook
+    # e.g. "[📷 Photo]", "[🎬 Video]", "[🏷️ Sticker]", "[📄 Document]", "[📎 Media]"
+    _EMOJI_MEDIA_PREFIXES = (
+        "[📷", "[🎬", "[🏷️", "[📄", "[📎",
+        "[🎤 Audio message]",  # audio without transcription
+    )
+    if any(stripped.startswith(prefix) for prefix in _EMOJI_MEDIA_PREFIXES):
         return True
 
     return False

@@ -80,10 +80,31 @@ async def create_pending_response_impl(
 
         # ── CHECK: non-text messages (media, attachments) ──
         # Don't generate copilot suggestions for media the bot can't understand
+        # but DO save the user message to DB for conversation history
         if is_non_text_message(user_message):
             logger.info(
                 f"[Copilot:Skip] Non-text message detected: '{user_message[:50]}' — skipping suggestion"
             )
+            # Still save the user message so conversation history is complete
+            lead = (
+                session.query(Lead)
+                .filter(
+                    Lead.creator_id == creator.id,
+                    Lead.platform_user_id.in_([follower_id, f"ig_{follower_id}"]),
+                )
+                .first()
+            )
+            if lead:
+                user_msg = Message(
+                    lead_id=lead.id,
+                    role="user",
+                    content=user_message,
+                    status="sent",
+                    platform_message_id=user_message_id,
+                    msg_metadata=msg_metadata,
+                )
+                session.add(user_msg)
+                session.commit()
             return pending
 
         # Check both with and without ig_ prefix to avoid duplicates

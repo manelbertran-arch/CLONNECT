@@ -66,7 +66,7 @@ def get_history_from_follower(agent, follower) -> List[Dict[str, str]]:
     """Extract conversation history from follower memory."""
     history = []
     for msg in follower.last_messages[-20:]:
-        if isinstance(msg, dict):
+        if isinstance(msg, dict) and not msg.get("deleted"):
             history.append(
                 {
                     "role": msg.get("role", "user"),
@@ -85,7 +85,7 @@ def get_conversation_summary(agent, follower) -> str:
     recent = follower.last_messages[-6:]
     summary_parts = []
     for msg in recent:
-        if isinstance(msg, dict):
+        if isinstance(msg, dict) and not msg.get("deleted"):
             role = "\U0001f464" if msg.get("role") == "user" else "\U0001f916"
             content = msg.get("content", "")[:100]
             summary_parts.append(f"{role} {content}")

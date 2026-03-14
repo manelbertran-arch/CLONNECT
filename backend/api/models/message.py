@@ -47,6 +47,7 @@ class Message(Base):
     confidence_score = Column(Float)  # Bot confidence for this suggestion (0.0-1.0)
     response_time_ms = Column(Integer)  # ms between suggestion created and creator action
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    deleted_at = Column(DateTime(timezone=True), nullable=True)  # Soft-delete: WhatsApp "Delete for everyone"
 
     # ORM relationships
     lead = relationship("Lead", back_populates="messages", lazy="joined")

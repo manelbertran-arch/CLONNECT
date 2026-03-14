@@ -56,6 +56,7 @@ export interface Message {
   timestamp: string;
   metadata?: MessageMetadata;
   platform_message_id?: string;
+  deleted_at?: string;  // Soft-deleted (WhatsApp "Delete for everyone")
 }
 
 export interface Conversation {

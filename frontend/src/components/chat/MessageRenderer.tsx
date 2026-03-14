@@ -80,7 +80,7 @@ interface MessageMetadata {
   carousel_items?: CarouselItem[]; items?: Array<{ url?: string; type?: string }>;
   duration?: number; permanent_url?: string; reacted_to_mid?: string;
 }
-interface Message { role: 'user' | 'assistant'; content: string; timestamp?: string; metadata?: MessageMetadata; }
+interface Message { role: 'user' | 'assistant'; content: string; timestamp?: string; metadata?: MessageMetadata; deleted_at?: string; }
 interface ReactionBadge { emoji: string; isOutgoing: boolean; }
 
 // ========================= PLATFORM THEMES =========================
@@ -215,6 +215,7 @@ interface MessageRendererProps {
 
 export function MessageRenderer({ message, isLastInGroup = true, isFirstInGroup = false, reactions, platform = 'instagram' }: MessageRendererProps) {
   const isOutgoing = message.role === 'assistant';
+  const isDeleted = !!message.deleted_at;
   const metadata = message.metadata || {};
 
   let msgType = metadata.type || 'text';
@@ -235,6 +236,16 @@ export function MessageRenderer({ message, isLastInGroup = true, isFirstInGroup 
       content = <StoryMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} isFirstInGroup={isFirstInGroup} platform={platform} />;
       break;
     case 'reaction':
+      if (isDeleted) {
+        return (
+          <div style={{ opacity: 0.5, fontStyle: 'italic' }}>
+            <ReactionMessage message={message} isOutgoing={isOutgoing} />
+            <div style={{ textAlign: isOutgoing ? 'right' : 'left', paddingLeft: isOutgoing ? 0 : 12, paddingRight: isOutgoing ? 12 : 0 }}>
+              <span style={{ fontSize: 11, color: '#9ca3af' }}>🚫 Mensaje eliminado por el usuario</span>
+            </div>
+          </div>
+        );
+      }
       return <ReactionMessage message={message} isOutgoing={isOutgoing} />;
     case 'image': case 'gif': case 'sticker':
       content = <MediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} type="image" platform={platform} />;
@@ -263,10 +274,21 @@ export function MessageRenderer({ message, isLastInGroup = true, isFirstInGroup 
       }
   }
 
-  if (reactions && reactions.length > 0) {
-    return <div>{content}<ReactionsOverlay reactions={reactions} isOutgoing={isOutgoing} /></div>;
+  const rendered = reactions && reactions.length > 0
+    ? <div>{content}<ReactionsOverlay reactions={reactions} isOutgoing={isOutgoing} /></div>
+    : <>{content}</>;
+
+  if (isDeleted) {
+    return (
+      <div style={{ opacity: 0.5 }}>
+        <div style={{ fontStyle: 'italic' }}>{rendered}</div>
+        <div style={{ textAlign: isOutgoing ? 'right' : 'left', paddingLeft: isOutgoing ? 0 : 12, paddingRight: isOutgoing ? 12 : 0, marginTop: 2 }}>
+          <span style={{ fontSize: 11, color: '#9ca3af' }}>🚫 Mensaje eliminado por el usuario</span>
+        </div>
+      </div>
+    );
   }
-  return <>{content}</>;
+  return rendered;
 }
 
 // ========================= TEXT MESSAGE =========================
