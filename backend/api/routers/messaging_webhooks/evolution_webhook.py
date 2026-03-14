@@ -543,15 +543,17 @@ async def _handle_message_deleted(instance: str, message_id: str, key: dict):
 
     session = SessionLocal()
     try:
+        logger.info(f"[EVO:{instance}] _handle_message_deleted: looking up {message_id}")
         msg = (
             session.query(Message)
             .filter(Message.platform_message_id == message_id)
             .first()
         )
         if not msg:
-            logger.debug(f"[EVO:{instance}] Delete: message {message_id} not found in DB")
+            logger.warning(f"[EVO:{instance}] Delete: message {message_id} not found in DB")
             return
 
+        logger.info(f"[EVO:{instance}] Delete: found msg {msg.id}, setting deleted_at")
         now = datetime.now(timezone.utc)
         msg.deleted_at = now
         lead_id = msg.lead_id
