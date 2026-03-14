@@ -25,15 +25,17 @@ SessionLocal = None
 
 if DATABASE_URL:
     try:
-        # Connection pooling with keepalive and pre_ping for Neon PostgreSQL
-        # NOTE: With 4 gunicorn workers, each has its own pool (4 × 3 = 12 base connections)
+        # Connection pooling with keepalive and pre_ping.
+        # Single uvicorn worker with 23+ asyncio.to_thread background jobs means
+        # pool_size=5 exhausts quickly. 10 base + 10 overflow = 20 max, comfortably
+        # above the asyncio thread pool size (~5-6 on Railway's 1-2 CPU instances).
         engine = create_engine(
             DATABASE_URL,
             echo=False,
             poolclass=QueuePool,
-            pool_size=5,  # 5 base connections per worker
-            max_overflow=5,  # 5 overflow (10 max per worker)
-            pool_timeout=30,
+            pool_size=10,  # 10 base connections
+            max_overflow=10,  # 10 overflow (20 max)
+            pool_timeout=10,  # Fail fast (was 30s — too long to hold a request)
             pool_recycle=1800,  # Recycle connections every 30 minutes (was 5min, too aggressive)
             pool_pre_ping=True,  # Test connections before using them
             connect_args={
