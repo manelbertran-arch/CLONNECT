@@ -102,22 +102,23 @@ def extract_signals(session, lead) -> Dict[str, Any]:
     creator messages (role="assistant") for keyword analysis.
     Tracks social keywords per-side for bidirectional friendship detection.
     """
-    from api.models import Message
+    from sqlalchemy import text as _text
 
-    messages = (
-        session.query(
-            Message.role, Message.content, Message.intent,
-            Message.created_at, Message.msg_metadata,
-        )
-        .filter(
-            Message.lead_id == lead.id,
-            Message.content.isnot(None),
-            Message.content != "",
-        )
-        .order_by(Message.created_at.asc())
-        .limit(100)
-        .all()
-    )
+    # Use raw SQL to select only msg_metadata->>'type' (story detection needs only the 'type'
+    # key). Fetching the full msg_metadata JSONB column can transfer 100+ MB for active leads
+    # (avg 988 KB/msg × 100 messages), making scoring 100x slower than necessary.
+    messages = session.execute(
+        _text("""
+            SELECT role, content, intent, created_at,
+                   msg_metadata ->> 'type' AS meta_type
+            FROM messages
+            WHERE lead_id = :lead_id
+              AND content IS NOT NULL AND content != ''
+            ORDER BY created_at ASC
+            LIMIT 100
+        """),
+        {"lead_id": lead.id},
+    ).mappings().fetchall()
 
     signals: Dict[str, Any] = {
         # Counts
@@ -152,7 +153,9 @@ def extract_signals(session, lead) -> Dict[str, Any]:
 
     follower_lengths = []
 
-    for role, content, intent, created_at, msg_metadata in messages:
+    for row in messages:
+        role, content, intent, created_at = row["role"], row["content"], row["intent"], row["created_at"]
+        meta_type = row["meta_type"]  # msg_metadata->>'type' only (avoids fetching huge JSONB)
         text = (content or "").strip().lower()
 
         if role == "user":
@@ -163,9 +166,8 @@ def extract_signals(session, lead) -> Dict[str, Any]:
             if len(text) <= 5:
                 signals["short_reactions"] += 1
 
-            # Story reply detection via metadata
-            meta = msg_metadata or {}
-            if meta.get("type") in ("story_mention", "story_reply"):
+            # Story reply detection via metadata type key only
+            if meta_type in ("story_mention", "story_reply"):
                 signals["story_replies"] += 1
             elif any(p in text for p in [
                 "replied to your story", "respondió a tu historia",
