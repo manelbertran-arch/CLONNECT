@@ -344,6 +344,59 @@ async def evolution_webhook(request: Request):
             if filename:
                 msg_metadata["filename"] = filename
 
+    # ── EARLY SAVE: Save user message NOW (before background LLM task) ──
+    # This runs in the webhook handler directly so it isn't delayed by the
+    # event loop being busy with polling requests. ~1s for DB roundtrip.
+    _early_saved = False
+    try:
+        from api.database import SessionLocal as _EarlySession
+        from api.models import Creator as _ECreator, Lead as _ELead, Message as _EMsg
+        from datetime import datetime, timezone as _tz
+
+        follower_id = f"wa_{sender_number}"
+        _es = _EarlySession()
+        try:
+            _ec = _es.query(_ECreator).filter_by(name=creator_id).first()
+            if _ec:
+                _el = _es.query(_ELead).filter(
+                    _ELead.creator_id == _ec.id,
+                    _ELead.platform_user_id == follower_id,
+                ).first()
+                if _el:
+                    _um = _EMsg(
+                        lead_id=_el.id, role="user", content=text,
+                        status="sent", platform_message_id=message_id,
+                        msg_metadata=msg_metadata,
+                    )
+                    _es.add(_um)
+                    _el.last_contact_at = datetime.now(_tz.utc)
+                    _es.commit()
+                    _early_saved = True
+
+                    # Invalidate cache + notify frontend NOW
+                    try:
+                        from api.cache import api_cache
+                        api_cache.invalidate(f"conversations:{creator_id}")
+                        api_cache.invalidate(f"follower_detail:{creator_id}:{follower_id}")
+                    except Exception:
+                        pass
+                    try:
+                        from api.routers.events import notify_creator
+                        await notify_creator(
+                            creator_id, "new_message",
+                            {"follower_id": follower_id, "role": "user"},
+                        )
+                    except Exception:
+                        pass
+                    logger.info(
+                        f"[EVO:{instance}] Early save: msg {message_id} "
+                        f"for {sender_number} — frontend notified"
+                    )
+        finally:
+            _es.close()
+    except Exception as early_err:
+        logger.warning(f"[EVO:{instance}] Early save failed: {early_err}")
+
     # Process with DM agent in background so webhook returns 200 fast
     asyncio.create_task(
         _process_evolution_message_safe(
@@ -796,10 +849,8 @@ async def _process_evolution_message_safe(
     """
     Process an incoming Evolution API message in COPILOT mode.
 
-    - Saves user message to DB immediately (instant frontend notification)
-    - Generates a suggested response via the DM agent (3-8s)
-    - Saves suggestion as pending_approval in DB
-    - Does NOT auto-send — creator approves from dashboard
+    User message is already saved to DB by the webhook handler (early save).
+    This background task generates a suggested response via the DM agent.
     """
     try:
         from core.copilot_service import get_copilot_service
@@ -818,64 +869,7 @@ async def _process_evolution_message_safe(
             clean = ai.get("clean_text") or msg_metadata.get("transcription", "")
             text = f"[\U0001f3a4 Audio]: {clean}"
 
-        # ── PHASE 1: Save user message to DB immediately ──
-        # This lets the frontend show the message in <2s via SSE,
-        # before the expensive LLM pipeline runs (3-8s).
-        _early_saved = False
-        try:
-            from api.database import SessionLocal as _EarlySession
-            from api.models import Creator as _ECreator, Lead as _ELead, Message as _EMsg
-            from datetime import datetime, timezone as _tz
-
-            _es = _EarlySession()
-            try:
-                _ec = _es.query(_ECreator).filter_by(name=creator_id).first()
-                if _ec:
-                    _el = _es.query(_ELead).filter(
-                        _ELead.creator_id == _ec.id,
-                        _ELead.platform_user_id == follower_id,
-                    ).first()
-                    if _el:
-                        # Check not already saved (webhook retry)
-                        _existing = _es.query(_EMsg.id).filter(
-                            _EMsg.platform_message_id == message_id
-                        ).first()
-                        if not _existing:
-                            _um = _EMsg(
-                                lead_id=_el.id, role="user", content=text,
-                                status="sent", platform_message_id=message_id,
-                                msg_metadata=msg_metadata,
-                            )
-                            _es.add(_um)
-                            _el.last_contact_at = datetime.now(_tz.utc)
-                            _es.commit()
-                            _early_saved = True
-
-                            # Invalidate cache + notify frontend NOW
-                            try:
-                                from api.cache import api_cache
-                                api_cache.invalidate(f"conversations:{creator_id}")
-                                api_cache.invalidate(f"follower_detail:{creator_id}:{follower_id}")
-                            except Exception:
-                                pass
-                            try:
-                                from api.routers.events import notify_creator
-                                await notify_creator(
-                                    creator_id, "new_message",
-                                    {"follower_id": follower_id, "role": "user"},
-                                )
-                            except Exception:
-                                pass
-                            logger.info(
-                                f"[EVO:{instance}] Early save: user msg {message_id} "
-                                f"for {sender_number} — frontend notified"
-                            )
-            finally:
-                _es.close()
-        except Exception as early_err:
-            logger.warning(f"[EVO:{instance}] Early save failed (will save in copilot): {early_err}")
-
-        # ── PHASE 2: Generate suggestion via DM agent (3-8s) ──
+        # Generate suggestion via DM agent
         agent = get_dm_agent(creator_id)
         dm_metadata = {
             "message_id": message_id,
