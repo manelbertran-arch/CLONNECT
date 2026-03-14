@@ -31,7 +31,7 @@ export default function Mensajes() {
   const { data: conversationsData } = useQuery({
     queryKey: apiKeys.conversations(creatorId),
     queryFn: () => getConversations(creatorId),
-    refetchInterval: 3000,
+    refetchInterval: 15000,  // SSE handles real-time; polling is fallback only
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     staleTime: 0,

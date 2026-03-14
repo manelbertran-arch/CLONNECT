@@ -344,58 +344,71 @@ async def evolution_webhook(request: Request):
             if filename:
                 msg_metadata["filename"] = filename
 
-    # ── EARLY SAVE: Save user message NOW (before background LLM task) ──
-    # This runs in the webhook handler directly so it isn't delayed by the
-    # event loop being busy with polling requests. ~1s for DB roundtrip.
+    # ── EARLY SAVE: Save user message in a thread (non-blocking) ──
+    # Runs via asyncio.to_thread so DB operations don't block the event loop.
+    # The SSE notification fires after the DB commit completes (~0.5-1s).
     _early_saved = False
-    try:
+
+    async def _do_early_save():
+        nonlocal _early_saved
         from api.database import SessionLocal as _EarlySession
         from api.models import Creator as _ECreator, Lead as _ELead, Message as _EMsg
         from datetime import datetime, timezone as _tz
 
-        follower_id = f"wa_{sender_number}"
-        _es = _EarlySession()
-        try:
-            _ec = _es.query(_ECreator).filter_by(name=creator_id).first()
-            if _ec:
+        follower_id_es = f"wa_{sender_number}"
+
+        def _db_work():
+            _es = _EarlySession()
+            try:
+                _ec = _es.query(_ECreator).filter_by(name=creator_id).first()
+                if not _ec:
+                    return False
                 _el = _es.query(_ELead).filter(
                     _ELead.creator_id == _ec.id,
-                    _ELead.platform_user_id == follower_id,
+                    _ELead.platform_user_id == follower_id_es,
                 ).first()
-                if _el:
-                    _um = _EMsg(
-                        lead_id=_el.id, role="user", content=text,
-                        status="sent", platform_message_id=message_id,
-                        msg_metadata=msg_metadata,
-                    )
-                    _es.add(_um)
-                    _el.last_contact_at = datetime.now(_tz.utc)
-                    _es.commit()
-                    _early_saved = True
+                if not _el:
+                    return False
+                _um = _EMsg(
+                    lead_id=_el.id, role="user", content=text,
+                    status="sent", platform_message_id=message_id,
+                    msg_metadata=msg_metadata,
+                )
+                _es.add(_um)
+                _el.last_contact_at = datetime.now(_tz.utc)
+                _es.commit()
+                return True
+            finally:
+                _es.close()
 
-                    # Invalidate cache + notify frontend NOW
-                    try:
-                        from api.cache import api_cache
-                        api_cache.invalidate(f"conversations:{creator_id}")
-                        api_cache.invalidate(f"follower_detail:{creator_id}:{follower_id}")
-                    except Exception:
-                        pass
-                    try:
-                        from api.routers.events import notify_creator
-                        await notify_creator(
-                            creator_id, "new_message",
-                            {"follower_id": follower_id, "role": "user"},
-                        )
-                    except Exception:
-                        pass
-                    logger.info(
-                        f"[EVO:{instance}] Early save: msg {message_id} "
-                        f"for {sender_number} — frontend notified"
+        try:
+            saved = await asyncio.to_thread(_db_work)
+            if saved:
+                _early_saved = True
+                # Invalidate follower cache (conversations cache kept intact to avoid
+                # triggering 2.5s blocking query; SSE new_message handles client-side)
+                try:
+                    from api.cache import api_cache
+                    api_cache.invalidate(f"follower_detail:{creator_id}:{follower_id_es}")
+                except Exception:
+                    pass
+                try:
+                    from api.routers.events import notify_creator
+                    await notify_creator(
+                        creator_id, "new_message",
+                        {"follower_id": follower_id_es, "role": "user"},
                     )
-        finally:
-            _es.close()
-    except Exception as early_err:
-        logger.warning(f"[EVO:{instance}] Early save failed: {early_err}")
+                except Exception:
+                    pass
+                logger.info(
+                    f"[EVO:{instance}] Early save: msg {message_id} "
+                    f"for {sender_number} — frontend notified"
+                )
+        except Exception as early_err:
+            logger.warning(f"[EVO:{instance}] Early save failed: {early_err}")
+
+    follower_id = f"wa_{sender_number}"
+    await _do_early_save()
 
     # Process with DM agent in background so webhook returns 200 fast
     asyncio.create_task(

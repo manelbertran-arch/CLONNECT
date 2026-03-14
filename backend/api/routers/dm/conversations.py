@@ -285,8 +285,8 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         "limit": limit,
                         "counts_by_status": counts_by_status,
                     }
-                    # Cache for 10 seconds — short TTL for real-time chat UX
-                    api_cache.set(cache_key, result, ttl_seconds=5)
+                    # Cache for 30s — SSE invalidates on new messages, so long TTL is safe
+                    api_cache.set(cache_key, result, ttl_seconds=30)
                     return result
                 finally:
                     session.close()
