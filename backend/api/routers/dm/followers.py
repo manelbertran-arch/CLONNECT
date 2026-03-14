@@ -91,6 +91,7 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                 from api.services.db_service import get_session
 
                 def _db_fast_path():
+                    from sqlalchemy import text as _text
                     session = get_session()
                     if not session:
                         return None
@@ -105,24 +106,37 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                         )
                         if not lead:
                             return None
-                        messages = (
-                            session.query(Message)
-                            .filter(
-                                Message.lead_id == lead.id,
-                                Message.status.in_(["sent", "edited"]),
-                            )
-                            .order_by(Message.created_at.desc())
-                            .limit(50)
-                            .all()
-                        )
-                        messages = messages[::-1]  # Chronological order
+                        # Strip heavy JSONB fields at DB level to avoid transferring large blobs.
+                        # audio_intel / thumbnail_base64 / best_of_n / transcript_raw / transcript_full
+                        # can be MB each; with 50 messages that can be 50+ MB transferred.
+                        sql = _text("""
+                            SELECT
+                                role, content, status, platform_message_id,
+                                created_at, deleted_at,
+                                CASE WHEN msg_metadata IS NOT NULL
+                                    THEN msg_metadata
+                                        - 'audio_intel'
+                                        - 'thumbnail_base64'
+                                        - 'best_of_n'
+                                        - 'transcript_raw'
+                                        - 'transcript_full'
+                                    ELSE NULL
+                                END AS msg_metadata
+                            FROM messages
+                            WHERE lead_id = :lead_id
+                              AND status IN ('sent', 'edited')
+                            ORDER BY created_at DESC
+                            LIMIT 50
+                        """)
+                        rows = session.execute(sql, {"lead_id": lead.id}).mappings().fetchall()
+                        rows = rows[::-1]  # Chronological order
                         return {
                             "follower_id": lead.platform_user_id,
                             "username": lead.username,
                             "name": lead.full_name or lead.username,
                             "platform": lead.platform or "instagram",
                             "profile_pic_url": lead.profile_pic_url,
-                            "total_messages": len(messages),
+                            "total_messages": len(rows),
                             "purchase_intent_score": lead.purchase_intent or 0,
                             "score": lead.score or 0,
                             "relationship_type": lead.relationship_type or "nuevo",
@@ -136,18 +150,18 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                             "tags": lead.tags or [],
                             "last_messages": [
                                 {
-                                    "role": m.role,
+                                    "role": r["role"],
                                     "content": (
-                                        m.content
-                                        or _media_description(m.msg_metadata)
+                                        r["content"]
+                                        or _media_description(r["msg_metadata"])
                                         or "Sent an attachment"
                                     ),
-                                    "timestamp": m.created_at.isoformat() if m.created_at else None,
-                                    "platform_message_id": m.platform_message_id,
-                                    "metadata": _slim_metadata(m.msg_metadata),
-                                    **({"deleted_at": m.deleted_at.isoformat()} if m.deleted_at else {}),
+                                    "timestamp": r["created_at"].isoformat() if r["created_at"] else None,
+                                    "platform_message_id": r["platform_message_id"],
+                                    "metadata": _slim_metadata(r["msg_metadata"]),
+                                    **({"deleted_at": r["deleted_at"].isoformat()} if r["deleted_at"] else {}),
                                 }
-                                for m in messages
+                                for r in rows
                             ],
                         }
                     finally:
