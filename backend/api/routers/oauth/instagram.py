@@ -1063,8 +1063,8 @@ class InjectTokenRequest(BaseModel):
     expires_days: int = 60         # Long-lived tokens last 60 days
 
 
-_FB_APP_ID_892 = "892717189846426"
-_FB_APP_SECRET_892 = "a6f0db4f7d9ae3b80799fdb8b554e221"
+_FB_APP_ID_892 = os.getenv("META_APP_ID", "892717189846426")
+_FB_APP_SECRET_892 = os.getenv("META_APP_SECRET", "b28bd790b63f5128a2c60693cf3c531e")
 
 
 @router.post("/instagram/inject-token")
