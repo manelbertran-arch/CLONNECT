@@ -1381,63 +1381,16 @@ async def facebook_oauth_callback(
 @router.get("/instagram/start")
 async def instagram_oauth_start(creator_id: str, website_url: str = None, redirect_to: str = None):
     """
-    Start Instagram OAuth flow using Instagram Business Login.
+    Start Instagram OAuth flow.
 
-    Uses Instagram Business Login (instagram.com/oauth/authorize) with INSTAGRAM_APP_ID
-    to get IGAAT tokens for Instagram messaging.
-
-    Flow:
-    1. User clicks "Connect Instagram"
-    2. Redirected to instagram.com/oauth/authorize
-    3. User logs into Instagram and grants permissions
-    4. Redirected back with authorization code
-    5. We exchange code for IGAAT access token (api.instagram.com)
-    6. We get instagram_user_id directly from graph.instagram.com/me
+    Delegates to Facebook Login (EAA tokens) which works reliably for all creators.
+    Instagram Business Login (IGAAT) tokens have known issues with the Graph API,
+    so we use Facebook Login as the primary flow.
     """
-    app_id = INSTAGRAM_APP_ID
-
-    if not app_id:
-        raise HTTPException(status_code=503, detail="Instagram OAuth is not configured on this server")
-
-    # Store state for CSRF protection - include website_url if provided
-    # Format: creator_id:random_token:website_url_base64 (or empty if no website)
-    import base64
-
-    website_encoded = ""
-    if website_url:
-        website_encoded = base64.urlsafe_b64encode(website_url.encode()).decode()
-    redirect_encoded = base64.urlsafe_b64encode(redirect_to.encode()).decode() if redirect_to else ""
-    state = f"{creator_id}:{secrets.token_urlsafe(16)}:{website_encoded}:{redirect_encoded}"
-    logger.info(f"[OAuth] State with website_url: {website_url}, redirect_to: {redirect_to}")
-
-    # Instagram Business Login scopes (produces IGAAT tokens)
-    scopes = [
-        "instagram_business_basic",
-        "instagram_business_manage_messages",
-    ]
-
-    params = {
-        "client_id": app_id,
-        "redirect_uri": META_REDIRECT_URI,
-        "scope": ",".join(scopes),
-        "response_type": "code",
-        "state": state,
-    }
-
-    auth_url = f"https://www.instagram.com/oauth/authorize?{urlencode(params)}"
-
     logger.info(
-        f"Instagram OAuth start (IG Business Login) for {creator_id} with app_id={app_id[:6]}... scopes: {scopes}"
+        f"[OAuth] /instagram/start → delegating to Facebook Login flow for {creator_id}"
     )
-    logger.info(f"[DEBUG] OAuth start redirect_uri: {META_REDIRECT_URI}")
-
-    return {
-        "auth_url": auth_url,
-        "state": state,
-        "scopes_requested": scopes,
-        "app_id_used": f"{app_id[:6]}...",
-        "note": "User will login via Instagram Business Login to grant Instagram permissions",
-    }
+    return await facebook_oauth_start(creator_id=creator_id, redirect_to=redirect_to)
 
 
 @router.get("/instagram/callback")
