@@ -969,6 +969,7 @@ async def _save_instagram_connection(
     page_id: str = None,
     instagram_user_id: str = None,
     additional_ids: list = None,
+    token_expires_at=None,
 ):
     """
     Save Instagram OAuth connection to database.
@@ -1002,6 +1003,8 @@ async def _save_instagram_connection(
 
                 creator.instagram_token = access_token
                 creator.instagram_page_id = page_id
+                if token_expires_at:
+                    creator.instagram_token_expires_at = token_expires_at
 
                 # Store Instagram user ID if we have it
                 if instagram_user_id:
@@ -1206,14 +1209,24 @@ async def instagram_oauth_callback(
             long_token_data = long_token_response.json()
 
             if "error" in long_token_data:
-                logger.warning(
-                    f"Could not get long-lived IGAAT: {long_token_data}, using short-lived"
+                # FIX Bug 1: Do NOT silently save a short-lived (1h) token.
+                # The user must retry the OAuth flow.
+                logger.error(
+                    f"CRITICAL: Long-lived token exchange FAILED: {long_token_data}. "
+                    f"Short-lived token NOT saved (would expire in ~1 hour)."
                 )
-                access_token = short_lived_token
-            else:
-                access_token = long_token_data.get("access_token", short_lived_token)
-                expires_in = long_token_data.get("expires_in", 0)
-                logger.info(f"Got long-lived IGAAT ({expires_in}s): {access_token[:15]}...")
+                return RedirectResponse(
+                    f"{FRONTEND_URL}/crear-clon?error=instagram_token_exchange_failed"
+                    f"&message=Could not get long-lived token. Please try connecting again."
+                )
+
+            access_token = long_token_data.get("access_token", short_lived_token)
+            expires_in = long_token_data.get("expires_in", 5184000)  # ~60 days
+            logger.info(f"Got long-lived IGAAT ({expires_in}s): {access_token[:15]}...")
+
+            # FIX Bug 2: Calculate token expiry for DB storage
+            from datetime import datetime, timedelta, timezone as tz
+            token_expires_at = datetime.now(tz.utc) + timedelta(seconds=expires_in)
 
             # Step 3: Get Instagram user info directly from graph.instagram.com
             me_response = await client.get(
@@ -1245,6 +1258,7 @@ async def instagram_oauth_callback(
                 page_id=None,
                 instagram_user_id=instagram_user_id,
                 additional_ids=[instagram_user_id] if instagram_user_id else [],
+                token_expires_at=token_expires_at,
             )
 
             # P0 FIX: Clone creation runs ONLY from /onboarding/start-clone.

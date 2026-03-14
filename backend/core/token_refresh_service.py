@@ -17,9 +17,11 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# Meta App credentials
+# Meta App credentials (for EAA/Page tokens — Clonnect Bot app)
 META_APP_ID = os.getenv("META_APP_ID", "")
 META_APP_SECRET = os.getenv("META_APP_SECRET", "")
+# Instagram App credentials (for IGAAT tokens — Instagram Business Login app)
+INSTAGRAM_APP_SECRET = os.getenv("INSTAGRAM_APP_SECRET", "")
 
 
 async def exchange_for_long_lived_token(short_lived_token: str) -> Optional[Dict[str, Any]]:
@@ -36,14 +38,24 @@ async def exchange_for_long_lived_token(short_lived_token: str) -> Optional[Dict
     """
     import aiohttp
 
-    if not META_APP_SECRET:
-        logger.error("META_APP_SECRET not configured")
-        return None
+    # FIX Bug 3: Use correct app secret based on token type
+    # IGAAT tokens belong to the Instagram Business Login app
+    # EAA tokens belong to the Meta/Facebook app
+    if short_lived_token.startswith("IGAAT"):
+        client_secret = INSTAGRAM_APP_SECRET
+        if not client_secret:
+            logger.error("INSTAGRAM_APP_SECRET not configured (needed for IGAAT token exchange)")
+            return None
+    else:
+        client_secret = META_APP_SECRET
+        if not client_secret:
+            logger.error("META_APP_SECRET not configured (needed for EAA token exchange)")
+            return None
 
     url = "https://graph.instagram.com/access_token"
     params = {
         "grant_type": "ig_exchange_token",
-        "client_secret": META_APP_SECRET,
+        "client_secret": client_secret,
         "access_token": short_lived_token
     }
 

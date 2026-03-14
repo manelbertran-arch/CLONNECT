@@ -29,8 +29,8 @@ from sqlalchemy import or_
 logger = logging.getLogger(__name__)
 
 ENABLE_PROFILE_PIC_REFRESH = os.getenv("ENABLE_PROFILE_PIC_REFRESH", "true").lower() == "true"
-MAX_LEADS_PER_RUN = 30  # Conservative to avoid rate limits
-RATE_LIMIT_DELAY = 3.0  # seconds between API calls
+MAX_LEADS_PER_RUN = 100  # Process up to 100 per run (clears backlogs faster)
+RATE_LIMIT_DELAY = 2.0  # seconds between API calls
 EXPIRY_THRESHOLD_HOURS = 48
 
 # Instagram public API config
