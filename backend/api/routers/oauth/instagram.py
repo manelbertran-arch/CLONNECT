@@ -1198,35 +1198,51 @@ async def instagram_oauth_callback(
             logger.info(f"Got short-lived IGAAT: {short_lived_token[:15]}... user_id={ig_user_id_from_token}")
 
             # Step 2: Exchange for long-lived IGAAT (60 days)
-            long_token_response = await client.get(
-                "https://graph.instagram.com/access_token",
-                params={
-                    "grant_type": "ig_exchange_token",
-                    "client_secret": app_secret,
-                    "access_token": short_lived_token,
-                },
-            )
-            long_token_data = long_token_response.json()
-
-            if "error" in long_token_data:
-                # FIX Bug 1: Do NOT silently save a short-lived (1h) token.
-                # The user must retry the OAuth flow.
-                logger.error(
-                    f"CRITICAL: Long-lived token exchange FAILED: {long_token_data}. "
-                    f"Short-lived token NOT saved (would expire in ~1 hour)."
-                )
-                return RedirectResponse(
-                    f"{FRONTEND_URL}/crear-clon?error=instagram_token_exchange_failed"
-                    f"&message=Could not get long-lived token. Please try connecting again."
-                )
-
-            access_token = long_token_data.get("access_token", short_lived_token)
-            expires_in = long_token_data.get("expires_in", 5184000)  # ~60 days
-            logger.info(f"Got long-lived IGAAT ({expires_in}s): {access_token[:15]}...")
-
-            # FIX Bug 2: Calculate token expiry for DB storage
+            # Meta docs say GET, but try both POST and GET
             from datetime import datetime, timedelta, timezone as tz
-            token_expires_at = datetime.now(tz.utc) + timedelta(seconds=expires_in)
+            exchange_params = {
+                "grant_type": "ig_exchange_token",
+                "client_secret": app_secret,
+                "access_token": short_lived_token,
+            }
+
+            access_token = short_lived_token
+            token_expires_at = None
+            exchange_succeeded = False
+
+            # Try GET first (per Meta docs), then POST as fallback
+            for method_name, make_request in [
+                ("GET", lambda: client.get("https://graph.instagram.com/access_token", params=exchange_params)),
+                ("POST", lambda: client.post("https://graph.instagram.com/access_token", data=exchange_params)),
+            ]:
+                try:
+                    long_token_response = await make_request()
+                    long_token_data = long_token_response.json()
+                    if long_token_response.status_code == 200 and "access_token" in long_token_data:
+                        access_token = long_token_data["access_token"]
+                        expires_in = long_token_data.get("expires_in", 5184000)
+                        token_expires_at = datetime.now(tz.utc) + timedelta(seconds=expires_in)
+                        exchange_succeeded = True
+                        logger.info(
+                            f"Long-lived token exchange succeeded via {method_name} "
+                            f"(expires_in={expires_in}s): {access_token[:15]}..."
+                        )
+                        break
+                    else:
+                        logger.warning(f"Token exchange {method_name} failed: {long_token_data}")
+                except Exception as exc:
+                    logger.warning(f"Token exchange {method_name} exception: {exc}")
+
+            if not exchange_succeeded:
+                # Save the short-lived token anyway so the user isn't stuck
+                # It may actually be long-lived (Meta API behavior varies)
+                # Set a conservative 1-hour expiry; the refresh cron will check
+                logger.warning(
+                    f"Long-lived token exchange failed for {creator_id}. "
+                    f"Saving initial token (may be short-lived ~1h). "
+                    f"Token: {access_token[:15]}... ({len(access_token)} chars)"
+                )
+                token_expires_at = datetime.now(tz.utc) + timedelta(hours=1)
 
             # Step 3: Get Instagram user info directly from graph.instagram.com
             me_response = await client.get(
