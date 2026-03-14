@@ -1239,7 +1239,8 @@ async def facebook_oauth_start(creator_id: str, redirect_to: str = None):
     import base64
 
     redirect_encoded = base64.urlsafe_b64encode(redirect_to.encode()).decode() if redirect_to else ""
-    state = f"{creator_id}:{secrets.token_urlsafe(16)}:{redirect_encoded}"
+    # Prefix state with "fb:" so the shared /instagram/callback knows this is Facebook Login
+    state = f"fb:{creator_id}:{secrets.token_urlsafe(16)}:{redirect_encoded}"
 
     scopes = [
         "instagram_basic",
@@ -1249,7 +1250,7 @@ async def facebook_oauth_start(creator_id: str, redirect_to: str = None):
     ]
     params = {
         "client_id": _FB_APP_ID_892,
-        "redirect_uri": f"{API_URL}/oauth/facebook/callback",
+        "redirect_uri": META_REDIRECT_URI,  # Same URI registered in Meta
         "scope": ",".join(scopes),
         "response_type": "code",
         "state": state,
@@ -1296,7 +1297,7 @@ async def facebook_oauth_callback(
                 params={
                     "client_id": _FB_APP_ID_892,
                     "client_secret": _FB_APP_SECRET_892,
-                    "redirect_uri": f"{API_URL}/oauth/facebook/callback",
+                    "redirect_uri": META_REDIRECT_URI,
                     "code": code,
                 },
             )
@@ -1472,6 +1473,17 @@ async def instagram_oauth_callback(
         f"state={state[:20] if state else 'NONE'}..., "
         f"error={error}, error_code={error_code}"
     )
+
+    # Detect Facebook Login callback (state starts with "fb:")
+    if state.startswith("fb:"):
+        logger.info("[OAuth CALLBACK] Facebook Login detected (fb: prefix), routing to FB handler")
+        return await facebook_oauth_callback(
+            code=code,
+            state=state[3:],  # Strip "fb:" prefix
+            error=error,
+            error_reason=error_reason,
+            error_description=error_description,
+        )
 
     # Handle OAuth errors from Instagram (user denied, scope rejected, etc.)
     if error or error_code or error_message:
