@@ -53,8 +53,15 @@ def log_model_config() -> None:
     logger.warning("[LLM CONFIG] Primary Gemini model: %s", GEMINI_PRIMARY_MODEL)
     env_val = os.getenv("GEMINI_MODEL", "(not set — using default)")
     logger.warning("[LLM CONFIG] GEMINI_MODEL env var: %s", env_val)
-    for blocked in BLOCKED_MODELS:
-        for key, val in os.environ.items():
+    # Only check env vars that plausibly configure a model (short values, model-related keys)
+    _model_key_hints = {"MODEL", "LLM", "GEMINI", "GPT", "OPENAI", "PROVIDER"}
+    for key, val in os.environ.items():
+        key_upper = key.upper()
+        if not any(h in key_upper for h in _model_key_hints):
+            continue
+        if len(val) > 200:  # skip long values like commit messages
+            continue
+        for blocked in BLOCKED_MODELS:
             if blocked in val:
                 logger.error(
                     "[LLM CONFIG] ALERT: blocked model '%s' found in env var %s=%s",
