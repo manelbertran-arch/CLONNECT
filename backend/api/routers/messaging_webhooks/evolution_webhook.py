@@ -77,9 +77,10 @@ async def evolution_webhook(request: Request):
     event = payload.get("event", "")
     instance = payload.get("instance", "")
 
-    # Log ALL non-upsert events for debugging
+    # Log ALL non-upsert events for debugging (including raw payload keys)
     if event and event != "messages.upsert":
-        logger.info(f"[EVO:{instance}] Event received: {event}")
+        data_preview = str(payload.get("data", {}))[:200]
+        logger.info(f"[EVO:{instance}] Event received: {event} | data_preview={data_preview}")
 
     # Log non-message events briefly
     if event == "connection.update":
@@ -130,7 +131,8 @@ async def evolution_webhook(request: Request):
     # Evolution/Baileys sends messages.update with messageStubType=REVOKE (or numeric 1)
     # Some forks send messages.delete instead
     # Some versions send update.status=5 for deleted messages
-    if event in ("messages.update", "messages.delete"):
+    event_lower = event.lower().replace("_", ".")
+    if event_lower in ("messages.update", "messages.delete"):
         data_raw = payload.get("data", {})
         updates = data_raw if isinstance(data_raw, list) else [data_raw]
         handled = 0
@@ -144,7 +146,7 @@ async def evolution_webhook(request: Request):
             # - status 5 (PLAYED→deleted in some Evolution versions)
             # - event messages.delete (direct deletion event)
             is_delete = (
-                event == "messages.delete"
+                event_lower == "messages.delete"
                 or stub_type in ("REVOKE", 1, "1")
                 or update_status == 5
             )
