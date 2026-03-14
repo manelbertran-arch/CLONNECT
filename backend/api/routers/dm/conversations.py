@@ -286,7 +286,7 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         "counts_by_status": counts_by_status,
                     }
                     # Cache for 10 seconds — short TTL for real-time chat UX
-                    api_cache.set(cache_key, result, ttl_seconds=10)
+                    api_cache.set(cache_key, result, ttl_seconds=5)
                     return result
                 finally:
                     session.close()

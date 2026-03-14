@@ -124,7 +124,7 @@ async def event_stream(
                 if await request.is_disconnected():
                     break
                 try:
-                    data = await asyncio.wait_for(queue.get(), timeout=30)
+                    data = await asyncio.wait_for(queue.get(), timeout=20)
                     yield f"data: {data}\n\n"
                 except asyncio.TimeoutError:
                     # Send keepalive ping to prevent connection timeout

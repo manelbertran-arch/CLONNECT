@@ -4,9 +4,11 @@ import { useParams, Link } from 'react-router-dom';
 import {
   getConversations,
   getFollowerDetail,
+  getPendingForLead,
   sendMessage,
   markConversationRead,
   CREATOR_ID,
+  apiKeys,
 } from '@/services/api';
 import { Search, Send, ArrowLeft, MessageCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -27,18 +29,33 @@ export default function Mensajes() {
   useEventStream(creatorId);
 
   const { data: conversationsData } = useQuery({
-    queryKey: ['conversations', creatorId],
+    queryKey: apiKeys.conversations(creatorId),
     queryFn: () => getConversations(creatorId),
-    refetchInterval: 5000,
+    refetchInterval: 3000,
     refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const { data: followerDetail, isLoading: isLoadingMessages } = useQuery({
-    queryKey: ['follower', creatorId, conversationId],
+    queryKey: apiKeys.follower(creatorId, conversationId || ''),
     queryFn: () => getFollowerDetail(creatorId, conversationId!),
     enabled: !!conversationId,
-    refetchInterval: 5000,
+    refetchInterval: 3000,
     refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
+
+  // Copilot suggestions for the active conversation
+  const { data: copilotData } = useQuery({
+    queryKey: apiKeys.copilotPendingForLead(creatorId, conversationId || ''),
+    queryFn: () => getPendingForLead(creatorId, conversationId!),
+    enabled: !!conversationId,
+    refetchInterval: 3000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const sendMessageMutation = useMutation({
@@ -46,9 +63,8 @@ export default function Mensajes() {
       sendMessage(creatorId, conversationId!, message),
     onSuccess: () => {
       setNewMessage('');
-      queryClient.invalidateQueries({
-        queryKey: ['follower', creatorId, conversationId],
-      });
+      queryClient.invalidateQueries({ queryKey: apiKeys.follower(creatorId, conversationId || '') });
+      queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
     },
   });
 
