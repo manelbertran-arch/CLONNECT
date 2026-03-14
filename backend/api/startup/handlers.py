@@ -184,8 +184,9 @@ def register_startup_handlers(app: "FastAPI"):
                 return
             from api.database import SessionLocal
             from api.models import Creator
-            from services.lead_scoring import batch_recalculate_scores
+            from services.lead_scoring import batch_recalculate_scores_paged
 
+            # Fetch creator list with a short-lived session (releases connection immediately)
             session = SessionLocal()
             try:
                 creators = (
@@ -194,16 +195,20 @@ def register_startup_handlers(app: "FastAPI"):
                     .limit(200)
                     .all()
                 )
-                total_updated = 0
-                for creator in creators:
-                    result = await asyncio.to_thread(batch_recalculate_scores, session, str(creator.id))
-                    total_updated += result.get("updated", 0)
-                logger.info(
-                    f"[SCORE_DECAY] Done: {total_updated} leads "
-                    f"recalculated across {len(creators)} creators"
-                )
+                creator_names = [c.name for c in creators]
             finally:
                 session.close()
+
+            total_updated = 0
+            for creator_name in creator_names:
+                # Each creator's leads are processed in 50-lead batches, each with its
+                # own session — no long-held connection monopolizing the pool.
+                result = await asyncio.to_thread(batch_recalculate_scores_paged, creator_name)
+                total_updated += result.get("updated", 0)
+            logger.info(
+                f"[SCORE_DECAY] Done: {total_updated} leads "
+                f"recalculated across {len(creator_names)} creators"
+            )
 
         scheduler.register("score_decay", _score_decay_job, interval_seconds=86400, initial_delay_seconds=210)
 

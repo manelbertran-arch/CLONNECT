@@ -531,3 +531,74 @@ def batch_recalculate_scores(session, creator_id: str) -> dict:
     )
 
     return results
+
+
+def batch_recalculate_scores_paged(creator_id: str, batch_size: int = 50) -> dict:
+    """
+    Recalculate scores for all leads of a creator using small, independent batches.
+
+    Unlike batch_recalculate_scores(), this function manages its own DB sessions:
+    each batch of `batch_size` leads gets a fresh session that is committed and
+    closed before the next batch starts. This prevents monopolizing the connection
+    pool during long scoring runs (1500+ leads across all creators).
+
+    A 50ms sleep between batches gives other queries a window to acquire a connection.
+    """
+    import time
+
+    from api.database import SessionLocal
+    from api.models import Creator, Lead
+
+    # --- Step 1: resolve creator + collect all lead IDs (quick, releases connection) ---
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            try:
+                creator = session.query(Creator).filter_by(id=creator_id).first()
+            except Exception:
+                pass
+        if not creator:
+            return {"error": f"Creator {creator_id} not found"}
+        lead_ids = [
+            str(r.id)
+            for r in session.query(Lead.id)
+            .filter_by(creator_id=creator.id)
+            .order_by(Lead.id)
+            .all()
+        ]
+    finally:
+        session.close()
+
+    results: dict = {"total": len(lead_ids), "updated": 0, "by_status": {}}
+
+    # --- Step 2: process in pages, each page with its own short-lived session ---
+    for page_start in range(0, len(lead_ids), batch_size):
+        batch = lead_ids[page_start : page_start + batch_size]
+        session = SessionLocal()
+        try:
+            for lead_id in batch:
+                result = recalculate_lead_score(session, lead_id)
+                if result:
+                    results["updated"] += 1
+                    _, status = result
+                    results["by_status"][status] = results["by_status"].get(status, 0) + 1
+            session.commit()
+        except Exception as e:
+            logger.warning(f"[SCORING-V3] Batch page {page_start // batch_size + 1} error: {e}")
+            try:
+                session.rollback()
+            except Exception:
+                pass
+        finally:
+            session.close()
+
+        # Brief pause between batches so other queries can acquire a DB connection
+        if page_start + batch_size < len(lead_ids):
+            time.sleep(0.05)
+
+    logger.info(
+        f"[SCORING-V3] Paged complete: {results['updated']}/{results['total']} leads. "
+        f"Status: {results['by_status']}"
+    )
+    return results
