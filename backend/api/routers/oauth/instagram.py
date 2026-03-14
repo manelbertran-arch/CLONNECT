@@ -1381,11 +1381,32 @@ async def facebook_oauth_callback(
 @router.get("/instagram/start")
 async def instagram_oauth_start(creator_id: str, website_url: str = None, redirect_to: str = None):
     """
-    Start Instagram OAuth flow using Instagram Business Login.
+    Start Instagram OAuth flow.
 
-    Uses Instagram Business Login (instagram.com/oauth/authorize) with INSTAGRAM_APP_ID
-    to get IGAAT tokens for Instagram messaging.
+    Checks creator's preferred_oauth_flow in DB:
+    - 'facebook' → Facebook Login (EAA tokens) for creators where IGAAT doesn't work
+    - 'instagram' (default) → Instagram Business Login (IGAAT tokens)
     """
+    # Check if creator prefers Facebook Login
+    try:
+        from api.database import SessionLocal
+        session = SessionLocal()
+        try:
+            from sqlalchemy import text
+            row = session.execute(
+                text("SELECT preferred_oauth_flow FROM creators WHERE name = :name"),
+                {"name": creator_id},
+            ).fetchone()
+            preferred_flow = row[0] if row and row[0] else "instagram"
+        finally:
+            session.close()
+    except Exception:
+        preferred_flow = "instagram"
+
+    if preferred_flow == "facebook":
+        logger.info(f"[OAuth] {creator_id} prefers Facebook Login, delegating")
+        return await facebook_oauth_start(creator_id=creator_id, redirect_to=redirect_to)
+
     import base64
 
     app_id = INSTAGRAM_APP_ID
