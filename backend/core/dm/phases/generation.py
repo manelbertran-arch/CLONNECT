@@ -278,7 +278,7 @@ async def phase_llm_generation(
                     llm_messages, 150, intent_value, "llm_generation", agent.creator_id
                 )
         except Exception as bon_err:
-            logger.debug("[BestOfN] Failed, using single call: %s", bon_err)
+            logger.warning("[BestOfN] Failed, using single call: %s", bon_err, exc_info=True)
 
     if best_of_n_result:
         llm_result = {
