@@ -37,6 +37,11 @@ _WA_PIPELINE_COOLDOWN = 3600  # 1 hour between pipeline runs per creator
 _evo_processed_messages: Dict[str, float] = {}
 _EVO_DEDUP_TTL = 60  # seconds
 
+# Content-based dedup: Baileys sometimes sends the SAME message with
+# different message_ids (up to 3x). Track sender+text hash to catch these.
+_evo_content_dedup: Dict[str, float] = {}
+_EVO_CONTENT_DEDUP_TTL = 60  # seconds
+
 
 def _evo_is_duplicate(message_id: str) -> bool:
     """Return True if this message_id was already processed (dedup)."""
@@ -53,6 +58,30 @@ def _evo_is_duplicate(message_id: str) -> bool:
         return True
 
     _evo_processed_messages[message_id] = now
+    return False
+
+
+def _evo_is_content_duplicate(sender: str, text: str) -> bool:
+    """Return True if same sender sent same text within TTL (content-based dedup).
+
+    Baileys sometimes delivers 1 WhatsApp message as 2-3 webhook events
+    with DIFFERENT message_ids. This catches those by hashing sender+text.
+    """
+    import hashlib
+    import time
+
+    now = time.time()
+
+    # Purge expired
+    expired = [k for k, t in _evo_content_dedup.items() if now - t > _EVO_CONTENT_DEDUP_TTL]
+    for k in expired:
+        del _evo_content_dedup[k]
+
+    key = hashlib.md5(f"{sender}:{text}".encode()).hexdigest()
+    if key in _evo_content_dedup:
+        return True
+
+    _evo_content_dedup[key] = now
     return False
 
 
@@ -299,6 +328,13 @@ async def evolution_webhook(request: Request):
             "sender": sender_number,
             "saved_outgoing": True,
         }
+
+    # Content-based dedup: Baileys sends 1 message as 2-3 events with different IDs
+    if not from_me and _evo_is_content_duplicate(sender_number, text):
+        logger.info(
+            f"[EVO:{instance}] Content dedup: same text from {sender_number} within 60s, skipping"
+        )
+        return {"status": "ok", "ignored": "content_duplicate"}
 
     logger.info(
         f"[EVO:{instance}] Message from {push_name} ({sender_number}): {text[:80]}"
@@ -899,8 +935,15 @@ async def _process_evolution_message_safe(
             metadata=dm_metadata,
         )
 
+        # Extract text from response — response.content may be a string or a dict
+        # like {'content': 'text', 'model': '...', 'provider': '...'}
         _raw_content = response.content if hasattr(response, "content") else response
-        response_text = _raw_content if isinstance(_raw_content, str) else str(_raw_content)
+        if isinstance(_raw_content, str):
+            response_text = _raw_content
+        elif isinstance(_raw_content, dict):
+            response_text = _raw_content.get("content", "") or str(_raw_content)
+        else:
+            response_text = str(_raw_content)
         intent = str(response.intent) if hasattr(response, "intent") else "unknown"
         confidence = response.confidence if hasattr(response, "confidence") else 0.0
 
