@@ -541,19 +541,19 @@ async def recalculate_lead_scores(creator_name: str):
 
     V3 pipeline: extract_signals -> classify_lead -> calculate_score.
     Returns distribution by status (6 categories).
+
+    Uses paged batches (50 leads/batch) with short-lived sessions to avoid
+    blocking the event loop or monopolizing the DB connection pool.
     """
-    from services.lead_scoring import batch_recalculate_scores
+    import asyncio
+    from services.lead_scoring import batch_recalculate_scores_paged
 
-    session = SessionLocal()
-    try:
-        result = batch_recalculate_scores(session, creator_name)
+    result = await asyncio.to_thread(batch_recalculate_scores_paged, creator_name)
 
-        if "error" in result:
-            raise HTTPException(status_code=404, detail=result["error"])
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
 
-        return result
-    finally:
-        session.close()
+    return result
 
 
 @router.post("/batch-embed-conversations/{creator_name}")
