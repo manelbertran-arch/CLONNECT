@@ -1059,8 +1059,12 @@ async def oauth_debug():
 
 class InjectTokenRequest(BaseModel):
     token: str
-    instagram_user_id: str = None  # Optional: will be fetched from /me if not provided
+    instagram_user_id: str = None  # Optional: will be fetched from API if not provided
     expires_days: int = 60         # Long-lived tokens last 60 days
+
+
+_FB_APP_ID_892 = "892717189846426"
+_FB_APP_SECRET_892 = "a6f0db4f7d9ae3b80799fdb8b554e221"
 
 
 @router.post("/instagram/inject-token")
@@ -1070,9 +1074,13 @@ async def instagram_inject_token(
     x_api_key: str = Header(None, alias="X-API-Key"),
 ):
     """
-    Admin-only: Manually inject a valid Instagram token for a creator.
-    Useful when the Developer Portal generates a token and OAuth isn't available.
-    Validates the token against /me before saving.
+    Admin-only: Manually inject a valid Instagram/Facebook token for a creator.
+
+    Accepts both IGAAT tokens (Instagram Business Login) and EAA tokens (Facebook Login).
+    Validates, auto-exchanges to long-lived, and saves to DB.
+
+    EAA tokens (EAAGm...) come from Graph API Explorer or Facebook Login.
+    IGAAT tokens (IGAAT...) come from Instagram Business Login OAuth.
     """
     import httpx
     from datetime import datetime, timedelta, timezone
@@ -1085,69 +1093,117 @@ async def instagram_inject_token(
     if not token:
         raise HTTPException(status_code=400, detail="Token is required")
 
-    # Validate token by calling /me
     ig_user_id = body.instagram_user_id
     ig_username = None
+    page_id = None
+    token_type = "unknown"
+    long_lived_token = token
+    expires_days = body.expires_days
 
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        # Try graph.instagram.com/me (IGAAT token)
-        me_resp = await client.get(
-            "https://graph.instagram.com/v21.0/me",
-            params={"fields": "id,username,name", "access_token": token},
-        )
-        me_data = me_resp.json()
-        logger.info(f"[InjectToken] /me response for {creator_id}: {me_data}")
+    async with httpx.AsyncClient(timeout=20.0) as client:
 
-        if "error" in me_data:
-            # Try graph.facebook.com/me (EAA token)
-            me_resp2 = await client.get(
-                "https://graph.facebook.com/v21.0/me",
-                params={"fields": "id,name", "access_token": token},
+        # ── Path A: IGAAT token (Instagram Business Login) ──────────────────
+        if token.startswith("IGAAT"):
+            token_type = "IGAAT"
+            me_resp = await client.get(
+                "https://graph.instagram.com/v21.0/me",
+                params={"fields": "id,username,name", "access_token": token},
             )
-            me_data2 = me_resp2.json()
-            logger.info(f"[InjectToken] FB /me response: {me_data2}")
-            if "error" in me_data2:
+            me_data = me_resp.json()
+            logger.info(f"[InjectToken] IGAAT /me: {me_data}")
+
+            if "error" in me_data:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Token validation failed: {me_data.get('error', {}).get('message', 'unknown error')}",
+                    detail=f"IGAAT token invalid: {me_data['error'].get('message', 'unknown')}",
                 )
-            ig_user_id = ig_user_id or str(me_data2.get("id", ""))
-            ig_username = me_data2.get("name")
-        else:
             ig_user_id = ig_user_id or str(me_data.get("id", ""))
             ig_username = me_data.get("username") or me_data.get("name")
 
-        # Try to exchange for long-lived if it looks short-lived
-        long_lived_token = token
-        if token.startswith("IGAAT") and len(token) < 300:
-            for app_secret in [
-                os.getenv("INSTAGRAM_APP_SECRET", ""),
-                "a6f0db4f7d9ae3b80799fdb8b554e221",  # App 892
-            ]:
-                if not app_secret:
+            # Exchange IGAAT short-lived → long-lived
+            for secret in [os.getenv("INSTAGRAM_APP_SECRET", ""), _FB_APP_SECRET_892]:
+                if not secret:
                     continue
-                exchange_resp = await client.get(
+                ex = await client.get(
                     "https://graph.instagram.com/access_token",
-                    params={
-                        "grant_type": "ig_exchange_token",
-                        "client_secret": app_secret,
-                        "access_token": token,
-                    },
+                    params={"grant_type": "ig_exchange_token", "client_secret": secret, "access_token": token},
                 )
-                exchange_data = exchange_resp.json()
-                logger.info(f"[InjectToken] Exchange attempt: {exchange_data}")
-                if "access_token" in exchange_data:
-                    long_lived_token = exchange_data["access_token"]
-                    body.expires_days = exchange_data.get("expires_in", 5183944) // 86400
-                    logger.info(f"[InjectToken] Exchanged to long-lived token ({body.expires_days}d)")
+                ex_data = ex.json()
+                logger.info(f"[InjectToken] IGAAT exchange ({secret[:6]}...): {ex_data}")
+                if "access_token" in ex_data:
+                    long_lived_token = ex_data["access_token"]
+                    expires_days = ex_data.get("expires_in", 5183944) // 86400
+                    logger.info(f"[InjectToken] IGAAT exchanged → long-lived ({expires_days}d)")
                     break
 
-    token_expires_at = datetime.now(timezone.utc) + timedelta(days=body.expires_days)
+        # ── Path B: EAA token (Facebook Login / Graph API Explorer) ─────────
+        else:
+            token_type = "EAA"
+            # Validate via FB /me
+            me_resp = await client.get(
+                "https://graph.facebook.com/v21.0/me",
+                params={"fields": "id,name", "access_token": token},
+            )
+            me_data = me_resp.json()
+            logger.info(f"[InjectToken] EAA /me: {me_data}")
+
+            if "error" in me_data:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Token validation failed: {me_data['error'].get('message', 'unknown')}",
+                )
+            fb_user_id = str(me_data.get("id", ""))
+            ig_username = me_data.get("name")
+
+            # Exchange EAA short-lived → long-lived via FB oauth endpoint
+            for app_id, secret in [
+                (_FB_APP_ID_892, _FB_APP_SECRET_892),
+                (os.getenv("INSTAGRAM_APP_ID", ""), os.getenv("INSTAGRAM_APP_SECRET", "")),
+            ]:
+                if not app_id or not secret:
+                    continue
+                ex = await client.get(
+                    "https://graph.facebook.com/v21.0/oauth/access_token",
+                    params={
+                        "grant_type": "fb_exchange_token",
+                        "client_id": app_id,
+                        "client_secret": secret,
+                        "fb_exchange_token": token,
+                    },
+                )
+                ex_data = ex.json()
+                logger.info(f"[InjectToken] EAA exchange (App {app_id[:8]}...): {ex_data}")
+                if "access_token" in ex_data:
+                    long_lived_token = ex_data["access_token"]
+                    expires_days = ex_data.get("expires_in", 5183944) // 86400
+                    logger.info(f"[InjectToken] EAA exchanged → long-lived ({expires_days}d)")
+                    break
+
+            # Get Instagram Business Account ID from Pages
+            pages_resp = await client.get(
+                "https://graph.facebook.com/v21.0/me/accounts",
+                params={"fields": "id,name,instagram_business_account", "access_token": long_lived_token},
+            )
+            pages_data = pages_resp.json()
+            logger.info(f"[InjectToken] EAA pages: {pages_data}")
+
+            for page in pages_data.get("data", []):
+                iba = page.get("instagram_business_account", {})
+                if iba.get("id"):
+                    ig_user_id = ig_user_id or str(iba["id"])
+                    page_id = page.get("id")
+                    logger.info(f"[InjectToken] Found IG biz account {ig_user_id} on page {page_id}")
+                    break
+
+            if not ig_user_id:
+                ig_user_id = fb_user_id  # Fallback to FB user ID
+
+    token_expires_at = datetime.now(timezone.utc) + timedelta(days=expires_days)
 
     await _save_instagram_connection(
         creator_id=creator_id,
         access_token=long_lived_token,
-        page_id=None,
+        page_id=page_id,
         instagram_user_id=ig_user_id,
         additional_ids=[ig_user_id] if ig_user_id else [],
         token_expires_at=token_expires_at,
@@ -1156,13 +1212,170 @@ async def instagram_inject_token(
     return {
         "ok": True,
         "creator_id": creator_id,
+        "token_type": token_type,
         "ig_user_id": ig_user_id,
         "ig_username": ig_username,
+        "page_id": page_id,
         "token_prefix": long_lived_token[:20] + "...",
         "token_length": len(long_lived_token),
         "exchanged_to_long_lived": long_lived_token != token,
+        "expires_days": expires_days,
         "expires_at": token_expires_at.isoformat(),
     }
+
+
+# ── Facebook Login OAuth (EAA tokens) ─────────────────────────────────────────
+# Alternative to Instagram Business Login. Produces EAA tokens that work
+# with graph.facebook.com for Instagram messaging. Requires App 892717189846426
+# to have /oauth/facebook/callback registered as a Valid OAuth Redirect URI.
+
+@router.get("/facebook/start")
+async def facebook_oauth_start(creator_id: str, redirect_to: str = None):
+    """
+    Start Facebook Login OAuth flow (produces EAA tokens).
+    Alternative to Instagram Business Login — use when IGAAT flow fails.
+    Requires App 892717189846426 with facebook/callback registered.
+    """
+    import base64
+
+    redirect_encoded = base64.urlsafe_b64encode(redirect_to.encode()).decode() if redirect_to else ""
+    state = f"{creator_id}:{secrets.token_urlsafe(16)}:{redirect_encoded}"
+
+    scopes = [
+        "instagram_basic",
+        "instagram_manage_messages",
+        "pages_show_list",
+        "pages_messaging",
+    ]
+    params = {
+        "client_id": _FB_APP_ID_892,
+        "redirect_uri": f"{API_URL}/oauth/facebook/callback",
+        "scope": ",".join(scopes),
+        "response_type": "code",
+        "state": state,
+    }
+    auth_url = f"https://www.facebook.com/v21.0/dialog/oauth?{urlencode(params)}"
+    logger.info(f"[FB OAuth] Starting for creator={creator_id}")
+    return {"auth_url": auth_url, "state": state, "app_id": _FB_APP_ID_892}
+
+
+@router.get("/facebook/callback")
+async def facebook_oauth_callback(
+    code: str = None,
+    state: str = None,
+    error: str = None,
+    error_reason: str = None,
+    error_description: str = None,
+):
+    """Facebook Login OAuth callback — exchanges code for EAA token and saves."""
+    import base64
+    import httpx
+    from datetime import datetime, timedelta, timezone
+
+    if error:
+        logger.error(f"[FB OAuth] Error: {error} — {error_description}")
+        return RedirectResponse(f"{FRONTEND_URL}/new/ajustes?error=facebook_auth_failed")
+
+    if not code or not state:
+        return RedirectResponse(f"{FRONTEND_URL}/new/ajustes?error=facebook_no_code")
+
+    state_parts = state.split(":")
+    creator_id = state_parts[0] if state_parts else "unknown"
+    redirect_to = None
+    if len(state_parts) >= 3 and state_parts[2]:
+        try:
+            redirect_to = base64.urlsafe_b64decode(state_parts[2]).decode()
+        except Exception:
+            pass
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Step 1: Exchange code for short-lived user token
+            token_resp = await client.get(
+                "https://graph.facebook.com/v21.0/oauth/access_token",
+                params={
+                    "client_id": _FB_APP_ID_892,
+                    "client_secret": _FB_APP_SECRET_892,
+                    "redirect_uri": f"{API_URL}/oauth/facebook/callback",
+                    "code": code,
+                },
+            )
+            token_data = token_resp.json()
+            logger.info(f"[FB OAuth] Token exchange: {token_resp.status_code} {list(token_data.keys())}")
+
+            if "error" in token_data:
+                logger.error(f"[FB OAuth] Token exchange error: {token_data}")
+                return RedirectResponse(f"{FRONTEND_URL}/new/ajustes?error=facebook_auth_failed")
+
+            short_token = token_data["access_token"]
+
+            # Step 2: Exchange short-lived → long-lived EAA (60 days)
+            ex_resp = await client.get(
+                "https://graph.facebook.com/v21.0/oauth/access_token",
+                params={
+                    "grant_type": "fb_exchange_token",
+                    "client_id": _FB_APP_ID_892,
+                    "client_secret": _FB_APP_SECRET_892,
+                    "fb_exchange_token": short_token,
+                },
+            )
+            ex_data = ex_resp.json()
+            logger.info(f"[FB OAuth] Long-lived exchange: {list(ex_data.keys())}")
+            access_token = ex_data.get("access_token", short_token)
+            expires_in = ex_data.get("expires_in", 5183944)
+            token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+
+            # Step 3: Get FB user info + Instagram Business Account
+            me_resp = await client.get(
+                "https://graph.facebook.com/v21.0/me",
+                params={"fields": "id,name", "access_token": access_token},
+            )
+            me_data = me_resp.json()
+            ig_username = me_data.get("name", "unknown")
+
+            pages_resp = await client.get(
+                "https://graph.facebook.com/v21.0/me/accounts",
+                params={"fields": "id,name,instagram_business_account", "access_token": access_token},
+            )
+            pages_data = pages_resp.json()
+            logger.info(f"[FB OAuth] Pages: {pages_data}")
+
+            ig_user_id = None
+            page_id = None
+            for page in pages_data.get("data", []):
+                iba = page.get("instagram_business_account", {})
+                if iba.get("id"):
+                    ig_user_id = str(iba["id"])
+                    page_id = page.get("id")
+                    logger.info(f"[FB OAuth] IG biz account={ig_user_id}, page={page_id}")
+                    break
+
+            # Step 4: Save
+            await _save_instagram_connection(
+                creator_id=creator_id,
+                access_token=access_token,
+                page_id=page_id,
+                instagram_user_id=ig_user_id,
+                additional_ids=[ig_user_id] if ig_user_id else [],
+                token_expires_at=token_expires_at,
+            )
+            logger.info(
+                f"[FB OAuth] Saved EAA token for {creator_id}: ig_user={ig_user_id}, "
+                f"expires={token_expires_at.date()}"
+            )
+
+            ig_username_enc = ig_username.replace(" ", "_")
+            if redirect_to == "settings":
+                return RedirectResponse(
+                    f"{FRONTEND_URL}/new/ajustes?instagram=connected&ig_user_id={ig_user_id}&ig_username={ig_username_enc}"
+                )
+            return RedirectResponse(
+                f"{FRONTEND_URL}/crear-clon?instagram=connected&ig_user_id={ig_user_id}&ig_username={ig_username_enc}"
+            )
+
+    except Exception as e:
+        logger.error(f"[FB OAuth] Callback error: {e}", exc_info=True)
+        return RedirectResponse(f"{FRONTEND_URL}/new/ajustes?error=facebook_auth_failed")
 
 
 @router.get("/instagram/start")

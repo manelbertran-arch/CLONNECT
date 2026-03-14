@@ -65,6 +65,8 @@ export default function ConexionesSection({ onBack }: Props) {
     }
   };
 
+  const handleConnectFacebook = () => handleStartOAuth('facebook');
+
   const handleSave = (platform: string) => {
     connectMutation.mutate({ platform, data: formData });
   };
@@ -245,6 +247,19 @@ export default function ConexionesSection({ onBack }: Props) {
           💡 <strong className="text-white">Instagram</strong> requiere una cuenta
           Business o Creator conectada a una página de Facebook.
         </p>
+      </div>
+
+      {/* Facebook Login fallback for Instagram */}
+      <div className="bg-blue-950/40 rounded-xl p-4 border border-blue-800/40">
+        <p className="text-sm text-gray-400 mb-3">
+          ¿No funciona el login de Instagram? Prueba con <strong className="text-white">Facebook Login</strong>.
+        </p>
+        <button
+          onClick={handleConnectFacebook}
+          className="w-full py-2 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+        >
+          Conectar con Facebook Login
+        </button>
       </div>
     </div>
   );
