@@ -209,7 +209,8 @@ async def disconnect_platform(creator_id: str, platform: str):
                     creator.instagram_token = None
                     creator.instagram_page_id = None
                     creator.instagram_user_id = None
-                    creator.instagram_username = None
+                    creator.instagram_token_expires_at = None
+                    creator.instagram_additional_ids = None
                 elif platform == "telegram":
                     creator.telegram_bot_token = None
                 elif platform == "whatsapp":
