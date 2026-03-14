@@ -77,10 +77,9 @@ async def evolution_webhook(request: Request):
     event = payload.get("event", "")
     instance = payload.get("instance", "")
 
-    # Log ALL non-upsert events for debugging (including raw payload keys)
-    if event and event != "messages.upsert":
-        data_preview = str(payload.get("data", {}))[:200]
-        logger.info(f"[EVO:{instance}] Event received: {event} | data_preview={data_preview}")
+    # Log non-upsert events for debugging
+    if event and event not in ("messages.upsert", "messages.update"):
+        logger.info(f"[EVO:{instance}] Event: {event}")
 
     # Log non-message events briefly
     if event == "connection.update":
@@ -138,7 +137,8 @@ async def evolution_webhook(request: Request):
         handled = 0
         for update in updates:
             key = update.get("key", {})
-            msg_id = key.get("id", "")
+            # ID location varies: key.id (messages.edited), root id (messages.delete)
+            msg_id = key.get("id", "") or update.get("id", "")
             stub_type = update.get("messageStubType")
             update_type = update.get("type")  # Evolution v2.3.7: "REVOKE"
             update_status = update.get("status")
@@ -147,7 +147,7 @@ async def evolution_webhook(request: Request):
                 event_lower == "messages.delete"
                 or stub_type in ("REVOKE", 1, "1")
                 or update_type == "REVOKE"
-                or update_status == 5
+                or update_status in (5, "DELETED")
             )
             if is_delete and msg_id:
                 logger.info(
@@ -158,10 +158,9 @@ async def evolution_webhook(request: Request):
                 asyncio.create_task(_handle_message_deleted(instance, msg_id, key))
                 handled += 1
             else:
-                logger.info(
+                logger.debug(
                     f"[EVO:{instance}] {event} (non-delete): "
-                    f"msg_id={msg_id} type={update_type} stub={stub_type} "
-                    f"status={update_status} keys={list(update.keys())[:10]}"
+                    f"msg_id={msg_id} status={update_status}"
                 )
         if handled:
             logger.info(f"[EVO:{instance}] Message delete: {handled} message(s) processed")
@@ -543,17 +542,14 @@ async def _handle_message_deleted(instance: str, message_id: str, key: dict):
 
     session = SessionLocal()
     try:
-        logger.info(f"[EVO:{instance}] _handle_message_deleted: looking up {message_id}")
         msg = (
             session.query(Message)
             .filter(Message.platform_message_id == message_id)
             .first()
         )
         if not msg:
-            logger.warning(f"[EVO:{instance}] Delete: message {message_id} not found in DB")
+            logger.debug(f"[EVO:{instance}] Delete: message {message_id} not found in DB")
             return
-
-        logger.info(f"[EVO:{instance}] Delete: found msg {msg.id}, setting deleted_at")
         now = datetime.now(timezone.utc)
         msg.deleted_at = now
         lead_id = msg.lead_id
