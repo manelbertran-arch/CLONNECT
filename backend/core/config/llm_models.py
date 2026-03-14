@@ -11,6 +11,7 @@ COST REFERENCE (as of 2026-03):
 """
 import logging
 import os
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,9 @@ def log_model_config() -> None:
         if len(val) > 200:  # skip long values like commit messages
             continue
         for blocked in BLOCKED_MODELS:
-            if blocked in val:
+            # Use word-boundary match: blocked must not be followed by more model chars
+            # e.g. "gemini-2.5-flash" must NOT match inside "gemini-2.5-flash-lite"
+            if re.search(r'(?<![a-zA-Z0-9-])' + re.escape(blocked) + r'(?![a-zA-Z0-9-])', val):
                 logger.error(
                     "[LLM CONFIG] ALERT: blocked model '%s' found in env var %s=%s",
                     blocked, key, val,
