@@ -83,73 +83,79 @@ async def get_follower_detail(creator_id: str, follower_id: str):
     try:
         detail = None
 
-        # FAST PATH: Try DB first for leads (skip slow JSON reads)
+        # FAST PATH: Try DB first for leads (runs in thread to avoid blocking event loop)
         if USE_DB:
             try:
+                import asyncio as _asyncio
                 from api.models import Creator, Lead, Message
                 from api.services.db_service import get_session
 
-                session = get_session()
-                if session:
+                def _db_fast_path():
+                    session = get_session()
+                    if not session:
+                        return None
                     try:
                         creator = session.query(Creator).filter_by(name=creator_id).first()
-                        if creator:
-                            lead = (
-                                session.query(Lead)
-                                .filter_by(creator_id=creator.id, platform_user_id=follower_id)
-                                .first()
+                        if not creator:
+                            return None
+                        lead = (
+                            session.query(Lead)
+                            .filter_by(creator_id=creator.id, platform_user_id=follower_id)
+                            .first()
+                        )
+                        if not lead:
+                            return None
+                        messages = (
+                            session.query(Message)
+                            .filter(
+                                Message.lead_id == lead.id,
+                                Message.status.in_(["sent", "edited"]),
                             )
-                            if lead:
-                                # Build detail directly from DB - no JSON file reads!
-                                messages = (
-                                    session.query(Message)
-                                    .filter(
-                                        Message.lead_id == lead.id,
-                                        Message.status.in_(["sent", "edited"]),
-                                    )
-                                    .order_by(Message.created_at.desc())
-                                    .limit(50)
-                                    .all()
-                                )
-                                messages = messages[::-1]  # Chronological order
-
-                                detail = {
-                                    "follower_id": lead.platform_user_id,
-                                    "username": lead.username,
-                                    "name": lead.full_name or lead.username,
-                                    "platform": lead.platform or "instagram",
-                                    "profile_pic_url": lead.profile_pic_url,
-                                    "total_messages": len(messages),
-                                    "purchase_intent_score": lead.purchase_intent or 0,
-                                    "score": lead.score or 0,
-                                    "relationship_type": lead.relationship_type or "nuevo",
-                                    "is_lead": True,
-                                    "is_customer": lead.status == "cliente",
-                                    "status": lead.status,
-                                    "email": lead.email,
-                                    "phone": lead.phone,
-                                    "notes": lead.notes,
-                                    "deal_value": lead.deal_value,
-                                    "tags": lead.tags or [],
-                                    "last_messages": [
-                                        {
-                                            "role": m.role,
-                                            "content": (
-                                                m.content
-                                                or _media_description(m.msg_metadata)
-                                                or "Sent an attachment"
-                                            ),
-                                            "timestamp": m.created_at.isoformat() if m.created_at else None,
-                                            "platform_message_id": m.platform_message_id,
-                                            "metadata": _slim_metadata(m.msg_metadata),
-                                            **({"deleted_at": m.deleted_at.isoformat()} if m.deleted_at else {}),
-                                        }
-                                        for m in messages
-                                    ],
+                            .order_by(Message.created_at.desc())
+                            .limit(50)
+                            .all()
+                        )
+                        messages = messages[::-1]  # Chronological order
+                        return {
+                            "follower_id": lead.platform_user_id,
+                            "username": lead.username,
+                            "name": lead.full_name or lead.username,
+                            "platform": lead.platform or "instagram",
+                            "profile_pic_url": lead.profile_pic_url,
+                            "total_messages": len(messages),
+                            "purchase_intent_score": lead.purchase_intent or 0,
+                            "score": lead.score or 0,
+                            "relationship_type": lead.relationship_type or "nuevo",
+                            "is_lead": True,
+                            "is_customer": lead.status == "cliente",
+                            "status": lead.status,
+                            "email": lead.email,
+                            "phone": lead.phone,
+                            "notes": lead.notes,
+                            "deal_value": lead.deal_value,
+                            "tags": lead.tags or [],
+                            "last_messages": [
+                                {
+                                    "role": m.role,
+                                    "content": (
+                                        m.content
+                                        or _media_description(m.msg_metadata)
+                                        or "Sent an attachment"
+                                    ),
+                                    "timestamp": m.created_at.isoformat() if m.created_at else None,
+                                    "platform_message_id": m.platform_message_id,
+                                    "metadata": _slim_metadata(m.msg_metadata),
+                                    **({"deleted_at": m.deleted_at.isoformat()} if m.deleted_at else {}),
                                 }
-                                logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: DB FAST PATH ({_time.time()-start:.3f}s)")
+                                for m in messages
+                            ],
+                        }
                     finally:
                         session.close()
+
+                detail = await _asyncio.to_thread(_db_fast_path)
+                if detail is not None:
+                    logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: DB FAST PATH ({_time.time()-start:.3f}s)")
             except Exception as e:
                 logger.warning(f"[FOLLOWER] DB fast path failed: {e}")
 

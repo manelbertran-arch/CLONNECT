@@ -67,19 +67,21 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
 
     try:
         if USE_DB:
+            import asyncio as _asyncio
             from api.models import Creator, Lead, Message
             from api.services.db_service import get_session
             from sqlalchemy import func, not_
 
-            session = get_session()
-            if session:
+            def _db_query():
+                """All blocking SQLAlchemy work — runs in a thread to avoid blocking event loop."""
+                session = get_session()
+                if not session:
+                    return None
                 try:
                     creator = session.query(Creator).filter_by(name=creator_id).first()
                     if not creator:
                         return {"status": "ok", "conversations": [], "count": 0}
 
-                    # OPTIMIZED: Single query for leads with message counts
-                    # FIX: Only count sent/edited messages (consistent with last_msg query)
                     msg_count_subq = (
                         session.query(Message.lead_id, func.count(Message.id).label("msg_count"))
                         .filter(Message.role == "user", Message.status.in_(["sent", "edited"]))
@@ -87,7 +89,6 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         .subquery()
                     )
 
-                    # Pending copilot suggestions per lead
                     pending_copilot_subq = (
                         session.query(Message.lead_id, func.count(Message.id).label("pending_count"))
                         .filter(
@@ -98,7 +99,6 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         .subquery()
                     )
 
-                    # Base filters (platform-aware)
                     base_filters = [
                         Lead.creator_id == creator.id,
                         not_(Lead.status.in_(["archived", "spam"])),
@@ -106,16 +106,12 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                     if platform:
                         base_filters.append(Lead.platform == platform)
 
-                    # Count total for pagination
                     total_count = (
                         session.query(func.count(Lead.id))
                         .filter(*base_filters)
                         .scalar()
                     )
 
-                    # When limit >= 500, return ALL active leads so mixed-platform
-                    # dashboards (IG + WA) show every conversation regardless of
-                    # last_contact_at ordering (WA leads would otherwise bury IG).
                     effective_limit = total_count if limit >= 500 else limit
                     results = (
                         session.query(
@@ -132,10 +128,8 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         .all()
                     )
 
-                    # OPTIMIZED: Get last message for each lead in ONE query
                     lead_ids = [lead.id for lead, _, _ in results]
 
-                    # Subquery to get the latest SENT message per lead
                     last_msg_subq = (
                         session.query(
                             Message.lead_id, func.max(Message.created_at).label("max_date")
@@ -163,27 +157,23 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         .all()
                     )
 
-                    # Build lookup dict for last messages
                     last_msg_by_lead = {msg.lead_id: msg for msg in last_messages_query}
 
                     conversations = []
                     for lead, msg_count, pending_copilot in results:
                         ctx = lead.context or {}
 
-                        # Get last message from pre-fetched data
                         last_msg = last_msg_by_lead.get(lead.id)
                         last_messages = []
                         last_message_preview = None
                         last_message_role = None
 
                         if last_msg:
-                            # Reactions: show descriptive text instead of raw emoji
                             meta = last_msg.msg_metadata or {}
                             if meta.get("type") == "reaction":
                                 emoji = meta.get("emoji", "❤️")
                                 display_content = f"Reaccionó {emoji} a tu mensaje"
                             else:
-                                # Fallback chain: text → media description → generic attachment label
                                 display_content = (
                                     last_msg.content
                                     or _media_description(last_msg.msg_metadata)
@@ -201,7 +191,6 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                                     ),
                                 }
                             ]
-                            # Instagram-like UX fields
                             last_message_preview = (
                                 display_content[:50] + "..."
                                 if len(display_content) > 50
@@ -209,7 +198,6 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                             )
                             last_message_role = last_msg.role
 
-                        # is_unread: Check if last user message is after last_read_at
                         last_read_at = ctx.get("last_read_at")
                         last_user_msg_time = (
                             last_msg.created_at.isoformat()
@@ -217,12 +205,9 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                             else None
                         )
                         if last_read_at and last_user_msg_time:
-                            # Compare timestamps - unread if user message is after read time
                             is_unread = last_user_msg_time > last_read_at
                         else:
-                            # Fallback: unread if last message is from user
                             is_unread = last_message_role == "user"
-                        # is_verified: from context JSON (populated by Instagram API)
                         is_verified = ctx.get("is_verified", False)
 
                         conversations.append(
@@ -246,14 +231,11 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                                     else None
                                 ),
                                 "last_messages": last_messages,
-                                # Instagram-like UX fields (FIX 2026-02-02)
                                 "last_message_preview": last_message_preview,
                                 "last_message_role": last_message_role,
                                 "is_unread": is_unread,
                                 "is_verified": is_verified,
-                                # Copilot pending
                                 "has_pending_copilot": pending_copilot > 0,
-                                # CRM fields
                                 "email": ctx.get("email") or lead.email or "",
                                 "phone": ctx.get("phone") or lead.phone or "",
                                 "notes": ctx.get("notes") or lead.notes or "",
@@ -266,7 +248,6 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                     )
                     has_more = (offset + limit) < total_count
 
-                    # Counts by status for summary cards (single GROUP BY)
                     counts_rows = (
                         session.query(Lead.status, func.count(Lead.id))
                         .filter(*base_filters)
@@ -275,7 +256,7 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                     )
                     counts_by_status = {s: c for s, c in counts_rows}
 
-                    result = {
+                    return {
                         "status": "ok",
                         "conversations": conversations,
                         "count": len(conversations),
@@ -285,11 +266,14 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         "limit": limit,
                         "counts_by_status": counts_by_status,
                     }
-                    # Cache for 30s — SSE invalidates on new messages, so long TTL is safe
-                    api_cache.set(cache_key, result, ttl_seconds=30)
-                    return result
                 finally:
                     session.close()
+
+            # Run blocking DB work in thread pool — keeps event loop free for webhooks/SSE
+            result = await _asyncio.to_thread(_db_query)
+            if result is not None:
+                api_cache.set(cache_key, result, ttl_seconds=30)
+                return result
 
         # Fallback to JSON if PostgreSQL not available
         from .processing import get_dm_agent
