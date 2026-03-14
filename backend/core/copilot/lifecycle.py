@@ -65,18 +65,33 @@ async def create_pending_response_impl(
             return pending
 
         # ── DEDUP CHECK #1: platform_message_id already in DB ──
-        # Prevents duplicates from webhook retries (Meta/Telegram resend)
+        # If the user message was pre-saved (early save for instant UX), we
+        # still need to save the bot suggestion. Only skip on genuine retries.
+        _user_msg_presaved = False
         if user_message_id:
             existing_user_msg = (
-                session.query(Message.id)
+                session.query(Message)
                 .filter(Message.platform_message_id == user_message_id)
                 .first()
             )
             if existing_user_msg:
+                # Check if this message was recently saved (early save, <60s)
+                # vs a genuine webhook retry (older message)
+                _age = (
+                    datetime.now(timezone.utc) - existing_user_msg.created_at
+                ).total_seconds() if existing_user_msg.created_at else 999
+                if _age > 60:
+                    logger.info(
+                        f"[Copilot:Dedup] user_message_id {user_message_id} "
+                        f"already in DB ({_age:.0f}s ago) — skipping"
+                    )
+                    return pending
+                # Recent early save — continue to save suggestion
+                _user_msg_presaved = True
                 logger.info(
-                    f"[Copilot:Dedup] user_message_id {user_message_id} already in DB — skipping"
+                    f"[Copilot:EarlySave] user_message_id {user_message_id} "
+                    f"pre-saved ({_age:.0f}s ago) — will save suggestion only"
                 )
-                return pending
 
         # ── CHECK: non-text messages (media, attachments) ──
         # Don't generate copilot suggestions for media the bot can't understand
@@ -85,26 +100,43 @@ async def create_pending_response_impl(
             logger.info(
                 f"[Copilot:Skip] Non-text message detected: '{user_message[:50]}' — skipping suggestion"
             )
-            # Still save the user message so conversation history is complete
-            lead = (
-                session.query(Lead)
-                .filter(
-                    Lead.creator_id == creator.id,
-                    Lead.platform_user_id.in_([follower_id, f"ig_{follower_id}"]),
+            if not _user_msg_presaved:
+                # Save the user message so conversation history is complete
+                lead = (
+                    session.query(Lead)
+                    .filter(
+                        Lead.creator_id == creator.id,
+                        Lead.platform_user_id.in_([follower_id, f"ig_{follower_id}"]),
+                    )
+                    .first()
                 )
-                .first()
-            )
-            if lead:
-                user_msg = Message(
-                    lead_id=lead.id,
-                    role="user",
-                    content=user_message,
-                    status="sent",
-                    platform_message_id=user_message_id,
-                    msg_metadata=msg_metadata,
+                if lead:
+                    user_msg = Message(
+                        lead_id=lead.id,
+                        role="user",
+                        content=user_message,
+                        status="sent",
+                        platform_message_id=user_message_id,
+                        msg_metadata=msg_metadata,
+                    )
+                    session.add(user_msg)
+                    session.commit()
+
+            # Invalidate cache + SSE for non-text messages too
+            try:
+                from api.cache import api_cache
+                api_cache.invalidate(f"conversations:{creator_id}")
+                api_cache.invalidate(f"follower_detail:{creator_id}:{follower_id}")
+            except Exception:
+                pass
+            try:
+                from api.routers.events import notify_creator
+                await notify_creator(
+                    creator_id, "new_message",
+                    {"follower_id": follower_id, "role": "user"},
                 )
-                session.add(user_msg)
-                session.commit()
+            except Exception:
+                pass
             return pending
 
         # Check both with and without ig_ prefix to avoid duplicates
@@ -158,17 +190,18 @@ async def create_pending_response_impl(
                 f"[Copilot:Dedup] Lead {lead.id} already has pending suggestion "
                 f"{existing_pending.id} — preserving existing, scheduling regen"
             )
-            # Still save the user message so no messages are lost
-            user_msg = Message(
-                lead_id=lead.id,
-                role="user",
-                content=user_message,
-                intent=intent,
-                status="sent",
-                platform_message_id=user_message_id,
-                msg_metadata=msg_metadata,
-            )
-            session.add(user_msg)
+            # Save user message if not already pre-saved
+            if not _user_msg_presaved:
+                user_msg = Message(
+                    lead_id=lead.id,
+                    role="user",
+                    content=user_message,
+                    intent=intent,
+                    status="sent",
+                    platform_message_id=user_message_id,
+                    msg_metadata=msg_metadata,
+                )
+                session.add(user_msg)
 
             # DO NOT overwrite existing pending suggestion — preserve the
             # first (often best) response. Schedule a debounced regeneration
@@ -239,17 +272,18 @@ async def create_pending_response_impl(
             )
             lead.status = service._calculate_lead_status(lead.purchase_intent)
 
-        # Guardar mensaje del usuario
-        user_msg = Message(
-            lead_id=lead.id,
-            role="user",
-            content=user_message,
-            intent=intent,
-            status="sent",
-            platform_message_id=user_message_id,
-            msg_metadata=msg_metadata,
-        )
-        session.add(user_msg)
+        # Save user message (skip if already pre-saved for instant UX)
+        if not _user_msg_presaved:
+            user_msg = Message(
+                lead_id=lead.id,
+                role="user",
+                content=user_message,
+                intent=intent,
+                status="sent",
+                platform_message_id=user_message_id,
+                msg_metadata=msg_metadata,
+            )
+            session.add(user_msg)
 
         # Guardar respuesta sugerida como pendiente
         # Store best_of_n candidates on bot message for preference pair extraction

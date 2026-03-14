@@ -169,8 +169,8 @@ async def get_follower_detail(creator_id: str, follower_id: str):
 
         result = {"status": "ok", **detail}
 
-        # Cache the result (5 min TTL -- keep-alive re-warms every 60s)
-        api_cache.set(cache_key, result, ttl_seconds=300)
+        # Cache the result (10s TTL — short for real-time chat UX)
+        api_cache.set(cache_key, result, ttl_seconds=10)
         logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: CACHED in {_time.time()-start:.3f}s")
 
         return result

@@ -12,6 +12,7 @@ import { Search, Send, ArrowLeft, MessageCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { MessageRenderer } from '@/components/chat/MessageRenderer';
+import { useEventStream } from '@/hooks/api/useEventStream';
 
 export default function Mensajes() {
   const { conversationId } = useParams();
@@ -21,6 +22,9 @@ export default function Mensajes() {
   const creatorId = CREATOR_ID;
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // SSE: real-time updates for new messages, deletions, approvals
+  useEventStream(creatorId);
 
   const { data: conversationsData } = useQuery({
     queryKey: ['conversations', creatorId],
