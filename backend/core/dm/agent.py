@@ -381,7 +381,19 @@ class DMResponderAgentV2:
         try:
             # Phase 1: Detection (sensitive content, frustration, pool response, edge cases)
             detection = await self._phase_detection(message, sender_id, metadata, cognitive_metadata)
-            if detection.pool_response:
+
+            # When Best-of-N is enabled in copilot mode, skip pool/edge-case early return
+            # so the full LLM generation pipeline runs and produces 3 ranked candidates.
+            from core.dm.phases.generation import ENABLE_BEST_OF_N as _BON_ON
+            _skip_early_return = False
+            if _BON_ON and detection.pool_response:
+                try:
+                    from core.copilot_service import get_copilot_service
+                    _skip_early_return = get_copilot_service().is_copilot_enabled(self.creator_id)
+                except Exception:
+                    pass
+
+            if detection.pool_response and not _skip_early_return:
                 return detection.pool_response
             if detection.edge_case_response:
                 return detection.edge_case_response
