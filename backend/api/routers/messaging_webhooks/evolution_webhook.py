@@ -899,7 +899,8 @@ async def _process_evolution_message_safe(
             metadata=dm_metadata,
         )
 
-        response_text = response.content if hasattr(response, "content") else str(response)
+        _raw_content = response.content if hasattr(response, "content") else response
+        response_text = _raw_content if isinstance(_raw_content, str) else str(_raw_content)
         intent = str(response.intent) if hasattr(response, "intent") else "unknown"
         confidence = response.confidence if hasattr(response, "confidence") else 0.0
 
