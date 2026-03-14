@@ -92,6 +92,19 @@ async def create_pairs_from_action(
                 else None
             ),
         })
+    elif action == "resolved_externally":
+        # Creator replied directly — strongest divergence signal
+        # Skip audio/sticker/media — not meaningful text comparisons
+        _non_text = ("[🎤 Audio]", "[🏷️ Sticker]", "[📷", "[🎥", "[📎")
+        is_non_text = final_response and any(final_response.startswith(p) for p in _non_text)
+        if final_response and suggested_response and not is_non_text:
+            pairs_to_create.append({
+                "chosen": final_response,
+                "rejected": suggested_response,
+                "action_type": "divergence",
+                "chosen_confidence": chosen_confidence,
+                "rejected_confidence": rejected_confidence,
+            })
 
     # Best-of-N ranking pairs: winner vs each loser
     if best_of_n_candidates and len(best_of_n_candidates) > 1:

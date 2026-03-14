@@ -21,6 +21,16 @@ ENABLE_AUTOLEARNING = os.getenv("ENABLE_AUTOLEARNING", "false").lower() == "true
 # Minimum edit distance to trigger LLM analysis (trivial fixes are skipped)
 _MIN_EDIT_CHARS = 3
 
+# Patterns indicating non-text responses (audio, sticker, media)
+_NON_TEXT_PREFIXES = ("[🎤 Audio]", "[🏷️ Sticker]", "[📷", "[🎥", "[📎")
+
+
+def _is_non_text_response(text: str) -> bool:
+    """Check if a response is audio, sticker, or media (not useful for text comparison)."""
+    if not text:
+        return True
+    return any(text.startswith(prefix) for prefix in _NON_TEXT_PREFIXES)
+
 _ANALYSIS_SYSTEM_PROMPT = (
     "Eres un analizador de correcciones de un bot de DMs. "
     "Compara la respuesta del bot con la del creador y extrae una regla concisa."
@@ -186,6 +196,11 @@ async def _handle_resolved_externally(
     bot_text = suggested_response or "(no habia sugerencia del bot)"
     creator_text = final_response or "(el creador respondió directamente desde la app)"
 
+    # Skip audio/sticker/media — bot vs audio is not a meaningful comparison
+    if _is_non_text_response(creator_text):
+        logger.debug("[AUTOLEARN] Skipping resolved_externally: creator response is audio/sticker/media")
+        return
+
     rule_data = await _llm_extract_rule(
         bot_response=bot_text,
         creator_response=creator_text,
@@ -200,6 +215,7 @@ async def _handle_resolved_externally(
             intent=intent, lead_stage=lead_stage,
             relationship_type=relationship_type,
             source_message_id=source_message_id,
+            source="divergence",
         )
 
 
@@ -296,7 +312,7 @@ def _parse_llm_response(text: str) -> Optional[dict]:
 def _store_rule(
     creator_db_id, rule_data: dict, confidence: float,
     intent=None, lead_stage=None, relationship_type=None,
-    source_message_id=None,
+    source_message_id=None, source: str = "realtime",
 ):
     """Store the extracted rule via learning_rules_service."""
     from services.learning_rules_service import create_rule
@@ -316,4 +332,5 @@ def _store_rule(
         example_good=rule_data.get("example_good"),
         confidence=confidence,
         source_message_id=source_message_id,
+        source=source,
     )

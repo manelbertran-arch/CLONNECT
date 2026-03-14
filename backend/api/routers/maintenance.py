@@ -979,3 +979,31 @@ async def trigger_content_refresh(creator_name: str = None):
     else:
         summary = await refresh_all_active_creators()
         return {"message": "Content refresh complete for all active creators", "summary": summary}
+
+
+@router.post("/turbo-onboarding/{creator_name}")
+async def turbo_onboarding(
+    creator_name: str,
+    source: str = Query(default="existing", description="existing | whatsapp | instagram"),
+    instance: str = Query(default=None, description="Evolution API instance (for whatsapp)"),
+    phases: str = Query(default="1,2,3,4,5,6", description="Comma-separated phase numbers"),
+):
+    """
+    Turbo onboarding: bootstrap ALL AI systems from conversation history.
+
+    Processes existing or fetches new messages and feeds every learning system
+    so a new creator has a fully functional bot in ~15 minutes.
+
+    Phases: 1=Fetch, 2=Style, 3=Leads, 4=Memory, 5=Summaries+Pairs, 6=Calibration
+    """
+    from scripts.turbo_onboarding import TurboOnboarding
+
+    phase_list = [int(p.strip()) for p in phases.split(",")]
+    pipeline = TurboOnboarding(
+        creator_name=creator_name,
+        source=source,
+        instance_name=instance,
+        phases=phase_list,
+    )
+    result = await pipeline.run()
+    return result

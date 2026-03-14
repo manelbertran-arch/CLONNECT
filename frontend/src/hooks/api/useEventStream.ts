@@ -81,6 +81,10 @@ export function useEventStream(creatorId: string = getCreatorId()) {
           if (data.type === "message_approved") {
             invalidateAll(data.data?.follower_id);
           }
+
+          if (data.type === "message_deleted") {
+            invalidateAll(data.data?.follower_id);
+          }
         } catch {
           // Ignore parse errors from keepalive pings
         }

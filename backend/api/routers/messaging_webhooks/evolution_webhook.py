@@ -576,30 +576,53 @@ async def _handle_message_deleted(instance: str, message_id: str, key: dict):
         session.commit()
         logger.info(
             f"[EVO:{instance}] Delete: marked message {message_id} as deleted "
-            f"(lead={lead_id})"
+            f"(lead={lead_id}, pending_discarded={pending is not None})"
         )
+
+        # Invalidate API caches + notify frontend
+        creator_id = EVOLUTION_INSTANCE_MAP.get(instance)
+        remote_jid = key.get("remoteJid", "")
+        sender = remote_jid.replace("@s.whatsapp.net", "").replace("@g.us", "").replace("@lid", "")
+
+        if creator_id:
+            # Invalidate conversation & follower caches so frontend sees updated data
+            try:
+                from api.cache import api_cache
+                follower_id = f"wa_{sender}" if sender else None
+                api_cache.invalidate(f"conversations:{creator_id}")
+                if follower_id:
+                    api_cache.invalidate(f"follower_detail:{creator_id}:{follower_id}")
+            except Exception:
+                pass
+
+            # Notify frontend via SSE so it refetches immediately
+            try:
+                from api.routers.events import notify_creator
+                follower_id_sse = f"wa_{sender}" if sender else None
+                await notify_creator(
+                    creator_id,
+                    "message_deleted",
+                    {"follower_id": follower_id_sse, "lead_id": str(lead_id), "message_id": message_id},
+                )
+            except Exception:
+                pass
 
         # Remove from in-memory follower cache
         try:
-            remote_jid = key.get("remoteJid", "")
-            sender = remote_jid.replace("@s.whatsapp.net", "").replace("@g.us", "")
-            if sender:
-                creator_id = EVOLUTION_INSTANCE_MAP.get(instance)
-                if creator_id:
-                    from services.memory_service import MemoryStore
-
-                    store = MemoryStore()
-                    follower_id = f"wa_{sender}"
-                    cache_key = f"{creator_id}:{follower_id}"
-                    if cache_key in store._cache:
-                        follower = store._cache[cache_key]
-                        original_len = len(follower.last_messages)
-                        follower.last_messages = [
-                            m for m in follower.last_messages
-                            if not (isinstance(m, dict) and m.get("platform_message_id") == message_id)
-                        ]
-                        if len(follower.last_messages) < original_len:
-                            logger.debug(f"[EVO:{instance}] Delete: removed from memory cache")
+            if sender and creator_id:
+                from services.memory_service import MemoryStore
+                store = MemoryStore()
+                follower_id = f"wa_{sender}"
+                cache_key = f"{creator_id}:{follower_id}"
+                if cache_key in store._cache:
+                    follower = store._cache[cache_key]
+                    original_len = len(follower.last_messages)
+                    follower.last_messages = [
+                        m for m in follower.last_messages
+                        if not (isinstance(m, dict) and m.get("platform_message_id") == message_id)
+                    ]
+                    if len(follower.last_messages) < original_len:
+                        logger.debug(f"[EVO:{instance}] Delete: removed from memory cache")
         except Exception as cache_err:
             logger.debug(f"[EVO:{instance}] Delete: cache cleanup skipped: {cache_err}")
 
