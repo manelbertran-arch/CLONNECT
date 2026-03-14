@@ -50,7 +50,7 @@ export default function ConexionesSection({ onBack }: Props) {
 
   const handleStartOAuth = async (platform: string) => {
     try {
-      const { auth_url } = await startOAuth(platform, creatorId);
+      const { auth_url } = await startOAuth(platform, creatorId, 'settings');
       window.open(auth_url, '_blank');
     } catch (error) {
       console.error('OAuth error:', error);

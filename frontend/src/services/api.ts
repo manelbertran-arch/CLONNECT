@@ -2447,9 +2447,12 @@ export interface OAuthStartResponse {
 
 export async function startOAuth(
   platform: string,
-  creatorId: string = CREATOR_ID
+  creatorId: string = CREATOR_ID,
+  redirectTo?: string
 ): Promise<OAuthStartResponse> {
-  return apiFetch(`/oauth/${platform}/start?creator_id=${creatorId}`);
+  const params = new URLSearchParams({ creator_id: creatorId });
+  if (redirectTo) params.set('redirect_to', redirectTo);
+  return apiFetch(`/oauth/${platform}/start?${params.toString()}`);
 }
 
 // WhatsApp Embedded Signup

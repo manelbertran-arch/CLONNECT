@@ -1057,7 +1057,7 @@ async def oauth_debug():
 
 
 @router.get("/instagram/start")
-async def instagram_oauth_start(creator_id: str, website_url: str = None):
+async def instagram_oauth_start(creator_id: str, website_url: str = None, redirect_to: str = None):
     """
     Start Instagram OAuth flow using Instagram Business Login.
 
@@ -1084,8 +1084,9 @@ async def instagram_oauth_start(creator_id: str, website_url: str = None):
     website_encoded = ""
     if website_url:
         website_encoded = base64.urlsafe_b64encode(website_url.encode()).decode()
-    state = f"{creator_id}:{secrets.token_urlsafe(16)}:{website_encoded}"
-    logger.info(f"[OAuth] State with website_url: {website_url}")
+    redirect_encoded = base64.urlsafe_b64encode(redirect_to.encode()).decode() if redirect_to else ""
+    state = f"{creator_id}:{secrets.token_urlsafe(16)}:{website_encoded}:{redirect_encoded}"
+    logger.info(f"[OAuth] State with website_url: {website_url}, redirect_to: {redirect_to}")
 
     # Instagram Business Login scopes (produces IGAAT tokens)
     scopes = [
@@ -1173,13 +1174,20 @@ async def instagram_oauth_callback(
     state_parts = state.split(":")
     creator_id = state_parts[0] if len(state_parts) > 0 else "manel"
     website_url = None
+    redirect_to = None
     if len(state_parts) >= 3 and state_parts[2]:
         try:
             website_url = base64.urlsafe_b64decode(state_parts[2]).decode()
             logger.info(f"[OAuth] Extracted website_url from state: {website_url}")
         except Exception as e:
             logger.warning(f"[OAuth] Could not decode website_url from state: {e}")
-    logger.info(f"Instagram OAuth callback for creator: {creator_id}, website: {website_url}")
+    if len(state_parts) >= 4 and state_parts[3]:
+        try:
+            redirect_to = base64.urlsafe_b64decode(state_parts[3]).decode()
+            logger.info(f"[OAuth] Extracted redirect_to from state: {redirect_to}")
+        except Exception as e:
+            logger.warning(f"[OAuth] Could not decode redirect_to from state: {e}")
+    logger.info(f"Instagram OAuth callback for creator: {creator_id}, website: {website_url}, redirect_to: {redirect_to}")
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -1293,7 +1301,11 @@ async def instagram_oauth_callback(
                 creator_id,
             )
 
-            # Redirect to crear-clon page with success
+            # Redirect to correct page after OAuth success
+            if redirect_to == "settings":
+                return RedirectResponse(
+                    f"{FRONTEND_URL}/new/ajustes?instagram=connected&ig_user_id={instagram_user_id}&ig_username={ig_username}"
+                )
             return RedirectResponse(
                 f"{FRONTEND_URL}/crear-clon?instagram=connected&ig_user_id={instagram_user_id}&ig_username={ig_username}"
             )

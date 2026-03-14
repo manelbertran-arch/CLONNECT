@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { getCreatorConfig, getConnections, getProducts, getBookingLinks, CREATOR_ID } from '@/services/api';
 import {
   Package,
@@ -65,6 +67,15 @@ export default function Ajustes() {
       setSearchParams({ section: s });
     }
   };
+
+  // Handle OAuth callback: show success and navigate to conexiones
+  useEffect(() => {
+    if (searchParams.get('instagram') === 'connected') {
+      toast.success('Instagram conectado correctamente');
+      setSection('conexiones');
+      setSearchParams({ section: 'conexiones' });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Build connections summary
   const connectedPlatforms = [
