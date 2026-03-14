@@ -1137,12 +1137,22 @@ async def instagram_oauth_callback(
     """
     import httpx
 
-    # Handle OAuth errors
+    logger.info(
+        f"[OAuth CALLBACK] Hit! code={'YES' if code else 'NO'}, "
+        f"state={state[:20] if state else 'NONE'}..., "
+        f"error={error}, error_code={error_code}"
+    )
+
+    # Handle OAuth errors from Instagram (user denied, scope rejected, etc.)
     if error or error_code or error_message:
         error_msg = error_description or error_message or error_reason or error or "Unknown error"
-        logger.error(f"Instagram OAuth error: {error_code or error} - {error_msg}")
+        logger.error(
+            f"Instagram OAuth DENIED/ERROR: error={error}, error_code={error_code}, "
+            f"error_message={error_message}, error_reason={error_reason}, "
+            f"error_description={error_description}, state={state}"
+        )
         return RedirectResponse(
-            f"{FRONTEND_URL}/crear-clon?error=instagram_scope_error&message={error_msg}"
+            f"{FRONTEND_URL}/crear-clon?error=instagram_auth_failed&message={error_msg}"
         )
 
     if not code:
