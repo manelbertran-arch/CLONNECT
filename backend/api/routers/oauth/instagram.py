@@ -5,8 +5,9 @@ import os
 import secrets
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
 from services.media_capture_service import capture_media_from_url, is_cdn_url
 
 logger = logging.getLogger(__name__)
@@ -1053,6 +1054,114 @@ async def oauth_debug():
         "google": {
             "client_id_set": bool(os.getenv("GOOGLE_CLIENT_ID", "")),
         },
+    }
+
+
+class InjectTokenRequest(BaseModel):
+    token: str
+    instagram_user_id: str = None  # Optional: will be fetched from /me if not provided
+    expires_days: int = 60         # Long-lived tokens last 60 days
+
+
+@router.post("/instagram/inject-token")
+async def instagram_inject_token(
+    creator_id: str,
+    body: InjectTokenRequest,
+    x_api_key: str = Header(None, alias="X-API-Key"),
+):
+    """
+    Admin-only: Manually inject a valid Instagram token for a creator.
+    Useful when the Developer Portal generates a token and OAuth isn't available.
+    Validates the token against /me before saving.
+    """
+    import httpx
+    from datetime import datetime, timedelta, timezone
+
+    ADMIN_KEY = os.getenv("ADMIN_API_KEY", "clonnect_admin_secret_2024")
+    if x_api_key != ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    token = body.token.strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="Token is required")
+
+    # Validate token by calling /me
+    ig_user_id = body.instagram_user_id
+    ig_username = None
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        # Try graph.instagram.com/me (IGAAT token)
+        me_resp = await client.get(
+            "https://graph.instagram.com/v21.0/me",
+            params={"fields": "id,username,name", "access_token": token},
+        )
+        me_data = me_resp.json()
+        logger.info(f"[InjectToken] /me response for {creator_id}: {me_data}")
+
+        if "error" in me_data:
+            # Try graph.facebook.com/me (EAA token)
+            me_resp2 = await client.get(
+                "https://graph.facebook.com/v21.0/me",
+                params={"fields": "id,name", "access_token": token},
+            )
+            me_data2 = me_resp2.json()
+            logger.info(f"[InjectToken] FB /me response: {me_data2}")
+            if "error" in me_data2:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Token validation failed: {me_data.get('error', {}).get('message', 'unknown error')}",
+                )
+            ig_user_id = ig_user_id or str(me_data2.get("id", ""))
+            ig_username = me_data2.get("name")
+        else:
+            ig_user_id = ig_user_id or str(me_data.get("id", ""))
+            ig_username = me_data.get("username") or me_data.get("name")
+
+        # Try to exchange for long-lived if it looks short-lived
+        long_lived_token = token
+        if token.startswith("IGAAT") and len(token) < 300:
+            for app_secret in [
+                os.getenv("INSTAGRAM_APP_SECRET", ""),
+                "a6f0db4f7d9ae3b80799fdb8b554e221",  # App 892
+            ]:
+                if not app_secret:
+                    continue
+                exchange_resp = await client.get(
+                    "https://graph.instagram.com/access_token",
+                    params={
+                        "grant_type": "ig_exchange_token",
+                        "client_secret": app_secret,
+                        "access_token": token,
+                    },
+                )
+                exchange_data = exchange_resp.json()
+                logger.info(f"[InjectToken] Exchange attempt: {exchange_data}")
+                if "access_token" in exchange_data:
+                    long_lived_token = exchange_data["access_token"]
+                    body.expires_days = exchange_data.get("expires_in", 5183944) // 86400
+                    logger.info(f"[InjectToken] Exchanged to long-lived token ({body.expires_days}d)")
+                    break
+
+    token_expires_at = datetime.now(timezone.utc) + timedelta(days=body.expires_days)
+
+    await _save_instagram_connection(
+        creator_id=creator_id,
+        access_token=long_lived_token,
+        page_id=None,
+        instagram_user_id=ig_user_id,
+        additional_ids=[ig_user_id] if ig_user_id else [],
+        token_expires_at=token_expires_at,
+    )
+
+    return {
+        "ok": True,
+        "creator_id": creator_id,
+        "ig_user_id": ig_user_id,
+        "ig_username": ig_username,
+        "token_prefix": long_lived_token[:20] + "...",
+        "token_length": len(long_lived_token),
+        "exchanged_to_long_lived": long_lived_token != token,
+        "expires_at": token_expires_at.isoformat(),
     }
 
 
