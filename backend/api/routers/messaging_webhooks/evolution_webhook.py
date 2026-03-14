@@ -128,11 +128,11 @@ async def evolution_webhook(request: Request):
         return {"status": "ok", "event": event}
 
     # Handle message deletion ("Delete for everyone")
-    # Evolution/Baileys sends messages.update with messageStubType=REVOKE (or numeric 1)
-    # Some forks send messages.delete instead
-    # Some versions send update.status=5 for deleted messages
+    # Evolution v2.3.7 sends: event="messages.edited" with data.type="REVOKE"
+    # Older versions: event="messages.update" with messageStubType="REVOKE" or 1
+    # Some forks: event="messages.delete"
     event_lower = event.lower().replace("_", ".")
-    if event_lower in ("messages.update", "messages.delete"):
+    if event_lower in ("messages.update", "messages.delete", "messages.edited"):
         data_raw = payload.get("data", {})
         updates = data_raw if isinstance(data_raw, list) else [data_raw]
         handled = 0
@@ -140,29 +140,28 @@ async def evolution_webhook(request: Request):
             key = update.get("key", {})
             msg_id = key.get("id", "")
             stub_type = update.get("messageStubType")
+            update_type = update.get("type")  # Evolution v2.3.7: "REVOKE"
             update_status = update.get("status")
-            # Detect deletion:
-            # - messageStubType "REVOKE" or 1 (Baileys numeric)
-            # - status 5 (PLAYED→deleted in some Evolution versions)
-            # - event messages.delete (direct deletion event)
+            # Detect deletion from any format:
             is_delete = (
                 event_lower == "messages.delete"
                 or stub_type in ("REVOKE", 1, "1")
+                or update_type == "REVOKE"
                 or update_status == 5
             )
             if is_delete and msg_id:
                 logger.info(
                     f"[EVO:{instance}] Delete detected: msg_id={msg_id} "
-                    f"stub={stub_type} status={update_status} fromMe={key.get('fromMe')}"
+                    f"type={update_type} stub={stub_type} status={update_status} "
+                    f"fromMe={key.get('fromMe')}"
                 )
                 asyncio.create_task(_handle_message_deleted(instance, msg_id, key))
                 handled += 1
             else:
-                # Log unhandled update for debugging
                 logger.info(
-                    f"[EVO:{instance}] messages.update (non-delete): "
-                    f"msg_id={msg_id} stub={stub_type} status={update_status} "
-                    f"keys={list(update.keys())[:10]}"
+                    f"[EVO:{instance}] {event} (non-delete): "
+                    f"msg_id={msg_id} type={update_type} stub={stub_type} "
+                    f"status={update_status} keys={list(update.keys())[:10]}"
                 )
         if handled:
             logger.info(f"[EVO:{instance}] Message delete: {handled} message(s) processed")
