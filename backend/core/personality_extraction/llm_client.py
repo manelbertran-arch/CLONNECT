@@ -43,8 +43,8 @@ def _strip_code_blocks(text: str) -> str:
         text = text[:-3].rstrip()
     return text
 
-# Use Flash (not Flash-Lite) for extraction — better quality, 1M context, 65K output
-DEFAULT_EXTRACTION_MODEL = "gemini-2.5-flash"
+# Use Flash-Lite for extraction — 6x cheaper than Flash with acceptable quality
+DEFAULT_EXTRACTION_MODEL = "gemini-2.0-flash-lite"
 
 
 async def call_gemini_extraction(

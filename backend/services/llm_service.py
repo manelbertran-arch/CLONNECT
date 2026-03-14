@@ -64,7 +64,7 @@ class LLMService:
         LLMProvider.GROQ: "llama-3.3-70b-versatile",
         LLMProvider.OPENAI: "gpt-4o-mini",
         LLMProvider.ANTHROPIC: "claude-3-haiku-20240307",
-        LLMProvider.GEMINI: "gemini-2.5-flash-lite",
+        LLMProvider.GEMINI: "gemini-2.0-flash-lite",
     }
 
     # Available models per provider
@@ -87,9 +87,8 @@ class LLMService:
             "claude-3-haiku-20240307",
         ],
         LLMProvider.GEMINI: [
+            "gemini-2.0-flash-lite",
             "gemini-2.5-flash-lite",
-            "gemini-2.0-flash",
-            "gemini-2.5-pro",
         ],
     }
 
@@ -337,7 +336,7 @@ class LLMService:
                 )
                 return LLMResponse(
                     content=content or "",
-                    model=self.model or "gemini-2.5-flash-lite",
+                    model=self.model or "gemini-2.0-flash-lite",
                     tokens_used=0,
                     metadata={"provider": "gemini"},
                 )
@@ -453,7 +452,7 @@ class LLMService:
                     )
                     result = LLMResponse(
                         content=content or "",
-                        model=self.model or "gemini-2.5-flash-lite",
+                        model=self.model or "gemini-2.0-flash-lite",
                         tokens_used=0,
                         metadata={"provider": "gemini"},
                     )
