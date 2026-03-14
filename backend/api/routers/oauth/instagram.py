@@ -1381,16 +1381,49 @@ async def facebook_oauth_callback(
 @router.get("/instagram/start")
 async def instagram_oauth_start(creator_id: str, website_url: str = None, redirect_to: str = None):
     """
-    Start Instagram OAuth flow.
+    Start Instagram OAuth flow using Instagram Business Login.
 
-    Delegates to Facebook Login (EAA tokens) which works reliably for all creators.
-    Instagram Business Login (IGAAT) tokens have known issues with the Graph API,
-    so we use Facebook Login as the primary flow.
+    Uses Instagram Business Login (instagram.com/oauth/authorize) with INSTAGRAM_APP_ID
+    to get IGAAT tokens for Instagram messaging.
     """
+    import base64
+
+    app_id = INSTAGRAM_APP_ID
+
+    if not app_id:
+        raise HTTPException(status_code=503, detail="Instagram OAuth is not configured on this server")
+
+    website_encoded = ""
+    if website_url:
+        website_encoded = base64.urlsafe_b64encode(website_url.encode()).decode()
+    redirect_encoded = base64.urlsafe_b64encode(redirect_to.encode()).decode() if redirect_to else ""
+    state = f"{creator_id}:{secrets.token_urlsafe(16)}:{website_encoded}:{redirect_encoded}"
+
+    scopes = [
+        "instagram_business_basic",
+        "instagram_business_manage_messages",
+    ]
+
+    params = {
+        "client_id": app_id,
+        "redirect_uri": META_REDIRECT_URI,
+        "scope": ",".join(scopes),
+        "response_type": "code",
+        "state": state,
+    }
+
+    auth_url = f"https://www.instagram.com/oauth/authorize?{urlencode(params)}"
+
     logger.info(
-        f"[OAuth] /instagram/start → delegating to Facebook Login flow for {creator_id}"
+        f"Instagram OAuth start (IG Business Login) for {creator_id} with app_id={app_id[:6]}... scopes: {scopes}"
     )
-    return await facebook_oauth_start(creator_id=creator_id, redirect_to=redirect_to)
+
+    return {
+        "auth_url": auth_url,
+        "state": state,
+        "scopes_requested": scopes,
+        "app_id_used": f"{app_id[:6]}...",
+    }
 
 
 @router.get("/instagram/callback")
