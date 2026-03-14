@@ -44,7 +44,8 @@ def _strip_code_blocks(text: str) -> str:
     return text
 
 # Use Flash-Lite for extraction — 6x cheaper than Flash with acceptable quality
-DEFAULT_EXTRACTION_MODEL = "gemini-2.0-flash-lite"
+from core.config.llm_models import GEMINI_PRIMARY_MODEL, safe_model
+DEFAULT_EXTRACTION_MODEL = GEMINI_PRIMARY_MODEL
 
 
 async def call_gemini_extraction(
@@ -65,7 +66,7 @@ async def call_gemini_extraction(
         logger.error("GOOGLE_API_KEY not set")
         return None
 
-    model = model or os.getenv("EXTRACTION_MODEL", DEFAULT_EXTRACTION_MODEL)
+    model = safe_model(model or os.getenv("EXTRACTION_MODEL", DEFAULT_EXTRACTION_MODEL))
     url = f"{GEMINI_API_URL}/{model}:generateContent?key={api_key}"
 
     payload = {

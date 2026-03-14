@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from core.config.llm_models import GEMINI_PRIMARY_MODEL, safe_model
+
 logger = logging.getLogger(__name__)
 
 
@@ -64,7 +66,7 @@ class LLMService:
         LLMProvider.GROQ: "llama-3.3-70b-versatile",
         LLMProvider.OPENAI: "gpt-4o-mini",
         LLMProvider.ANTHROPIC: "claude-3-haiku-20240307",
-        LLMProvider.GEMINI: "gemini-2.0-flash-lite",
+        LLMProvider.GEMINI: GEMINI_PRIMARY_MODEL,
     }
 
     # Available models per provider
@@ -87,6 +89,7 @@ class LLMService:
             "claude-3-haiku-20240307",
         ],
         LLMProvider.GEMINI: [
+            GEMINI_PRIMARY_MODEL,
             "gemini-2.0-flash-lite",
             "gemini-2.5-flash-lite",
         ],
@@ -336,7 +339,7 @@ class LLMService:
                 )
                 return LLMResponse(
                     content=content or "",
-                    model=self.model or "gemini-2.0-flash-lite",
+                    model=safe_model(self.model or GEMINI_PRIMARY_MODEL),
                     tokens_used=0,
                     metadata={"provider": "gemini"},
                 )
@@ -452,7 +455,7 @@ class LLMService:
                     )
                     result = LLMResponse(
                         content=content or "",
-                        model=self.model or "gemini-2.0-flash-lite",
+                        model=safe_model(self.model or GEMINI_PRIMARY_MODEL),
                         tokens_used=0,
                         metadata={"provider": "gemini"},
                     )

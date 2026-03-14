@@ -1,7 +1,7 @@
 """Google Gemini provider for Flash-Lite model inference.
 
 Production DM pipeline:
-  PRIMARY:  Gemini 2.0 Flash-Lite (via Google AI API)
+  PRIMARY:  Gemini Flash-Lite (model from core.config.llm_models.GEMINI_PRIMARY_MODEL)
   FALLBACK: GPT-4o-mini (via OpenAI API)
   Nothing else in the active path.
 
@@ -17,10 +17,12 @@ from typing import Optional
 
 import httpx
 
+from core.config.llm_models import GEMINI_PRIMARY_MODEL, safe_model
+
 logger = logging.getLogger(__name__)
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-DEFAULT_GEMINI_MODEL = "gemini-2.0-flash-lite"
+DEFAULT_GEMINI_MODEL = GEMINI_PRIMARY_MODEL  # kept for backward compat references
 
 # Circuit breaker: skip Gemini for CIRCUIT_BREAKER_COOLDOWN seconds after
 # CIRCUIT_BREAKER_THRESHOLD consecutive failures.
@@ -198,7 +200,7 @@ async def generate_response_gemini(
         logger.error("GOOGLE_API_KEY not set")
         return None
 
-    model = os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+    model = safe_model(os.getenv("GEMINI_MODEL", GEMINI_PRIMARY_MODEL))
 
     # Extract system prompt and user message from OpenAI-format messages
     system_prompt = ""
@@ -241,7 +243,7 @@ async def generate_simple(
     else:
         api_key = os.getenv("GOOGLE_API_KEY")
         if api_key:
-            model = os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+            model = safe_model(os.getenv("GEMINI_MODEL", GEMINI_PRIMARY_MODEL))
             try:
                 result = await asyncio.wait_for(
                     _call_gemini(model, api_key, system_prompt, prompt, max_tokens, temperature),

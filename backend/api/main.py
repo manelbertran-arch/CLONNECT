@@ -89,6 +89,13 @@ logging.warning("=" * 60)
 
 logger = logging.getLogger(__name__)
 
+# LLM model config — log at startup so it's visible in Railway logs
+try:
+    from core.config.llm_models import log_model_config
+    log_model_config()
+except Exception as _e:
+    logging.error("[LLM CONFIG] Failed to log model config: %s", _e)
+
 # Instancias globales
 product_manager = ProductManager()
 config_manager = CreatorConfigManager()
