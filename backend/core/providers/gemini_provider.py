@@ -20,7 +20,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite"
+DEFAULT_GEMINI_MODEL = "gemini-2.0-flash-lite"
 
 # Circuit breaker: skip Gemini for CIRCUIT_BREAKER_COOLDOWN seconds after
 # CIRCUIT_BREAKER_THRESHOLD consecutive failures.
