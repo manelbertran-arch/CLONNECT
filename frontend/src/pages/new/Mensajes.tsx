@@ -88,7 +88,12 @@ export default function Mensajes() {
         .includes(search.toLowerCase())
     );
 
-  const messages = followerDetail?.last_messages || [];
+  const rawMessages = followerDetail?.last_messages || [];
+  // Dedup by platform_message_id to prevent duplicate renders on refetch
+  const messages = rawMessages.filter((msg, idx, arr) => {
+    if (!msg.platform_message_id) return true;
+    return arr.findIndex(m => m.platform_message_id === msg.platform_message_id) === idx;
+  });
 
   // Auto-scroll to bottom when messages load or change
   useEffect(() => {
@@ -343,10 +348,11 @@ export default function Mensajes() {
                   // Determine if this is the last message in a group from same sender
                   const nextMsg = messages[i + 1];
                   const isLastInGroup = !nextMsg || nextMsg.role !== msg.role;
+                  const msgKey = msg.platform_message_id || `${msg.timestamp}-${msg.role}-${i}`;
 
                   return (
                     <MessageRenderer
-                      key={i}
+                      key={msgKey}
                       message={{
                         role: msg.role === 'assistant' ? 'assistant' : 'user',
                         content: msg.content,

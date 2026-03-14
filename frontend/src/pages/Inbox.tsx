@@ -397,12 +397,18 @@ export default function Inbox() {
   const { messages, reactionsByMid } = useMemo(() => {
     const reactions = new Map<string, { emoji: string; isOutgoing: boolean }[]>();
     const visible: Message[] = [];
+    const seenIds = new Set<string>();
     for (const msg of allMessages) {
       if (msg.metadata?.type === 'reaction' && msg.metadata?.reacted_to_mid) {
         const mid = msg.metadata.reacted_to_mid;
         if (!reactions.has(mid)) reactions.set(mid, []);
         reactions.get(mid)!.push({ emoji: msg.metadata.emoji || '❤️', isOutgoing: msg.role === 'assistant' });
       } else {
+        // Dedup by platform_message_id to prevent duplicate renders on refetch
+        if (msg.platform_message_id) {
+          if (seenIds.has(msg.platform_message_id)) continue;
+          seenIds.add(msg.platform_message_id);
+        }
         visible.push(msg);
       }
     }
@@ -824,8 +830,9 @@ export default function Inbox() {
               ) : messages.length > 0 ? (
                 messages.map((msg, idx) => {
                   const isFirstInGroup = idx === 0 || messages[idx - 1]?.role !== msg.role;
+                  const msgKey = msg.platform_message_id || `${msg.timestamp}-${msg.role}-${idx}`;
                   return (
-                    <div key={idx} style={idx === 0 ? undefined : { marginTop: isFirstInGroup ? 16 : 3 }}>
+                    <div key={msgKey} style={idx === 0 ? undefined : { marginTop: isFirstInGroup ? 16 : 3 }}>
                       <MessageRenderer
                         message={msg}
                         platform={chatPlatform}

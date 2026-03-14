@@ -542,6 +542,22 @@ async def _save_evolution_outgoing_message(
                 db.flush()
                 logger.info(f"[EVO:{instance}] Outgoing: created lead {follower_id}")
 
+            # DEDUP: skip if this outgoing message was already saved (e.g. Evolution replay on reconnect)
+            if message_id:
+                existing = (
+                    db.query(Message.id)
+                    .filter(
+                        Message.lead_id == lead.id,
+                        Message.platform_message_id == message_id,
+                    )
+                    .first()
+                )
+                if existing:
+                    logger.info(
+                        f"[EVO:{instance}] Outgoing msg {message_id} already in DB — skipping"
+                    )
+                    return
+
             # Audio Intelligence Pipeline (outgoing — creator's voice)
             if (
                 msg_metadata
