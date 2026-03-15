@@ -209,6 +209,16 @@ def register_startup_handlers(app: "FastAPI"):
                 f"[SCORE_DECAY] Done: {total_updated} leads "
                 f"recalculated across {len(creator_names)} creators"
             )
+            # Return arenas to OS after processing thousands of lead/message objects.
+            # Without this, Python keeps the 256KB arenas → RSS ratchets up by ~1-2GB
+            # after each scoring run and never comes down until process restart.
+            import gc as _gc, ctypes as _ctypes
+            _gc.collect()
+            try:
+                _ctypes.CDLL("libc.so.6").malloc_trim(0)
+                logger.info("[SCORE_DECAY] malloc_trim(0) called after scoring run")
+            except Exception as _e:
+                logger.debug("[SCORE_DECAY] malloc_trim skipped: %s", _e)
 
         scheduler.register("score_decay", _score_decay_job, interval_seconds=86400, initial_delay_seconds=210)
 
@@ -1039,54 +1049,21 @@ def register_startup_handlers(app: "FastAPI"):
             except Exception as e:
                 logger.debug("[MEMORY-CLEANUP] profiles cleanup skipped: %s", e)
 
-            # 2. User context cache — evict expired entries
-            try:
-                from core.user_context_loader import (
-                    _CACHE_TTL_SECONDS,
-                    _cache_timestamps,
-                    _user_context_cache,
-                )
-                expired_keys = [k for k, ts in _cache_timestamps.items() if now - ts > _CACHE_TTL_SECONDS]
-                for k in expired_keys:
-                    _user_context_cache.pop(k, None)
-                    _cache_timestamps.pop(k, None)
-                freed += len(expired_keys)
-                if expired_keys:
-                    logger.debug("[MEMORY-CLEANUP] Evicted %d user context cache entries", len(expired_keys))
-            except Exception as e:
-                logger.debug("[MEMORY-CLEANUP] user_context cleanup skipped: %s", e)
-
-            # 3. Creator data cache — evict expired
-            try:
-                from core.creator_data_loader import (
-                    _CACHE_TTL_SECONDS as _CDL_TTL,
-                    _cache_timestamps as _cdt,
-                    _creator_data_cache,
-                )
-                expired_keys = [k for k, ts in _cdt.items() if now - ts > _CDL_TTL]
-                for k in expired_keys:
-                    _creator_data_cache.pop(k, None)
-                    _cdt.pop(k, None)
-                freed += len(expired_keys)
-            except Exception as e:
-                logger.debug("[MEMORY-CLEANUP] creator_data cleanup skipped: %s", e)
-
-            # 4. DM agent cache — evict expired agents (they're large objects)
-            try:
-                from core.dm.agent import (
-                    _DM_AGENT_CACHE_TTL,
-                    _dm_agent_cache,
-                    _dm_agent_cache_timestamp,
-                )
-                expired_keys = [k for k, ts in _dm_agent_cache_timestamp.items() if now - ts > _DM_AGENT_CACHE_TTL]
-                for k in expired_keys:
-                    _dm_agent_cache.pop(k, None)
-                    _dm_agent_cache_timestamp.pop(k, None)
-                freed += len(expired_keys)
-                if expired_keys:
-                    logger.info("[MEMORY-CLEANUP] Evicted %d expired DM agents", len(expired_keys))
-            except Exception as e:
-                logger.debug("[MEMORY-CLEANUP] dm_agent cleanup skipped: %s", e)
+            # 2-4. BoundedTTLCache instances self-evict on access.
+            # Just log their sizes for monitoring.
+            for cache_label, cache_import in [
+                ("user_context", "core.user_context_loader:_user_context_cache"),
+                ("creator_data", "core.creator_data_loader:_creator_data_cache"),
+                ("dm_agent", "core.dm.agent:_dm_agent_cache"),
+            ]:
+                try:
+                    mod_path, attr = cache_import.split(":")
+                    import importlib
+                    mod = importlib.import_module(mod_path)
+                    cache_obj = getattr(mod, attr)
+                    logger.debug("[MEMORY-CLEANUP] %s cache size: %d", cache_label, len(cache_obj))
+                except Exception as e:
+                    logger.debug("[MEMORY-CLEANUP] %s cleanup skipped: %s", cache_label, e)
 
             # 5. Ghost reactivation tracking — clear old entries (keyed by lead_id, datetime values)
             try:
@@ -1116,6 +1093,18 @@ def register_startup_handlers(app: "FastAPI"):
 
             # 7. Force GC collection cycle
             collected = gc.collect()
+
+            # 7b. Return free arenas to OS (Linux only).
+            # Python's pymalloc keeps 256KB arenas even after GC — malloc_trim
+            # collapses them back to the OS. This is the primary fix for the
+            # RSS ratcheting seen after the scoring job (2490 leads × 100 msgs).
+            try:
+                import ctypes
+                libc = ctypes.CDLL("libc.so.6")
+                libc.malloc_trim(0)
+                logger.debug("[MEMORY-CLEANUP] malloc_trim(0) called")
+            except Exception as _mt_err:
+                logger.debug("[MEMORY-CLEANUP] malloc_trim skipped: %s", _mt_err)
 
             # 8. Log summary
             try:

@@ -393,6 +393,12 @@ async def debug_memory():
     import psutil
 
     gc.collect()
+    # Force arenas back to OS before reading RSS so we see the true minimum
+    try:
+        import ctypes
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
     process = psutil.Process()
     mem = process.memory_info()
 
@@ -462,6 +468,14 @@ async def debug_memory():
     except Exception:
         top_objects = {}
 
+    # Reranker/PyTorch status
+    try:
+        from core.rag.reranker import ENABLE_RERANKING, _reranker
+        reranker_loaded = _reranker is not None
+    except Exception:
+        ENABLE_RERANKING = None
+        reranker_loaded = False
+
     return {
         "rss_mb": round(mem.rss / 1024 / 1024, 1),
         "vms_mb": round(mem.vms / 1024 / 1024, 1),
@@ -477,6 +491,8 @@ async def debug_memory():
         "evo_dedup_size": evo_dedup_size,
         "evo_content_dedup_size": evo_content_dedup_size,
         "api_cache": api_cache_stats,
+        "reranker_enabled": ENABLE_RERANKING,
+        "reranker_loaded": reranker_loaded,
         "top_gc_objects": top_objects,
     }
 
