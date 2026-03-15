@@ -29,7 +29,7 @@ from sqlalchemy import create_engine, text
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
-BASE64_THRESHOLD = 5_000_000  # 5MB — matches _BASE64_MAX in dm.py
+BASE64_THRESHOLD = int(os.getenv("BASE64_THRESHOLD", "0"))  # 0 = migrate ALL remaining base64
 DRY_RUN = "--dry-run" in sys.argv
 
 

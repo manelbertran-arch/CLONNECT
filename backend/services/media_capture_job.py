@@ -100,22 +100,25 @@ def _capture_sync() -> Dict[str, Any]:
                 expired += 1
                 continue
 
-            # Download and encode as base64
+            # Upload to Cloudinary (no base64 fallback — base64 bloats the DB)
             try:
-                resp = requests.get(url, timeout=15, headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; ClonnectBot/1.0)"
-                })
-                if resp.status_code == 200:
-                    content = resp.content
-                    # Skip files > 5MB
-                    if len(content) > 5 * 1024 * 1024:
-                        skipped += 1
-                        continue
+                from services.cloudinary_service import get_cloudinary_service
+                cloudinary = get_cloudinary_service()
+                if not cloudinary.is_configured:
+                    skipped += 1
+                    continue
 
-                    content_type = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
-                    import base64 as b64mod
-                    b64 = b64mod.b64encode(content).decode("utf-8")
-                    meta["thumbnail_base64"] = f"data:{content_type};base64,{b64}"
+                media_type = meta.get("type", "image")
+                result = cloudinary.upload_from_url(
+                    url=url,
+                    media_type=media_type if media_type in ("image", "video", "audio") else "image",
+                    folder="clonnect/media_capture",
+                    tags=["media_capture_job", "auto_captured"],
+                )
+                if result.success and result.url:
+                    meta["permanent_url"] = result.url
+                    # Remove any legacy thumbnail_base64 while we're here
+                    meta.pop("thumbnail_base64", None)
 
                     session.execute(
                         text("UPDATE messages SET msg_metadata = :meta WHERE id = :mid"),
@@ -123,13 +126,10 @@ def _capture_sync() -> Dict[str, Any]:
                     )
                     session.commit()
                     captured += 1
-                elif resp.status_code in (403, 404, 410):
-                    # CDN URL expired or forbidden
-                    expired += 1
                 else:
                     errors += 1
                     logger.warning(
-                        f"[MEDIA_CAPTURE] HTTP {resp.status_code} for msg {msg_id}"
+                        f"[MEDIA_CAPTURE] Cloudinary upload failed for msg {msg_id}: {result.error}"
                     )
             except requests.exceptions.Timeout:
                 errors += 1

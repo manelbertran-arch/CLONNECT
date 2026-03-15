@@ -584,9 +584,9 @@ async def _register_story_interaction(
                     "type": f"story_{interaction_type}",
                     "url": story_url,
                 }
-                # Use saved thumbnail (base64) if available, otherwise use CDN URL
+                # Use saved thumbnail (Cloudinary URL) if available, otherwise use CDN URL
                 if saved_thumbnail:
-                    msg_metadata["thumbnail_base64"] = saved_thumbnail
+                    msg_metadata["permanent_url"] = saved_thumbnail
                 else:
                     msg_metadata["thumbnail_url"] = story_url
 

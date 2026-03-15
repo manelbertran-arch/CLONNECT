@@ -164,55 +164,10 @@ async def capture_media_from_url(
                     "falling back to base64"
                 )
 
-    # Strategy 2: Base64 encoding
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                url,
-                timeout=DOWNLOAD_TIMEOUT_SECONDS,
-                follow_redirects=True,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; ClonnectBot/1.0)"
-                }
-            )
-
-            if response.status_code != 200:
-                logger.warning(
-                    f"[MediaCapture] Download failed: HTTP {response.status_code}"
-                )
-                return None
-
-            content = response.content
-
-            # Check size limit
-            if len(content) > MAX_MEDIA_SIZE_BYTES:
-                logger.warning(
-                    f"[MediaCapture] Media too large for base64: {len(content)} bytes"
-                )
-                return None
-
-            # Get content type
-            content_type = get_content_type_from_headers(dict(response.headers))
-
-            # Encode to base64 data URI
-            b64_content = base64.b64encode(content).decode("utf-8")
-            data_uri = f"data:{content_type};base64,{b64_content}"
-
-            logger.info(
-                f"[MediaCapture] Base64 capture success: {len(content)} bytes, "
-                f"type={content_type}"
-            )
-
-            return data_uri
-
-    except httpx.TimeoutException:
-        logger.warning(
-            f"[MediaCapture] Base64 download timeout after {DOWNLOAD_TIMEOUT_SECONDS}s"
-        )
-        return None
-    except Exception as e:
-        logger.error(f"[MediaCapture] Base64 capture error: {e}")
-        return None
+    # Base64 fallback removed — base64 thumbnails bloat the database.
+    # Cloudinary permanent_url is the only storage strategy.
+    logger.warning("[MediaCapture] Cloudinary failed and base64 fallback disabled — media not captured")
+    return None
 
 
 async def capture_story_thumbnail(

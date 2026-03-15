@@ -462,15 +462,9 @@ async def reconcile_messages_for_creator(
                                     creator_id=creator_id,
                                 )
                                 if captured:
-                                    if captured.startswith("data:"):
-                                        metadata["thumbnail_base64"] = captured
-                                        logger.info(
-                                            f"[Reconciliation] Captured media as base64 for msg {msg_id[:20]}"
-                                        )
-                                    else:
-                                        metadata["permanent_url"] = captured
-                                        logger.info(
-                                            f"[Reconciliation] Captured media to Cloudinary for msg {msg_id[:20]}"
+                                    metadata["permanent_url"] = captured
+                                    logger.info(
+                                        f"[Reconciliation] Captured media to Cloudinary for msg {msg_id[:20]}"
                                         )
                         except Exception as e:
                             logger.warning(f"[Reconciliation] Media capture failed: {e}")

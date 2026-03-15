@@ -26,23 +26,23 @@ SessionLocal = None
 if DATABASE_URL:
     try:
         # Connection pooling with keepalive and pre_ping.
-        # Single uvicorn worker with 23+ asyncio.to_thread background jobs means
-        # pool_size=5 exhausts quickly. 10 base + 10 overflow = 20 max, comfortably
-        # above the asyncio thread pool size (~5-6 on Railway's 1-2 CPU instances).
+        # Reduced from 10+10=20 to 3+5=8 max to allow Neon compute to scale to zero.
+        # idle_in_transaction_session_timeout kills leaked transactions after 60s.
         engine = create_engine(
             DATABASE_URL,
             echo=False,
             poolclass=QueuePool,
-            pool_size=10,  # 10 base connections
-            max_overflow=10,  # 10 overflow (20 max)
-            pool_timeout=10,  # Fail fast (was 30s — too long to hold a request)
-            pool_recycle=1800,  # Recycle connections every 30 minutes (was 5min, too aggressive)
+            pool_size=3,  # 3 base connections (was 10)
+            max_overflow=5,  # 5 overflow (8 max, was 20)
+            pool_timeout=10,  # Fail fast
+            pool_recycle=300,  # Recycle every 5 min (shorter for Neon scale-to-zero)
             pool_pre_ping=True,  # Test connections before using them
             connect_args={
                 "keepalives": 1,
                 "keepalives_idle": 30,
                 "keepalives_interval": 10,
                 "keepalives_count": 5,
+                "options": "-c idle_in_transaction_session_timeout=60000",  # Kill leaked txns after 60s
             }
         )
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

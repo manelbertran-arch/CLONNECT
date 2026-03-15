@@ -826,10 +826,7 @@ async def _simple_dm_sync_internal(
                                     )
                                     if captured:
                                         # Store captured media
-                                        if captured.startswith("data:"):
-                                            msg_metadata["thumbnail_base64"] = captured
-                                        else:
-                                            msg_metadata["permanent_url"] = captured
+                                        msg_metadata["permanent_url"] = captured
                                         logger.debug(f"[DM Sync] Captured media for msg {msg_id}")
                                 except Exception as capture_err:
                                     logger.warning(f"[DM Sync] Media capture failed: {capture_err}")

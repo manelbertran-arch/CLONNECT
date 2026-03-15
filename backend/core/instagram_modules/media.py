@@ -311,20 +311,17 @@ async def _process_story_message(handler, message) -> Optional[Dict[str, Any]]:
                 else:
                     captured = await capture_media_from_url(
                         url=cdn_url, media_type="video",
-                        creator_id=handler.creator_id, use_cloudinary=False,
+                        creator_id=handler.creator_id,
                     )
-                    if captured and captured.startswith("data:"):
-                        story_info["thumbnail_base64"] = captured
+                    if captured:
+                        story_info["permanent_url"] = captured
             else:
                 captured = await capture_media_from_url(
                     url=cdn_url, media_type="video",
-                    creator_id=handler.creator_id, use_cloudinary=False,
+                    creator_id=handler.creator_id,
                 )
                 if captured:
-                    if captured.startswith("data:"):
-                        story_info["thumbnail_base64"] = captured
-                    else:
-                        story_info["permanent_url"] = captured
+                    story_info["permanent_url"] = captured
                     logger.info(f"[IG:{message.sender_id}] Story media captured permanently")
 
     return story_info
@@ -360,24 +357,14 @@ async def _capture_media_permanently(
             if is_cdn_url(media_info["url"]):
                 captured = await capture_media_from_url(
                     url=media_info["url"], media_type=media_type,
-                    creator_id=handler.creator_id, use_cloudinary=False,
+                    creator_id=handler.creator_id,
                 )
-                if captured and captured.startswith("data:"):
-                    media_info["thumbnail_base64"] = captured
-                    logger.info(f"[IG:{sender_id}] Captured media as base64")
-    else:
-        logger.debug("[IG] Cloudinary not configured, capturing as base64")
-        if is_cdn_url(media_info["url"]):
-            captured = await capture_media_from_url(
-                url=media_info["url"], media_type=media_type,
-                creator_id=handler.creator_id, use_cloudinary=False,
-            )
-            if captured:
-                if captured.startswith("data:"):
-                    media_info["thumbnail_base64"] = captured
-                else:
+                if captured:
                     media_info["permanent_url"] = captured
-                logger.info(f"[IG:{sender_id}] Captured media for permanent storage")
+                    logger.info(f"[IG:{sender_id}] Captured media to Cloudinary (fallback)")
+    else:
+        logger.debug("[IG] Cloudinary not configured, skipping media capture")
+        # No base64 fallback — Cloudinary is required for media capture
 
     return media_info
 

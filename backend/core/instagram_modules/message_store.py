@@ -249,10 +249,7 @@ class MessageStore:
                                     creator_id=self.creator_id,
                                 )
                                 if captured:
-                                    if captured.startswith("data:"):
-                                        msg_metadata["thumbnail_base64"] = captured
-                                    else:
-                                        msg_metadata["permanent_url"] = captured
+                                    msg_metadata["permanent_url"] = captured
                                     logger.info(f"[SaveMsg] Captured media for {msg.sender_id}")
                         except Exception as capture_err:
                             logger.warning(f"[SaveMsg] Media capture failed: {capture_err}")
@@ -491,10 +488,7 @@ class MessageStore:
                                 creator_id=self.creator_id,
                             )
                             if captured:
-                                if captured.startswith("data:"):
-                                    msg_metadata["thumbnail_base64"] = captured
-                                else:
-                                    msg_metadata["permanent_url"] = captured
+                                msg_metadata["permanent_url"] = captured
                                 logger.info(f"[SaveUserMsg] Captured media for {msg.sender_id}")
                     except Exception as capture_err:
                         logger.warning(f"[SaveUserMsg] Media capture failed: {capture_err}")

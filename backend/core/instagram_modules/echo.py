@@ -106,18 +106,14 @@ async def record_creator_manual_response(handler, echo_msg: Dict[str, Any]) -> b
                                     url=media_url,
                                     media_type=media_type,
                                     creator_id=handler.creator_id,
-                                    use_cloudinary=False,
                                 )
                                 if captured:
-                                    if captured.startswith("data:"):
-                                        media_info["thumbnail_base64"] = captured
-                                    else:
-                                        media_info["permanent_url"] = captured
+                                    media_info["permanent_url"] = captured
                         except Exception as e:
                             logger.warning(f"[Echo] Media capture failed: {e}")
 
                     # Merge media fields into msg_metadata
-                    for key in ("type", "url", "permanent_url", "thumbnail_base64",
+                    for key in ("type", "url", "permanent_url",
                                 "original_url", "cloudinary_id", "permalink"):
                         if key in media_info:
                             msg_meta[key] = media_info[key]
