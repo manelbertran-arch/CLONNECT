@@ -78,29 +78,14 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                 if not session:
                     return None
                 try:
-                    creator = session.query(Creator).filter_by(name=creator_id).first()
-                    if not creator:
+                    # Select only id — avoid loading API tokens and secrets from Creator
+                    creator_row = session.query(Creator.id).filter(Creator.name == creator_id).first()
+                    if not creator_row:
                         return {"status": "ok", "conversations": [], "count": 0}
-
-                    msg_count_subq = (
-                        session.query(Message.lead_id, func.count(Message.id).label("msg_count"))
-                        .filter(Message.role == "user", Message.status.in_(["sent", "edited"]))
-                        .group_by(Message.lead_id)
-                        .subquery()
-                    )
-
-                    pending_copilot_subq = (
-                        session.query(Message.lead_id, func.count(Message.id).label("pending_count"))
-                        .filter(
-                            Message.role == "assistant",
-                            Message.status == "pending_approval",
-                        )
-                        .group_by(Message.lead_id)
-                        .subquery()
-                    )
+                    creator_uuid = creator_row[0]
 
                     base_filters = [
-                        Lead.creator_id == creator.id,
+                        Lead.creator_id == creator_uuid,
                         not_(Lead.status.in_(["archived", "spam"])),
                     ]
                     if platform:
@@ -113,14 +98,10 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                     )
 
                     effective_limit = total_count if limit >= 500 else limit
-                    results = (
-                        session.query(
-                            Lead,
-                            func.coalesce(msg_count_subq.c.msg_count, 0).label("total_messages"),
-                            func.coalesce(pending_copilot_subq.c.pending_count, 0).label("pending_copilot"),
-                        )
-                        .outerjoin(msg_count_subq, Lead.id == msg_count_subq.c.lead_id)
-                        .outerjoin(pending_copilot_subq, Lead.id == pending_copilot_subq.c.lead_id)
+
+                    # Step 1: Get leads (no message joins) — targeted index scan on leads
+                    leads = (
+                        session.query(Lead)
                         .filter(*base_filters)
                         .order_by(Lead.last_contact_at.desc())
                         .offset(offset)
@@ -128,7 +109,44 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         .all()
                     )
 
-                    lead_ids = [lead.id for lead, _, _ in results]
+                    lead_ids = [lead.id for lead in leads]
+                    if not lead_ids:
+                        return {
+                            "status": "ok",
+                            "conversations": [],
+                            "count": 0,
+                            "total": total_count,
+                            "has_more": False,
+                            "offset": offset,
+                            "limit": limit,
+                            "counts_by_status": {},
+                        }
+
+                    # Step 2: Count user messages — filtered by lead_id IN lead_ids (no global scan)
+                    msg_count_rows = (
+                        session.query(Message.lead_id, func.count(Message.id).label("msg_count"))
+                        .filter(
+                            Message.lead_id.in_(lead_ids),
+                            Message.role == "user",
+                            Message.status.in_(["sent", "edited"]),
+                        )
+                        .group_by(Message.lead_id)
+                        .all()
+                    )
+                    msg_counts = {row.lead_id: row.msg_count for row in msg_count_rows}
+
+                    # Step 3: Count pending copilot — filtered by lead_id IN lead_ids (no global scan)
+                    pending_rows = (
+                        session.query(Message.lead_id, func.count(Message.id).label("pending_count"))
+                        .filter(
+                            Message.lead_id.in_(lead_ids),
+                            Message.role == "assistant",
+                            Message.status == "pending_approval",
+                        )
+                        .group_by(Message.lead_id)
+                        .all()
+                    )
+                    pending_counts = {row.lead_id: row.pending_count for row in pending_rows}
 
                     last_msg_subq = (
                         session.query(
@@ -160,7 +178,9 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                     last_msg_by_lead = {msg.lead_id: msg for msg in last_messages_query}
 
                     conversations = []
-                    for lead, msg_count, pending_copilot in results:
+                    for lead in leads:
+                        msg_count = msg_counts.get(lead.id, 0)
+                        pending_copilot = pending_counts.get(lead.id, 0)
                         ctx = lead.context or {}
 
                         last_msg = last_msg_by_lead.get(lead.id)
