@@ -1015,6 +1015,124 @@ def register_startup_handlers(app: "FastAPI"):
 
         scheduler.register("self_health_watchdog", _self_health_watchdog, interval_seconds=60, initial_delay_seconds=120)
 
+        # =====================================================================
+        # MEMORY CLEANUP JOB: force-evict expired TTL caches + run GC
+        # Runs every 5 minutes to prevent gradual RAM growth from lazy caches.
+        # Many module-level dicts have TTL but only evict on access — this
+        # ensures they're purged even when the code path isn't called.
+        # =====================================================================
+        async def _memory_cleanup_job():
+            import gc
+            import time
+
+            now = time.time()
+            freed = 0
+
+            # 1. User profiles — clear entire dict every cycle (profiles are recreated on demand)
+            try:
+                from core.user_profiles import _profiles
+                count = len(_profiles)
+                if count > 200:
+                    _profiles.clear()
+                    freed += count
+                    logger.info("[MEMORY-CLEANUP] Cleared %d user profile cache entries", count)
+            except Exception as e:
+                logger.debug("[MEMORY-CLEANUP] profiles cleanup skipped: %s", e)
+
+            # 2. User context cache — evict expired entries
+            try:
+                from core.user_context_loader import (
+                    _CACHE_TTL_SECONDS,
+                    _cache_timestamps,
+                    _user_context_cache,
+                )
+                expired_keys = [k for k, ts in _cache_timestamps.items() if now - ts > _CACHE_TTL_SECONDS]
+                for k in expired_keys:
+                    _user_context_cache.pop(k, None)
+                    _cache_timestamps.pop(k, None)
+                freed += len(expired_keys)
+                if expired_keys:
+                    logger.debug("[MEMORY-CLEANUP] Evicted %d user context cache entries", len(expired_keys))
+            except Exception as e:
+                logger.debug("[MEMORY-CLEANUP] user_context cleanup skipped: %s", e)
+
+            # 3. Creator data cache — evict expired
+            try:
+                from core.creator_data_loader import (
+                    _CACHE_TTL_SECONDS as _CDL_TTL,
+                    _cache_timestamps as _cdt,
+                    _creator_data_cache,
+                )
+                expired_keys = [k for k, ts in _cdt.items() if now - ts > _CDL_TTL]
+                for k in expired_keys:
+                    _creator_data_cache.pop(k, None)
+                    _cdt.pop(k, None)
+                freed += len(expired_keys)
+            except Exception as e:
+                logger.debug("[MEMORY-CLEANUP] creator_data cleanup skipped: %s", e)
+
+            # 4. DM agent cache — evict expired agents (they're large objects)
+            try:
+                from core.dm.agent import (
+                    _DM_AGENT_CACHE_TTL,
+                    _dm_agent_cache,
+                    _dm_agent_cache_timestamp,
+                )
+                expired_keys = [k for k, ts in _dm_agent_cache_timestamp.items() if now - ts > _DM_AGENT_CACHE_TTL]
+                for k in expired_keys:
+                    _dm_agent_cache.pop(k, None)
+                    _dm_agent_cache_timestamp.pop(k, None)
+                freed += len(expired_keys)
+                if expired_keys:
+                    logger.info("[MEMORY-CLEANUP] Evicted %d expired DM agents", len(expired_keys))
+            except Exception as e:
+                logger.debug("[MEMORY-CLEANUP] dm_agent cleanup skipped: %s", e)
+
+            # 5. Ghost reactivation tracking — clear old entries (keyed by lead_id, datetime values)
+            try:
+                from core.ghost_reactivation import _reactivated_leads
+                from datetime import datetime, timedelta, timezone
+                cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+                expired_keys = [k for k, dt in _reactivated_leads.items() if dt < cutoff]
+                for k in expired_keys:
+                    _reactivated_leads.pop(k, None)
+                freed += len(expired_keys)
+            except Exception as e:
+                logger.debug("[MEMORY-CLEANUP] ghost_reactivation cleanup skipped: %s", e)
+
+            # 6. SSE: evict hung queues (queue full = client not consuming events)
+            try:
+                from api.routers.events import _active_connections
+                for creator_id, queues in list(_active_connections.items()):
+                    hung = [q for q in queues if q.full()]
+                    for q in hung:
+                        queues.remove(q)
+                        freed += 1
+                        logger.warning("[MEMORY-CLEANUP] Evicted hung SSE queue for %s", creator_id)
+                    if not queues:
+                        _active_connections.pop(creator_id, None)
+            except Exception as e:
+                logger.debug("[MEMORY-CLEANUP] SSE cleanup skipped: %s", e)
+
+            # 7. Force GC collection cycle
+            collected = gc.collect()
+
+            # 8. Log summary
+            try:
+                import psutil
+                rss_mb = psutil.Process().memory_info().rss / 1024 / 1024
+            except Exception:
+                rss_mb = -1
+
+            all_tasks = asyncio.all_tasks()
+            logger.info(
+                "[MEMORY-CLEANUP] Done: freed=%d cache entries, gc_collected=%d, "
+                "rss=%.0fMB, asyncio_tasks=%d",
+                freed, collected, rss_mb, len(all_tasks),
+            )
+
+        scheduler.register("memory_cleanup", _memory_cleanup_job, interval_seconds=300, initial_delay_seconds=120)
+
         # Start all registered scheduled tasks
         await scheduler.start_all()
 

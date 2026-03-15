@@ -372,8 +372,9 @@ class UserProfile:
         }
 
 
-# Cache global de perfiles
+# Cache global de perfiles — bounded to prevent memory growth with many followers
 _profiles: Dict[str, UserProfile] = {}
+_PROFILES_MAXSIZE = 500  # max concurrent cached profiles
 
 
 def get_user_profile(
@@ -386,6 +387,11 @@ def get_user_profile(
     """
     cache_key = f"{creator_id}:{user_id}"
     if cache_key not in _profiles:
+        # Enforce maxsize: evict oldest half when at limit
+        if len(_profiles) >= _PROFILES_MAXSIZE:
+            evict_count = _PROFILES_MAXSIZE // 2
+            for k in list(_profiles.keys())[:evict_count]:
+                del _profiles[k]
         _profiles[cache_key] = UserProfile(user_id, creator_id, storage_path)
     return _profiles[cache_key]
 

@@ -20,6 +20,11 @@ router = APIRouter(prefix="/events", tags=["events"])
 # Registry of active SSE connections per creator
 _active_connections: Dict[str, list[asyncio.Queue]] = {}
 
+# Max queued events before a connection is considered hung (client not consuming)
+_SSE_QUEUE_MAXSIZE = 100
+# Max SSE connections per creator (prevents runaway frontend reconnects)
+_SSE_MAX_CONNECTIONS_PER_CREATOR = 10
+
 
 async def notify_creator(creator_id: str, event_type: str, data: Dict[str, Any]) -> int:
     """
@@ -106,10 +111,24 @@ async def event_stream(
     if not token or not _verify_token_for_creator(token, creator_id):
         raise HTTPException(status_code=401, detail="Invalid or missing token")
 
-    queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+    queue: asyncio.Queue = asyncio.Queue(maxsize=_SSE_QUEUE_MAXSIZE)
 
     if creator_id not in _active_connections:
         _active_connections[creator_id] = []
+
+    # Evict oldest hung connections if at limit (full queue = client not consuming)
+    conns = _active_connections[creator_id]
+    if len(conns) >= _SSE_MAX_CONNECTIONS_PER_CREATOR:
+        # Find and remove the oldest full queue (hung client)
+        full_queues = [q for q in conns if q.full()]
+        if full_queues:
+            conns.remove(full_queues[0])
+            logger.warning("[SSE] Evicted hung connection for %s (queue full)", creator_id)
+        else:
+            # All queues active but at limit — evict oldest (index 0)
+            conns.pop(0)
+            logger.warning("[SSE] Evicted oldest connection for %s (at max %d)", creator_id, _SSE_MAX_CONNECTIONS_PER_CREATOR)
+
     _active_connections[creator_id].append(queue)
 
     logger.info(
@@ -130,9 +149,15 @@ async def event_stream(
                     # Send keepalive ping to prevent connection timeout
                     yield f"data: {json.dumps({'type': 'ping'})}\n\n"
         finally:
-            _active_connections[creator_id].remove(queue)
-            if not _active_connections[creator_id]:
-                del _active_connections[creator_id]
+            # Safe removal — guard against race condition where key was already deleted
+            conns = _active_connections.get(creator_id)
+            if conns is not None:
+                try:
+                    conns.remove(queue)
+                except ValueError:
+                    pass  # Already removed by eviction
+                if not conns:
+                    _active_connections.pop(creator_id, None)
             logger.info("[SSE] Client disconnected for %s", creator_id)
 
     return StreamingResponse(

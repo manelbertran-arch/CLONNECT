@@ -381,6 +381,106 @@ async def get_booking_links_public(creator_name: str):
         raise HTTPException(status_code=500, detail=safe_error_detail(e, "fetching booking links"))
 
 
+# =============================================================================
+# DEBUG: MEMORY PROFILING ENDPOINT (temporary — remove after diagnosis)
+# =============================================================================
+@app.get("/debug/memory")
+async def debug_memory():
+    import asyncio
+    import gc
+    import sys
+
+    import psutil
+
+    gc.collect()
+    process = psutil.Process()
+    mem = process.memory_info()
+
+    # Asyncio task count (fire-and-forget leak indicator)
+    all_tasks = asyncio.all_tasks()
+    task_names = {}
+    for t in all_tasks:
+        name = t.get_name() or "unnamed"
+        # Group by first segment (e.g. "scheduler:reconciliation")
+        key = name.split(":")[0] if ":" in name else name[:40]
+        task_names[key] = task_names.get(key, 0) + 1
+
+    # SSE connection counts
+    try:
+        from api.routers.events import _active_connections
+        sse_connections = {k: len(v) for k, v in _active_connections.items()}
+        sse_total = sum(sse_connections.values())
+    except Exception:
+        sse_connections = {}
+        sse_total = 0
+
+    # User profiles cache size
+    try:
+        from core.user_profiles import _profiles
+        profiles_cache_size = len(_profiles)
+    except Exception:
+        profiles_cache_size = -1
+
+    # API cache stats
+    try:
+        from api.cache import api_cache
+        api_cache_stats = api_cache.stats()
+    except Exception:
+        api_cache_stats = {}
+
+    # DM agent cache size
+    try:
+        from core.dm.agent import _dm_agent_cache
+        dm_agent_cache_size = len(_dm_agent_cache)
+    except Exception:
+        dm_agent_cache_size = -1
+
+    # BM25 retrievers
+    try:
+        from core.rag.bm25 import _retrievers
+        bm25_cache_size = len(_retrievers)
+    except Exception:
+        bm25_cache_size = -1
+
+    # Evolution dedup dict sizes
+    try:
+        from api.routers.messaging_webhooks.evolution_webhook import (
+            _evo_content_dedup,
+            _evo_processed_messages,
+        )
+        evo_dedup_size = len(_evo_processed_messages)
+        evo_content_dedup_size = len(_evo_content_dedup)
+    except Exception:
+        evo_dedup_size = -1
+        evo_content_dedup_size = -1
+
+    # Top object counts (GC-visible)
+    try:
+        from collections import Counter
+        obj_counts = Counter(type(o).__name__ for o in gc.get_objects())
+        top_objects = dict(obj_counts.most_common(20))
+    except Exception:
+        top_objects = {}
+
+    return {
+        "rss_mb": round(mem.rss / 1024 / 1024, 1),
+        "vms_mb": round(mem.vms / 1024 / 1024, 1),
+        "gc_objects": len(gc.get_objects()),
+        "gc_garbage": len(gc.garbage),
+        "asyncio_tasks_total": len(all_tasks),
+        "asyncio_tasks_by_type": task_names,
+        "sse_connections": sse_connections,
+        "sse_total_queues": sse_total,
+        "profiles_cache_size": profiles_cache_size,
+        "dm_agent_cache_size": dm_agent_cache_size,
+        "bm25_cache_size": bm25_cache_size,
+        "evo_dedup_size": evo_dedup_size,
+        "evo_content_dedup_size": evo_content_dedup_size,
+        "api_cache": api_cache_stats,
+        "top_gc_objects": top_objects,
+    }
+
+
 # ---------------------------------------------------------
 # STARTUP (handlers in api/startup.py)
 # ---------------------------------------------------------
