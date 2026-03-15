@@ -1,7 +1,7 @@
 """Add performance indexes and strip thumbnail_base64 from messages JSONB.
 
-Revision ID: 038
-Revises: 037
+Revision ID: 039
+Revises: 038
 Create Date: 2026-03-15
 
 Background:
@@ -37,8 +37,8 @@ Data migration:
 from alembic import op
 
 
-revision = "038"
-down_revision = "037"
+revision = "039"
+down_revision = "038"
 branch_labels = None
 depends_on = None
 
@@ -85,7 +85,7 @@ def upgrade():
     # nurturing_followups: cron job query pattern
     op.execute("""
         CREATE INDEX IF NOT EXISTS idx_nurturing_followups_creator_status_scheduled
-        ON nurturing_followups (creator_id, status, scheduled_for);
+        ON nurturing_followups (creator_id, status, scheduled_at);
     """)
 
 

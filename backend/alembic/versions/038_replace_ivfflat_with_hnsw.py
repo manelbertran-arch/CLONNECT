@@ -1,17 +1,21 @@
-"""replace IVFFlat index with HNSW for lead_memories
+"""Replace IVFFlat index with HNSW for lead_memories.
 
 IVFFlat with lists=100 requires at least 100 rows to work correctly.
 HNSW works well with any number of rows and provides better recall.
 
-Revision ID: 033
-Revises: 032
+Revision ID: 038
+Revises: 037
 Create Date: 2026-02-23
+
+Note: This migration was originally numbered 033 but conflicted with
+033_add_personality_docs_table.py (same revision ID). Renumbered to 038
+to slot correctly after the applied chain (037).
 """
 
 from alembic import op
 
-revision = "033"
-down_revision = "032"
+revision = "038"
+down_revision = "037"
 branch_labels = None
 depends_on = None
 
