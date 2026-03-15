@@ -151,10 +151,13 @@ async def generate_thumbnails(creator_id: str, limit: int = 10, admin: str = Dep
                     # Generate screenshot
                     preview = await ScreenshotService.capture_instagram_post(url)
 
-                    if preview and preview.get("thumbnail_base64"):
-                        # Update metadata with thumbnail
-                        metadata["thumbnail_base64"] = preview["thumbnail_base64"]
+                    if preview and (preview.get("thumbnail_base64") or preview.get("thumbnail_url")):
+                        # Store URL reference only — never save base64 to DB (bloats msg_metadata)
+                        if preview.get("thumbnail_url"):
+                            metadata["permanent_url"] = preview["thumbnail_url"]
+                        # thumbnail_base64 is intentionally NOT stored in DB
                         metadata["needs_thumbnail"] = False  # Mark as processed
+                        metadata.pop("thumbnail_base64", None)  # Strip if present
                         msg.msg_metadata = metadata
                         results["thumbnails_generated"] += 1
                     else:

@@ -30,6 +30,9 @@ MIN_MESSAGES_FULL_ANALYSIS = 3
 # Max concurrent LLM calls
 MAX_CONCURRENT = 3
 
+# Max chars of conversation body per LLM call (prevents >200K token prompts)
+MAX_CONV_BODY_CHARS = 40000  # ~10K tokens — sufficient for analysis
+
 LEAD_ANALYSIS_SYSTEM_PROMPT = """Eres un analista experto en comportamiento conversacional humano, psicología de ventas y diseño de sistemas conversacionales autónomos.
 
 Tu tarea es analizar UNA conversación real entre un creador de contenido y un lead/seguidor, y extraer patrones de comunicación con la máxima precisión.
@@ -97,12 +100,18 @@ async def _analyze_single_lead(
         name = conv.full_name or conv.username or "Unknown"
         logger.info("Analyzing lead @%s (%s) — %d creator msgs", conv.username, name, conv.creator_real_count)
 
+        # Truncate conversation body to prevent huge prompts
+        body = conv.body
+        if len(body) > MAX_CONV_BODY_CHARS:
+            body = body[:MAX_CONV_BODY_CHARS] + "\n\n[... conversación truncada por longitud ...]"
+            logger.info("Truncated conv body for @%s: %d → %d chars", conv.username, len(conv.body), MAX_CONV_BODY_CHARS)
+
         user_message = (
             f"Creador: {creator_name}\n"
             f"Lead: {name} (@{conv.username})\n"
             f"Mensajes totales: {conv.total_messages} | Creador real: {conv.creator_real_count} | Lead: {conv.lead_count}\n"
             f"Período: {conv.period_start} → {conv.period_end}\n\n"
-            f"{conv.body}"
+            f"{body}"
         )
 
         raw_text = await extract_with_llm(

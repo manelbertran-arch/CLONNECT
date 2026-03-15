@@ -113,8 +113,11 @@ class PersonalityExtractor:
             logger.info("═══ PHASE 0: Data Cleaning ═══")
             _s = _SL()
             try:
+                # Default limit: 50 leads to cap LLM costs in Phase 2
+                # (each lead = 1 LLM call). Override via limit_leads param.
+                effective_limit = limit_leads or int(os.getenv("EXTRACTION_MAX_LEADS", "50"))
                 conversations, stats = extract_conversations(
-                    _s, creator_id, min_messages=1, limit_leads=limit_leads,
+                    _s, creator_id, min_messages=1, limit_leads=effective_limit,
                 )
             finally:
                 _s.close()
