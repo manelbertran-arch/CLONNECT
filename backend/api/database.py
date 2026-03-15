@@ -42,7 +42,9 @@ if DATABASE_URL:
                 "keepalives_idle": 30,
                 "keepalives_interval": 10,
                 "keepalives_count": 5,
-                "options": "-c idle_in_transaction_session_timeout=60000",  # Kill leaked txns after 60s
+                # NOTE: do NOT pass idle_in_transaction_session_timeout here —
+                # Neon pgbouncer rejects unsupported startup parameters.
+                # Neon already sets idle_in_transaction_session_timeout=5min at DB level.
             }
         )
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
