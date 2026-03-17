@@ -138,7 +138,7 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                     msg_sql = _text("""
                         SELECT lead_id, COUNT(*) as msg_count
                         FROM messages
-                        WHERE lead_id = ANY(:lead_ids::uuid[])
+                        WHERE lead_id = ANY(CAST(:lead_ids AS uuid[]))
                           AND role = 'user'
                           AND status IN ('sent', 'edited')
                         GROUP BY lead_id
@@ -150,7 +150,7 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                     pending_sql = _text("""
                         SELECT lead_id, COUNT(*) as pending_count
                         FROM messages
-                        WHERE lead_id = ANY(:lead_ids::uuid[])
+                        WHERE lead_id = ANY(CAST(:lead_ids AS uuid[]))
                           AND role = 'assistant'
                           AND status = 'pending_approval'
                         GROUP BY lead_id
@@ -164,7 +164,7 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         SELECT DISTINCT ON (lead_id)
                             lead_id, role, content, created_at, msg_metadata
                         FROM messages
-                        WHERE lead_id = ANY(:lead_ids::uuid[])
+                        WHERE lead_id = ANY(CAST(:lead_ids AS uuid[]))
                           AND status IN ('sent', 'edited')
                           AND deleted_at IS NULL
                         ORDER BY lead_id, created_at DESC
