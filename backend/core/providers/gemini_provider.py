@@ -172,8 +172,17 @@ async def _call_gemini(
             )
             await asyncio.sleep(2)
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 429:
+            status = e.response.status_code
+            if status == 429:
                 wait = 2 ** attempt + 1
+                await asyncio.sleep(wait)
+                continue
+            if status == 503:
+                wait = 2 ** attempt  # 1s, 2s, 4s
+                logger.warning(
+                    "Gemini 503 Service Unavailable, retrying in %ds (attempt %d/%d)",
+                    wait, attempt + 1, max_retries,
+                )
                 await asyncio.sleep(wait)
                 continue
             logger.error("Gemini HTTP error: %s", e)
@@ -263,6 +272,7 @@ async def generate_simple(
                 _gemini_record_failure()
 
     # 2. Fallback: GPT-4o-mini
+    logger.warning("[LLM-FALLBACK] Gemini failed (generate_simple), using OpenAI GPT-4o-mini")
     try:
         result = await _call_openai_mini(messages, max_tokens, temperature)
         if result and result.get("content"):
@@ -271,6 +281,7 @@ async def generate_simple(
     except Exception as e:
         logger.error("generate_simple: OpenAI fallback failed: %s", e)
 
+    logger.critical("[LLM-ALL-DOWN] No LLM provider available (generate_simple)")
     return None
 
 
@@ -379,6 +390,7 @@ async def generate_dm_response(
             _gemini_record_failure()
 
     # 2. FALLBACK: GPT-4o-mini
+    logger.warning("[LLM-FALLBACK] Gemini failed, using OpenAI GPT-4o-mini")
     try:
         result = await _call_openai_mini(messages, max_tokens, temperature)
         if result:
@@ -389,5 +401,5 @@ async def generate_dm_response(
         logger.error("GPT-4o-mini fallback failed: %s", e)
 
     # 3. Both failed
-    logger.error("All LLM providers failed (Flash-Lite + GPT-4o-mini)")
+    logger.critical("[LLM-ALL-DOWN] No LLM provider available — Gemini and GPT-4o-mini both failed")
     return None
