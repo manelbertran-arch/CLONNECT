@@ -1246,3 +1246,221 @@ async def refresh_profiles(
         "has_ig_token": bool(ig_token),
         "message": "Profile refresh running in background. Check logs for results.",
     }
+
+
+@router.post("/sync-wa-contacts/{creator_name}")
+async def sync_wa_contacts(
+    creator_name: str,
+    limit: int = Query(default=1000, description="Max leads to update"),
+):
+    """
+    Bulk sync WA profile pics and names from Evolution API contacts cache.
+    Uses findContacts endpoint (no per-contact API calls needed).
+    """
+    import aiohttp
+
+    wa_instance = _INSTANCE_MAP.get(creator_name)
+    if not wa_instance:
+        raise HTTPException(status_code=400, detail=f"No WA instance for {creator_name}")
+
+    evo_url = os.getenv("EVOLUTION_API_URL", "https://evolution-api-production-d840.up.railway.app")
+    evo_key = os.getenv("EVOLUTION_API_KEY", "clonnect-evo-2026-prod")
+
+    # Fetch all contacts from Evolution
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+        async with session.post(
+            f"{evo_url}/chat/findContacts/{wa_instance}",
+            json={},
+            headers={"apikey": evo_key, "Content-Type": "application/json"},
+        ) as resp:
+            if resp.status != 200:
+                raise HTTPException(status_code=502, detail=f"Evolution API error: {resp.status}")
+            contacts = await resp.json()
+
+    # Build lookup: number -> {pic, name}
+    contact_map = {}
+    for c in contacts:
+        jid = c.get("remoteJid", "")
+        if not jid or c.get("isGroup"):
+            continue
+        number = jid.split("@")[0]
+        pic_url = c.get("profilePicUrl") or ""
+        push_name = c.get("pushName") or ""
+        if pic_url or push_name:
+            contact_map[number] = {"pic": pic_url, "name": push_name}
+
+    # Update DB leads
+    def _sync():
+        s = SessionLocal()
+        try:
+            creator = s.query(Creator).filter_by(name=creator_name).first()
+            if not creator:
+                return {"error": "Creator not found"}
+
+            leads = (
+                s.query(Lead)
+                .filter(Lead.creator_id == creator.id, Lead.platform == "whatsapp")
+                .limit(limit)
+                .all()
+            )
+
+            updated_pics = 0
+            updated_names = 0
+            matched = 0
+
+            for lead in leads:
+                puid = lead.platform_user_id or ""
+                number = puid.replace("wa_", "").lstrip("+")
+                contact = contact_map.get(number)
+                if not contact:
+                    continue
+                matched += 1
+                changed = False
+
+                if (not lead.profile_pic_url) and contact["pic"]:
+                    lead.profile_pic_url = contact["pic"]
+                    updated_pics += 1
+                    changed = True
+
+                if (not lead.full_name) and contact["name"]:
+                    name = contact["name"].strip()
+                    if not name.replace("+", "").replace(" ", "").isdigit():
+                        lead.full_name = name
+                        updated_names += 1
+                        changed = True
+
+            s.commit()
+            return {
+                "total_leads": len(leads),
+                "evolution_contacts": len(contact_map),
+                "matched": matched,
+                "updated_pics": updated_pics,
+                "updated_names": updated_names,
+            }
+        finally:
+            s.close()
+
+    result = await asyncio.to_thread(_sync)
+    return {"creator": creator_name, "instance": wa_instance, **result}
+
+
+@router.post("/sync-ig-public/{creator_name}")
+async def sync_ig_public_profiles(
+    creator_name: str,
+    limit: int = Query(default=100, description="Max leads to process"),
+    delay: float = Query(default=2.5, ge=1.0, le=10.0, description="Seconds between requests"),
+):
+    """
+    Fetch IG profile pics via public Instagram API (no Graph API consent needed).
+    Runs in background on server. Works for leads that have a username.
+    """
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+        creator_id_str = str(creator.id)
+    finally:
+        session.close()
+
+    async def _bg_sync():
+        import aiohttp
+
+        updated_pics = 0
+        updated_names = 0
+        rate_limited = False
+
+        def _get_leads():
+            s = SessionLocal()
+            try:
+                return [
+                    (str(l.id), l.username, l.full_name, l.profile_pic_url)
+                    for l in s.query(Lead).filter(
+                        Lead.creator_id == creator_id_str,
+                        Lead.platform == "instagram",
+                        Lead.username.isnot(None),
+                        Lead.username != "",
+                        or_(
+                            Lead.profile_pic_url.is_(None),
+                            Lead.profile_pic_url == "",
+                        ),
+                    ).order_by(Lead.last_contact_at.desc().nullslast()).limit(limit).all()
+                ]
+            finally:
+                s.close()
+
+        leads = await asyncio.to_thread(_get_leads)
+        logger.info(f"[IGPublicSync] {creator_name}: {len(leads)} leads need pics")
+
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as http:
+            for i, (lead_id, username, full_name, pic_url) in enumerate(leads):
+                if rate_limited:
+                    break
+
+                try:
+                    async with http.get(
+                        f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}",
+                        headers={
+                            "User-Agent": "Instagram 76.0.0.15.395 Android",
+                            "x-ig-app-id": "936619743392459",
+                        },
+                    ) as resp:
+                        if resp.status in (401, 429):
+                            logger.warning(f"[IGPublicSync] Rate limited at {i+1}/{len(leads)}")
+                            rate_limited = True
+                            break
+
+                        if resp.status == 200:
+                            data = await resp.json()
+                            user = data.get("data", {}).get("user", {})
+                            if user:
+                                new_pic = user.get("profile_pic_url_hd") or user.get("profile_pic_url", "")
+                                new_name = user.get("full_name", "")
+
+                                updates = {}
+                                if new_pic and not pic_url:
+                                    updates["pic"] = new_pic
+                                if new_name and not full_name:
+                                    updates["name"] = new_name
+
+                                if updates:
+                                    def _update(lid=lead_id, u=updates):
+                                        s = SessionLocal()
+                                        try:
+                                            lead = s.query(Lead).get(lid)
+                                            if lead:
+                                                if "pic" in u:
+                                                    lead.profile_pic_url = u["pic"]
+                                                if "name" in u:
+                                                    lead.full_name = u["name"]
+                                                s.commit()
+                                                return True
+                                            return False
+                                        finally:
+                                            s.close()
+
+                                    if await asyncio.to_thread(_update):
+                                        if "pic" in updates:
+                                            updated_pics += 1
+                                        if "name" in updates:
+                                            updated_names += 1
+
+                except Exception:
+                    pass
+
+                await asyncio.sleep(delay)
+
+        logger.info(
+            f"[IGPublicSync] {creator_name} DONE: {updated_pics} pics, {updated_names} names"
+            f" (processed {min(i+1, len(leads))}/{len(leads)}, rate_limited={rate_limited})"
+        )
+
+    asyncio.create_task(_bg_sync())
+
+    return {
+        "status": "started",
+        "creator": creator_name,
+        "limit": limit,
+        "delay_seconds": delay,
+        "message": "IG public profile sync running in background.",
+    }
