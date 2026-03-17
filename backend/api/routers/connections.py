@@ -208,9 +208,11 @@ async def disconnect_platform(creator_id: str, platform: str):
                 if platform == "instagram":
                     creator.instagram_token = None
                     creator.instagram_page_id = None
-                    creator.instagram_user_id = None
+                    # NOTE: intentionally keep instagram_user_id and instagram_additional_ids
+                    # so that incoming webhooks can still be routed to this creator while
+                    # the token is null (they won't be processed, but won't be saved as
+                    # "unmatched" either). They are overwritten on reconnect.
                     creator.instagram_token_expires_at = None
-                    creator.instagram_additional_ids = None
                 elif platform == "telegram":
                     creator.telegram_bot_token = None
                 elif platform == "whatsapp":
