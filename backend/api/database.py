@@ -32,8 +32,8 @@ if DATABASE_URL:
             DATABASE_URL,
             echo=False,
             poolclass=QueuePool,
-            pool_size=3,  # 3 base connections (was 10)
-            max_overflow=5,  # 5 overflow (8 max, was 20)
+            pool_size=5,  # 5 base connections (was 3 — too low with background scoring)
+            max_overflow=7,  # 7 overflow (12 max)
             pool_timeout=10,  # Fail fast
             pool_recycle=300,  # Recycle every 5 min (shorter for Neon scale-to-zero)
             pool_pre_ping=True,  # Test connections before using them

@@ -73,6 +73,14 @@ def get_creator_by_page_id(page_id: str) -> Optional[Dict[str, Any]]:
             if not creator:
                 creator = session.query(Creator).filter_by(instagram_user_id=page_id).first()
 
+            # Also search in instagram_additional_ids (JSON array)
+            if not creator:
+                creator = (
+                    session.query(Creator)
+                    .filter(Creator.instagram_additional_ids.contains([page_id]))
+                    .first()
+                )
+
             if not creator:
                 logger.warning(f"No creator found for page_id: {page_id}")
                 _creator_by_page_id_cache[page_id] = (None, current_time)

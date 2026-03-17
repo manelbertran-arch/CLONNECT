@@ -535,7 +535,7 @@ def batch_recalculate_scores(session, creator_id: str) -> dict:
     return results
 
 
-def batch_recalculate_scores_paged(creator_id: str, batch_size: int = 50) -> dict:
+def batch_recalculate_scores_paged(creator_id: str, batch_size: int = 25) -> dict:
     """
     Recalculate scores for all leads of a creator using small, independent batches.
 
@@ -595,9 +595,10 @@ def batch_recalculate_scores_paged(creator_id: str, batch_size: int = 50) -> dic
         finally:
             session.close()
 
-        # Brief pause between batches so other queries can acquire a DB connection
+        # Pause between batches so API requests can acquire a DB connection.
+        # 500ms is enough for a request to check out + release a connection.
         if page_start + batch_size < len(lead_ids):
-            time.sleep(0.05)
+            time.sleep(0.5)
 
     logger.info(
         f"[SCORING-V3] Paged complete: {results['updated']}/{results['total']} leads. "
