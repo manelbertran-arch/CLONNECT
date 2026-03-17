@@ -1065,3 +1065,180 @@ async def reconcile_creator(
         "lookback_hours": lookback_hours,
         "message": "Reconciliation running in background. Check logs for results.",
     }
+
+
+# Instance name mapping (mirrors evolution_webhook.py)
+_INSTANCE_MAP = {
+    "iris_bertran": "iris-bertran",
+    "stefano_bonanno": "stefano-fitpack",
+}
+
+
+@router.post("/refresh-profiles/{creator_name}")
+async def refresh_profiles(
+    creator_name: str,
+    platform: str = Query(default="all", description="whatsapp, instagram, or all"),
+    limit: int = Query(default=100, description="Max leads to process"),
+):
+    """
+    Bulk refresh profile pictures and display names for leads missing them.
+
+    Runs in background. Fetches from Evolution API (WA) and Instagram Graph API (IG).
+    """
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+        creator_id = creator.id
+        ig_token = creator.instagram_token
+        ig_user_id = creator.instagram_user_id or creator.instagram_page_id
+    finally:
+        session.close()
+
+    wa_instance = _INSTANCE_MAP.get(creator_name)
+
+    async def _refresh():
+        updated_wa = 0
+        updated_ig = 0
+        errors = 0
+
+        # --- WhatsApp profile refresh ---
+        if platform in ("whatsapp", "all") and wa_instance:
+            try:
+                from services.evolution_api import fetch_profile_picture
+
+                def _get_wa_leads_missing_pic():
+                    s = SessionLocal()
+                    try:
+                        return [
+                            (str(l.id), l.platform_user_id, l.full_name)
+                            for l in s.query(Lead).filter(
+                                Lead.creator_id == creator_id,
+                                Lead.platform == "whatsapp",
+                                or_(
+                                    Lead.profile_pic_url.is_(None),
+                                    Lead.profile_pic_url == "",
+                                ),
+                            ).limit(limit).all()
+                        ]
+                    finally:
+                        s.close()
+
+                wa_leads = await asyncio.to_thread(_get_wa_leads_missing_pic)
+                logger.info(f"[ProfileRefresh] {creator_name} WA: {len(wa_leads)} leads missing pics")
+
+                for lead_id, puid, full_name in wa_leads:
+                    try:
+                        number = puid.replace("wa_", "").lstrip("+")
+                        pic_url = await fetch_profile_picture(wa_instance, number)
+                        if pic_url:
+                            def _update_wa(lid=lead_id, url=pic_url):
+                                s = SessionLocal()
+                                try:
+                                    lead = s.query(Lead).get(lid)
+                                    if lead:
+                                        lead.profile_pic_url = url
+                                        s.commit()
+                                        return True
+                                    return False
+                                finally:
+                                    s.close()
+
+                            if await asyncio.to_thread(_update_wa):
+                                updated_wa += 1
+                        await asyncio.sleep(0.5)  # Rate limit
+                    except Exception as e:
+                        errors += 1
+                        if errors > 10:
+                            logger.warning(f"[ProfileRefresh] Too many errors, stopping WA refresh")
+                            break
+
+                logger.info(f"[ProfileRefresh] {creator_name} WA: {updated_wa} pics updated")
+
+            except Exception as e:
+                logger.error(f"[ProfileRefresh] WA refresh failed: {e}")
+
+        # --- Instagram profile refresh ---
+        if platform in ("instagram", "all") and ig_token:
+            try:
+                from core.instagram_profile import fetch_instagram_profile
+
+                def _get_ig_leads_missing():
+                    s = SessionLocal()
+                    try:
+                        return [
+                            (str(l.id), l.platform_user_id, l.username)
+                            for l in s.query(Lead).filter(
+                                Lead.creator_id == creator_id,
+                                Lead.platform == "instagram",
+                                or_(
+                                    Lead.profile_pic_url.is_(None),
+                                    Lead.profile_pic_url == "",
+                                    Lead.full_name.is_(None),
+                                    Lead.username.is_(None),
+                                ),
+                            ).limit(limit).all()
+                        ]
+                    finally:
+                        s.close()
+
+                ig_leads = await asyncio.to_thread(_get_ig_leads_missing)
+                logger.info(f"[ProfileRefresh] {creator_name} IG: {len(ig_leads)} leads missing info")
+
+                for lead_id, puid, username in ig_leads:
+                    try:
+                        uid = puid.replace("ig_", "") if puid else ""
+                        if not uid:
+                            continue
+                        profile = await fetch_instagram_profile(
+                            user_id=uid,
+                            access_token=ig_token,
+                        )
+                        if profile:
+                            def _update_ig(lid=lead_id, p=profile):
+                                s = SessionLocal()
+                                try:
+                                    lead = s.query(Lead).get(lid)
+                                    if lead:
+                                        if p.get("username") and not lead.username:
+                                            lead.username = p["username"]
+                                        if p.get("name") and not lead.full_name:
+                                            lead.full_name = p["name"]
+                                        if p.get("profile_pic") and not lead.profile_pic_url:
+                                            lead.profile_pic_url = p["profile_pic"]
+                                        s.commit()
+                                        return True
+                                    return False
+                                finally:
+                                    s.close()
+
+                            if await asyncio.to_thread(_update_ig):
+                                updated_ig += 1
+                        await asyncio.sleep(0.5)  # Rate limit
+                    except Exception as e:
+                        errors += 1
+                        if errors > 10:
+                            logger.warning(f"[ProfileRefresh] Too many errors, stopping IG refresh")
+                            break
+
+                logger.info(f"[ProfileRefresh] {creator_name} IG: {updated_ig} profiles updated")
+
+            except Exception as e:
+                logger.error(f"[ProfileRefresh] IG refresh failed: {e}")
+
+        logger.info(
+            f"[ProfileRefresh] {creator_name} DONE: WA={updated_wa}, IG={updated_ig}, errors={errors}"
+        )
+
+    asyncio.create_task(_refresh())
+
+    return {
+        "status": "started",
+        "creator": creator_name,
+        "platform": platform,
+        "limit": limit,
+        "wa_instance": wa_instance,
+        "has_ig_token": bool(ig_token),
+        "message": "Profile refresh running in background. Check logs for results.",
+    }
