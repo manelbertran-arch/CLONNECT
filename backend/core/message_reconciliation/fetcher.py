@@ -34,15 +34,22 @@ async def get_instagram_conversations(
     """
     conversations = []
 
-    # Determine API base
+    # Determine API base and conversations URL.
+    # IGAAT tokens (Instagram Business Login) must use /me/conversations because
+    # the ASID returned by /me differs from the IGSID expected by /{id}/conversations.
+    # EAA tokens (Facebook Login) use the explicit page/user ID path.
     api_base = "https://graph.instagram.com/v21.0"
     if access_token.startswith("EAA"):
         api_base = "https://graph.facebook.com/v21.0"
+        conversations_url = f"{api_base}/{ig_user_id}/conversations"
+    else:
+        # IGAAT — always use /me/conversations
+        conversations_url = f"{api_base}/me/conversations"
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
             # First, fetch conversation IDs only (smaller request)
-            url = f"{api_base}/{ig_user_id}/conversations"
+            url = conversations_url
             params = {
                 "fields": "id,participants",
                 "access_token": access_token,

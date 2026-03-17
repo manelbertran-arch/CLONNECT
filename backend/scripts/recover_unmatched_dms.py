@@ -18,13 +18,14 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger("recover_dms")
 
 CREATOR_NAME = "iris_bertran"
-LOOKBACK_HOURS = 72
+LOOKBACK_HOURS = 96
 
 # All known iris IDs — must not create leads for these
 IRIS_KNOWN_IDS = {
     "34327644223517531",   # ASID from IGAAT /me endpoint
-    "17841400999933058",   # IGSID in conversation participants
-    "17841400506734756",   # legacy webhook entry.id
+    "17841400999933058",   # IGSID in conversation participants (@iraais5)
+    "17841400506734756",   # legacy webhook entry.id (old business account)
+    "iraais5",             # username fallback
 }
 
 API_BASE = "https://graph.instagram.com/v21.0"
@@ -34,9 +35,15 @@ async def fetch_conversations(token: str, ig_user_id: str, limit: int = 50):
     """Fetch conversations + messages from Instagram API."""
     conversations = []
     async with httpx.AsyncClient(timeout=30.0) as client:
+        # IGAAT tokens need /me/conversations; EAA tokens use /{id}/conversations
+        if token.startswith("EAA"):
+            conv_url = f"{API_BASE}/{ig_user_id}/conversations"
+        else:
+            conv_url = f"{API_BASE}/me/conversations"
+
         # Fetch conversation list
         resp = await client.get(
-            f"{API_BASE}/{ig_user_id}/conversations",
+            conv_url,
             params={"fields": "id,participants", "access_token": token, "limit": limit},
         )
         if resp.status_code != 200:
@@ -186,10 +193,7 @@ async def run():
         if not follower_id:
             continue
 
-        # Only process if in sender_ids (skip if none found in unmatched)
-        if sender_ids and follower_id not in sender_ids:
-            continue
-
+        # Process ALL conversations (unmatched webhook senders may be on a different account)
         total_convs += 1
         logger.info(f"--- Conversation with {follower_id} ({len(messages_data)} messages) ---")
 
