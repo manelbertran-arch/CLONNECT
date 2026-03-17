@@ -1585,7 +1585,10 @@ async def instagram_oauth_callback(
                         )
                         break
                     else:
-                        logger.warning(f"Token exchange {method_name} failed: {long_token_data}")
+                        logger.warning(
+                            f"Token exchange {method_name} failed "
+                            f"(HTTP {long_token_response.status_code}): {long_token_data}"
+                        )
                 except Exception as exc:
                     logger.warning(f"Token exchange {method_name} exception: {exc}")
 
