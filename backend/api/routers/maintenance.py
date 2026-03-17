@@ -1130,7 +1130,9 @@ async def refresh_profiles(
 
                 for lead_id, puid, full_name in wa_leads:
                     try:
-                        number = puid.replace("wa_", "").lstrip("+")
+                        number = puid.replace("wa_", "").lstrip("+").split("-")[0]
+                        if len(number) > 15 or not number.isdigit():
+                            continue  # Skip group chats / invalid numbers
                         pic_url = await fetch_profile_picture(wa_instance, number)
                         if pic_url:
                             def _update_wa(lid=lead_id, url=pic_url):
@@ -1162,7 +1164,7 @@ async def refresh_profiles(
         # --- Instagram profile refresh ---
         if platform in ("instagram", "all") and ig_token:
             try:
-                from core.instagram_profile import fetch_instagram_profile
+                from core.instagram_profile import fetch_instagram_profile_detailed
 
                 def _get_ig_leads_missing():
                     s = SessionLocal()
@@ -1191,10 +1193,11 @@ async def refresh_profiles(
                         uid = puid.replace("ig_", "") if puid else ""
                         if not uid:
                             continue
-                        profile = await fetch_instagram_profile(
+                        result = await fetch_instagram_profile_detailed(
                             user_id=uid,
                             access_token=ig_token,
                         )
+                        profile = result.profile if result.success else None
                         if profile:
                             def _update_ig(lid=lead_id, p=profile):
                                 s = SessionLocal()
