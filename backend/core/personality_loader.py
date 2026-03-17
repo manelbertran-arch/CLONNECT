@@ -20,11 +20,10 @@ from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# In-memory cache: creator_id -> (ExtractionData, timestamp)
-_cache: Dict[str, Tuple[Optional["ExtractionData"], float]] = {}
-
-# Cache TTL: 5 minutes (hot-reload without restart)
+# In-memory cache — bounded to prevent memory leaks
+from core.cache import BoundedTTLCache
 _CACHE_TTL = float(os.getenv("PERSONALITY_CACHE_TTL", "300"))
+_cache = BoundedTTLCache(max_size=50, ttl_seconds=_CACHE_TTL)
 
 EXTRACTIONS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
@@ -112,13 +111,9 @@ def load_extraction(creator_id: str) -> Optional[ExtractionData]:
     Returns None if no extraction exists in either location.
     Cache expires after PERSONALITY_CACHE_TTL seconds (default 300s / 5 min).
     """
-    now = time.time()
-    if creator_id in _cache:
-        cached_data, cached_ts = _cache[creator_id]
-        if (now - cached_ts) < _CACHE_TTL:
-            return cached_data
-        # TTL expired — reload
-        logger.info("Personality cache expired for %s, reloading", creator_id)
+    cached = _cache.get(creator_id)
+    if cached is not None:
+        return cached
 
     # 1. Try DB first (primary — survives Railway deploys)
     content = _load_doc_d_from_db(creator_id)
@@ -136,12 +131,11 @@ def load_extraction(creator_id: str) -> Optional[ExtractionData]:
                 logger.error("Failed to read doc_d from disk for %s: %s", creator_id, e)
 
     if not content:
-        _cache[creator_id] = (None, now)
         return None
 
     try:
         data = _parse_doc_d(creator_id, content)
-        _cache[creator_id] = (data, now)
+        _cache.set(creator_id, data)
         logger.info(
             "Loaded personality extraction for %s (source=%s): "
             "prompt=%d chars, blacklist=%d, pools=%d cats, multi_bubble=%d",
@@ -151,7 +145,6 @@ def load_extraction(creator_id: str) -> Optional[ExtractionData]:
         return data
     except Exception as e:
         logger.error("Failed to parse personality extraction for %s: %s", creator_id, e)
-        _cache[creator_id] = (None, now)
         return None
 
 

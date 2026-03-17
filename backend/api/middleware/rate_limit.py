@@ -109,15 +109,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         "/openapi.json",
         "/redoc",
         "/favicon.ico",
+        "/events",  # SSE connections are long-lived, not burst traffic
     }
 
-    # Paths with higher limits (webhooks need more throughput)
+    # Paths with higher limits (webhooks + dashboard need more throughput)
     HIGH_LIMIT_PATHS = {
         "/webhook/instagram",
         "/webhook/telegram",
         "/webhook/stripe",
         "/webhook/hotmart",
         "/webhook/whatsapp",
+        "/dm/",           # Dashboard polling (conversations, follower detail)
+        "/copilot/",      # Copilot pending suggestions polling
+        "/dashboard/",    # Dashboard overview/metrics
     }
 
     def __init__(
@@ -156,8 +160,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         path = request.url.path
 
-        # Skip excluded paths
-        if path in self.EXCLUDED_PATHS:
+        # Skip excluded paths (prefix match for paths like /events/creator_id)
+        if any(path == p or path.startswith(p + "/") for p in self.EXCLUDED_PATHS):
             return await call_next(request)
 
         # Get client identifier

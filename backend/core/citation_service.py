@@ -468,23 +468,24 @@ class CreatorContentIndex:
         }
 
 
-# Cache de indices
-_index_cache: Dict[str, CreatorContentIndex] = {}
+# Cache de indices — bounded to prevent memory leaks
+from core.cache import BoundedTTLCache
+_index_cache = BoundedTTLCache(max_size=20, ttl_seconds=900)
 
 
 def get_content_index(creator_id: str) -> CreatorContentIndex:
     """Obtiene o crea el indice de contenido de un creador."""
-    if creator_id not in _index_cache:
-        index = CreatorContentIndex(creator_id)
-        index.load()  # Intentar cargar (DB primero, luego JSON)
-        _index_cache[creator_id] = index
-
-    return _index_cache[creator_id]
+    cached = _index_cache.get(creator_id)
+    if cached is not None:
+        return cached
+    index = CreatorContentIndex(creator_id)
+    index.load()  # Intentar cargar (DB primero, luego JSON)
+    _index_cache.set(creator_id, index)
+    return index
 
 
 def clear_index_cache(creator_id: Optional[str] = None) -> None:
     """Limpia el cache de indices."""
-    global _index_cache
     if creator_id:
         _index_cache.pop(creator_id, None)
     else:
@@ -502,8 +503,6 @@ def reload_creator_index(creator_id: str) -> bool:
     Returns:
         True si se recargó correctamente
     """
-    global _index_cache
-
     # Eliminar del cache si existe
     _index_cache.pop(creator_id, None)
 
@@ -512,7 +511,7 @@ def reload_creator_index(creator_id: str) -> bool:
     loaded = index.load()
 
     if loaded:
-        _index_cache[creator_id] = index
+        _index_cache.set(creator_id, index)
         logger.info(f"Reloaded index for {creator_id}: {len(index.chunks)} chunks")
 
     return loaded
@@ -778,7 +777,6 @@ def delete_content_index(creator_id: str) -> bool:
         deleted_any = True
 
     # 3. Limpiar cache
-    if creator_id in _index_cache:
-        del _index_cache[creator_id]
+    _index_cache.pop(creator_id, None)
 
     return deleted_any

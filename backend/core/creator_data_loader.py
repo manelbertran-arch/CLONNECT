@@ -509,8 +509,8 @@ def load_creator_data(creator_id: str) -> CreatorData:
 # CACHE LAYER (optional, for performance)
 # =============================================================================
 
-_creator_data_cache: Dict[str, CreatorData] = {}
-_cache_timestamps: Dict[str, float] = {}
+from core.cache import BoundedTTLCache
+_creator_data_cache = BoundedTTLCache(max_size=20, ttl_seconds=300)
 _CACHE_TTL_SECONDS = 300  # 5 minutes
 
 
@@ -525,37 +525,30 @@ def get_creator_data(creator_id: str, use_cache: bool = True) -> CreatorData:
     Returns:
         CreatorData instance
     """
-    import time
-
-    if use_cache and creator_id in _creator_data_cache:
-        cache_age = time.time() - _cache_timestamps.get(creator_id, 0)
-        if cache_age < _CACHE_TTL_SECONDS:
-            logger.debug(f"Using cached CreatorData for {creator_id} (age: {cache_age:.1f}s)")
-            return _creator_data_cache[creator_id]
+    if use_cache:
+        cached = _creator_data_cache.get(creator_id)
+        if cached is not None:
+            logger.debug(f"Using cached CreatorData for {creator_id}")
+            return cached
 
     # Load fresh data
     data = load_creator_data(creator_id)
 
     # Cache it
-    _creator_data_cache[creator_id] = data
-    _cache_timestamps[creator_id] = time.time()
+    _creator_data_cache.set(creator_id, data)
 
     return data
 
 
 def invalidate_creator_cache(creator_id: str):
     """Invalidate cached data for a creator."""
-    if creator_id in _creator_data_cache:
-        del _creator_data_cache[creator_id]
-    if creator_id in _cache_timestamps:
-        del _cache_timestamps[creator_id]
+    _creator_data_cache.pop(creator_id, None)
     logger.debug(f"Cache invalidated for {creator_id}")
 
 
 def clear_all_cache():
     """Clear all cached creator data."""
     _creator_data_cache.clear()
-    _cache_timestamps.clear()
     logger.debug("All creator data cache cleared")
 
 

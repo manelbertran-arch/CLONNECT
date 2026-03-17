@@ -20,7 +20,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 # RAG results cache: avoid repeating full search pipeline for same query
-_rag_cache: dict = {}
+# Bounded to prevent memory leaks
+from core.cache import BoundedTTLCache
+_rag_cache = BoundedTTLCache(max_size=200, ttl_seconds=300)
 RAG_CACHE_TTL = 300  # 5 minutes
 
 # =============================================================================
@@ -138,11 +140,10 @@ class SemanticRAG:
 
         # Check RAG results cache
         cache_key = f"{creator_id}:{query.strip().lower()}"
-        now = time.time()
         cached = _rag_cache.get(cache_key)
-        if cached and (now - cached["ts"]) < RAG_CACHE_TTL:
+        if cached is not None:
             logger.info(f"[RAG] Cache hit: '{query[:50]}'")
-            return cached["results"]
+            return cached
 
         t0 = time.time()
 
@@ -184,7 +185,7 @@ class SemanticRAG:
             )
 
         # Store in cache
-        _rag_cache[cache_key] = {"results": semantic_results, "ts": now}
+        _rag_cache.set(cache_key, semantic_results)
 
         return semantic_results
 

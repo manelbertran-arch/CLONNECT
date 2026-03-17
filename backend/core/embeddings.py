@@ -17,7 +17,9 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIMENSIONS = 1536
 
 # Embedding cache: avoid repeated OpenAI API calls for same query
-_embedding_cache: dict = {}
+# Bounded to prevent memory leaks (each embedding = 1536 floats ≈ 12KB)
+from core.cache import BoundedTTLCache
+_embedding_cache = BoundedTTLCache(max_size=200, ttl_seconds=600)
 EMBEDDING_CACHE_TTL = 600  # 10 minutes
 
 # Similarity threshold for semantic search
@@ -55,11 +57,10 @@ def generate_embedding(text: str) -> Optional[List[float]]:
     """
     # Check cache first
     cache_key = text.strip().lower()
-    now = time.time()
     cached = _embedding_cache.get(cache_key)
-    if cached and (now - cached["ts"]) < EMBEDDING_CACHE_TTL:
+    if cached is not None:
         logger.info(f"[EMBEDDING] Cache hit: '{text[:50]}'")
-        return cached["embedding"]
+        return cached
 
     client = get_openai_client()
     if not client:
@@ -74,7 +75,7 @@ def generate_embedding(text: str) -> Optional[List[float]]:
         response = client.embeddings.create(model=EMBEDDING_MODEL, input=text)
 
         embedding = response.data[0].embedding
-        _embedding_cache[cache_key] = {"embedding": embedding, "ts": now}
+        _embedding_cache.set(cache_key, embedding)
         logger.info(f"[EMBEDDING] Cache miss, stored: '{text[:50]}'")
         return embedding
 

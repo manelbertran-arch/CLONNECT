@@ -615,8 +615,11 @@ DMResponderAgent = DMResponderAgentV2
 # FACTORY FUNCTIONS (singleton pattern with caching)
 # =============================================================================
 
-_dm_agent_cache: Dict[str, DMResponderAgentV2] = {}
-_dm_agent_cache_timestamp: Dict[str, float] = {}
+from core.cache import BoundedTTLCache
+_dm_agent_cache = BoundedTTLCache(
+    max_size=20,  # Max 20 agents in memory (~20-50MB each)
+    ttl_seconds=AGENT_THRESHOLDS.agent_cache_ttl,
+)
 _DM_AGENT_CACHE_TTL = AGENT_THRESHOLDS.agent_cache_ttl
 
 
@@ -632,20 +635,14 @@ def get_dm_agent(creator_id: str) -> DMResponderAgentV2:
     Returns:
         DMResponderAgentV2 instance (cached or new)
     """
-    import time
-
-    cache_key = creator_id
-    now = time.time()
-    cache_age = now - _dm_agent_cache_timestamp.get(cache_key, 0)
-
-    if cache_age < _DM_AGENT_CACHE_TTL and cache_key in _dm_agent_cache:
+    cached = _dm_agent_cache.get(creator_id)
+    if cached is not None:
         logger.debug(f"get_dm_agent: reusing cached agent for {creator_id}")
-        return _dm_agent_cache[cache_key]
+        return cached
 
     # Create new agent and cache it
     agent = DMResponderAgentV2(creator_id=creator_id)
-    _dm_agent_cache[cache_key] = agent
-    _dm_agent_cache_timestamp[cache_key] = now
+    _dm_agent_cache.set(creator_id, agent)
     logger.info(f"get_dm_agent: created new agent for {creator_id}")
     return agent
 
@@ -661,9 +658,7 @@ def invalidate_dm_agent_cache(creator_id: str = None) -> None:
     """
     if creator_id:
         _dm_agent_cache.pop(creator_id, None)
-        _dm_agent_cache_timestamp.pop(creator_id, None)
         logger.info(f"Invalidated DM agent cache for {creator_id}")
     else:
         _dm_agent_cache.clear()
-        _dm_agent_cache_timestamp.clear()
         logger.info("Invalidated all DM agent caches")

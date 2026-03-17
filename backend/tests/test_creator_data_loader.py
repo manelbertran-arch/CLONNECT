@@ -295,24 +295,21 @@ class TestCaching:
     def test_cache_invalidation(self):
         from core.creator_data_loader import (
             CreatorData,
-            _cache_timestamps,
             _creator_data_cache,
             clear_all_cache,
             invalidate_creator_cache,
         )
 
         # Add to cache manually
-        _creator_data_cache["test_creator"] = CreatorData(creator_id="test_creator")
-        _cache_timestamps["test_creator"] = 12345.0
+        _creator_data_cache.set("test_creator", CreatorData(creator_id="test_creator"))
 
         # Invalidate
         invalidate_creator_cache("test_creator")
         assert "test_creator" not in _creator_data_cache
-        assert "test_creator" not in _cache_timestamps
 
         # Clear all
-        _creator_data_cache["a"] = CreatorData(creator_id="a")
-        _creator_data_cache["b"] = CreatorData(creator_id="b")
+        _creator_data_cache.set("a", CreatorData(creator_id="a"))
+        _creator_data_cache.set("b", CreatorData(creator_id="b"))
         clear_all_cache()
         assert len(_creator_data_cache) == 0
 

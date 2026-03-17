@@ -460,9 +460,9 @@ def _calculate_flags(context: UserContext):
 # CACHE LAYER
 # =============================================================================
 
-_user_context_cache: Dict[str, UserContext] = {}
-_cache_timestamps: Dict[str, float] = {}
+from core.cache import BoundedTTLCache
 _CACHE_TTL_SECONDS = 60  # 1 minute (shorter than creator data)
+_user_context_cache = BoundedTTLCache(max_size=200, ttl_seconds=_CACHE_TTL_SECONDS)
 
 
 def get_user_context(
@@ -485,22 +485,19 @@ def get_user_context(
     Returns:
         UserContext instance
     """
-    import time
-
     cache_key = f"{creator_id}:{follower_id}"
 
-    if use_cache and cache_key in _user_context_cache:
-        cache_age = time.time() - _cache_timestamps.get(cache_key, 0)
-        if cache_age < _CACHE_TTL_SECONDS:
+    if use_cache:
+        cached = _user_context_cache.get(cache_key)
+        if cached is not None:
             logger.debug(f"Using cached UserContext for {cache_key}")
-            return _user_context_cache[cache_key]
+            return cached
 
     # Load fresh data
     context = load_user_context(creator_id, follower_id, username, name)
 
     # Cache it
-    _user_context_cache[cache_key] = context
-    _cache_timestamps[cache_key] = time.time()
+    _user_context_cache.set(cache_key, context)
 
     return context
 
@@ -508,16 +505,12 @@ def get_user_context(
 def invalidate_user_cache(creator_id: str, follower_id: str):
     """Invalidate cached data for a user."""
     cache_key = f"{creator_id}:{follower_id}"
-    if cache_key in _user_context_cache:
-        del _user_context_cache[cache_key]
-    if cache_key in _cache_timestamps:
-        del _cache_timestamps[cache_key]
+    _user_context_cache.pop(cache_key, None)
 
 
 def clear_all_user_cache():
     """Clear all cached user data."""
     _user_context_cache.clear()
-    _cache_timestamps.clear()
 
 
 # =============================================================================

@@ -188,3 +188,77 @@ def get_search_cache() -> QueryCache:
     if _search_cache is None:
         _search_cache = QueryCache(max_size=200, ttl_seconds=3600)  # 1 hour
     return _search_cache
+
+
+class BoundedTTLCache:
+    """
+    Simple bounded dict with TTL and LRU eviction.
+
+    Drop-in replacement for unbounded `_cache: dict = {}` patterns.
+    When max_size is reached, evicts the oldest 20% of entries.
+    """
+
+    def __init__(self, max_size: int = 100, ttl_seconds: float = 300):
+        self.max_size = max_size
+        self.ttl_seconds = ttl_seconds
+        self._data: Dict[str, Any] = {}
+        self._timestamps: Dict[str, float] = {}
+
+    def get(self, key: str) -> Optional[Any]:
+        if key not in self._data:
+            return None
+        age = time.time() - self._timestamps.get(key, 0)
+        if age > self.ttl_seconds:
+            self._data.pop(key, None)
+            self._timestamps.pop(key, None)
+            return None
+        self._timestamps[key] = time.time()  # refresh access time
+        return self._data[key]
+
+    def set(self, key: str, value: Any):
+        if len(self._data) >= self.max_size and key not in self._data:
+            self._evict()
+        self._data[key] = value
+        self._timestamps[key] = time.time()
+
+    def pop(self, key: str, default: Any = None) -> Any:
+        self._timestamps.pop(key, None)
+        return self._data.pop(key, default)
+
+    def clear(self):
+        self._data.clear()
+        self._timestamps.clear()
+
+    def _evict(self):
+        """Remove oldest 20% of entries."""
+        if not self._timestamps:
+            return
+        n_evict = max(1, len(self._timestamps) // 5)
+        oldest = sorted(self._timestamps, key=self._timestamps.get)[:n_evict]
+        for k in oldest:
+            self._data.pop(k, None)
+            self._timestamps.pop(k, None)
+
+    def __contains__(self, key: str) -> bool:
+        if key not in self._data:
+            return False
+        age = time.time() - self._timestamps.get(key, 0)
+        if age > self.ttl_seconds:
+            self._data.pop(key, None)
+            self._timestamps.pop(key, None)
+            return False
+        return True
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __delitem__(self, key: str):
+        self._data.pop(key, None)
+        self._timestamps.pop(key, None)
+
+    def stats(self) -> Dict[str, Any]:
+        return {
+            "size": len(self._data),
+            "max_size": self.max_size,
+            "ttl_seconds": self.ttl_seconds,
+        }

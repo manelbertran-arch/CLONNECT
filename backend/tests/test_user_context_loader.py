@@ -273,23 +273,21 @@ class TestCaching:
     def test_cache_invalidation(self):
         from core.user_context_loader import (
             UserContext,
-            _cache_timestamps,
             _user_context_cache,
             clear_all_user_cache,
             invalidate_user_cache,
         )
 
         # Add to cache manually
-        _user_context_cache["c1:f1"] = UserContext(follower_id="f1", creator_id="c1")
-        _cache_timestamps["c1:f1"] = 12345.0
+        _user_context_cache.set("c1:f1", UserContext(follower_id="f1", creator_id="c1"))
 
         # Invalidate specific
         invalidate_user_cache("c1", "f1")
         assert "c1:f1" not in _user_context_cache
 
         # Clear all
-        _user_context_cache["a:b"] = UserContext(follower_id="b", creator_id="a")
-        _user_context_cache["c:d"] = UserContext(follower_id="d", creator_id="c")
+        _user_context_cache.set("a:b", UserContext(follower_id="b", creator_id="a"))
+        _user_context_cache.set("c:d", UserContext(follower_id="d", creator_id="c"))
         clear_all_user_cache()
         assert len(_user_context_cache) == 0
 

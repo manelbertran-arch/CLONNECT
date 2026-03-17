@@ -18,6 +18,136 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+@router.get("/debug/memory")
+async def debug_memory(admin: str = Depends(require_admin)):
+    """
+    Memory usage diagnostic endpoint.
+    Shows RSS, cache sizes, and top objects by size.
+    """
+    import gc
+    import os
+    import resource
+    import sys
+
+    result = {}
+
+    # 1. Process memory (RSS)
+    try:
+        rusage = resource.getrusage(resource.RUSAGE_SELF)
+        result["rss_mb"] = round(rusage.ru_maxrss / (1024 * 1024), 1)  # macOS: bytes
+    except Exception:
+        result["rss_mb"] = "unavailable"
+
+    # Try /proc/self/status for Linux (Railway)
+    try:
+        with open("/proc/self/status") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    result["rss_mb"] = round(int(line.split()[1]) / 1024, 1)
+                    break
+    except FileNotFoundError:
+        pass
+
+    # 2. Cache sizes
+    caches = {}
+    try:
+        from core.embeddings import _embedding_cache
+        caches["embedding_cache"] = _embedding_cache.stats()
+    except Exception as e:
+        caches["embedding_cache"] = str(e)
+
+    try:
+        from core.rag.semantic import _rag_cache
+        caches["rag_cache"] = _rag_cache.stats()
+    except Exception as e:
+        caches["rag_cache"] = str(e)
+
+    try:
+        from core.dm.agent import _dm_agent_cache
+        caches["dm_agent_cache"] = _dm_agent_cache.stats()
+    except Exception as e:
+        caches["dm_agent_cache"] = str(e)
+
+    try:
+        from core.creator_data_loader import _creator_data_cache
+        caches["creator_data_cache"] = _creator_data_cache.stats()
+    except Exception as e:
+        caches["creator_data_cache"] = str(e)
+
+    try:
+        from core.citation_service import _index_cache
+        caches["index_cache"] = _index_cache.stats()
+    except Exception as e:
+        caches["index_cache"] = str(e)
+
+    try:
+        from core.tone_profile_db import _tone_cache
+        caches["tone_cache"] = _tone_cache.stats()
+    except Exception as e:
+        caches["tone_cache"] = str(e)
+
+    try:
+        from core.personality_loader import _cache as personality_cache
+        caches["personality_cache"] = personality_cache.stats()
+    except Exception as e:
+        caches["personality_cache"] = str(e)
+
+    try:
+        from services.knowledge_base import _kb_cache
+        caches["kb_cache"] = _kb_cache.stats()
+    except Exception as e:
+        caches["kb_cache"] = str(e)
+
+    try:
+        from core.semantic_memory_pgvector import _memory_cache
+        caches["semantic_memory_pgvector"] = {"size": len(_memory_cache)}
+    except Exception as e:
+        caches["semantic_memory_pgvector"] = str(e)
+
+    try:
+        from core.cache import get_response_cache, get_search_cache
+        rc = get_response_cache()
+        sc = get_search_cache()
+        caches["response_cache"] = rc.stats()
+        caches["search_cache"] = sc.stats()
+    except Exception as e:
+        caches["lru_caches"] = str(e)
+
+    result["caches"] = caches
+
+    # 3. ML models loaded
+    ml_models = {}
+    try:
+        from core.rag.reranker import _reranker
+        ml_models["cross_encoder"] = "loaded" if _reranker is not None else "not_loaded"
+    except Exception:
+        ml_models["cross_encoder"] = "import_failed"
+
+    if "sentence_transformers" in sys.modules:
+        ml_models["sentence_transformers_imported"] = True
+    if "torch" in sys.modules:
+        ml_models["torch_imported"] = True
+
+    result["ml_models"] = ml_models
+
+    # 4. GC stats
+    gc_stats = gc.get_stats()
+    result["gc"] = {
+        f"gen{i}": {"collections": s["collections"], "collected": s["collected"], "uncollectable": s["uncollectable"]}
+        for i, s in enumerate(gc_stats)
+    }
+
+    # 5. Top object types by count
+    gc.collect()
+    type_counts = {}
+    for obj in gc.get_objects():
+        t = type(obj).__name__
+        type_counts[t] = type_counts.get(t, 0) + 1
+    result["top_types"] = dict(sorted(type_counts.items(), key=lambda x: -x[1])[:15])
+
+    return result
+
+
 @router.get("/debug-raw-messages/{creator_id}/{username}")
 async def debug_raw_messages(creator_id: str, username: str, admin: str = Depends(require_admin)):
     """

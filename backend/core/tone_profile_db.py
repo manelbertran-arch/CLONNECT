@@ -9,8 +9,9 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-# In-memory cache for performance
-_tone_cache: Dict[str, Any] = {}
+# In-memory cache for performance — bounded to prevent memory leaks
+from core.cache import BoundedTTLCache
+_tone_cache = BoundedTTLCache(max_size=50, ttl_seconds=600)
 
 
 def _get_db_session():
@@ -68,7 +69,7 @@ async def save_tone_profile_db(creator_id: str, profile_data: dict) -> bool:
             db.commit()
 
             # Update cache
-            _tone_cache[creator_id] = profile_data
+            _tone_cache.set(creator_id, profile_data)
 
             return True
 
@@ -103,7 +104,7 @@ async def get_tone_profile_db(creator_id: str) -> Optional[dict]:
 
             if profile:
                 data = profile.profile_data
-                _tone_cache[creator_id] = data
+                _tone_cache.set(creator_id, data)
                 logger.info(f"ToneProfile for {creator_id} loaded from DB")
                 return data
 
@@ -133,7 +134,7 @@ def get_tone_profile_db_sync(creator_id: str) -> Optional[dict]:
 
             if profile:
                 data = profile.profile_data
-                _tone_cache[creator_id] = data
+                _tone_cache.set(creator_id, data)
                 logger.info(f"ToneProfile for {creator_id} loaded from DB (sync)")
                 return data
 

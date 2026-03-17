@@ -97,12 +97,16 @@ class KnowledgeBase:
         return template
 
 
-# Cache
-_kb_cache: dict = {}
+# Cache — bounded to prevent memory leaks
+from core.cache import BoundedTTLCache
+_kb_cache = BoundedTTLCache(max_size=50, ttl_seconds=600)
 
 
 def get_knowledge_base(creator_id: str) -> KnowledgeBase:
     """Get or create a KnowledgeBase instance (cached)."""
-    if creator_id not in _kb_cache:
-        _kb_cache[creator_id] = KnowledgeBase(creator_id)
-    return _kb_cache[creator_id]
+    cached = _kb_cache.get(creator_id)
+    if cached is not None:
+        return cached
+    kb = KnowledgeBase(creator_id)
+    _kb_cache.set(creator_id, kb)
+    return kb

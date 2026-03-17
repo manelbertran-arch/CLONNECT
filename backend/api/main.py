@@ -159,9 +159,9 @@ if RATE_LIMIT_ENABLED:
 
         app.add_middleware(
             RateLimitMiddleware,
-            requests_per_minute=60,
-            requests_per_hour=1000,
-            webhook_rpm=200,
+            requests_per_minute=120,   # Was 60 — too low for dashboard polling
+            requests_per_hour=3000,    # Was 1000
+            webhook_rpm=300,           # Was 200
         )
         logging.info("Rate limiting middleware enabled")
     except ImportError as e:

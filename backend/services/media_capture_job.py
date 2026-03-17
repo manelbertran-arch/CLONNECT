@@ -137,6 +137,11 @@ def _capture_sync() -> Dict[str, Any]:
                 errors += 1
                 logger.warning(f"[MEDIA_CAPTURE] Error capturing msg {msg_id}: {e}")
 
+            # Bail out early if too many consecutive errors (CDN expired batch)
+            if errors >= 10 and captured == 0:
+                logger.warning("[MEDIA_CAPTURE] 10+ consecutive errors with 0 captures — aborting early")
+                break
+
             import time
             time.sleep(RATE_LIMIT_DELAY)
 
