@@ -1554,43 +1554,43 @@ async def instagram_oauth_callback(
             logger.info(f"Got short-lived IGAAT: {short_lived_token[:15]}... user_id={ig_user_id_from_token}")
 
             # Step 2: Exchange for long-lived IGAAT (60 days)
-            # Meta docs say GET, but try both POST and GET
+            # GET https://graph.instagram.com/access_token?grant_type=ig_exchange_token&...
             from datetime import datetime, timedelta, timezone as tz
-            exchange_params = {
-                "grant_type": "ig_exchange_token",
-                "client_secret": app_secret,
-                "access_token": short_lived_token,
-            }
 
             access_token = short_lived_token
             token_expires_at = None
             exchange_succeeded = False
 
-            # Try GET first (per Meta docs), then POST as fallback
-            for method_name, make_request in [
-                ("GET", lambda: client.get("https://graph.instagram.com/access_token", params=exchange_params)),
-                ("POST", lambda: client.post("https://graph.instagram.com/access_token", data=exchange_params)),
-            ]:
-                try:
-                    long_token_response = await make_request()
-                    long_token_data = long_token_response.json()
-                    if long_token_response.status_code == 200 and "access_token" in long_token_data:
-                        access_token = long_token_data["access_token"]
-                        expires_in = long_token_data.get("expires_in", 5184000)
-                        token_expires_at = datetime.now(tz.utc) + timedelta(seconds=expires_in)
-                        exchange_succeeded = True
-                        logger.info(
-                            f"Long-lived token exchange succeeded via {method_name} "
-                            f"(expires_in={expires_in}s): {access_token[:15]}..."
-                        )
-                        break
-                    else:
-                        logger.warning(
-                            f"Token exchange {method_name} failed "
-                            f"(HTTP {long_token_response.status_code}): {long_token_data}"
-                        )
-                except Exception as exc:
-                    logger.warning(f"Token exchange {method_name} exception: {exc}")
+            logger.info(
+                f"[TOKEN-EXCHANGE] Starting exchange: token={short_lived_token[:15]}... "
+                f"secret={app_secret[:6]}... ({len(app_secret)} chars)"
+            )
+
+            # GET request per Meta docs
+            exchange_url = "https://graph.instagram.com/access_token"
+            exchange_params = {
+                "grant_type": "ig_exchange_token",
+                "client_secret": app_secret,
+                "access_token": short_lived_token,
+            }
+            try:
+                long_token_response = await client.get(exchange_url, params=exchange_params)
+                long_token_data = long_token_response.json()
+                logger.info(
+                    f"[TOKEN-EXCHANGE] GET response: HTTP {long_token_response.status_code} "
+                    f"body={long_token_data}"
+                )
+                if long_token_response.status_code == 200 and "access_token" in long_token_data:
+                    access_token = long_token_data["access_token"]
+                    expires_in = long_token_data.get("expires_in", 5184000)
+                    token_expires_at = datetime.now(tz.utc) + timedelta(seconds=expires_in)
+                    exchange_succeeded = True
+                    logger.info(
+                        f"[TOKEN-EXCHANGE] SUCCESS: long-lived token={access_token[:15]}... "
+                        f"expires_in={expires_in}s ({expires_in // 86400}d)"
+                    )
+            except Exception as exc:
+                logger.error(f"[TOKEN-EXCHANGE] GET exception: {exc}")
 
             if not exchange_succeeded:
                 # Save the short-lived token anyway so the user isn't stuck
