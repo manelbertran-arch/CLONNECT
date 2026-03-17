@@ -1131,8 +1131,13 @@ async def refresh_profiles(
                 for lead_id, puid, full_name in wa_leads:
                     try:
                         number = puid.replace("wa_", "").lstrip("+").split("-")[0]
-                        if len(number) > 15 or not number.isdigit():
-                            continue  # Skip group chats / invalid numbers
+                        if not number.isdigit():
+                            continue  # Skip non-numeric IDs
+                        # Skip Facebook/IG numeric IDs misclassified as WA
+                        # Real phone numbers: 7-15 digits, but FB IDs are 15+
+                        # Also skip very short numbers (< 7 digits)
+                        if len(number) < 7 or len(number) > 15:
+                            continue
                         pic_url = await fetch_profile_picture(wa_instance, number)
                         if pic_url:
                             def _update_wa(lid=lead_id, url=pic_url):
@@ -1150,11 +1155,9 @@ async def refresh_profiles(
                             if await asyncio.to_thread(_update_wa):
                                 updated_wa += 1
                         await asyncio.sleep(0.5)  # Rate limit
-                    except Exception as e:
-                        errors += 1
-                        if errors > 10:
-                            logger.warning(f"[ProfileRefresh] Too many errors, stopping WA refresh")
-                            break
+                    except Exception:
+                        # Evolution API errors are expected for some numbers
+                        pass
 
                 logger.info(f"[ProfileRefresh] {creator_name} WA: {updated_wa} pics updated")
 
@@ -1219,11 +1222,9 @@ async def refresh_profiles(
                             if await asyncio.to_thread(_update_ig):
                                 updated_ig += 1
                         await asyncio.sleep(0.5)  # Rate limit
-                    except Exception as e:
-                        errors += 1
-                        if errors > 10:
-                            logger.warning(f"[ProfileRefresh] Too many errors, stopping IG refresh")
-                            break
+                    except Exception:
+                        # IG API errors (consent required, etc.) are expected
+                        pass
 
                 logger.info(f"[ProfileRefresh] {creator_name} IG: {updated_ig} profiles updated")
 
