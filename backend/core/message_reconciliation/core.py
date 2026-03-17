@@ -222,13 +222,18 @@ async def reconcile_messages_for_creator(
             participants = conv.get("participants", {}).get("data", [])
 
             # Find the follower (non-creator participant)
-            # Exclude both ig_user_id AND instagram_page_id to avoid creating leads
-            # for the creator's own account (which can have multiple IDs)
+            # Exclude all known creator IDs to avoid creating leads for the
+            # creator's own account (which can have multiple IDs across API contexts:
+            # ASID from IGAAT /me, IGSID in conversation participants, legacy IDs, etc.)
             creator_ids = {ig_user_id}
             if creator.instagram_user_id:
                 creator_ids.add(creator.instagram_user_id)
             if creator.instagram_page_id:
                 creator_ids.add(creator.instagram_page_id)
+            # Add all additional IDs (covers ASID/IGSID mismatches from Instagram
+            # Business Login returning different IDs than conversation participant IDs)
+            for extra_id in (creator.instagram_additional_ids or []):
+                creator_ids.add(str(extra_id))
             # Add legacy creator ID that was previously used (prevents ghost leads)
             creator_ids.add("17841400506734756")
 
