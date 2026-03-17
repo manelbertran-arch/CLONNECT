@@ -137,7 +137,11 @@ class NurturingDBStorage:
 
     def save_followups(self, creator_id: str, followups: list) -> bool:
         """
-        Save multiple followups for a creator (replaces all).
+        Save multiple followups for a creator (bulk upsert).
+
+        Uses a single INSERT ... ON CONFLICT DO UPDATE instead of N individual
+        session.merge() calls, which previously held a DB connection for the
+        entire duration (10-30s for 1000+ followups) and starved the pool.
 
         Args:
             creator_id: Creator ID
@@ -146,16 +150,55 @@ class NurturingDBStorage:
         Returns:
             True if saved successfully, False otherwise
         """
+        if not followups:
+            return True
         try:
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+            rows = [
+                {
+                    "id": f.id,
+                    "creator_id": f.creator_id,
+                    "follower_id": f.follower_id,
+                    "sequence_type": f.sequence_type,
+                    "step": f.step,
+                    "scheduled_at": (
+                        datetime.fromisoformat(f.scheduled_at)
+                        if isinstance(f.scheduled_at, str) else f.scheduled_at
+                    ),
+                    "message_template": f.message_template,
+                    "status": f.status,
+                    "created_at": (
+                        datetime.fromisoformat(f.created_at)
+                        if isinstance(f.created_at, str) else f.created_at
+                    ) if f.created_at else datetime.now(timezone.utc),
+                    "sent_at": (
+                        datetime.fromisoformat(f.sent_at)
+                        if isinstance(f.sent_at, str) else f.sent_at
+                    ) if getattr(f, "sent_at", None) else None,
+                    "extra_data": getattr(f, "metadata", {}) or {},
+                }
+                for f in followups
+            ]
             with self._get_session() as session:
-                # Convert all followups to DB models
-                for followup in followups:
-                    db_followup = NurturingFollowupDB.from_followup(followup)
-                    session.merge(db_followup)
-
+                # Batch in chunks of 500 to avoid huge parameter lists
+                chunk_size = 500
+                for i in range(0, len(rows), chunk_size):
+                    chunk = rows[i : i + chunk_size]
+                    stmt = pg_insert(NurturingFollowupDB).values(chunk)
+                    stmt = stmt.on_conflict_do_update(
+                        index_elements=["id"],
+                        set_={
+                            "scheduled_at": stmt.excluded.scheduled_at,
+                            "message_template": stmt.excluded.message_template,
+                            "status": stmt.excluded.status,
+                            "sent_at": stmt.excluded.sent_at,
+                            "extra_data": stmt.excluded.extra_data,
+                        },
+                    )
+                    session.execute(stmt)
                 session.commit()
-                logger.info(f"[NURTURING_DB] Saved {len(followups)} followups for {creator_id}")
-                return True
+            logger.info(f"[NURTURING_DB] Saved {len(followups)} followups for {creator_id}")
+            return True
         except SQLAlchemyError as e:
             logger.error(f"[NURTURING_DB] Error saving followups: {e}")
             return False
