@@ -1039,18 +1039,29 @@ async def reconcile_creator(
 
     from core.message_reconciliation.core import reconcile_messages_for_creator
 
-    result = await reconcile_messages_for_creator(
-        creator_id=creator_name,
-        access_token=token,
-        ig_user_id=ig_user_id,
-        lookback_hours=lookback_hours,
-        max_conversations=limit,
-    )
+    async def _run_reconciliation():
+        try:
+            result = await reconcile_messages_for_creator(
+                creator_id=creator_name,
+                access_token=token,
+                ig_user_id=ig_user_id,
+                lookback_hours=lookback_hours,
+                max_conversations=limit,
+            )
+            logger.info(
+                f"[Reconciliation] Manual reconcile for {creator_name} done: "
+                f"{result.get('messages_inserted', 0)} inserted, "
+                f"{result.get('conversations_checked', 0)} conversations checked"
+            )
+        except Exception as e:
+            logger.error(f"[Reconciliation] Manual reconcile for {creator_name} failed: {e}")
+
+    asyncio.create_task(_run_reconciliation())
 
     return {
-        "status": "ok",
+        "status": "started",
         "creator": creator_name,
         "limit": limit,
         "lookback_hours": lookback_hours,
-        **result,
+        "message": "Reconciliation running in background. Check logs for results.",
     }
