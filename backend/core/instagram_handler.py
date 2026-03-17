@@ -90,7 +90,8 @@ class InstagramHandler:
         self._lead_mgr._additional_ids = getattr(self, "_additional_ids", [])
         self._msg_store = MessageStore(
             self.creator_id, self.page_id, self.ig_user_id, self.status,
-            self.recent_messages, self.recent_responses, self._extract_media_info
+            self.recent_messages, self.recent_responses, self._extract_media_info,
+            access_token=self.access_token,
         )
         self._comment = CommentHandler(self.creator_id, self._sender.send_response)
 

@@ -21,6 +21,7 @@ class MessageStore:
         recent_messages: list,
         recent_responses: list,
         extract_media_info_fn: Callable,
+        access_token: str = "",
     ):
         self.creator_id = creator_id
         self.page_id = page_id
@@ -29,6 +30,7 @@ class MessageStore:
         self.recent_messages = recent_messages
         self.recent_responses = recent_responses
         self._extract_media_info = extract_media_info_fn
+        self.access_token = access_token
 
     def record_received(self, msg: InstagramMessage):
         """Record received message"""
@@ -126,6 +128,22 @@ class MessageStore:
 
                     # Create lead if doesn't exist
                     # Use raw sender_id (no ig_ prefix) for consistency
+                    # Fetch profile from API if username not provided
+                    if not username:
+                        try:
+                            from core.instagram_profile import fetch_instagram_profile
+                            profile_data = await fetch_instagram_profile(
+                                msg.sender_id, self.access_token
+                            )
+                            if profile_data:
+                                username = profile_data.get("username", "")
+                                full_name = full_name or profile_data.get("name", "")
+                                logger.info(
+                                    f"[SaveMsg] Fetched profile for {msg.sender_id}: @{username}"
+                                )
+                        except Exception as prof_err:
+                            logger.warning(f"[SaveMsg] Profile fetch failed: {prof_err}")
+
                     try:
                         lead = Lead(
                             creator_id=creator.id,
@@ -135,10 +153,11 @@ class MessageStore:
                             full_name=full_name or None,
                             source="instagram_dm",
                             status="nuevo",
+                            context={"profile_pending": True} if not username else {},
                         )
                         session.add(lead)
                         session.commit()
-                        logger.info(f"[SaveMsg] Created lead for {msg.sender_id}")
+                        logger.info(f"[SaveMsg] Created lead for {msg.sender_id} (@{username or 'unknown'})")
                     except Exception as e:
                         # Race condition: another request created the lead
                         session.rollback()
@@ -391,6 +410,22 @@ class MessageStore:
 
                     # Create lead if doesn't exist
                     # Use raw sender_id (no ig_ prefix) for consistency
+                    # Fetch profile from API if username not provided
+                    if not username:
+                        try:
+                            from core.instagram_profile import fetch_instagram_profile
+                            profile_data = await fetch_instagram_profile(
+                                msg.sender_id, self.access_token
+                            )
+                            if profile_data:
+                                username = profile_data.get("username", "")
+                                full_name = full_name or profile_data.get("name", "")
+                                logger.info(
+                                    f"[SaveUserMsg] Fetched profile for {msg.sender_id}: @{username}"
+                                )
+                        except Exception as prof_err:
+                            logger.warning(f"[SaveUserMsg] Profile fetch failed: {prof_err}")
+
                     try:
                         lead = Lead(
                             creator_id=creator.id,
@@ -400,10 +435,11 @@ class MessageStore:
                             full_name=full_name or None,
                             source="instagram_dm",
                             status="nuevo",
+                            context={"profile_pending": True} if not username else {},
                         )
                         session.add(lead)
                         session.commit()
-                        logger.info(f"[SaveUserMsg] Created lead for {msg.sender_id}")
+                        logger.info(f"[SaveUserMsg] Created lead for {msg.sender_id} (@{username or 'unknown'})")
                     except Exception as e:
                         # Race condition: another request created the lead
                         session.rollback()

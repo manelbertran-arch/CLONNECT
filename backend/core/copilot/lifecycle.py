@@ -156,6 +156,27 @@ async def create_pending_response_impl(
             if platform == "whatsapp" and follower_id.startswith("wa_"):
                 phone_number = "+" + follower_id[3:]  # wa_34639066982 → +34639066982
 
+            # Fetch profile from IG API if username not provided
+            profile_pending = False
+            if not username and platform == "instagram":
+                try:
+                    from core.instagram_profile import fetch_instagram_profile
+                    if creator.instagram_token:
+                        profile_data = await fetch_instagram_profile(
+                            follower_id, creator.instagram_token
+                        )
+                        if profile_data:
+                            username = profile_data.get("username", "")
+                            full_name = full_name or profile_data.get("name", "")
+                            logger.info(
+                                f"[Copilot] Fetched profile for {follower_id}: @{username}"
+                            )
+                        else:
+                            profile_pending = True
+                except Exception as prof_err:
+                    logger.warning(f"[Copilot] Profile fetch failed: {prof_err}")
+                    profile_pending = True
+
             lead = Lead(
                 creator_id=creator.id,
                 platform=platform,
@@ -166,9 +187,11 @@ async def create_pending_response_impl(
                 source=f"{platform}_dm",
                 status="new",
                 purchase_intent=0.0,
+                context={"profile_pending": True} if profile_pending else {},
             )
             session.add(lead)
             session.commit()
+            logger.info(f"[Copilot] Created lead {lead.id} for {follower_id} (@{username or 'unknown'})")
             pending.lead_id = str(lead.id)
         elif platform == "whatsapp" and not lead.phone and follower_id.startswith("wa_"):
             # Backfill phone for existing WhatsApp leads that are missing it

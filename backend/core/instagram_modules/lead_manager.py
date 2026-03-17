@@ -548,15 +548,14 @@ class LeadManager:
                             logger.info(f"[IG:{sender_id}] Profile pic uploaded to Cloudinary")
                             profile_pic_url = result.url
 
-                # Update lead with profile info including is_verified
-                if profile_pic_url or profile.is_verified:
-                    await self.update_lead_profile(
-                        sender_id,
-                        profile.username,
-                        profile.name,
-                        profile_pic_url,
-                        profile.is_verified,
-                    )
+                # Always update lead with profile info (username, name, pic, verified)
+                await self.update_lead_profile(
+                    sender_id,
+                    profile.username,
+                    profile.name,
+                    profile_pic_url,
+                    profile.is_verified,
+                )
         except Exception as e:
             logger.debug(f"Could not fetch user profile: {e}")
 
