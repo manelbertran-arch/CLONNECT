@@ -87,6 +87,7 @@ class InstagramHandler:
         self._lead_mgr = LeadManager(
             self.creator_id, self.page_id, self.ig_user_id, self.access_token, self.connector
         )
+        self._lead_mgr._additional_ids = getattr(self, "_additional_ids", [])
         self._msg_store = MessageStore(
             self.creator_id, self.page_id, self.ig_user_id, self.status,
             self.recent_messages, self.recent_responses, self._extract_media_info
@@ -121,6 +122,9 @@ class InstagramHandler:
                         self.known_creator_ids.add(self.page_id)
                     if self.ig_user_id:
                         self.known_creator_ids.add(self.ig_user_id)
+                    self._additional_ids = creator.instagram_additional_ids or []
+                    for extra_id in self._additional_ids:
+                        self.known_creator_ids.add(str(extra_id))
                     self.known_creator_ids.add("17841400506734756")
 
                     logger.info(f"Loaded Instagram credentials from DB for creator: {creator.name}")

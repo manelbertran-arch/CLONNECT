@@ -90,6 +90,8 @@ async def handle_webhook_impl(
         known_ids = getattr(handler, "known_creator_ids", set())
         if not known_ids:
             known_ids = {handler.page_id, handler.ig_user_id, "17841400506734756"}
+            for extra_id in (getattr(handler, "_additional_ids", None) or []):
+                known_ids.add(str(extra_id))
 
         if message.sender_id in known_ids:
             logger.info(f"Skipping message from known creator ID: {message.sender_id}")

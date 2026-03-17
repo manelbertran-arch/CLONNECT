@@ -179,6 +179,8 @@ class LeadManager:
         """
         # Prevent creating leads for creator's own IDs (prevents ghost leads)
         known_ids = {self.page_id, self.ig_user_id, "17841400506734756"}
+        for extra_id in (getattr(self, "_additional_ids", None) or []):
+            known_ids.add(str(extra_id))
         if sender_id in known_ids:
             logger.warning(
                 f"[LeadHistory] Skipping lead creation for known creator ID: {sender_id}"
