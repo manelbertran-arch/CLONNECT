@@ -56,44 +56,54 @@ async def get_instagram_conversations(
     async with httpx.AsyncClient(timeout=30.0) as client:
         for folder in folders:
             try:
-                # First, fetch conversation IDs only (smaller request)
-                url = conversations_url
-                params = {
+                # Fetch conversation IDs with pagination
+                page_url = conversations_url
+                page_params = {
                     "fields": "id,participants",
                     "access_token": access_token,
-                    "limit": limit,
+                    "limit": min(limit, 50),  # Meta API max per page is 50
                     "folder": folder,
                 }
+                conv_list = []
+                page = 0
+                max_pages = max(1, limit // 50 + 1)
 
-                resp = await client.get(url, params=params)
-
-                if resp.status_code != 200:
-                    err_text = resp.text[:300]
-                    # (#3) = "Application does not have the capability" — known limitation for
-                    # accounts that haven't passed Meta's advanced permission review or are
-                    # personal/test accounts. Log at WARNING to avoid noisy error streams.
-                    if "(#3)" in err_text or "does not have the capability" in err_text:
-                        logger.warning(
-                            "[Reconciliation] Conversations API not available for %s "
-                            "(app capability not approved or non-business account): %s",
-                            ig_user_id,
-                            err_text[:150],
-                        )
+                while page_url and page < max_pages and len(conv_list) < limit:
+                    if page == 0:
+                        resp = await client.get(page_url, params=page_params)
                     else:
-                        logger.error(
-                            "[Reconciliation] API error for %s folder=%s: %s - %s",
-                            ig_user_id,
-                            folder,
-                            resp.status_code,
-                            err_text,
-                        )
-                    continue
+                        resp = await client.get(page_url)
 
-                data = resp.json()
-                conv_list = data.get("data", [])
+                    if resp.status_code != 200:
+                        err_text = resp.text[:300]
+                        if "(#3)" in err_text or "does not have the capability" in err_text:
+                            logger.warning(
+                                "[Reconciliation] Conversations API not available for %s "
+                                "(app capability not approved or non-business account): %s",
+                                ig_user_id,
+                                err_text[:150],
+                            )
+                        else:
+                            logger.error(
+                                "[Reconciliation] API error for %s folder=%s: %s - %s",
+                                ig_user_id,
+                                folder,
+                                resp.status_code,
+                                err_text,
+                            )
+                        break
 
-                logger.debug(
-                    f"[Reconciliation] Fetched {len(conv_list)} conversation IDs from {folder}"
+                    data = resp.json()
+                    page_convs = data.get("data", [])
+                    if not page_convs:
+                        break
+                    conv_list.extend(page_convs)
+                    page_url = data.get("paging", {}).get("next")
+                    page += 1
+
+                logger.info(
+                    f"[Reconciliation] Fetched {len(conv_list)} conversation IDs "
+                    f"from {folder} ({page} pages)"
                 )
 
                 # Then fetch messages for each conversation separately
