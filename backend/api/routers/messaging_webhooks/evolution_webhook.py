@@ -901,6 +901,9 @@ async def _process_evolution_message_safe(
     User message is already saved to DB by the webhook handler (early save).
     This background task generates a suggested response via the DM agent.
     """
+    import time as _time
+    _t0 = _time.monotonic()
+
     try:
         from core.copilot_service import get_copilot_service
         from core.dm_agent_v2 import get_dm_agent
@@ -919,7 +922,9 @@ async def _process_evolution_message_safe(
             text = f"[\U0001f3a4 Audio]: {clean}"
 
         # Generate suggestion via DM agent
+        _t1 = _time.monotonic()
         agent = get_dm_agent(creator_id)
+        _t_agent = int((_time.monotonic() - _t1) * 1000)
         dm_metadata = {
             "message_id": message_id,
             "username": push_name or "amigo",
@@ -929,11 +934,13 @@ async def _process_evolution_message_safe(
         # Pass audio intelligence to DM agent for enriched context
         if msg_metadata and msg_metadata.get("audio_intel"):
             dm_metadata["audio_intel"] = msg_metadata["audio_intel"]
+        _t2 = _time.monotonic()
         response = await agent.process_dm(
             message=text,
             sender_id=follower_id,
             metadata=dm_metadata,
         )
+        _t_dm = int((_time.monotonic() - _t2) * 1000)
 
         # Extract text from response — response.content may be a string or a dict
         # like {'content': 'text', 'model': '...', 'provider': '...'}
@@ -956,6 +963,7 @@ async def _process_evolution_message_safe(
         if hasattr(response, "metadata") and response.metadata and response.metadata.get("best_of_n"):
             msg_metadata["best_of_n"] = response.metadata["best_of_n"]
 
+        _t3 = _time.monotonic()
         pending = await copilot.create_pending_response(
             creator_id=creator_id,
             lead_id="",
@@ -969,6 +977,12 @@ async def _process_evolution_message_safe(
             username=push_name or "",
             full_name=push_name or "",
             msg_metadata=msg_metadata if msg_metadata else None,
+        )
+        _t_copilot = int((_time.monotonic() - _t3) * 1000)
+        _t_total = int((_time.monotonic() - _t0) * 1000)
+        logger.info(
+            f"[EVO:{instance}] [PIPELINE TIMING] total={_t_total}ms "
+            f"(agent_init={_t_agent}ms process_dm={_t_dm}ms copilot_save={_t_copilot}ms)"
         )
 
         # Fetch and save WhatsApp profile picture (fire-and-forget style)

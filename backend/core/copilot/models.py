@@ -6,8 +6,11 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-# Debounce: wait this many seconds after the last burst message before regenerating
-DEBOUNCE_SECONDS = 30
+# Debounce: wait this many seconds after the last burst message before regenerating.
+# 15s balances grouping multi-message bursts (people take 10-20s between WhatsApp msgs)
+# vs responsiveness. Override via env var if needed.
+import os
+DEBOUNCE_SECONDS = int(os.getenv("COPILOT_DEBOUNCE_SECONDS", "15"))
 
 # Media detection patterns — these are not real text and should not get copilot suggestions
 _MEDIA_HASH_PATTERN = re.compile(r"^[A-Za-z0-9+/=]{15,}$")

@@ -115,9 +115,9 @@ async def _call_gemini(
     user_message: str,
     max_tokens: int,
     temperature: float,
-    max_retries: int = 3,
+    max_retries: int = 2,
 ) -> Optional[str]:
-    """Call Google Gemini API with retry and exponential backoff."""
+    """Call Google Gemini API with fast retry (fail fast for interactive use)."""
     url = f"{GEMINI_API_URL}/{model}:generateContent?key={api_key}"
 
     payload = {
@@ -132,7 +132,7 @@ async def _call_gemini(
     for attempt in range(max_retries):
         start = time.monotonic()
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.post(url, json=payload)
                 latency_ms = int((time.monotonic() - start) * 1000)
 
@@ -170,20 +170,19 @@ async def _call_gemini(
             logger.warning(
                 "Gemini timeout (attempt %d/%d)", attempt + 1, max_retries,
             )
-            await asyncio.sleep(2)
+            await asyncio.sleep(1)
         except httpx.HTTPStatusError as e:
             status = e.response.status_code
             if status == 429:
-                wait = 2 ** attempt + 1
+                wait = min(2, 2 ** attempt + 1)  # Cap at 2s for interactive use
                 await asyncio.sleep(wait)
                 continue
             if status == 503:
-                wait = 2 ** attempt  # 1s, 2s, 4s
                 logger.warning(
-                    "Gemini 503 Service Unavailable, retrying in %ds (attempt %d/%d)",
-                    wait, attempt + 1, max_retries,
+                    "Gemini 503 Service Unavailable, retrying in 1s (attempt %d/%d)",
+                    attempt + 1, max_retries,
                 )
-                await asyncio.sleep(wait)
+                await asyncio.sleep(1)  # Fixed 1s — don't escalate for interactive copilot
                 continue
             logger.error("Gemini HTTP error: %s", e)
             return None
