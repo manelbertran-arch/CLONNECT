@@ -195,6 +195,21 @@ def extract_conversations(
     """
     logger.info("Starting data extraction for creator %s", creator_id)
 
+    # Resolve creator name → UUID if a slug was passed instead of a UUID
+    try:
+        import uuid as _uuid
+        _uuid.UUID(creator_id)
+    except (ValueError, AttributeError):
+        row = db.execute(
+            text("SELECT id FROM creators WHERE name = :name"),
+            {"name": creator_id},
+        ).first()
+        if row:
+            creator_id = str(row[0])
+        else:
+            logger.warning("Creator %s not found in DB", creator_id)
+            return [], CleaningStats()
+
     # Query all leads and their messages for this creator
     # Optimized: only select columns we need, minimize JSON transfer
     query = text("""

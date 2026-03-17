@@ -110,7 +110,8 @@ class AlertManager:
         level: AlertLevel = AlertLevel.ERROR,
         title: str = "Alert",
         creator_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        source: Optional[str] = None,  # caller tag, informational only
     ) -> bool:
         """
         Enviar alerta via Telegram.
