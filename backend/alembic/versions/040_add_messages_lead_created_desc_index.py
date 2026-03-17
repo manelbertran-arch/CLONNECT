@@ -25,10 +25,16 @@ down_revision = "039"
 branch_labels = None
 depends_on = None
 
+# CREATE INDEX CONCURRENTLY cannot run inside a transaction.
+# Alembic wraps migrations in transactions by default, so we must disable it.
+transaction = False
+
 
 def upgrade():
+    # Use regular CREATE INDEX (not CONCURRENTLY) since CONCURRENTLY requires
+    # no transaction. The IF NOT EXISTS guard makes it safe to re-run.
     op.execute("""
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_messages_lead_created_desc
+        CREATE INDEX IF NOT EXISTS idx_messages_lead_created_desc
         ON messages (lead_id, created_at DESC)
         WHERE deleted_at IS NULL
     """)
