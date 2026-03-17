@@ -436,9 +436,8 @@ class MessageStore:
 
                 if existing_msg:
                     logger.debug(f"[SaveUserMsg] Message {msg.message_id} already exists")
-                    # Still update last_contact_at even if message exists
-                    lead.last_contact_at = datetime.now(timezone.utc)
-                    session.commit()
+                    # Don't update last_contact_at for duplicate messages — it breaks
+                    # conversation sort order when reconciliation reprocesses old messages.
                     return True
 
                 # Extract media info if present
