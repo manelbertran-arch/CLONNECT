@@ -52,7 +52,24 @@ async def get_instagram_conversations(
             resp = await client.get(url, params=params)
 
             if resp.status_code != 200:
-                logger.error(f"[Reconciliation] API error: {resp.status_code} - {resp.text[:200]}")
+                err_text = resp.text[:300]
+                # (#3) = "Application does not have the capability" — known limitation for
+                # accounts that haven't passed Meta's advanced permission review or are
+                # personal/test accounts. Log at WARNING to avoid noisy error streams.
+                if "(#3)" in err_text or "does not have the capability" in err_text:
+                    logger.warning(
+                        "[Reconciliation] Conversations API not available for %s "
+                        "(app capability not approved or non-business account): %s",
+                        ig_user_id,
+                        err_text[:150],
+                    )
+                else:
+                    logger.error(
+                        "[Reconciliation] API error for %s: %s - %s",
+                        ig_user_id,
+                        resp.status_code,
+                        err_text,
+                    )
                 return []
 
             data = resp.json()
