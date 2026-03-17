@@ -19,6 +19,7 @@ async def get_instagram_conversations(
     ig_user_id: str,
     since: Optional[datetime] = None,
     limit: int = 20,
+    folders: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Fetch conversations from Instagram API with messages.
@@ -27,11 +28,15 @@ async def get_instagram_conversations(
         access_token: Instagram access token
         ig_user_id: Instagram user ID (page_id for creator)
         since: Only fetch messages since this time
-        limit: Max conversations to fetch (default 20 to avoid API limits)
+        limit: Max conversations to fetch per folder (default 20)
+        folders: IG conversation folders to check (default: ["inbox", "other"])
 
     Returns:
         List of conversations with messages
     """
+    if folders is None:
+        folders = ["inbox", "other"]
+
     conversations = []
 
     # Determine API base and conversations URL.
@@ -46,85 +51,94 @@ async def get_instagram_conversations(
         # IGAAT — always use /me/conversations
         conversations_url = f"{api_base}/me/conversations"
 
+    seen_conv_ids = set()
+
     async with httpx.AsyncClient(timeout=30.0) as client:
-        try:
-            # First, fetch conversation IDs only (smaller request)
-            url = conversations_url
-            params = {
-                "fields": "id,participants",
-                "access_token": access_token,
-                "limit": limit,
-            }
+        for folder in folders:
+            try:
+                # First, fetch conversation IDs only (smaller request)
+                url = conversations_url
+                params = {
+                    "fields": "id,participants",
+                    "access_token": access_token,
+                    "limit": limit,
+                    "folder": folder,
+                }
 
-            resp = await client.get(url, params=params)
+                resp = await client.get(url, params=params)
 
-            if resp.status_code != 200:
-                err_text = resp.text[:300]
-                # (#3) = "Application does not have the capability" — known limitation for
-                # accounts that haven't passed Meta's advanced permission review or are
-                # personal/test accounts. Log at WARNING to avoid noisy error streams.
-                if "(#3)" in err_text or "does not have the capability" in err_text:
-                    logger.warning(
-                        "[Reconciliation] Conversations API not available for %s "
-                        "(app capability not approved or non-business account): %s",
-                        ig_user_id,
-                        err_text[:150],
-                    )
-                else:
-                    logger.error(
-                        "[Reconciliation] API error for %s: %s - %s",
-                        ig_user_id,
-                        resp.status_code,
-                        err_text,
-                    )
-                return []
-
-            data = resp.json()
-            conv_list = data.get("data", [])
-
-            logger.debug(f"[Reconciliation] Fetched {len(conv_list)} conversation IDs")
-
-            # Then fetch messages for each conversation separately
-            for conv in conv_list:
-                conv_id = conv.get("id")
-                if not conv_id:
+                if resp.status_code != 200:
+                    err_text = resp.text[:300]
+                    # (#3) = "Application does not have the capability" — known limitation for
+                    # accounts that haven't passed Meta's advanced permission review or are
+                    # personal/test accounts. Log at WARNING to avoid noisy error streams.
+                    if "(#3)" in err_text or "does not have the capability" in err_text:
+                        logger.warning(
+                            "[Reconciliation] Conversations API not available for %s "
+                            "(app capability not approved or non-business account): %s",
+                            ig_user_id,
+                            err_text[:150],
+                        )
+                    else:
+                        logger.error(
+                            "[Reconciliation] API error for %s folder=%s: %s - %s",
+                            ig_user_id,
+                            folder,
+                            resp.status_code,
+                            err_text,
+                        )
                     continue
 
-                try:
-                    # Fetch messages for this conversation using /messages endpoint
-                    # This format returns more attachment data (story, share, etc.)
-                    msg_url = f"{api_base}/{conv_id}/messages"
-                    msg_params = {
-                        "fields": "id,message,from,to,created_time,attachments,story,share,shares,sticker",
-                        "access_token": access_token,
-                        "limit": 25,
-                    }
+                data = resp.json()
+                conv_list = data.get("data", [])
 
-                    msg_resp = await client.get(msg_url, params=msg_params)
+                logger.debug(
+                    f"[Reconciliation] Fetched {len(conv_list)} conversation IDs from {folder}"
+                )
 
-                    if msg_resp.status_code == 200:
-                        msg_data = msg_resp.json()
-                        # Format response to match expected structure
-                        conv["messages"] = {"data": msg_data.get("data", [])}
+                # Then fetch messages for each conversation separately
+                for conv in conv_list:
+                    conv_id = conv.get("id")
+                    if not conv_id or conv_id in seen_conv_ids:
+                        continue
+                    seen_conv_ids.add(conv_id)
+
+                    try:
+                        # Fetch messages for this conversation using /messages endpoint
+                        # This format returns more attachment data (story, share, etc.)
+                        msg_url = f"{api_base}/{conv_id}/messages"
+                        msg_params = {
+                            "fields": "id,message,from,to,created_time,attachments,story,share,shares,sticker",
+                            "access_token": access_token,
+                            "limit": 25,
+                        }
+
+                        msg_resp = await client.get(msg_url, params=msg_params)
+
+                        if msg_resp.status_code == 200:
+                            msg_data = msg_resp.json()
+                            # Format response to match expected structure
+                            conv["messages"] = {"data": msg_data.get("data", [])}
+                            conversations.append(conv)
+                        else:
+                            logger.debug(f"[Reconciliation] Could not fetch messages for {conv_id}")
+                            # Still add conversation without messages
+                            conversations.append(conv)
+
+                        # Small delay to avoid rate limits
+                        await asyncio.sleep(0.1)
+
+                    except Exception as e:
+                        logger.debug(f"[Reconciliation] Error fetching messages for {conv_id}: {e}")
                         conversations.append(conv)
-                    else:
-                        logger.debug(f"[Reconciliation] Could not fetch messages for {conv_id}")
-                        # Still add conversation without messages
-                        conversations.append(conv)
 
-                    # Small delay to avoid rate limits
-                    await asyncio.sleep(0.1)
+            except Exception as e:
+                logger.error(f"[Reconciliation] Error fetching conversations folder=%s: %s", folder, e)
 
-                except Exception as e:
-                    logger.debug(f"[Reconciliation] Error fetching messages for {conv_id}: {e}")
-                    conversations.append(conv)
-
-            logger.debug(
-                f"[Reconciliation] Fetched {len(conversations)} conversations with messages"
-            )
-
-        except Exception as e:
-            logger.error(f"[Reconciliation] Error fetching conversations: {e}")
+    logger.debug(
+        f"[Reconciliation] Fetched {len(conversations)} conversations with messages "
+        f"(folders: {folders})"
+    )
 
     return conversations
 

@@ -146,6 +146,7 @@ async def reconcile_messages_for_creator(
     access_token: str,
     ig_user_id: str,
     lookback_hours: int = 24,
+    max_conversations: int = 0,
 ) -> Dict[str, Any]:
     """
     Reconcile messages for a single creator.
@@ -158,6 +159,7 @@ async def reconcile_messages_for_creator(
         access_token: Instagram access token
         ig_user_id: Instagram user ID
         lookback_hours: How many hours to look back
+        max_conversations: Override max conversations per folder (0 = use default)
 
     Returns:
         Dict with reconciliation results
@@ -179,12 +181,14 @@ async def reconcile_messages_for_creator(
     # Get existing message IDs from DB
     existing_ids = await get_db_message_ids(creator_id, since)
 
+    limit = max_conversations if max_conversations > 0 else MAX_CONVERSATIONS_PER_CYCLE
+
     # Fetch conversations from Instagram
     conversations = await get_instagram_conversations(
         access_token=access_token,
         ig_user_id=ig_user_id,
         since=since,
-        limit=MAX_CONVERSATIONS_PER_CYCLE,
+        limit=limit,
     )
 
     result["conversations_checked"] = len(conversations)

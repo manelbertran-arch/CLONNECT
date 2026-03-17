@@ -1007,3 +1007,50 @@ async def turbo_onboarding(
     )
     result = await pipeline.run()
     return result
+
+
+@router.post("/reconcile/{creator_name}")
+async def reconcile_creator(
+    creator_name: str,
+    limit: int = Query(default=50, description="Max conversations per folder"),
+    lookback_hours: int = Query(default=168, description="Hours to look back (default 7 days)"),
+):
+    """
+    Trigger a full message reconciliation for a specific creator.
+
+    Fetches conversations from all IG folders (inbox + other/message requests)
+    with a higher limit than the periodic job.
+    """
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+        if not creator.instagram_token:
+            raise HTTPException(status_code=400, detail="Creator has no Instagram token")
+
+        ig_user_id = creator.instagram_user_id or creator.instagram_page_id
+        if not ig_user_id:
+            raise HTTPException(status_code=400, detail="Creator has no Instagram user ID")
+
+        token = creator.instagram_token
+    finally:
+        session.close()
+
+    from core.message_reconciliation.core import reconcile_messages_for_creator
+
+    result = await reconcile_messages_for_creator(
+        creator_id=creator_name,
+        access_token=token,
+        ig_user_id=ig_user_id,
+        lookback_hours=lookback_hours,
+        max_conversations=limit,
+    )
+
+    return {
+        "status": "ok",
+        "creator": creator_name,
+        "limit": limit,
+        "lookback_hours": lookback_hours,
+        **result,
+    }
