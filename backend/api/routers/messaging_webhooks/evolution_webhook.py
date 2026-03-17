@@ -985,27 +985,33 @@ async def _process_evolution_message_safe(
             f"(agent_init={_t_agent}ms process_dm={_t_dm}ms copilot_save={_t_copilot}ms)"
         )
 
-        # Fetch and save WhatsApp profile picture (fire-and-forget style)
+        # Fetch and save WhatsApp profile picture + update pushName (fire-and-forget)
         try:
             from api.database import SessionLocal
             from api.models import Lead
             from services.evolution_api import fetch_profile_picture
 
             pic_url = await fetch_profile_picture(instance, sender_number)
-            if pic_url:
-                db = SessionLocal()
-                try:
-                    lead = db.query(Lead).filter(
-                        Lead.platform_user_id == follower_id
-                    ).first()
-                    if lead and not lead.profile_pic_url:
+            db = SessionLocal()
+            try:
+                lead = db.query(Lead).filter(
+                    Lead.platform_user_id == follower_id
+                ).first()
+                if lead:
+                    changed = False
+                    if pic_url and not lead.profile_pic_url:
                         lead.profile_pic_url = pic_url
+                        changed = True
+                    if push_name and not lead.full_name:
+                        lead.full_name = push_name
+                        changed = True
+                    if changed:
                         db.commit()
-                        logger.info(f"[EVO:{instance}] Saved profile pic for {sender_number}")
-                finally:
-                    db.close()
+                        logger.info(f"[EVO:{instance}] Updated profile for {sender_number}")
+            finally:
+                db.close()
         except Exception as pic_err:
-            logger.debug(f"[EVO:{instance}] Profile pic fetch skipped: {pic_err}")
+            logger.debug(f"[EVO:{instance}] Profile update skipped: {pic_err}")
 
         logger.info(
             f"[EVO:{instance}] Pending response {pending.id} for {sender_number}: "
