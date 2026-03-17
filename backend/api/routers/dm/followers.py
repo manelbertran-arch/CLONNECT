@@ -172,6 +172,14 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                 if detail is not None:
                     logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: DB FAST PATH ({_time.time()-start:.3f}s)")
             except Exception as e:
+                err_str = str(e)
+                if "QueuePool" in err_str or "connection timed out" in err_str:
+                    # Pool exhausted — return 503 so the client can retry.
+                    # Do NOT fall through to agent which returns blank messages.
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Database busy, please retry in a moment",
+                    )
                 logger.warning(f"[FOLLOWER] DB fast path failed: {e}")
 
         # SLOW PATH: Fallback to agent for non-leads (reads JSON files)

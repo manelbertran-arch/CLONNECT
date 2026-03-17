@@ -596,9 +596,9 @@ def batch_recalculate_scores_paged(creator_id: str, batch_size: int = 25) -> dic
             session.close()
 
         # Pause between batches so API requests can acquire a DB connection.
-        # 500ms is enough for a request to check out + release a connection.
+        # 1s gives conversations endpoint (now capped at 500 leads, ~3s) time to acquire.
         if page_start + batch_size < len(lead_ids):
-            time.sleep(0.5)
+            time.sleep(1.0)
 
     logger.info(
         f"[SCORING-V3] Paged complete: {results['updated']}/{results['total']} leads. "

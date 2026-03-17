@@ -97,7 +97,10 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         .scalar()
                     )
 
-                    effective_limit = total_count if limit >= 500 else limit
+                    # Cap at 500 to avoid 10+ second queries when creators have 1000+ leads.
+                    # Leads are sorted by last_contact_at DESC so most recent 500 are returned.
+                    MAX_CONVERSATIONS = 500
+                    effective_limit = min(total_count, MAX_CONVERSATIONS) if limit >= 500 else limit
 
                     # Step 1: Get leads (no message joins) — targeted index scan on leads
                     leads = (
@@ -122,60 +125,55 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                             "counts_by_status": {},
                         }
 
-                    # Step 2: Count user messages — filtered by lead_id IN lead_ids (no global scan)
-                    msg_count_rows = (
-                        session.query(Message.lead_id, func.count(Message.id).label("msg_count"))
-                        .filter(
-                            Message.lead_id.in_(lead_ids),
-                            Message.role == "user",
-                            Message.status.in_(["sent", "edited"]),
-                        )
-                        .group_by(Message.lead_id)
-                        .all()
-                    )
-                    msg_counts = {row.lead_id: row.msg_count for row in msg_count_rows}
+                    from sqlalchemy import text as _text
 
-                    # Step 3: Count pending copilot — filtered by lead_id IN lead_ids (no global scan)
-                    pending_rows = (
-                        session.query(Message.lead_id, func.count(Message.id).label("pending_count"))
-                        .filter(
-                            Message.lead_id.in_(lead_ids),
-                            Message.role == "assistant",
-                            Message.status == "pending_approval",
-                        )
-                        .group_by(Message.lead_id)
-                        .all()
-                    )
-                    pending_counts = {row.lead_id: row.pending_count for row in pending_rows}
+                    # Use = ANY(:arr) instead of IN(...) to avoid huge parameter lists
+                    # and leverage the index more efficiently.
+                    lead_ids_list = [str(lid) for lid in lead_ids]
 
-                    last_msg_subq = (
-                        session.query(
-                            Message.lead_id, func.max(Message.created_at).label("max_date")
-                        )
-                        .filter(
-                            Message.lead_id.in_(lead_ids),
-                            Message.status.in_(["sent", "edited"]),
-                            Message.deleted_at.is_(None),
-                        )
-                        .group_by(Message.lead_id)
-                        .subquery()
-                    )
+                    # Step 2: Count user messages
+                    msg_sql = _text("""
+                        SELECT lead_id, COUNT(*) as msg_count
+                        FROM messages
+                        WHERE lead_id = ANY(:lead_ids)
+                          AND role = 'user'
+                          AND status IN ('sent', 'edited')
+                        GROUP BY lead_id
+                    """)
+                    msg_count_rows = session.execute(
+                        msg_sql, {"lead_ids": lead_ids_list}
+                    ).fetchall()
+                    msg_counts = {row[0]: row[1] for row in msg_count_rows}
 
-                    last_messages_query = (
-                        session.query(Message)
-                        .join(
-                            last_msg_subq,
-                            (Message.lead_id == last_msg_subq.c.lead_id)
-                            & (Message.created_at == last_msg_subq.c.max_date),
-                        )
-                        .filter(
-                            Message.status.in_(["sent", "edited"]),
-                            Message.deleted_at.is_(None),
-                        )
-                        .all()
-                    )
+                    # Step 3: Count pending copilot
+                    pending_sql = _text("""
+                        SELECT lead_id, COUNT(*) as pending_count
+                        FROM messages
+                        WHERE lead_id = ANY(:lead_ids)
+                          AND role = 'assistant'
+                          AND status = 'pending_approval'
+                        GROUP BY lead_id
+                    """)
+                    pending_rows = session.execute(
+                        pending_sql, {"lead_ids": lead_ids_list}
+                    ).fetchall()
+                    pending_counts = {row[0]: row[1] for row in pending_rows}
 
-                    last_msg_by_lead = {msg.lead_id: msg for msg in last_messages_query}
+                    # Step 4: Get last message per lead using DISTINCT ON — far faster than
+                    # the old MAX(created_at) subquery + JOIN for large lead sets.
+                    last_msg_sql = _text("""
+                        SELECT DISTINCT ON (lead_id)
+                            lead_id, role, content, created_at, msg_metadata
+                        FROM messages
+                        WHERE lead_id = ANY(:lead_ids)
+                          AND status IN ('sent', 'edited')
+                          AND deleted_at IS NULL
+                        ORDER BY lead_id, created_at DESC
+                    """)
+                    last_msg_rows = session.execute(
+                        last_msg_sql, {"lead_ids": lead_ids_list}
+                    ).mappings().fetchall()
+                    last_msg_by_lead = {row["lead_id"]: row for row in last_msg_rows}
 
                     conversations = []
                     for lead in leads:
@@ -189,24 +187,24 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         last_message_role = None
 
                         if last_msg:
-                            meta = last_msg.msg_metadata or {}
+                            meta = last_msg["msg_metadata"] or {}
                             if meta.get("type") == "reaction":
                                 emoji = meta.get("emoji", "❤️")
                                 display_content = f"Reaccionó {emoji} a tu mensaje"
                             else:
                                 display_content = (
-                                    last_msg.content
-                                    or _media_description(last_msg.msg_metadata)
+                                    last_msg["content"]
+                                    or _media_description(last_msg["msg_metadata"])
                                     or "Sent an attachment"
                                 )
 
                             last_messages = [
                                 {
-                                    "role": last_msg.role,
+                                    "role": last_msg["role"],
                                     "content": display_content[:200],
                                     "timestamp": (
-                                        last_msg.created_at.isoformat()
-                                        if last_msg.created_at
+                                        last_msg["created_at"].isoformat()
+                                        if last_msg["created_at"]
                                         else None
                                     ),
                                 }
@@ -216,12 +214,12 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                                 if len(display_content) > 50
                                 else display_content
                             )
-                            last_message_role = last_msg.role
+                            last_message_role = last_msg["role"]
 
                         last_read_at = ctx.get("last_read_at")
                         last_user_msg_time = (
-                            last_msg.created_at.isoformat()
-                            if last_msg and last_msg.role == "user" and last_msg.created_at
+                            last_msg["created_at"].isoformat()
+                            if last_msg and last_msg["role"] == "user" and last_msg["created_at"]
                             else None
                         )
                         if last_read_at and last_user_msg_time:
