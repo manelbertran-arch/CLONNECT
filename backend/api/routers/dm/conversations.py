@@ -131,32 +131,31 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                     # and leverage the index more efficiently.
                     lead_ids_list = [str(lid) for lid in lead_ids]
 
+                    # Use ::uuid[] cast so PostgreSQL can compare uuid columns to text arrays.
+                    uuid_params = {"lead_ids": lead_ids_list}
+
                     # Step 2: Count user messages
                     msg_sql = _text("""
                         SELECT lead_id, COUNT(*) as msg_count
                         FROM messages
-                        WHERE lead_id = ANY(:lead_ids)
+                        WHERE lead_id = ANY(:lead_ids::uuid[])
                           AND role = 'user'
                           AND status IN ('sent', 'edited')
                         GROUP BY lead_id
                     """)
-                    msg_count_rows = session.execute(
-                        msg_sql, {"lead_ids": lead_ids_list}
-                    ).fetchall()
+                    msg_count_rows = session.execute(msg_sql, uuid_params).fetchall()
                     msg_counts = {row[0]: row[1] for row in msg_count_rows}
 
                     # Step 3: Count pending copilot
                     pending_sql = _text("""
                         SELECT lead_id, COUNT(*) as pending_count
                         FROM messages
-                        WHERE lead_id = ANY(:lead_ids)
+                        WHERE lead_id = ANY(:lead_ids::uuid[])
                           AND role = 'assistant'
                           AND status = 'pending_approval'
                         GROUP BY lead_id
                     """)
-                    pending_rows = session.execute(
-                        pending_sql, {"lead_ids": lead_ids_list}
-                    ).fetchall()
+                    pending_rows = session.execute(pending_sql, uuid_params).fetchall()
                     pending_counts = {row[0]: row[1] for row in pending_rows}
 
                     # Step 4: Get last message per lead using DISTINCT ON — far faster than
@@ -165,14 +164,12 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         SELECT DISTINCT ON (lead_id)
                             lead_id, role, content, created_at, msg_metadata
                         FROM messages
-                        WHERE lead_id = ANY(:lead_ids)
+                        WHERE lead_id = ANY(:lead_ids::uuid[])
                           AND status IN ('sent', 'edited')
                           AND deleted_at IS NULL
                         ORDER BY lead_id, created_at DESC
                     """)
-                    last_msg_rows = session.execute(
-                        last_msg_sql, {"lead_ids": lead_ids_list}
-                    ).mappings().fetchall()
+                    last_msg_rows = session.execute(last_msg_sql, uuid_params).mappings().fetchall()
                     last_msg_by_lead = {row["lead_id"]: row for row in last_msg_rows}
 
                     conversations = []
