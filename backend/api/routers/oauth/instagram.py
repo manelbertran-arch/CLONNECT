@@ -1082,7 +1082,9 @@ async def instagram_inject_token(
     import httpx
     from datetime import datetime, timedelta, timezone
 
-    ADMIN_KEY = os.getenv("ADMIN_API_KEY", "clonnect_admin_secret_2024")
+    ADMIN_KEY = os.getenv("ADMIN_API_KEY")
+    if not ADMIN_KEY:
+        raise HTTPException(status_code=500, detail="ADMIN_API_KEY not configured")
     if x_api_key != ADMIN_KEY:
         raise HTTPException(status_code=403, detail="Forbidden")
 

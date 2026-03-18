@@ -12,10 +12,10 @@ import psycopg2
 from psycopg2.extras import execute_values
 
 # Database connection
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://neondb_owner:npg_91lRcgDvZAIy@ep-raspy-truth-agjtq3o5-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require",
-)
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    print("ERROR: DATABASE_URL environment variable is required")
+    sys.exit(1)
 
 # JSON backup file
 JSON_FILE = "/Users/manelbertranluque/Desktop/clonnect_audience_intelligence/data/stefan_conversations_full.json"

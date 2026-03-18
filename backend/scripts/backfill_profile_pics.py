@@ -15,13 +15,17 @@ Usage:
 """
 
 import argparse
+import os
 import sys
 import time
 
 import psycopg2
 import requests
 
-DB_URL = "postgresql://neondb_owner:npg_91lRcgDvZAIy@ep-raspy-truth-agjtq3o5-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require"
+DB_URL = os.environ.get("DATABASE_URL")
+if not DB_URL:
+    print("ERROR: DATABASE_URL environment variable is required")
+    sys.exit(1)
 API_BASE = "https://graph.instagram.com/v21.0"
 REQUEST_DELAY = 0.3  # 200 requests/min — well within limits
 

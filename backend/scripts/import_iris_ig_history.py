@@ -16,6 +16,7 @@ Usage:
 """
 
 import argparse
+import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -24,8 +25,14 @@ import psycopg2
 import requests
 
 # ─── Config ───────────────────────────────────────────────────────────────────
-DB_URL = "postgresql://neondb_owner:npg_91lRcgDvZAIy@ep-raspy-truth-agjtq3o5-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require"
-IGAAT_TOKEN = "IGAAT0qmmGnyJBZAGFIVlRnQ3ZAYSHNyMm51VENSOFBqNVNzTUVUVGxCMk5QWlFzR29rU01ZAN0ZA6QnBzRWdwVmx6ZAzByQzY3Tm9iZAGIxcU8xOFB3OTl4OUVhOExDM3dCODBGcGZAiRkQ0QWdRQjhpWk40TWJB"
+DB_URL = os.environ.get("DATABASE_URL")
+if not DB_URL:
+    print("ERROR: DATABASE_URL environment variable is required")
+    sys.exit(1)
+IGAAT_TOKEN = os.environ.get("INSTAGRAM_ACCESS_TOKEN")
+if not IGAAT_TOKEN:
+    print("ERROR: INSTAGRAM_ACCESS_TOKEN environment variable is required")
+    sys.exit(1)
 IRIS_CREATOR_ID = "8e9d1705-4772-40bd-83b1-c6821c5593bf"
 IRIS_IG_USER_ID = "17841400999933058"  # iraais5
 
