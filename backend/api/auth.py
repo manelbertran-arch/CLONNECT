@@ -39,6 +39,11 @@ if not JWT_SECRET:
     JWT_SECRET = secrets.token_urlsafe(32)
     logger.warning("JWT_SECRET not set - using random secret. Tokens will invalidate on restart!")
     logger.warning("Set JWT_SECRET env var for production to persist tokens across restarts.")
+elif JWT_SECRET == "local-dev-jwt-secret-min-32-characters-here":
+    ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+    if ENVIRONMENT == "production":
+        raise RuntimeError("JWT_SECRET is set to the placeholder value in production! Set a strong random secret.")
+    logger.warning("JWT_SECRET is the placeholder value — only acceptable in development.")
 elif len(JWT_SECRET) < 32:
     logger.warning("JWT_SECRET is less than 32 characters. Use a longer secret for security.")
 

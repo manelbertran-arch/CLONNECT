@@ -240,16 +240,16 @@ check("Creator stefano_bonanno existe", creator_row is not None,
 if creator_row:
     creator_uuid = str(creator_row[0])
 
-    data_checks = [
-        ("leads",                f"SELECT COUNT(*) FROM leads WHERE creator_id = '{creator_uuid}'"),
-        ("messages",             f"SELECT COUNT(*) FROM messages WHERE lead_id IN (SELECT id FROM leads WHERE creator_id = '{creator_uuid}')"),
-        ("products",             f"SELECT COUNT(*) FROM products WHERE creator_id = '{creator_uuid}'"),
-        ("knowledge_base",       f"SELECT COUNT(*) FROM knowledge_base WHERE creator_id = '{creator_uuid}'"),
-        ("rag_documents",        f"SELECT COUNT(*) FROM rag_documents WHERE creator_id = '{creator_uuid}'"),
-        ("tone_profiles",        f"SELECT COUNT(*) FROM tone_profiles WHERE creator_id = '{creator_uuid}'"),
-        ("nurturing_sequences",  f"SELECT COUNT(*) FROM nurturing_sequences WHERE creator_id = '{creator_uuid}'"),
-        ("learning_rules",       f"SELECT COUNT(*) FROM learning_rules WHERE creator_id = '{creator_uuid}'"),
-        ("nurturing_followups",  f"SELECT COUNT(*) FROM nurturing_followups WHERE creator_id = '{creator_uuid}'"),
+    data_tables = [
+        ("leads",               "SELECT COUNT(*) FROM leads WHERE creator_id = %s"),
+        ("messages",            "SELECT COUNT(*) FROM messages WHERE lead_id IN (SELECT id FROM leads WHERE creator_id = %s)"),
+        ("products",            "SELECT COUNT(*) FROM products WHERE creator_id = %s"),
+        ("knowledge_base",      "SELECT COUNT(*) FROM knowledge_base WHERE creator_id = %s"),
+        ("rag_documents",       "SELECT COUNT(*) FROM rag_documents WHERE creator_id = %s"),
+        ("tone_profiles",       "SELECT COUNT(*) FROM tone_profiles WHERE creator_id = %s"),
+        ("nurturing_sequences", "SELECT COUNT(*) FROM nurturing_sequences WHERE creator_id = %s"),
+        ("learning_rules",      "SELECT COUNT(*) FROM learning_rules WHERE creator_id = %s"),
+        ("nurturing_followups", "SELECT COUNT(*) FROM nurturing_followups WHERE creator_id = %s"),
     ]
 
     min_expected = {
@@ -257,9 +257,9 @@ if creator_row:
         "knowledge_base": 0, "rag_documents": 0,
     }
 
-    for name, query in data_checks:
+    for name, query in data_tables:
         try:
-            cur.execute(query)
+            cur.execute(query, (creator_uuid,))
             count = cur.fetchone()[0]
             min_val = min_expected.get(name, 0)
             passed = count >= min_val

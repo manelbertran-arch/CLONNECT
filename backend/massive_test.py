@@ -36,7 +36,7 @@ def test(name, cmd, expect=None, max_time=None):
     total_tests += 1
     bar(total_tests, TOTAL, name)
     try:
-        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+        r = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True, timeout=30)
         out = r.stdout.strip()
         code = None
         try: code = int(out.split('|')[0])

@@ -115,7 +115,7 @@ async def _fetch_og_metadata(url: str, timeout: float) -> Optional[Dict]:
         async with httpx.AsyncClient(
             timeout=timeout,
             follow_redirects=True,
-            verify=False  # Some sites have SSL issues
+            verify=True
         ) as client:
             response = await client.get(url, headers=headers)
 
