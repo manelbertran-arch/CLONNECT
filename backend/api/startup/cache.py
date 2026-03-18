@@ -80,8 +80,8 @@ async def _do_prewarm(SessionLocal):
 
         for creator_id in active_creators:
             try:
-                await get_conversations(creator_id, limit=500, offset=0)
-                logger.info(f"[CACHE-WARM] {creator_id}: conversations cached")
+                await get_conversations(creator_id)
+                logger.info(f"[CACHE-WARM] {creator_id}: conversations cached (90d window)")
             except Exception as e:
                 logger.warning(f"[CACHE-WARM] Failed for {creator_id}: {e}")
     except Exception as e:
@@ -96,7 +96,6 @@ async def _do_cache_refresh(SessionLocal):
     try:
         from api.cache import api_cache
         from api.models import Creator
-        from api.routers.messages import get_pipeline_score
         from api.services import db_service
 
         # Get active creators from DB
@@ -114,56 +113,12 @@ async def _do_cache_refresh(SessionLocal):
             active_creators.append("stefano_bonanno")
 
         for creator_id in active_creators:
-            # Refresh conversations cache
+            # Refresh conversations cache — call the real endpoint (90d window)
             try:
-                result = db_service.get_conversations_with_counts(creator_id, limit=200, offset=0)
-                if result:
-                    conversations_data = result.get("conversations", [])
-                    conversations = []
-                    for c in conversations_data:
-                        lead_status = c.get("status", "new")
-                        intent = c.get("purchase_intent_score", 0)
-                        conversations.append({
-                            "follower_id": c.get("platform_user_id") or c.get("follower_id"),
-                            "id": c.get("id"),
-                            "username": c.get("username"),
-                            "name": c.get("name"),
-                            "profile_pic_url": c.get("profile_pic_url"),
-                            "platform": c.get("platform", "instagram"),
-                            "total_messages": c.get("total_messages", 0),
-                            "purchase_intent": intent,
-                            "purchase_intent_score": round(intent * 100) if intent <= 1 else int(intent),
-                            "lead_status": lead_status,
-                            "status": lead_status,
-                            "pipeline_score": get_pipeline_score(lead_status),
-                            "last_messages": [],
-                            "last_contact": c.get("last_contact"),
-                            "first_contact": c.get("first_contact"),
-                            "last_message_preview": c.get("last_message_preview"),
-                            "last_message_role": c.get("last_message_role"),
-                            "is_unread": c.get("is_unread", False),
-                            "is_verified": c.get("is_verified", False),
-                            "email": c.get("email") or "",
-                            "phone": c.get("phone") or "",
-                            "notes": c.get("notes") or "",
-                            "tags": c.get("tags") or [],
-                            "deal_value": c.get("deal_value"),
-                        })
-                    cached_result = {
-                        "status": "ok",
-                        "conversations": conversations,
-                        "count": len(conversations),
-                        "total_count": result.get("total_count", 0),
-                        "limit": 200,
-                        "offset": 0,
-                        "has_more": result.get("has_more", False),
-                        "product_price": 97.0,
-                    }
-                    # Set for BOTH endpoints (dm.py and messages.py use different keys)
-                    # Use 60s TTL to ensure cache survives between refresh cycles (every 20s)
-                    api_cache.set(f"conversations:{creator_id}:200:0", cached_result, ttl_seconds=60)  # messages.py
-                    api_cache.set(f"conversations:{creator_id}:200", cached_result, ttl_seconds=60)    # dm.py
-                    logger.info(f"[CACHE-REFRESH] {creator_id}: cached {len(conversations)} conversations")
+                from api.routers.dm import get_conversations
+                result = await get_conversations(creator_id)
+                # The endpoint already caches via api_cache
+                logger.info(f"[CACHE-REFRESH] {creator_id}: conversations refreshed (90d window)")
             except Exception as e:
                 logger.warning(f"[CACHE-REFRESH] conversations {creator_id} FAILED: {e}")
 

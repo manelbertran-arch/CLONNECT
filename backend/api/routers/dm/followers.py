@@ -127,8 +127,8 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                             FROM messages
                             WHERE lead_id = :lead_id
                               AND status IN ('sent', 'edited')
+                              AND created_at >= NOW() - INTERVAL '90 days'
                             ORDER BY created_at DESC
-                            LIMIT 50
                         """)
                         rows = session.execute(sql, {"lead_id": lead.id}).mappings().fetchall()
                         rows = rows[::-1]  # Chronological order

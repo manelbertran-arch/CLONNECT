@@ -55,7 +55,7 @@ def get_leads(creator_name: str, include_archived: bool = False, limit: int = 10
                 .distinct(Message.lead_id)
                 .order_by(Message.lead_id, desc(Message.created_at))
             )
-            for msg in last_msg_query.limit(50).all():
+            for msg in last_msg_query.all():
                 last_messages[msg.lead_id] = msg
 
         result = []
@@ -112,24 +112,19 @@ def get_leads(creator_name: str, include_archived: bool = False, limit: int = 10
 
 def get_conversations_with_counts(
     creator_name: str,
-    limit: int = 50,
-    offset: int = 0,
+    days: int = 90,
     include_archived: bool = False,
     min_messages: int = 0,
+    # Legacy params — ignored, kept for backward compat
+    limit: int | None = None,
+    offset: int | None = None,
 ):
-    """Get conversations with accurate message counts from PostgreSQL
+    """Get conversations with accurate message counts from PostgreSQL.
 
-    Args:
-        creator_name: Creator identifier
-        limit: Max conversations to return
-        offset: Number of conversations to skip (for pagination)
-        include_archived: Include archived/spam conversations
-        min_messages: Minimum message count to include (default 1, filters out empty conversations)
-
-    Returns:
-        dict with 'conversations' list, 'total_count', 'limit', 'offset', 'has_more'
-        Each conversation includes last_message_preview and last_message_role for Instagram-like UX
+    Loads all leads with activity in the last `days` days (default 90).
     """
+    from datetime import datetime, timedelta, timezone as _tz
+
     session = get_session()
     if not session:
         return None
@@ -140,6 +135,8 @@ def get_conversations_with_counts(
         creator = resolve_creator_safe(session, creator_name)
         if not creator:
             return None
+
+        cutoff = datetime.now(_tz.utc) - timedelta(days=days)
 
         # Query leads with message count using subquery (count ALL messages, not just user)
         msg_count_subq = (
@@ -154,6 +151,7 @@ def get_conversations_with_counts(
             )
             .outerjoin(msg_count_subq, Lead.id == msg_count_subq.c.lead_id)
             .filter(Lead.creator_id == creator.id)
+            .filter(Lead.last_contact_at >= cutoff)
         )
 
         # Filter out conversations with fewer than min_messages (default: hide empty conversations)
@@ -163,11 +161,11 @@ def get_conversations_with_counts(
         if not include_archived:
             query = query.filter(not_(Lead.status.in_(["archived", "spam"])))
 
-        # Get total count before pagination
+        # Get total count
         total_count = query.count()
 
-        # Apply pagination
-        results = query.order_by(Lead.last_contact_at.desc()).offset(offset).limit(limit).all()
+        # All leads in the time window — no pagination
+        results = query.order_by(Lead.last_contact_at.desc()).all()
 
         # Get last message for each lead (batch query for efficiency)
         lead_ids = [lead.id for lead, _ in results]
@@ -191,7 +189,7 @@ def get_conversations_with_counts(
                 (Message.lead_id == max_date_subq.c.lead_id)
                 & (Message.created_at == max_date_subq.c.max_created_at),
             )
-            for msg in last_msg_query.limit(50).all():
+            for msg in last_msg_query.all():
                 last_messages[msg.lead_id] = msg
 
         conversations = []
@@ -251,9 +249,6 @@ def get_conversations_with_counts(
         return {
             "conversations": conversations,
             "total_count": total_count,
-            "limit": limit,
-            "offset": offset,
-            "has_more": offset + len(conversations) < total_count,
         }
     finally:
         session.close()

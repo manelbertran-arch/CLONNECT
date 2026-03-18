@@ -49,14 +49,14 @@ def _media_description(metadata: dict | None) -> str:
 
 
 @router.get("/conversations/{creator_id}")
-async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, platform: str = None):
-    """Listar conversaciones del creador - OPTIMIZED with caching"""
+async def get_conversations(creator_id: str, platform: str = None):
+    """Listar conversaciones del creador — loads all leads active in last 90 days."""
     import time as _time
 
     from api.cache import api_cache
 
     # Check cache first (60s TTL - matches startup.py cache refresh)
-    cache_key = f"conversations:{creator_id}:{limit}:{offset}:{platform or 'all'}"
+    cache_key = f"conversations:{creator_id}:{platform or 'all'}"
     cached = api_cache.get(cache_key)
     if cached:
         logger.info(f"[CONV] {creator_id}: cache HIT (key={cache_key})")
@@ -74,6 +74,8 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
 
             def _db_query():
                 """All blocking SQLAlchemy work — runs in a thread to avoid blocking event loop."""
+                from datetime import datetime, timedelta, timezone as _tz
+
                 session = get_session()
                 if not session:
                     return None
@@ -84,9 +86,12 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         return {"status": "ok", "conversations": [], "count": 0}
                     creator_uuid = creator_row[0]
 
+                    cutoff = datetime.now(_tz.utc) - timedelta(days=90)
+
                     base_filters = [
                         Lead.creator_id == creator_uuid,
                         not_(Lead.status.in_(["archived", "spam"])),
+                        Lead.last_contact_at >= cutoff,
                     ]
                     if platform:
                         base_filters.append(Lead.platform == platform)
@@ -97,17 +102,11 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         .scalar()
                     )
 
-                    # Cap at 200 to prevent loading 1500+ leads into memory.
-                    # Frontend paginates beyond this.
-                    effective_limit = min(limit, 200)
-
-                    # Step 1: Get leads (no message joins) — targeted index scan on leads
+                    # Step 1: Get all leads active in last 90 days (no numeric limit)
                     leads = (
                         session.query(Lead)
                         .filter(*base_filters)
                         .order_by(Lead.last_contact_at.desc())
-                        .offset(offset)
-                        .limit(effective_limit)
                         .all()
                     )
 
@@ -118,9 +117,6 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                             "conversations": [],
                             "count": 0,
                             "total": total_count,
-                            "has_more": False,
-                            "offset": offset,
-                            "limit": limit,
                             "counts_by_status": {},
                         }
 
@@ -258,9 +254,8 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
 
                     elapsed = _time.time() - start_time
                     logger.info(
-                        f"[CONV] {creator_id}: {len(conversations)} conversations in {elapsed:.2f}s (DB query)"
+                        f"[CONV] {creator_id}: {len(conversations)} conversations in {elapsed:.2f}s (DB query, 90d window)"
                     )
-                    has_more = (offset + limit) < total_count
 
                     counts_rows = (
                         session.query(Lead.status, func.count(Lead.id))
@@ -275,9 +270,6 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         "conversations": conversations,
                         "count": len(conversations),
                         "total": total_count,
-                        "has_more": has_more,
-                        "offset": offset,
-                        "limit": limit,
                         "counts_by_status": counts_by_status,
                     }
                 finally:
@@ -293,7 +285,7 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
         from .processing import get_dm_agent
 
         agent = get_dm_agent(creator_id)
-        conversations = await agent.get_all_conversations(limit)
+        conversations = await agent.get_all_conversations(500)
         filtered = [c for c in conversations if not c.get("archived") and not c.get("spam")]
         return {"status": "ok", "conversations": filtered, "count": len(filtered)}
 

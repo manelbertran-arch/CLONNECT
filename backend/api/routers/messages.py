@@ -498,11 +498,11 @@ async def update_follower_status(creator_id: str, follower_id: str, data: Follow
 
 
 @router.get("/conversations/{creator_id}")
-async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
+async def get_conversations(creator_id: str):
     from api.cache import api_cache
 
     # Check cache first (30s TTL)
-    cache_key = f"conversations:{creator_id}:{limit}:{offset}"
+    cache_key = f"conversations:{creator_id}:90d"
     cached = api_cache.get(cache_key)
     if cached:
         logger.debug(f"[CONV] {creator_id}: cache HIT")
@@ -529,14 +529,13 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
             logger.warning(f"Get product_price failed: {e}")
 
         try:
-            # Use optimized function that does a single query with subquery join
+            # Use optimized function — 90-day window, no numeric limit
             result = db_service.get_conversations_with_counts(
-                creator_id, limit=limit, offset=offset
+                creator_id, days=90
             )
             if result is not None:
                 conversations_data = result.get("conversations", [])
                 total_count = result.get("total_count", 0)
-                has_more = result.get("has_more", False)
                 conversations = []
                 for c in conversations_data:
                     lead_status = c.get("status", "new")
@@ -578,9 +577,6 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                     "conversations": conversations,
                     "count": len(conversations),
                     "total_count": total_count,
-                    "limit": limit,
-                    "offset": offset,
-                    "has_more": has_more,
                     "product_price": product_price,
                 }
                 # Cache for 10 seconds
