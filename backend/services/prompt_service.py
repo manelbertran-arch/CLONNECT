@@ -130,7 +130,6 @@ class PromptBuilder:
             "- Always respond as the creator's clone.",
             "",
             "REGLAS CRÍTICAS:",
-            "- Responde en el idioma del usuario",
             "- NUNCA inventes precios o info de productos",
             "- Si no sabes algo, di que lo consultas",
         ])

@@ -284,17 +284,22 @@ class DMResponderAgentV2:
                 profile = load_profile_from_db(str(creator.id))
                 if profile and profile.get("prompt_injection"):
                     data_driven_style = profile["prompt_injection"]
-                    # Replace style_prompt entirely — prompt_injection from
-                    # real data supersedes Doc D style (avoids 23K→1K bloat)
-                    self.style_prompt = (
-                        f"=== ESTILO DE ESCRITURA (datos reales) ===\n"
+                    # APPEND ECHO quantitative data AFTER Doc D personality.
+                    # Doc D is the authoritative base (language, tone, bilingual style).
+                    # ECHO adds real-data metrics (emoji freq, avg length, etc.).
+                    echo_section = (
+                        f"\n\n=== ESTILO DE ESCRITURA (datos reales) ===\n"
                         f"{data_driven_style}\n"
                         f"=== FIN ESTILO DATOS ==="
                     )
+                    if self.style_prompt:
+                        self.style_prompt = self.style_prompt + echo_section
+                    else:
+                        self.style_prompt = echo_section.lstrip()
                     logger.info(
-                        f"[ECHO] StyleProfile REPLACED style_prompt for {self.creator_id} "
+                        f"[ECHO] StyleProfile APPENDED to style_prompt for {self.creator_id} "
                         f"(confidence={profile.get('confidence', 0)}, "
-                        f"style:{len(self.style_prompt)} chars)"
+                        f"total:{len(self.style_prompt)} chars)"
                     )
             finally:
                 session.close()

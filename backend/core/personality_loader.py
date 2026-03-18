@@ -62,17 +62,44 @@ class ExtractionData:
 def _find_doc_path(creator_id: str) -> Optional[str]:
     """Find doc_d_bot_configuration.md for a creator_id (slug or UUID).
 
-    Checks only an exact directory match (creator_id as subdir name).
+    Checks exact directory match first (creator_id as subdir name), then
+    resolves slug→UUID via DB to find UUID-named directories.
     Does NOT scan all subdirectories to avoid cross-creator contamination.
     """
     direct = os.path.join(EXTRACTIONS_DIR, creator_id, "doc_d_bot_configuration.md")
     if os.path.isfile(direct):
         return direct
+
+    # If creator_id is a slug, try resolving to UUID and checking UUID-named dir
+    try:
+        from api.database import SessionLocal as _SL
+        from sqlalchemy import text
+
+        _s = _SL()
+        try:
+            row = _s.execute(
+                text("SELECT id FROM creators WHERE name = :name LIMIT 1"),
+                {"name": creator_id},
+            ).fetchone()
+            if row:
+                uuid_path = os.path.join(
+                    EXTRACTIONS_DIR, str(row.id), "doc_d_bot_configuration.md"
+                )
+                if os.path.isfile(uuid_path):
+                    return uuid_path
+        finally:
+            _s.close()
+    except Exception:
+        pass
+
     return None
 
 
 def _load_doc_d_from_db(creator_id: str) -> Optional[str]:
     """Load Doc D markdown content from PostgreSQL personality_docs table.
+
+    Resolves creator slug to UUID via JOIN with creators table so that
+    callers can pass either a slug ('iris_bertran') or a UUID.
 
     Returns the content string, or None if not found.
     This is the primary source (survives Railway deploys).
@@ -86,9 +113,11 @@ def _load_doc_d_from_db(creator_id: str) -> Optional[str]:
             row = _s.execute(
                 text(
                     """
-                    SELECT content FROM personality_docs
-                    WHERE creator_id = :creator_id
-                      AND doc_type = 'doc_d'
+                    SELECT pd.content
+                    FROM personality_docs pd
+                    JOIN creators c ON c.id::text = pd.creator_id
+                    WHERE (c.name = :creator_id OR pd.creator_id = :creator_id)
+                      AND pd.doc_type = 'doc_d'
                     LIMIT 1
                     """
                 ),
