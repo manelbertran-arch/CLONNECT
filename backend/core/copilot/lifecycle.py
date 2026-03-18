@@ -158,6 +158,7 @@ async def create_pending_response_impl(
 
             # Fetch profile from IG API if username not provided
             profile_pending = False
+            profile_pic_url = ""
             if not username and platform == "instagram":
                 try:
                     from core.instagram_profile import fetch_instagram_profile
@@ -168,6 +169,7 @@ async def create_pending_response_impl(
                         if profile_data:
                             username = profile_data.get("username", "")
                             full_name = full_name or profile_data.get("name", "")
+                            profile_pic_url = profile_data.get("profile_pic", "")
                             logger.info(
                                 f"[Copilot] Fetched profile for {follower_id}: @{username}"
                             )
@@ -183,6 +185,7 @@ async def create_pending_response_impl(
                 platform_user_id=follower_id,
                 username=username,
                 full_name=full_name,
+                profile_pic_url=profile_pic_url or None,
                 phone=phone_number,
                 source=f"{platform}_dm",
                 status="new",

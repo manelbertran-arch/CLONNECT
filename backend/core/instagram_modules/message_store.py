@@ -129,6 +129,7 @@ class MessageStore:
                     # Create lead if doesn't exist
                     # Use raw sender_id (no ig_ prefix) for consistency
                     # Fetch profile from API if username not provided
+                    profile_pic_url = ""
                     if not username:
                         try:
                             from core.instagram_profile import fetch_instagram_profile
@@ -138,6 +139,7 @@ class MessageStore:
                             if profile_data:
                                 username = profile_data.get("username", "")
                                 full_name = full_name or profile_data.get("name", "")
+                                profile_pic_url = profile_data.get("profile_pic", "")
                                 logger.info(
                                     f"[SaveMsg] Fetched profile for {msg.sender_id}: @{username}"
                                 )
@@ -151,6 +153,7 @@ class MessageStore:
                             platform_user_id=msg.sender_id,  # No prefix - prevents duplicates
                             username=username or None,
                             full_name=full_name or None,
+                            profile_pic_url=profile_pic_url or None,
                             source="instagram_dm",
                             status="nuevo",
                             context={"profile_pending": True} if not username else {},
@@ -411,6 +414,7 @@ class MessageStore:
                     # Create lead if doesn't exist
                     # Use raw sender_id (no ig_ prefix) for consistency
                     # Fetch profile from API if username not provided
+                    profile_pic_url = ""
                     if not username:
                         try:
                             from core.instagram_profile import fetch_instagram_profile
@@ -420,6 +424,7 @@ class MessageStore:
                             if profile_data:
                                 username = profile_data.get("username", "")
                                 full_name = full_name or profile_data.get("name", "")
+                                profile_pic_url = profile_data.get("profile_pic", "")
                                 logger.info(
                                     f"[SaveUserMsg] Fetched profile for {msg.sender_id}: @{username}"
                                 )
@@ -433,6 +438,7 @@ class MessageStore:
                             platform_user_id=msg.sender_id,  # No prefix - prevents duplicates
                             username=username or None,
                             full_name=full_name or None,
+                            profile_pic_url=profile_pic_url or None,
                             source="instagram_dm",
                             status="nuevo",
                             context={"profile_pending": True} if not username else {},

@@ -613,3 +613,66 @@ class LeadManager:
                     logger.debug(f"[IG] Identity resolution skipped: {ir_err}")
         except Exception as e:
             logger.warning(f"Could not update lead profile: {e}")
+
+    async def update_lead_profile_if_missing(
+        self,
+        sender_id: str,
+        username: str,
+        full_name: str,
+        profile_pic_url: str,
+    ):
+        """
+        Update lead profile ONLY if current values are missing.
+        Called on every webhook to opportunistically backfill profile info
+        for leads that were created without it (e.g., expired token at creation time).
+        """
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator, Lead
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                if not creator:
+                    return
+
+                lead = (
+                    session.query(Lead)
+                    .filter(
+                        Lead.creator_id == creator.id,
+                        Lead.platform_user_id.in_([sender_id, f"ig_{sender_id}"]),
+                    )
+                    .first()
+                )
+                if not lead:
+                    return
+
+                updated = False
+                if not lead.username and username:
+                    lead.username = username
+                    updated = True
+                if not lead.full_name and full_name:
+                    lead.full_name = full_name
+                    updated = True
+                if not lead.profile_pic_url and profile_pic_url:
+                    lead.profile_pic_url = profile_pic_url
+                    updated = True
+
+                if updated:
+                    # Clear profile_pending flag
+                    if lead.context and lead.context.get("profile_pending"):
+                        context = dict(lead.context)
+                        context.pop("profile_pending", None)
+                        context.pop("profile_retry_at", None)
+                        lead.context = context
+
+                    session.commit()
+                    logger.info(
+                        f"[IG:{sender_id}] Backfilled missing profile: "
+                        f"username={username[:20] if username else 'N/A'}, "
+                        f"pic={'Yes' if profile_pic_url else 'No'}"
+                    )
+            finally:
+                session.close()
+        except Exception as e:
+            logger.debug(f"Could not backfill lead profile for {sender_id}: {e}")

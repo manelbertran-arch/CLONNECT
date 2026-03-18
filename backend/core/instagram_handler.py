@@ -290,6 +290,14 @@ class InstagramHandler:
             sender_id, username, full_name, profile_pic_url, is_verified
         )
 
+    async def _update_lead_profile_if_missing(
+        self, sender_id: str, username: str, full_name: str, profile_pic_url: str
+    ):
+        """Update lead profile only if current values are missing."""
+        await self._lead_mgr.update_lead_profile_if_missing(
+            sender_id, username, full_name, profile_pic_url
+        )
+
     # =========================================================================
     # MESSAGING (delegated to MessageSender / MessageStore)
     # =========================================================================

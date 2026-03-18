@@ -220,14 +220,25 @@ async def handle_webhook_impl(
             # Get username and display name
             username = ""
             full_name = ""
+            profile_pic_url = ""
             try:
                 if handler.connector:
                     profile = await handler.connector.get_user_profile(message.sender_id)
                     if profile:
                         username = profile.username
                         full_name = profile.name or ""
+                        profile_pic_url = profile.profile_pic_url or ""
             except Exception as e:
                 logger.warning("Failed to get user profile for %s: %s", message.sender_id, e)
+
+            # Backfill lead profile if we got data now but lead was missing it
+            if username or profile_pic_url:
+                try:
+                    await handler._update_lead_profile_if_missing(
+                        message.sender_id, username, full_name, profile_pic_url
+                    )
+                except Exception as e:
+                    logger.debug("Failed to backfill lead profile for %s: %s", message.sender_id, e)
 
             # Dispatch to copilot or autopilot
             result = await dispatch_response(
