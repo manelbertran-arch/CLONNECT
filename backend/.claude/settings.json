@@ -9,6 +9,15 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT:-/Users/manelbertranluque/.claude/plugins/cache/superpowers-marketplace/superpowers/5.0.5}/hooks/run-hook.cmd\" session-start",
+            "timeout": 15
+          }
+        ]
       }
     ],
     "PreToolUse": [
