@@ -89,7 +89,7 @@ async def handle_webhook_impl(
         # Skip messages from any known creator ID
         known_ids = getattr(handler, "known_creator_ids", set())
         if not known_ids:
-            known_ids = {handler.page_id, handler.ig_user_id, "17841400506734756"}
+            known_ids = {handler.page_id, handler.ig_user_id}
             for extra_id in (getattr(handler, "_additional_ids", None) or []):
                 known_ids.add(str(extra_id))
 
@@ -239,6 +239,13 @@ async def handle_webhook_impl(
                     )
                 except Exception as e:
                     logger.debug("Failed to backfill lead profile for %s: %s", message.sender_id, e)
+            else:
+                # Cross-creator fallback: if IG API returned nothing, try copying
+                # profile from another creator's lead with the same platform_user_id
+                try:
+                    await handler._copy_profile_from_sibling_lead(message.sender_id)
+                except Exception as e:
+                    logger.debug("Sibling profile copy failed for %s: %s", message.sender_id, e)
 
             # Dispatch to copilot or autopilot
             result = await dispatch_response(

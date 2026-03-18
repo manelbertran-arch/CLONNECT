@@ -93,6 +93,7 @@ class InstagramHandler:
             self.recent_messages, self.recent_responses, self._extract_media_info,
             access_token=self.access_token,
         )
+        self._msg_store._additional_ids = getattr(self, "_additional_ids", [])
         self._comment = CommentHandler(self.creator_id, self._sender.send_response)
 
     def _load_credentials_from_db(self):
@@ -126,7 +127,7 @@ class InstagramHandler:
                     self._additional_ids = creator.instagram_additional_ids or []
                     for extra_id in self._additional_ids:
                         self.known_creator_ids.add(str(extra_id))
-                    self.known_creator_ids.add("17841400506734756")
+                    # known_creator_ids is built dynamically from DB — no hardcoded IDs needed
 
                     logger.info(f"Loaded Instagram credentials from DB for creator: {creator.name}")
                     logger.info(f"  - page_id: {self.page_id or 'N/A'}")
@@ -297,6 +298,10 @@ class InstagramHandler:
         await self._lead_mgr.update_lead_profile_if_missing(
             sender_id, username, full_name, profile_pic_url
         )
+
+    async def _copy_profile_from_sibling_lead(self, sender_id: str) -> bool:
+        """Cross-creator profile fallback when IG API can't fetch this user."""
+        return await self._lead_mgr.copy_profile_from_sibling_lead(sender_id)
 
     # =========================================================================
     # MESSAGING (delegated to MessageSender / MessageStore)

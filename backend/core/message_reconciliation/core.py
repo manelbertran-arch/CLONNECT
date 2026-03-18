@@ -238,8 +238,7 @@ async def reconcile_messages_for_creator(
             # Business Login returning different IDs than conversation participant IDs)
             for extra_id in (creator.instagram_additional_ids or []):
                 creator_ids.add(str(extra_id))
-            # Add legacy creator ID that was previously used (prevents ghost leads)
-            creator_ids.add("17841400506734756")
+            # creator_ids built dynamically from DB — no hardcoded IDs needed
 
             follower_id = None
             for p in participants:

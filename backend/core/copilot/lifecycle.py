@@ -179,6 +179,30 @@ async def create_pending_response_impl(
                     logger.warning(f"[Copilot] Profile fetch failed: {prof_err}")
                     profile_pending = True
 
+            # Cross-creator fallback: copy profile from sibling lead if API failed
+            if profile_pending and platform == "instagram":
+                try:
+                    sibling = (
+                        session.query(Lead)
+                        .filter(
+                            Lead.platform_user_id == follower_id,
+                            Lead.creator_id != creator.id,
+                            Lead.username.isnot(None),
+                            Lead.username != "",
+                        )
+                        .first()
+                    )
+                    if sibling:
+                        username = sibling.username or username
+                        full_name = sibling.full_name or full_name
+                        profile_pic_url = sibling.profile_pic_url or profile_pic_url
+                        profile_pending = False
+                        logger.info(
+                            f"[Copilot] Copied profile from sibling lead: @{username}"
+                        )
+                except Exception as sib_err:
+                    logger.debug(f"[Copilot] Sibling lookup failed: {sib_err}")
+
             lead = Lead(
                 creator_id=creator.id,
                 platform=platform,

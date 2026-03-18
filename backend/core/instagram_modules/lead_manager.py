@@ -178,7 +178,7 @@ class LeadManager:
             Lead ID (string) if created successfully
         """
         # Prevent creating leads for creator's own IDs (prevents ghost leads)
-        known_ids = {self.page_id, self.ig_user_id, "17841400506734756"}
+        known_ids = {self.page_id, self.ig_user_id}
         for extra_id in (getattr(self, "_additional_ids", None) or []):
             known_ids.add(str(extra_id))
         if sender_id in known_ids:
@@ -676,3 +676,87 @@ class LeadManager:
                 session.close()
         except Exception as e:
             logger.debug(f"Could not backfill lead profile for {sender_id}: {e}")
+
+    async def copy_profile_from_sibling_lead(self, sender_id: str) -> bool:
+        """
+        Cross-creator profile fallback: if the IG API can't return this user's
+        profile (permission error), copy username + profile_pic_url from another
+        creator's lead with the same platform_user_id.
+
+        Only copies username, full_name, and profile_pic_url. Does NOT create
+        leads or modify messages.
+
+        Returns True if profile was copied, False otherwise.
+        """
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator, Lead
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                if not creator:
+                    return False
+
+                # Find our lead (the one missing profile data)
+                our_lead = (
+                    session.query(Lead)
+                    .filter(
+                        Lead.creator_id == creator.id,
+                        Lead.platform_user_id.in_([sender_id, f"ig_{sender_id}"]),
+                    )
+                    .first()
+                )
+                if not our_lead:
+                    return False
+
+                # Already has profile — nothing to do
+                if our_lead.username and our_lead.profile_pic_url:
+                    return False
+
+                # Find a sibling lead (different creator, same platform_user_id) that has profile data
+                sibling = (
+                    session.query(Lead)
+                    .filter(
+                        Lead.platform_user_id == our_lead.platform_user_id,
+                        Lead.creator_id != creator.id,
+                        Lead.username.isnot(None),
+                        Lead.username != "",
+                    )
+                    .first()
+                )
+                if not sibling:
+                    return False
+
+                updated = False
+                if not our_lead.username and sibling.username:
+                    our_lead.username = sibling.username
+                    updated = True
+                if not our_lead.full_name and sibling.full_name:
+                    our_lead.full_name = sibling.full_name
+                    updated = True
+                if not our_lead.profile_pic_url and sibling.profile_pic_url:
+                    our_lead.profile_pic_url = sibling.profile_pic_url
+                    updated = True
+
+                if updated:
+                    # Clear profile_pending flag
+                    if our_lead.context and our_lead.context.get("profile_pending"):
+                        context = dict(our_lead.context)
+                        context.pop("profile_pending", None)
+                        context.pop("profile_retry_at", None)
+                        our_lead.context = context
+
+                    session.commit()
+                    logger.info(
+                        f"[IG:{sender_id}] Copied profile from sibling lead: "
+                        f"@{sibling.username} (creator={sibling.creator_id})"
+                    )
+                    return True
+
+                return False
+            finally:
+                session.close()
+        except Exception as e:
+            logger.debug(f"Could not copy sibling profile for {sender_id}: {e}")
+            return False
