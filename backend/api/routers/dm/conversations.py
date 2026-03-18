@@ -97,10 +97,9 @@ async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0, 
                         .scalar()
                     )
 
-                    # Load all leads when limit >= 500 (dashboard "load all" mode).
-                    # The ANY(CAST(:ids AS uuid[])) queries + existing ix_messages_lead_id_created_at
-                    # index make message queries fast even for 1500+ leads (< 400ms total).
-                    effective_limit = total_count if limit >= 500 else limit
+                    # Cap at 200 to prevent loading 1500+ leads into memory.
+                    # Frontend paginates beyond this.
+                    effective_limit = min(limit, 200)
 
                     # Step 1: Get leads (no message joins) — targeted index scan on leads
                     leads = (

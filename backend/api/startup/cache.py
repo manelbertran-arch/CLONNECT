@@ -80,7 +80,7 @@ async def _do_prewarm(SessionLocal):
 
         for creator_id in active_creators:
             try:
-                await get_conversations(creator_id, limit=50, offset=0)
+                await get_conversations(creator_id, limit=500, offset=0)
                 logger.info(f"[CACHE-WARM] {creator_id}: conversations cached")
             except Exception as e:
                 logger.warning(f"[CACHE-WARM] Failed for {creator_id}: {e}")
@@ -116,7 +116,7 @@ async def _do_cache_refresh(SessionLocal):
         for creator_id in active_creators:
             # Refresh conversations cache
             try:
-                result = db_service.get_conversations_with_counts(creator_id, limit=50, offset=0)
+                result = db_service.get_conversations_with_counts(creator_id, limit=200, offset=0)
                 if result:
                     conversations_data = result.get("conversations", [])
                     conversations = []
@@ -154,15 +154,15 @@ async def _do_cache_refresh(SessionLocal):
                         "conversations": conversations,
                         "count": len(conversations),
                         "total_count": result.get("total_count", 0),
-                        "limit": 50,
+                        "limit": 200,
                         "offset": 0,
                         "has_more": result.get("has_more", False),
                         "product_price": 97.0,
                     }
                     # Set for BOTH endpoints (dm.py and messages.py use different keys)
                     # Use 60s TTL to ensure cache survives between refresh cycles (every 20s)
-                    api_cache.set(f"conversations:{creator_id}:50:0", cached_result, ttl_seconds=60)  # messages.py
-                    api_cache.set(f"conversations:{creator_id}:50", cached_result, ttl_seconds=60)    # dm.py
+                    api_cache.set(f"conversations:{creator_id}:200:0", cached_result, ttl_seconds=60)  # messages.py
+                    api_cache.set(f"conversations:{creator_id}:200", cached_result, ttl_seconds=60)    # dm.py
                     logger.info(f"[CACHE-REFRESH] {creator_id}: cached {len(conversations)} conversations")
             except Exception as e:
                 logger.warning(f"[CACHE-REFRESH] conversations {creator_id} FAILED: {e}")

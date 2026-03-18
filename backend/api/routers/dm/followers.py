@@ -96,12 +96,13 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                     if not session:
                         return None
                     try:
-                        creator = session.query(Creator).filter_by(name=creator_id).first()
-                        if not creator:
+                        creator_row = session.query(Creator.id).filter_by(name=creator_id).first()
+                        if not creator_row:
                             return None
+                        creator_uuid = creator_row[0]
                         lead = (
                             session.query(Lead)
-                            .filter_by(creator_id=creator.id, platform_user_id=follower_id)
+                            .filter_by(creator_id=creator_uuid, platform_user_id=follower_id)
                             .first()
                         )
                         if not lead:

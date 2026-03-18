@@ -10,13 +10,15 @@ Uso:
 import argparse
 import json
 import sys
+import time
 from datetime import datetime
 
 import requests
 
 BASE = "https://www.clonnectapp.com"
 ADMIN_KEY = "clonnect_admin_secret_2024"
-TIMEOUT = 15
+TIMEOUT = 45       # Railway cold-start can take 30s+
+RETRY_WAIT = 5     # seconds to wait before one retry on timeout
 
 TESTS = [
     {
@@ -92,7 +94,37 @@ def run_tests():
             resp = requests.request(t["method"], url, headers=headers, timeout=TIMEOUT)
             status = resp.status_code
             body = resp.text
+        except requests.exceptions.Timeout:
+            # One retry after a short wait (Railway cold-start)
+            time.sleep(RETRY_WAIT)
+            try:
+                resp = requests.request(t["method"], url, headers=headers, timeout=TIMEOUT)
+                status = resp.status_code
+                body = resp.text
+            except Exception as e2:
+                passed = False
+                status = 0
+                body = ""
+                status_str = "FAIL"
+                detail = f"timeout (retry also failed: {str(e2)[:60]})"
+                all_passed = False
+                print(f"  [{status_str}] {test_id:30s} — {detail}")
+                results.append({"id": test_id, "path": t["path"], "status": status,
+                                 "passed": passed, "detail": detail})
+                continue
+        except Exception as e:
+            passed = False
+            status = 0
+            body = ""
+            status_str = "FAIL"
+            detail = str(e)[:100]
+            all_passed = False
+            print(f"  [{status_str}] {test_id:30s} — {detail}")
+            results.append({"id": test_id, "path": t["path"], "status": status,
+                             "passed": passed, "detail": detail})
+            continue
 
+        try:
             passed = status == t["expected_status"]
             if passed and t.get("response_contains"):
                 passed = t["response_contains"] in body
@@ -104,11 +136,8 @@ def run_tests():
                 if t.get("response_contains") and status == t["expected_status"]:
                     detail = f"missing '{t['response_contains']}' in response"
                 all_passed = False
-
         except Exception as e:
             passed = False
-            status = 0
-            body = ""
             status_str = "FAIL"
             detail = str(e)[:100]
             all_passed = False
