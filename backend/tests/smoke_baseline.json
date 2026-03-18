@@ -1,0 +1,76 @@
+{
+  "captured_at": "2026-03-18T18:24:36.350113",
+  "base_url": "https://www.clonnectapp.com",
+  "results": [
+    {
+      "id": "health",
+      "path": "/health",
+      "status": 200,
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "health_live",
+      "path": "/health/live",
+      "status": 200,
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "health_ready",
+      "path": "/health/ready",
+      "status": 200,
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "health_tasks",
+      "path": "/health/tasks",
+      "status": 200,
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "conversations_iris",
+      "path": "/dm/conversations/iris_bertran",
+      "status": 200,
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "conversations_stefano",
+      "path": "/dm/conversations/stefano_bonanno",
+      "status": 200,
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "debug_memory",
+      "path": "/debug/memory",
+      "status": 200,
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "no_cross_creator_leads",
+      "path": "db",
+      "status": 200,
+      "passed": true,
+      "detail": "OK"
+    },
+    {
+      "id": "no_ghost_leads",
+      "path": "db",
+      "status": 200,
+      "passed": true,
+      "detail": "OK"
+    },
+    {
+      "id": "correct_routing_ids",
+      "path": "db",
+      "status": 200,
+      "passed": true,
+      "detail": "OK"
+    }
+  ]
+}
