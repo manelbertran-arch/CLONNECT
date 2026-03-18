@@ -1,5 +1,29 @@
 # Clonnect — AI Clone Platform for Content Creators
 
+## 4-Phase Development Workflow (MANDATORY)
+
+YOU MUST follow all 4 phases for every non-trivial change. YOU MUST NOT push if smoke tests fail.
+
+### Phase 1: PLAN
+- Use the planner agent (`.claude/agents/planner.md`)
+- Identify affected files, dependencies, and blast radius
+- Log decisions in `DECISIONS.md`
+
+### Phase 2: IMPLEMENT
+- Use the tdd-guide agent (`.claude/agents/tdd-guide.md`)
+- Write/update tests before or alongside implementation
+- Syntax-check every modified `.py` file: `python3 -c "import ast; ast.parse(open('FILE').read())"`
+
+### Phase 3: REVIEW
+- Use the code-reviewer agent (`.claude/agents/code-reviewer.md`)
+- Use the python-reviewer agent (`.claude/agents/python-reviewer.md`) for Python files
+- Check for regressions against existing patterns
+
+### Phase 4: VERIFY
+- Run smoke tests: `python3 tests/smoke_test_endpoints.py`
+- All tests MUST pass before commit/push
+- If any test fails, fix the issue and re-run before proceeding
+
 ## Stack
 FastAPI + uvicorn, PostgreSQL (Neon + pgbouncer), pgvector, SQLAlchemy, Python 3.11
 Deploy: Railway (auto-deploy on push to `main`). Procfile: `alembic upgrade head && uvicorn ...`
