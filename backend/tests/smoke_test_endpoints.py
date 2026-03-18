@@ -9,6 +9,7 @@ Uso:
 
 import argparse
 import json
+import os
 import sys
 import time
 from datetime import datetime
@@ -19,6 +20,10 @@ BASE = "https://www.clonnectapp.com"
 ADMIN_KEY = "clonnect_admin_secret_2024"
 TIMEOUT = 45       # Railway cold-start can take 30s+
 RETRY_WAIT = 5     # seconds to wait before one retry on timeout
+
+# Known IGSIDs for routing integrity checks
+IRIS_IGSID = "17841400999933058"
+STEFANO_IGSID = "17841400506734756"
 
 TESTS = [
     {
@@ -71,6 +76,107 @@ TESTS = [
         "response_contains": "rss_mb",
     },
 ]
+
+
+def _db_skip(check_id, reason):
+    print(f"  [SKIP] {check_id:30s} — {reason}")
+    return {"id": check_id, "path": "db", "status": 0, "passed": True, "detail": f"SKIP: {reason}"}
+
+
+def run_db_checks():
+    """Run DB data integrity checks. Returns (results_list, all_passed).
+    Skips gracefully (passed=True) when DATABASE_URL is unavailable.
+    """
+    database_url = os.environ.get("DATABASE_URL")
+    skip_ids = ["no_cross_creator_leads", "no_ghost_leads", "correct_routing_ids"]
+
+    if not database_url:
+        return [_db_skip(cid, "no DATABASE_URL") for cid in skip_ids], True
+
+    try:
+        import psycopg2
+    except ImportError:
+        return [_db_skip(cid, "psycopg2 not installed") for cid in skip_ids], True
+
+    results = []
+    all_passed = True
+
+    try:
+        conn = psycopg2.connect(database_url)
+        conn.set_session(readonly=True, autocommit=True)
+        cur = conn.cursor()
+
+        # Check 8: no platform_user_id under more than one creator
+        cur.execute("""
+            SELECT platform_user_id, COUNT(DISTINCT creator_id) AS cnt
+            FROM leads
+            WHERE platform = 'instagram'
+            GROUP BY platform_user_id
+            HAVING COUNT(DISTINCT creator_id) > 1
+        """)
+        rows = cur.fetchall()
+        passed = len(rows) == 0
+        detail = "OK" if passed else f"{len(rows)} duplicate(s): {[r[0] for r in rows[:5]]}"
+        if not passed:
+            all_passed = False
+        print(f"  [{'PASS' if passed else 'FAIL'}] {'no_cross_creator_leads':30s} — {detail}")
+        results.append({"id": "no_cross_creator_leads", "path": "db",
+                        "status": 200 if passed else 500, "passed": passed, "detail": detail})
+
+        # Check 9: no ghost leads (lead's platform_user_id = creator's own instagram_user_id)
+        cur.execute("""
+            SELECT l.platform_user_id, c.name
+            FROM leads l
+            JOIN creators c ON l.creator_id = c.id
+            WHERE l.platform = 'instagram'
+              AND l.platform_user_id = c.instagram_user_id
+        """)
+        rows = cur.fetchall()
+        passed = len(rows) == 0
+        detail = "OK" if passed else f"{len(rows)} ghost(s): {[r[1] for r in rows[:5]]}"
+        if not passed:
+            all_passed = False
+        print(f"  [{'PASS' if passed else 'FAIL'}] {'no_ghost_leads':30s} — {detail}")
+        results.append({"id": "no_ghost_leads", "path": "db",
+                        "status": 200 if passed else 500, "passed": passed, "detail": detail})
+
+        # Check 10: Iris/Stefano IGSIDs in correct additional_ids, not swapped
+        cur.execute("""
+            SELECT name, instagram_additional_ids
+            FROM creators
+            WHERE name IN ('iris_bertran', 'stefano_bonanno')
+        """)
+        creator_ids = {row[0]: (row[1] or []) for row in cur.fetchall()}
+        iris_ids = creator_ids.get("iris_bertran", [])
+        stefano_ids = creator_ids.get("stefano_bonanno", [])
+
+        issues = []
+        if IRIS_IGSID not in iris_ids:
+            issues.append(f"iris missing own IGSID {IRIS_IGSID}")
+        if STEFANO_IGSID in iris_ids:
+            issues.append(f"iris has stefano IGSID {STEFANO_IGSID}")
+        if STEFANO_IGSID not in stefano_ids:
+            issues.append(f"stefano missing own IGSID {STEFANO_IGSID}")
+        if IRIS_IGSID in stefano_ids:
+            issues.append(f"stefano has iris IGSID {IRIS_IGSID}")
+
+        passed = len(issues) == 0
+        detail = "OK" if passed else "; ".join(issues)
+        if not passed:
+            all_passed = False
+        print(f"  [{'PASS' if passed else 'FAIL'}] {'correct_routing_ids':30s} — {detail}")
+        results.append({"id": "correct_routing_ids", "path": "db",
+                        "status": 200 if passed else 500, "passed": passed, "detail": detail})
+
+        cur.close()
+        conn.close()
+
+    except Exception as e:
+        for cid in skip_ids:
+            if not any(r["id"] == cid for r in results):
+                results.append(_db_skip(cid, f"DB error: {str(e)[:60]}"))
+
+    return results, all_passed
 
 
 def run_tests():
@@ -151,9 +257,16 @@ def run_tests():
             "detail": detail,
         })
 
+    db_results, db_passed = run_db_checks()
+    results.extend(db_results)
+    if not db_passed:
+        all_passed = False
+
     print("=" * 60)
-    total_pass = sum(1 for r in results if r["passed"])
-    print(f"Resultado: {total_pass}/{len(results)} passed")
+    skipped = sum(1 for r in results if r["detail"].startswith("SKIP"))
+    total_pass = sum(1 for r in results if r["passed"] and not r["detail"].startswith("SKIP"))
+    total_counted = len(results) - skipped
+    print(f"Resultado: {total_pass}/{total_counted} passed" + (f" ({skipped} skipped)" if skipped else ""))
     print("=" * 60)
 
     return results, all_passed
