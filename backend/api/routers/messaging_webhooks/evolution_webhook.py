@@ -42,6 +42,29 @@ _EVO_DEDUP_TTL = 60  # seconds
 _evo_content_dedup: Dict[str, float] = {}
 _EVO_CONTENT_DEDUP_TTL = 60  # seconds
 
+# Ghost lead prevention: cache own phone per instance so self-messages
+# (creator messaging their own number) don't create ghost leads.
+# Populated on connection.update state=open via Evolution API.
+_INSTANCE_OWN_PHONE: Dict[str, str] = {}  # instance → bare phone digits (e.g. "34692419787")
+
+
+def _normalize_wa_phone(number: str) -> str:
+    """Normalize a WhatsApp phone/JID to bare digits.
+
+    Handles all Baileys formats:
+    - "34692419787"
+    - "34692419787@s.whatsapp.net"
+    - "34692419787-1610116326"  (Baileys LID timestamp suffix)
+    - "34692419787.15:XX@lid"   (LID device format)
+    - "wa_34692419787"
+    """
+    n = number.removeprefix("wa_")
+    n = n.split("@")[0]   # strip @s.whatsapp.net or @lid
+    n = n.split("-")[0]   # strip Baileys LID timestamp suffix
+    n = n.split(".")[0]   # strip LID device suffix
+    n = n.split(":")[0]   # strip device index
+    return n
+
 
 def _evo_is_duplicate(message_id: str) -> bool:
     """Return True if this message_id was already processed (dedup)."""
@@ -85,6 +108,56 @@ def _evo_is_content_duplicate(sender: str, text: str) -> bool:
     return False
 
 
+async def _refresh_own_phone(instance: str, creator_id: str) -> None:
+    """Fetch and cache the instance's own WhatsApp phone number.
+
+    Called on connection.update state=open to populate _INSTANCE_OWN_PHONE.
+    Prevents ghost leads when the creator messages their own number.
+    Also persists to creators.whatsapp_phone_id so it survives restarts.
+    """
+    try:
+        from services.evolution_api import EVOLUTION_API_KEY, EVOLUTION_API_URL
+        import aiohttp as _aiohttp
+
+        url = f"{EVOLUTION_API_URL}/instance/fetchInstances"
+        headers = {"apikey": EVOLUTION_API_KEY}
+        async with _aiohttp.ClientSession(timeout=_aiohttp.ClientTimeout(total=10)) as sess:
+            async with sess.get(url, headers=headers) as resp:
+                if resp.status != 200:
+                    return
+                instances = await resp.json()
+                for inst in instances:
+                    if inst.get("name") == instance:
+                        owner_jid = inst.get("ownerJid", "") or inst.get("number", "")
+                        if owner_jid:
+                            own_phone = _normalize_wa_phone(owner_jid)
+                            _INSTANCE_OWN_PHONE[instance] = own_phone
+                            logger.info(f"[EVO:{instance}] Own phone cached: {own_phone}")
+                            asyncio.create_task(_persist_own_phone(creator_id, own_phone))
+                        break
+    except Exception as e:
+        logger.warning(f"[EVO:{instance}] Failed to fetch own phone: {e}")
+
+
+async def _persist_own_phone(creator_id: str, phone: str) -> None:
+    """Store creator's own WhatsApp phone in creators.whatsapp_phone_id for restart survival."""
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        db = SessionLocal()
+        try:
+            creator = db.query(Creator).filter_by(name=creator_id).first()
+            if creator and not creator.whatsapp_phone_id:
+                creator.whatsapp_phone_id = phone
+                db.commit()
+                logger.info(f"[EVO] Stored own phone {phone} for {creator_id}")
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"[EVO] Failed to persist own phone for {creator_id}: {e}")
+
+
 @router.post("/webhook/whatsapp/evolution")
 async def evolution_webhook(request: Request):
     """
@@ -118,6 +191,10 @@ async def evolution_webhook(request: Request):
         if state == "open":
             import time as _time
             creator_id = EVOLUTION_INSTANCE_MAP.get(instance)
+            if creator_id:
+                # Refresh own phone cache for ghost lead prevention (fire-and-forget)
+                asyncio.create_task(_refresh_own_phone(instance, creator_id))
+
             if creator_id and creator_id not in _wa_pipeline_running:
                 # Cooldown: skip if pipeline ran recently (Evolution reconnects frequently)
                 last_run = _wa_pipeline_last_run.get(creator_id, 0)
@@ -775,6 +852,19 @@ async def _save_evolution_outgoing_message(
                 import uuid
 
                 sender_number = follower_id.removeprefix("wa_")
+
+                # Ghost lead guard: skip if this is the creator's own number.
+                # Happens when Baileys replays "notes to self", status messages,
+                # or self-messages (remoteJid == creator's own JID).
+                # Use cached own phone (populated on connection.update state=open).
+                own_phone = _INSTANCE_OWN_PHONE.get(instance, "") or (creator.whatsapp_phone_id or "")
+                if own_phone and _normalize_wa_phone(sender_number) == _normalize_wa_phone(own_phone):
+                    logger.warning(
+                        f"[EVO:{instance}] Ghost lead guard: skipping lead creation for "
+                        f"creator's own number {sender_number}"
+                    )
+                    return
+
                 # push_name here is the CREATOR's name (fromMe=true), not the contact's.
                 # Use phone number as placeholder; inbound handler will set the real name.
                 lead = Lead(
