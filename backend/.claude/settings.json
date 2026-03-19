@@ -1,5 +1,16 @@
 {
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/methodology-reminder.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [
@@ -30,6 +41,16 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-commit-decisions.sh",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -40,6 +61,26 @@
             "type": "command",
             "command": ".claude/hooks/post-deploy-health.sh",
             "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "agent",
+            "prompt": "You are a methodology compliance checker for the Clonnect backend project. Your ONLY job is to decide: allow or block.\n\nCheck the session context: $ARGUMENTS\n\nSTEP 1: Run `git diff --name-only` and `git diff --cached --name-only` to see if any .py files were modified.\n\nIf NO .py files were modified, immediately respond with EXACTLY:\n{\"decision\": \"allow\"}\n\nIf .py files WERE modified, check these 3 things:\n\na) DECISIONS.md — Run `git diff DECISIONS.md` to see if it was updated this session. If it has new content, this passes.\n\nb) Smoke tests — Run `grep -c 'smoke_test\\|SMOKE\\|7/7 passed' \"$TRANSCRIPT_PATH\"` where TRANSCRIPT_PATH comes from the context. Or check if smoke test results appear in the last_assistant_message. If any evidence of smoke tests exists, this passes.\n\nc) Code review — Check if any code review was done: `grep -c 'CODE.REVIEW\\|code.review\\|review' \"$TRANSCRIPT_PATH\"`. If any evidence exists, this passes.\n\nIf ALL 3 pass, respond with EXACTLY:\n{\"decision\": \"allow\"}\n\nIf ANY fail, respond with EXACTLY:\n{\"decision\": \"block\", \"reason\": \"Missing methodology steps: [list what failed]. Complete before finishing: 1) Update DECISIONS.md 2) Run smoke tests 3) Do code review.\"}",
+            "timeout": 120
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/stop-smoke-tests.sh",
+            "timeout": 120
           }
         ]
       }

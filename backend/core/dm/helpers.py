@@ -76,6 +76,61 @@ def get_history_from_follower(agent, follower) -> List[Dict[str, str]]:
     return history
 
 
+def get_history_from_db(creator_id: str, follower_id: str, limit: int = 20) -> List[Dict[str, str]]:
+    """Fallback: load conversation history from PostgreSQL when JSON files don't exist.
+
+    Args:
+        creator_id: Creator slug (e.g. "iris_bertran")
+        follower_id: Platform user ID (e.g. "wa_34639066982")
+        limit: Max messages to return
+
+    Returns:
+        List of {role, content} dicts in chronological order, or [] on any error.
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator, Lead, Message
+        from api.utils.creator_resolver import resolve_creator_safe
+
+        session = SessionLocal()
+        try:
+            creator = resolve_creator_safe(session, creator_id)
+            if not creator:
+                return []
+
+            lead = (
+                session.query(Lead)
+                .filter(Lead.creator_id == creator.id, Lead.platform_user_id == follower_id)
+                .first()
+            )
+            if not lead:
+                return []
+
+            messages = (
+                session.query(Message.role, Message.content)
+                .filter(
+                    Message.lead_id == lead.id,
+                    Message.status.in_(("sent", "edited")),
+                    Message.deleted_at.is_(None),
+                )
+                .order_by(Message.created_at.desc())
+                .limit(limit)
+                .all()
+            )
+
+            # Return in chronological order (oldest first)
+            return [
+                {"role": m.role, "content": m.content}
+                for m in reversed(messages)
+                if m.content
+            ]
+        finally:
+            session.close()
+    except Exception as e:
+        logger.warning(f"[HISTORY-DB] Failed to load history from DB: {e}")
+        return []
+
+
 def get_conversation_summary(agent, follower) -> str:
     """Get a brief summary of recent conversation for notification."""
     if not follower.last_messages:

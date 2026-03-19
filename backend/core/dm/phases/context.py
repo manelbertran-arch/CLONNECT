@@ -395,8 +395,22 @@ async def phase_memory_and_context(
         products=prompt_products, custom_instructions=combined_context
     )
 
-    # Get conversation history from follower memory
+    # Get conversation history from follower memory (JSON files)
     history = agent._get_history_from_follower(follower)
+
+    # DB fallback: when JSON-backed MemoryStore has no history (files don't exist
+    # on Railway for most leads), load from PostgreSQL messages table instead.
+    if not history:
+        from core.dm.helpers import get_history_from_db
+        history = await asyncio.to_thread(
+            get_history_from_db, agent.creator_id, sender_id, 20
+        )
+        if history:
+            logger.info(f"[HISTORY-DB] Loaded {len(history)} messages from DB for {sender_id}")
+            # Backfill metadata so earlier code (question context, relationship
+            # detection, DNA seed) can use it on next invocation
+            metadata["history"] = history
+
     _t1c = time.monotonic()
     logger.info(f"[TIMING] Phase 3 sub: fast_ops={int((_t1c - _t1b) * 1000)}ms")
 
