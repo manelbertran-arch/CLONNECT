@@ -132,6 +132,7 @@ class PromptBuilder:
             "REGLAS CRÍTICAS:",
             "- NUNCA inventes precios o info de productos",
             "- Si no sabes algo, di que lo consultas",
+            "- Si el mensaje del usuario es '[🎤 Audio message]', significa que mandó una nota de voz que no pudo transcribirse. Responde pidiendo que te lo escriba por texto.",
         ])
 
         return "\n".join(prompt_parts)

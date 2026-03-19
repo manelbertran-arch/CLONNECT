@@ -14,6 +14,12 @@ DEBOUNCE_SECONDS = int(os.getenv("COPILOT_DEBOUNCE_SECONDS", "15"))
 
 # Media detection patterns — these are not real text and should not get copilot suggestions
 _MEDIA_HASH_PATTERN = re.compile(r"^[A-Za-z0-9+/=]{15,}$")
+# Emoji-prefixed media placeholders from Evolution/IG webhooks.
+# Audio ("[🎤 Audio]" / "[🎤 Audio message]") is intentionally excluded so the
+# copilot can suggest a reply (e.g. ask the lead to re-send as text).
+_EMOJI_MEDIA_PREFIXES = (
+    "[📷", "[🎬", "[🏷️", "[📄", "[📎",
+)
 _ATTACHMENT_PLACEHOLDERS = {
     "sent an attachment",
     "[media]",
@@ -53,12 +59,7 @@ def is_non_text_message(content: str) -> bool:
     if stripped.lower().startswith("shared a "):
         return True
 
-    # Emoji-prefixed media placeholders from Evolution webhook
-    # e.g. "[📷 Photo]", "[🎬 Video]", "[🏷️ Sticker]", "[📄 Document]", "[📎 Media]"
-    _EMOJI_MEDIA_PREFIXES = (
-        "[📷", "[🎬", "[🏷️", "[📄", "[📎",
-        "[🎤 Audio message]",  # audio without transcription
-    )
+    # Emoji-prefixed media placeholders (see module-level _EMOJI_MEDIA_PREFIXES)
     if any(stripped.startswith(prefix) for prefix in _EMOJI_MEDIA_PREFIXES):
         return True
 
