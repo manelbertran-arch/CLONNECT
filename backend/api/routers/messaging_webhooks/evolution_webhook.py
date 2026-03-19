@@ -673,7 +673,7 @@ async def _download_evolution_media(instance: str, data: dict, media_type: str) 
                         from ingestion.transcriber import get_transcriber
 
                         transcriber = get_transcriber()
-                        transcript = await transcriber.transcribe_file(tmp_path, language="es")
+                        transcript = await transcriber.transcribe_file(tmp_path)
                         if transcript and transcript.full_text.strip():
                             raw_text = transcript.full_text.strip()
                             result["transcription"] = raw_text
