@@ -397,6 +397,7 @@ async def phase_memory_and_context(
 
     # Get conversation history from follower memory (JSON files)
     history = agent._get_history_from_follower(follower)
+    logger.info(f"[HISTORY-DB] json_history={len(history)} msgs for {sender_id}")
 
     # DB fallback: when JSON-backed MemoryStore has no history (files don't exist
     # on Railway for most leads), load from PostgreSQL messages table instead.
@@ -405,8 +406,8 @@ async def phase_memory_and_context(
         history = await asyncio.to_thread(
             get_history_from_db, agent.creator_id, sender_id, 20
         )
+        logger.info(f"[HISTORY-DB] db_fallback returned {len(history)} msgs for {sender_id}")
         if history:
-            logger.info(f"[HISTORY-DB] Loaded {len(history)} messages from DB for {sender_id}")
             # Backfill metadata so earlier code (question context, relationship
             # detection, DNA seed) can use it on next invocation
             metadata["history"] = history
