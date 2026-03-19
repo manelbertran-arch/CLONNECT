@@ -110,7 +110,7 @@ def get_history_from_db(creator_id: str, follower_id: str, limit: int = 20) -> L
                 session.query(Message.role, Message.content)
                 .filter(
                     Message.lead_id == lead.id,
-                    Message.status.in_(("sent", "edited")),
+                    Message.status != "discarded",  # exclude rejected copilot suggestions
                     Message.deleted_at.is_(None),
                 )
                 .order_by(Message.created_at.desc())
