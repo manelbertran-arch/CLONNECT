@@ -28,6 +28,22 @@ ENABLE_AUDIO_INTELLIGENCE = (
 MIN_WORDS_FOR_PROCESSING = 30
 LAYER_TIMEOUT_SECONDS = 12  # per-layer LLM timeout
 
+# Human-readable language names for prompt injection
+_LANGUAGE_NAMES = {
+    "ca": "català",
+    "es": "español",
+    "en": "English",
+    "fr": "français",
+    "pt": "português",
+    "it": "italiano",
+    "de": "Deutsch",
+}
+
+
+def _language_name(code: str) -> str:
+    """Return human-readable name for an ISO 639-1 language code."""
+    return _LANGUAGE_NAMES.get(code.lower(), code)
+
 
 # ═══════════════════════════════════════════════════════
 # DATA MODELS
@@ -108,7 +124,9 @@ class AudioIntelligence:
 # PROMPTS
 # ═══════════════════════════════════════════════════════
 
-CLEAN_PROMPT = """Tu tarea es hacer esta transcripción de audio COMPRENSIBLE para lectura.
+CLEAN_PROMPT = """IDIOMA OBLIGATORIO: El texto de entrada está en {lang_name}. Tu respuesta DEBE estar en {lang_name}. No traduzcas ni cambies de idioma.
+
+Tu tarea es hacer esta transcripción de audio COMPRENSIBLE para lectura.
 
 MANTENER (es la voz de la persona):
 - Expresiones con significado: "vale", "esto es oro", "me la voy a enchufar"
@@ -143,11 +161,13 @@ Transcripción limpia:"""
 
 EXTRACT_PROMPT = """Analiza esta transcripción de un mensaje de audio en una conversación por DM.
 
+IDIOMA OBLIGATORIO: La transcripción está en {lang_name}. Escribe los valores de texto del JSON (intent, emotional_tone, topics, action_items) en {lang_name}.
+
 Extrae SOLO lo que está explícitamente presente. NO inventes ni infieras.
 
 Responde en JSON exacto (sin markdown, sin backticks):
 {{
-  "intent": "qué quiere comunicar el hablante, en 1 frase corta",
+  "intent": "qué quiere comunicar el hablante, en 1 frase corta (en {lang_name})",
   "people": ["nombres de personas mencionadas"],
   "places": ["lugares mencionados"],
   "dates": ["fechas, plazos o referencias temporales mencionadas"],
@@ -168,7 +188,9 @@ Transcripción:
 
 JSON:"""
 
-SUMMARY_PROMPT = """Sintetiza este audio en 1-3 frases que capturen TODA la información clave.
+SUMMARY_PROMPT = """IDIOMA OBLIGATORIO: Escribe la síntesis ÚNICAMENTE en {lang_name}. No uses ningún otro idioma.
+
+Sintetiza este audio en 1-3 frases que capturen TODA la información clave.
 El resultado debe ser tan útil que el lector NO necesite escuchar el audio.
 
 DATOS EXTRAÍDOS (úsalos TODOS en tu síntesis):
@@ -182,20 +204,20 @@ DATOS EXTRAÍDOS (úsalos TODOS en tu síntesis):
 - Tono: {emotional_tone}
 
 REGLAS:
-1. Cada nombre propio, fecha, lugar y cifra DEBE aparecer en la síntesis
-2. Si hay propuesta o acuerdo → incluirlo obligatoriamente
-3. Máximo 3 frases. Si el audio es simple, usa 1 frase
-4. Escribe en el MISMO idioma que el audio
+1. Escribe en {lang_name} — OBLIGATORIO
+2. Cada nombre propio, fecha, lugar y cifra DEBE aparecer en la síntesis
+3. Si hay propuesta o acuerdo → incluirlo obligatoriamente
+4. Máximo 3 frases. Si el audio es simple, usa 1 frase
 5. Es un mensaje {role_desc} — escribe en {person_perspective}
 6. NO uses bullet points ni etiquetas — solo texto fluido natural
 7. NO empieces con "El hablante" ni "El usuario" — ve directo al contenido
 
-TRANSCRIPCIÓN:
+TRANSCRIPCIÓN (en {lang_name}):
 \"\"\"
 {clean_text}
 \"\"\"
 
-Síntesis (1-3 frases):"""
+Síntesis (en {lang_name}, 1-3 frases):"""
 
 
 # ═══════════════════════════════════════════════════════
@@ -248,10 +270,10 @@ class AudioIntelligenceService:
             return result
 
         # ── Layer 2: Clean ──
-        result.clean_text = await self._clean(raw_text)
+        result.clean_text = await self._clean(raw_text, language)
 
         # ── Layer 3: Extract ──
-        extraction = await self._extract(result.clean_text)
+        extraction = await self._extract(result.clean_text, language)
         result.intent = extraction.get("intent", "")
         result.entities = AudioEntities(
             people=extraction.get("people", []),
@@ -291,26 +313,28 @@ class AudioIntelligenceService:
     # Layer implementations
     # ───────────────────────────────────────────────────
 
-    async def _clean(self, raw_text: str) -> str:
+    async def _clean(self, raw_text: str, language: str = "es") -> str:
         """Layer 2: Remove fillers, structure text."""
         if len(raw_text) < 100:
             return raw_text
 
-        prompt = CLEAN_PROMPT.format(raw_text=raw_text)
+        lang_name = _language_name(language)
+        prompt = CLEAN_PROMPT.format(raw_text=raw_text, lang_name=lang_name)
         result = await self._call_llm(
             prompt=prompt,
-            system="Editor de transcripciones. Mantienes la voz y personalidad del hablante pero eliminas ruido del habla (falsos arranques, duplicados, muletillas vacías). El texto debe leerse fluido.",
+            system=f"Editor de transcripciones. El texto está en {lang_name}. Mantienes la voz y personalidad del hablante pero eliminas ruido del habla (falsos arranques, duplicados, muletillas vacías). El texto debe leerse fluido. No traduzcas.",
             temperature=0.2,
             max_tokens=len(raw_text.split()) * 5,
         )
         return result or raw_text
 
-    async def _extract(self, clean_text: str) -> dict:
+    async def _extract(self, clean_text: str, language: str = "es") -> dict:
         """Layer 3: Structured entity extraction."""
-        prompt = EXTRACT_PROMPT.format(clean_text=clean_text)
+        lang_name = _language_name(language)
+        prompt = EXTRACT_PROMPT.format(clean_text=clean_text, lang_name=lang_name)
         response = await self._call_llm(
             prompt=prompt,
-            system="Extractor de datos. Responde SOLO en JSON válido.",
+            system=f"Extractor de datos. El texto está en {lang_name}. Responde SOLO en JSON válido.",
             temperature=0.1,
             max_tokens=600,
         )
@@ -331,19 +355,21 @@ class AudioIntelligenceService:
             role_desc = "de otra persona (entrante)"
             person_perspective = "tercera persona (ej: 'Comenta que...', 'Propone...')"
 
+        lang_name = _language_name(result.language)
         prompt = SUMMARY_PROMPT.format(
-            intent=result.intent or "no detectada",
-            people=", ".join(entities.people) if entities.people else "ninguna",
-            places=", ".join(entities.places) if entities.places else "ninguno",
-            dates=", ".join(entities.dates) if entities.dates else "ninguna",
-            numbers=", ".join(entities.numbers) if entities.numbers else "ninguna",
-            events=", ".join(entities.events) if entities.events else "ninguno",
+            lang_name=lang_name,
+            intent=result.intent or "-",
+            people=", ".join(entities.people) if entities.people else "-",
+            places=", ".join(entities.places) if entities.places else "-",
+            dates=", ".join(entities.dates) if entities.dates else "-",
+            numbers=", ".join(entities.numbers) if entities.numbers else "-",
+            events=", ".join(entities.events) if entities.events else "-",
             action_items=(
                 ", ".join(result.action_items)
                 if result.action_items
-                else "ninguna"
+                else "-"
             ),
-            emotional_tone=result.emotional_tone or "neutro",
+            emotional_tone=result.emotional_tone or "-",
             clean_text=result.clean_text[:2000],
             role_desc=role_desc,
             person_perspective=person_perspective,
@@ -351,7 +377,7 @@ class AudioIntelligenceService:
 
         summary = await self._call_llm(
             prompt=prompt,
-            system="Sintetizador experto. Máxima info en mínimas palabras.",
+            system=f"Sintetizador experto. Escribe ÚNICAMENTE en {lang_name}. Máxima info en mínimas palabras.",
             temperature=0.3,
             max_tokens=200,
         )
