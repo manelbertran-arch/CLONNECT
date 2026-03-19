@@ -866,12 +866,15 @@ async def _simple_dm_sync_internal(
                                         )
 
                                         intel = get_audio_intelligence()
+                                        detected_lang = getattr(transcript, "language", None) or "es"
+                                        if detected_lang == "auto":
+                                            detected_lang = "es"
                                         ai_result = await intel.process(
                                             raw_text=transcribed_text,
                                             duration_seconds=int(
                                                 new_msg.msg_metadata.get("duration", 0)
                                             ),
-                                            language="es",
+                                            language=detected_lang,
                                             role="user",
                                         )
                                         legacy = ai_result.to_legacy_fields()

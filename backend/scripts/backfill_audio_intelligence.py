@@ -92,10 +92,16 @@ async def backfill(limit: int = 50, dry_run: bool = False, force: bool = False):
                 continue
 
             try:
+                # Use stored language from audio_intel or detected_language, fallback to "es"
+                lang = (
+                    metadata.get("detected_language")
+                    or (metadata.get("audio_intel") or {}).get("language")
+                    or "es"
+                )
                 result = await service.process(
                     raw_text=raw_text,
                     duration_seconds=int(metadata.get("duration", 0)),
-                    language="es",
+                    language=lang,
                     role=role or "user",
                 )
 

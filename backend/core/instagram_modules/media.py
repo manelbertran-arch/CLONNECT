@@ -385,10 +385,13 @@ async def _transcribe_audio(
                 from services.audio_intelligence import get_audio_intelligence
 
                 intel = get_audio_intelligence()
+                detected_lang = getattr(transcript, "language", None) or "es"
+                if detected_lang == "auto":
+                    detected_lang = "es"
                 ai_result = await intel.process(
                     raw_text=transcribed_text,
                     duration_seconds=int(media_info.get("duration", 0)),
-                    language="es",
+                    language=detected_lang,
                     role="user",
                 )
                 legacy = ai_result.to_legacy_fields()

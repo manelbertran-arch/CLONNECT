@@ -377,6 +377,8 @@ async def evolution_webhook(request: Request):
             if audio_transcription:
                 outgoing_meta["transcription"] = audio_transcription
             if detected_media_type == "audio":
+                if media_result and media_result.get("detected_language"):
+                    outgoing_meta["detected_language"] = media_result["detected_language"]
                 if media_result and media_result.get("audio_intel"):
                     outgoing_meta["audio_intel"] = media_result["audio_intel"]
                     for k in ("transcript_raw", "transcript_full", "transcript_summary"):
@@ -677,6 +679,10 @@ async def _download_evolution_media(instance: str, data: dict, media_type: str) 
                         if transcript and transcript.full_text.strip():
                             raw_text = transcript.full_text.strip()
                             result["transcription"] = raw_text
+                            detected_lang = getattr(transcript, "language", None) or "es"
+                            if detected_lang == "auto":
+                                detected_lang = "es"
+                            result["detected_language"] = detected_lang
                             # Audio Intelligence Pipeline (4-layer) — same as Instagram
                             try:
                                 from services.audio_intelligence import get_audio_intelligence
@@ -684,7 +690,7 @@ async def _download_evolution_media(instance: str, data: dict, media_type: str) 
                                 intel = get_audio_intelligence()
                                 ai_result = await intel.process(
                                     raw_text=raw_text,
-                                    language="es",
+                                    language=detected_lang,
                                     role="user",
                                 )
                                 result["audio_intel"] = ai_result.to_metadata()
@@ -910,10 +916,11 @@ async def _save_evolution_outgoing_message(
 
                     raw_text = msg_metadata["transcription"]
                     intel = get_audio_intelligence()
+                    lang = msg_metadata.get("detected_language") or "es"
                     ai_result = await intel.process(
                         raw_text=raw_text,
                         duration_seconds=msg_metadata.get("duration", 0),
-                        language="es",
+                        language=lang,
                         role="assistant",
                     )
                     legacy = ai_result.to_legacy_fields()
