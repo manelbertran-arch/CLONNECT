@@ -297,6 +297,14 @@ async def phase_memory_and_context(
     audio_intel = metadata.get("audio_intel")
     if audio_intel and isinstance(audio_intel, dict):
         parts = []
+        # Include full transcription so LLM sees the actual words spoken
+        clean_text = (audio_intel.get("clean_text") or "").strip()
+        if clean_text:
+            parts.append(f"[Audio del lead]: {clean_text}")
+        # Include summary if it adds value beyond clean_text
+        summary = (audio_intel.get("summary") or "").strip()
+        if summary and summary != clean_text:
+            parts.append(f"Resumen: {summary}")
         if audio_intel.get("intent"):
             parts.append(f"Intención del audio: {audio_intel['intent']}")
         entities = audio_intel.get("entities", {})
