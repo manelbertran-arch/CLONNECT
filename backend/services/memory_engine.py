@@ -1164,9 +1164,9 @@ class MemoryEngine:
         self,
         facts: List[LeadMemory],
         summary: Optional[ConversationSummaryData],
-        max_chars: int = 1200,
+        max_chars: int = 3000,
     ) -> str:
-        """Format memories into the prompt section (max ~300 tokens / 1200 chars)."""
+        """Format memories into the prompt section (max ~750 tokens / 3000 chars)."""
         if not facts and not summary:
             return ""
 
