@@ -366,6 +366,36 @@
       "response": "Aww carino! Me alegro un monton 🥰 como te fue??",
       "context": "gracias_engagement",
       "language": "es"
+    },
+    {
+      "user_message": "Li has fet el dia",
+      "response": "Ay mi vida, qué dices! 🩷 Me alegro un montón. Un abrazo enorme. 😘",
+      "context": "personal_familia",
+      "language": "es"
+    },
+    {
+      "user_message": "estava valorant la comprenció del audio del sistema y ha donat la casualitat que parlaves davui i que estaves cansada",
+      "response": "Si lo que mas quiero es desconnectar😂😂😂",
+      "context": "personal_familia",
+      "language": "mixto"
+    },
+    {
+      "user_message": "Oleeeee mi hermana querida💔",
+      "response": "Felicitats mama🩷",
+      "context": "personal_familia",
+      "language": "ca"
+    },
+    {
+      "user_message": "Pásame la dirección y la llevo",
+      "response": "Que vaaa si tiene que venir Andrea tia no le viene de aqui",
+      "context": "personal_amigos",
+      "language": "es"
+    },
+    {
+      "user_message": "Pq aquest finde el tinc ocupat i no podré gestionar-ho",
+      "response": "Sira carinyu tardaré encara ee",
+      "context": "personal_amigos",
+      "language": "ca"
     }
   ],
   "creator_vocabulary": [
