@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import re
 import time
 from typing import Dict
 
@@ -65,28 +66,27 @@ async def phase_postprocessing(
     except Exception as e:
         logger.debug(f"Loop detection failed: {e}")
 
-    # A2b: Detect intra-response repetition (e.g. "jajajajaja..." repeated 100x)
+    # A2b: Detect intra-response repetition anywhere in the string
+    # (e.g. "Que vagi be germana JAJAJAJAJAJAJAJA..." — loop starts mid-response)
     try:
         if response_content and len(response_content) > 30:
             _resp_lower = response_content.lower()
-            _resp_len = len(_resp_lower)
-            for _pat_len in range(2, 9):
-                _pat = _resp_lower[:_pat_len]
-                if not _pat.strip():
-                    continue
+            _match = re.search(r'(.{2,8})\1{4,}', _resp_lower)
+            if _match:
+                _pat = _match.group(1)
                 _count = _resp_lower.count(_pat)
-                _coverage = (_count * _pat_len) / _resp_len
-                if _coverage > 0.7 and _count > 5:
-                    # Response is >70% a single repeated pattern — truncate to 3 reps
-                    truncated = response_content[:_pat_len] * 3
+                _coverage = (_count * len(_pat)) / len(_resp_lower)
+                if _coverage > 0.5 and _count > 5:
+                    # Keep any prefix before the loop, then allow 3 repetitions
+                    _prefix = response_content[:_match.start()]
+                    _pat_orig = response_content[_match.start():_match.start() + len(_pat)]
+                    response_content = _prefix + _pat_orig * 3
                     logger.warning(
                         f"[A2b] Intra-response repetition: "
                         f"'{_pat}' covers {_coverage:.0%} of response ({_count}x) — truncated"
                     )
                     cognitive_metadata["repetition_truncated"] = _pat
-                    response_content = truncated
                     llm_response.content = response_content
-                    break
     except Exception as e:
         logger.debug(f"Intra-response repetition detection failed: {e}")
 
