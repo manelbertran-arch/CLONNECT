@@ -17,6 +17,7 @@ Universal: works for any creator_id with a calibration file.
 import json
 import logging
 import os
+import random
 import time
 from typing import Dict, List, Optional, Tuple
 
@@ -78,7 +79,8 @@ def get_few_shot_section(calibration: Dict, max_examples: int = 5) -> str:
     if not examples:
         return ""
 
-    selected = examples[:max_examples]
+    k = min(max_examples, len(examples))
+    selected = random.sample(examples, k)
     lines = ["=== EJEMPLOS REALES DE CÓMO RESPONDES ==="]
     for ex in selected:
         user_msg = ex.get("user_message", "")
