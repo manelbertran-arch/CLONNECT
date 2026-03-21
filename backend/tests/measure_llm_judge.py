@@ -1,7 +1,7 @@
 """
 LLM-as-Judge Measurement Script — Primary Clone Quality Metric
 
-Runs the production DM pipeline on 20 test conversations, then evaluates
+Runs the production DM pipeline on 50 test conversations, then evaluates
 each response with GPT-4o-mini as judge across 6 dimensions.
 
 SequenceMatcher is included for backward-compatible tracking but LLM-Judge
@@ -48,7 +48,7 @@ logger = logging.getLogger("measure_llm_judge")
 logger.setLevel(logging.INFO)
 
 CREATOR_ID = "iris_bertran"
-TEST_SET_PATH = REPO_ROOT / "tests" / "test_set_v1.json"
+TEST_SET_PATH = REPO_ROOT / "tests" / "test_set_v2.json"
 DEFAULT_OUTPUT_PATH = REPO_ROOT / "tests" / "llm_judge_latest.json"
 
 # Reference scores for delta reporting
@@ -424,7 +424,7 @@ async def main():
     parser.add_argument("--output", "-o", type=str, default=str(DEFAULT_OUTPUT_PATH),
                         help="Output JSON path")
     parser.add_argument("--test-set", type=str, default=None,
-                        help="Custom test set JSON (default: tests/test_set_v1.json)")
+                        help="Custom test set JSON (default: tests/test_set_v2.json)")
     parser.add_argument("--judge-only", type=str, default=None,
                         help="Skip pipeline, judge an existing baseline JSON file")
     args = parser.parse_args()
