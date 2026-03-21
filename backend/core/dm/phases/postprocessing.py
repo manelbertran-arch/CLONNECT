@@ -70,8 +70,10 @@ async def phase_postprocessing(
 
     # A2b: Detect intra-response repetition anywhere in the string
     # (e.g. "Que vagi be germana JAJAJAJAJAJAJAJA..." — loop starts mid-response)
+    # Only trigger on longer responses (> 50 chars) to avoid chopping natural
+    # short expressions like "jajajaja" (8 chars) or "dale dale" (9 chars).
     try:
-        if response_content and len(response_content) > 30:
+        if response_content and len(response_content) > 50:
             _resp_lower = response_content.lower()
             _match = re.search(r'(.{2,8})\1{4,}', _resp_lower)
             if _match:
@@ -79,10 +81,11 @@ async def phase_postprocessing(
                 _count = _resp_lower.count(_pat)
                 _coverage = (_count * len(_pat)) / len(_resp_lower)
                 if _coverage > 0.5 and _count > 5:
-                    # Keep any prefix before the loop, then allow 3 repetitions
+                    # Keep prefix before the loop + one clean occurrence (not * 3,
+                    # which itself looks like a repetition loop to readers).
                     _prefix = response_content[:_match.start()]
                     _pat_orig = response_content[_match.start():_match.start() + len(_pat)]
-                    response_content = _prefix + _pat_orig * 3
+                    response_content = _prefix + _pat_orig
                     logger.warning(
                         f"[A2b] Intra-response repetition: "
                         f"'{_pat}' covers {_coverage:.0%} of response ({_count}x) — truncated"
