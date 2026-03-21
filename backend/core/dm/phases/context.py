@@ -331,6 +331,13 @@ async def phase_memory_and_context(
             )
             cognitive_metadata["audio_enriched"] = True
 
+    # Media placeholder context — when platform sends "Sent an attachment" etc.
+    if metadata.get("is_media_placeholder") and not audio_context:
+        audio_context = (
+            "[El lead compartió contenido multimedia — reacciona "
+            "con entusiasmo brevemente, no preguntes qué es]"
+        )
+
     # ECHO Engine: Generate relational context (Sprint 4)
     relational_block = ""
     _echo_rel_ctx = None

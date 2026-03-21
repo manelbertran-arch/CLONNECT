@@ -12,6 +12,22 @@ from core.sensitive_detector import detect_sensitive_content, get_crisis_resourc
 
 logger = logging.getLogger(__name__)
 
+# Platform placeholders sent instead of actual media content
+MEDIA_PLACEHOLDERS = {
+    "sent an attachment",
+    "sent a photo",
+    "sent a video",
+    "shared a reel",
+    "shared a story",
+    "sent a voice message",
+    "[image]", "[video]", "[sticker]",
+    "envió un archivo adjunto",
+    "envió una foto",
+    "envió un video",
+    "compartió un reel",
+    "compartió una historia",
+}
+
 # Feature flags for detection phase
 ENABLE_SENSITIVE_DETECTION = os.getenv("ENABLE_SENSITIVE_DETECTION", "true").lower() == "true"
 ENABLE_FRUSTRATION_DETECTION = os.getenv("ENABLE_FRUSTRATION_DETECTION", "true").lower() == "true"
@@ -24,6 +40,15 @@ async def phase_detection(
 ) -> DetectionResult:
     """Phase 1: Sensitive content, frustration, pool response, edge cases."""
     result = DetectionResult()
+
+    # PRE-PIPELINE: Media placeholder detection
+    # Instagram/WhatsApp send placeholder text like "Sent an attachment" instead of
+    # actual content. Flag it so the LLM reacts naturally instead of asking "what?".
+    msg_stripped = message.strip().lower().rstrip(".")
+    if msg_stripped in MEDIA_PLACEHOLDERS:
+        metadata["is_media_placeholder"] = True
+        cognitive_metadata["intent_override"] = "media_share"
+        logger.info("Media placeholder detected: %s", message.strip())
 
     # PRE-PIPELINE: SENSITIVE CONTENT DETECTION (Security)
     if ENABLE_SENSITIVE_DETECTION:
