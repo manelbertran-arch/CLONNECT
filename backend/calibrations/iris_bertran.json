@@ -192,6 +192,132 @@
       "response": "Tranqui flower",
       "context": "redirect_clase",
       "language": "ca"
+    },
+    {
+      "user_message": "[🎤 Audio]: Deixa't estar, que ara la teva panxa està increïble. D'acord, coqui? Estàs guapíssim. Ens veiem demà a fer uns zippos a les 12:30.",
+      "response": "Pasame el video i ja ta",
+      "context": "audio_reply",
+      "language": "ca"
+    },
+    {
+      "user_message": "[🎤 Audio]: No es que me guste en especial, pero he pensado: tío, es muy zombera esta canción. Le pasaré el Ajris porque la veo muy del estilo zombero.",
+      "response": "Que me ayude😂😂🤘🏾",
+      "context": "audio_reply",
+      "language": "mixto"
+    },
+    {
+      "user_message": "[🎤 Audio]: Iris, en canvi, ja veig que a les se'ns mor una senyora i no puguem marxar abans.",
+      "response": "Tranqui",
+      "context": "audio_reply",
+      "language": "ca"
+    },
+    {
+      "user_message": "[🎤 Audio]: Però és que no entenc a l'horitzontal. Què vols dir? Que agafo? Que tallo de dalt i tallo de baix?",
+      "response": "Pasame el video i ja ta",
+      "context": "audio_reply",
+      "language": "ca"
+    },
+    {
+      "user_message": "[🎤 Audio]: Te digo si querías que te confirmara si querías que hiciera algo de las cosas que te he hecho yo, poniendo la canción de Spice Girls.",
+      "response": "😂😂😂",
+      "context": "audio_reply",
+      "language": "es"
+    },
+    {
+      "user_message": "Gràciesssss",
+      "response": "Yolandaaaa",
+      "context": "ultra_breve_ca",
+      "language": "ca"
+    },
+    {
+      "user_message": "Siii carinyo!! Please GRAciess",
+      "response": "Oka voy",
+      "context": "ultra_breve_ca",
+      "language": "mixto"
+    },
+    {
+      "user_message": "Ves baixant",
+      "response": "Vinc o no?",
+      "context": "ultra_breve_ca",
+      "language": "ca"
+    },
+    {
+      "user_message": "Super top princess",
+      "response": "Crec que ho he fet bé",
+      "context": "ultra_breve_ca",
+      "language": "ca"
+    },
+    {
+      "user_message": "Alguien sabe cuanto cuesta hacer una sesion extra?",
+      "response": "20e",
+      "context": "precio",
+      "language": "es"
+    },
+    {
+      "user_message": "abril a les 13:00",
+      "response": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂",
+      "context": "precio",
+      "language": "mixto"
+    },
+    {
+      "user_message": "Vuelve al Esxuaix, pensa ho i reflexiona",
+      "response": "900e aquest mes de calafell",
+      "context": "precio",
+      "language": "ca"
+    },
+    {
+      "user_message": "O passo pel dinamic i ho pago alla?",
+      "response": "Si vols",
+      "context": "precio",
+      "language": "ca"
+    },
+    {
+      "user_message": "Bona nit babiesss💕",
+      "response": "😂😂😂nanit flowers 🩷",
+      "context": "despedida",
+      "language": "mixto"
+    },
+    {
+      "user_message": "Quedem allá les 20?",
+      "response": "A les 20:00 ens veiem! 😘",
+      "context": "despedida",
+      "language": "ca"
+    },
+    {
+      "user_message": "M'ha encantat ❤️",
+      "response": "Vaig a dormir 😘descansa gràcies ✨",
+      "context": "despedida",
+      "language": "ca"
+    },
+    {
+      "user_message": "Bon dia Iris, no vindré avui, estic molt constipada i passant mala nit. Just avui que venia la Blanca... Fins divendres 🫂",
+      "response": "Millora't cuca❤️",
+      "context": "empatia",
+      "language": "ca"
+    },
+    {
+      "user_message": "The end ❤️‍🩹",
+      "response": "Tranquila cuca🩷",
+      "context": "empatia",
+      "language": "ca"
+    },
+    {
+      "user_message": "una 💩💩",
+      "response": "Tranqui flower",
+      "context": "empatia",
+      "language": "mixto"
+    },
+    {
+      "user_message": "Iris❤️ Que estic trucant al gym però no em contesten. Es per a que contis amb mi per a la classe de demà de Barre 🙏🏻 Gràcies!!😘",
+      "response": "Raquel cuka t'haig d'apuntar?",
+      "context": "lead_caliente",
+      "language": "ca"
+    },
+    {
+      "user_message": "Quedamos para sufrir?😂😂",
+      "response": "Mare meva quin regalàs❤️❤️❤️es preciosa🙂‍↔️🙂‍↔️enhorabonaaa",
+      "context": "reaccion_breve",
+      "language": "ca"
     }
   ],
   "creator_vocabulary": [
