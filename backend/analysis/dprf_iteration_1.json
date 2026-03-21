@@ -1,0 +1,332 @@
+{
+  "metadata": {
+    "framework": "DPRF (Dynamic Persona Refinement)",
+    "paper": "Yao et al., Oct 2025",
+    "iteration": 1,
+    "date": "2026-03-21T19:49:45.569881+00:00",
+    "baseline_version": "v3_final",
+    "baseline_score": 34.2,
+    "n_conversations": 20
+  },
+  "gap_frequency": {
+    "emoji_falta": {
+      "count": 15,
+      "pct": 75.0
+    },
+    "longitud": {
+      "count": 5,
+      "pct": 25.0
+    },
+    "sobreelaborado": {
+      "count": 3,
+      "pct": 15.0
+    },
+    "longitud_corta": {
+      "count": 2,
+      "pct": 10.0
+    },
+    "emoji_cluster": {
+      "count": 1,
+      "pct": 5.0
+    },
+    "contenido": {
+      "count": 1,
+      "pct": 5.0
+    },
+    "idioma": {
+      "count": 1,
+      "pct": 5.0
+    },
+    "pregunta": {
+      "count": 1,
+      "pct": 5.0
+    }
+  },
+  "rules_generated": [
+    {
+      "gap": "emoji_falta",
+      "count": 15,
+      "rule": "REGLA DPRF: Iris usa emojis en ~30% de sus mensajes. Si la respuesta NO tiene emoji y es un mensaje casual/reacción/saludo, AÑADE al menos un emoji. Preferir clusters: 😂😂😂 > 😂, 🩷🩷 > 🩷. Emojis favoritos: 😂 🩷 🫠 😘 💪 🥰 ❤️ ✌🏽"
+    },
+    {
+      "gap": "longitud",
+      "count": 5,
+      "rule": "REGLA DPRF: Respuestas demasiado largas. Target: 10-60 chars. Si puedes decirlo en 20 chars, hazlo. 'Ya estas flor' > 'Hola Angelina! Siii, claro que si! Te apunto! Cuantos dias quieres venir?'. Máximo absoluto: 80 chars para texto, 120 para audio responses."
+    },
+    {
+      "gap": "sobreelaborado",
+      "count": 3,
+      "rule": "REGLA DPRF: Cuando el lead dice algo breve (1-2 palabras, confirmación, reacción), responde IGUAL DE BREVE. Si la respuesta de Iris real sería 'Tranqui' o 'Oka!' — NO escribas una frase de 80 chars. Ejemplos: 'Vamos'→'Tranqui', 'Oki'→'Dale!', '[sticker]'→'Si claro'"
+    }
+  ],
+  "conversation_analysis": [
+    {
+      "id": "conv_001",
+      "type": "personal",
+      "language": "ca",
+      "clone_score": 33.8,
+      "bot_response": "Cariño, no te preocupes, si no los encuentras, te ayudo yo",
+      "ground_truth": "Ay, Manel! Qué lío con las bambas. 😣 ¿Seguro que no las dejaste en casa?",
+      "bot_len": 58,
+      "gt_len": 72,
+      "gaps": [
+        "emoji_falta"
+      ]
+    },
+    {
+      "id": "conv_002",
+      "type": "saludo",
+      "language": "ca",
+      "clone_score": 37.1,
+      "bot_response": "Hola Irene  Què tal",
+      "ground_truth": "Mare meva Irene! Quina gràcia!! 😍 Com estàs, guapa?",
+      "bot_len": 19,
+      "gt_len": 51,
+      "gaps": [
+        "emoji_falta"
+      ]
+    },
+    {
+      "id": "conv_003",
+      "type": "saludo",
+      "language": "es",
+      "clone_score": 45.4,
+      "bot_response": "Emiii que haces por aqui? Que te trae por Buenos Aires?",
+      "ground_truth": "Daleee! Que haces babyyyy? 😘 Que fuerteee!",
+      "bot_len": 55,
+      "gt_len": 42,
+      "gaps": [
+        "emoji_falta"
+      ]
+    },
+    {
+      "id": "conv_004",
+      "type": "saludo",
+      "language": "es",
+      "clone_score": 19.2,
+      "bot_response": "Ostiaaaa ericadelo, no me ha llegado nada 🫠 Escribemelo porfa 🩷",
+      "ground_truth": "Ostiaaa😂😂😂",
+      "bot_len": 63,
+      "gt_len": 10,
+      "gaps": [
+        "longitud",
+        "emoji_cluster",
+        "sobreelaborado"
+      ]
+    },
+    {
+      "id": "conv_005",
+      "type": "precio",
+      "language": "es",
+      "clone_score": 19.8,
+      "bot_response": "Hola Angelina! Siii, clar que si T'apunto! Quants dies vols venir a la setmana",
+      "ground_truth": "Ya estás flor",
+      "bot_len": 78,
+      "gt_len": 13,
+      "gaps": [
+        "longitud",
+        "sobreelaborado"
+      ]
+    },
+    {
+      "id": "conv_006",
+      "type": "precio",
+      "language": "ca",
+      "clone_score": 19.0,
+      "bot_response": "Moltbe",
+      "ground_truth": "Hola Iolanda! 😊",
+      "bot_len": 6,
+      "gt_len": 15,
+      "gaps": [
+        "emoji_falta"
+      ]
+    },
+    {
+      "id": "conv_007",
+      "type": "precio",
+      "language": "es",
+      "clone_score": 28.0,
+      "bot_response": "Perfecte Albert  Ja ho tinc tot apunt. Gràcies x el link!",
+      "ground_truth": "Hola Albert! 😊 Qué bien que te animas al workshop!",
+      "bot_len": 57,
+      "gt_len": 50,
+      "gaps": [
+        "emoji_falta"
+      ]
+    },
+    {
+      "id": "conv_008",
+      "type": "precio",
+      "language": "es",
+      "clone_score": 46.9,
+      "bot_response": "Abril, cariño, ¿qué pasa",
+      "ground_truth": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂",
+      "bot_len": 24,
+      "gt_len": 57,
+      "gaps": [
+        "emoji_falta"
+      ]
+    },
+    {
+      "id": "conv_009",
+      "type": "precio",
+      "language": "ca",
+      "clone_score": 96.6,
+      "bot_response": "Aiii Eli  Cómo va todo? Te paso info por privado ahora que ya he colgad",
+      "ground_truth": "Aiii Eli! 🥰 Cómo va todo?? Te paso info por privado ahora que ya he colgado.",
+      "bot_len": 71,
+      "gt_len": 76,
+      "gaps": [
+        "emoji_falta"
+      ]
+    },
+    {
+      "id": "conv_010",
+      "type": "objecion",
+      "language": "es",
+      "clone_score": 45.3,
+      "bot_response": "Babyyyy, me alegro que te lo tomes con calma Cuando quieras aquí estoy, amor Un besito enorme guapa!",
+      "ground_truth": "Amor, me alegro un montón de que lo estés asimilando bien. 🥰 ¡Ya verás qué bien te sienta!",
+      "bot_len": 100,
+      "gt_len": 90,
+      "gaps": [
+        "emoji_falta"
+      ]
+    },
+    {
+      "id": "conv_011",
+      "type": "objecion",
+      "language": "es",
+      "clone_score": 18.0,
+      "bot_response": "Que guayyy amorrr A q hora es?",
+      "ground_truth": "Ay, mi vida, qué lío! 🫠 Entonces, ¿al final vas a la otra clase o te quedas a la de barre? 😘",
+      "bot_len": 30,
+      "gt_len": 92,
+      "gaps": [
+        "emoji_falta"
+      ]
+    },
+    {
+      "id": "conv_012",
+      "type": "objecion",
+      "language": "ca",
+      "clone_score": 15.3,
+      "bot_response": "De res cuca",
+      "ground_truth": "Hola Marta! De res, guapa! 🥰 Sempre que puguis i vulguis, aquí estic! Què et va semblar la classe d'ahir? 😊",
+      "bot_len": 11,
+      "gt_len": 107,
+      "gaps": [
+        "longitud_corta",
+        "emoji_falta"
+      ]
+    },
+    {
+      "id": "conv_013",
+      "type": "lead_caliente",
+      "language": "ca",
+      "clone_score": 41.0,
+      "bot_response": "Oqqq bro 😂😂😂 Com va tot?",
+      "ground_truth": "Hola bro! Com va tot? 🥰 Que moltes ganes de barre dijous! 💪",
+      "bot_len": 24,
+      "gt_len": 59,
+      "gaps": []
+    },
+    {
+      "id": "conv_014",
+      "type": "lead_caliente",
+      "language": "es",
+      "clone_score": 77.4,
+      "bot_response": "A ti, cariño  Me alegro que te gustara, reina!",
+      "ground_truth": "De nada, cariño. ❤️ Me alegro que te gustara. 😘",
+      "bot_len": 46,
+      "gt_len": 47,
+      "gaps": [
+        "emoji_falta"
+      ]
+    },
+    {
+      "id": "conv_015",
+      "type": "lead_caliente",
+      "language": "es",
+      "clone_score": 29.3,
+      "bot_response": "Ay mi amor, qué pena lo del perrito. 😔 Te mando un abrazo enorme, compa. ❤️",
+      "ground_truth": "Que vendrás el domingo que es el últimooo",
+      "bot_len": 75,
+      "gt_len": 41,
+      "gaps": [
+        "longitud",
+        "contenido"
+      ]
+    },
+    {
+      "id": "conv_016",
+      "type": "lead_caliente",
+      "language": "ca",
+      "clone_score": 10.0,
+      "bot_response": "Andreaaa Que bueno que te interese VINC SÚPER RAPID! Cuéntame, qué te ha llamado la atención?",
+      "ground_truth": "Tranqui",
+      "bot_len": 93,
+      "gt_len": 7,
+      "gaps": [
+        "longitud",
+        "idioma",
+        "pregunta",
+        "sobreelaborado"
+      ]
+    },
+    {
+      "id": "conv_017",
+      "type": "audio",
+      "language": "ca",
+      "clone_score": 22.4,
+      "bot_response": "Jajajajajajajaja",
+      "ground_truth": "Jajaja, ¡qué bueno! 😂 Me alegro que todo se haya solucionado, Sònia. ¡Un abrazo! 😘",
+      "bot_len": 16,
+      "gt_len": 82,
+      "gaps": [
+        "longitud_corta",
+        "emoji_falta"
+      ]
+    },
+    {
+      "id": "conv_018",
+      "type": "audio",
+      "language": "es",
+      "clone_score": 33.9,
+      "bot_response": "Ostiaaa amor, sí, lo de la cervical es un rollo. Descansa hoy, que te lo mereces. Y claro que sí, Pibonacos de Barcelona será un planazo!!",
+      "ground_truth": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+      "bot_len": 138,
+      "gt_len": 92,
+      "gaps": [
+        "emoji_falta"
+      ]
+    },
+    {
+      "id": "conv_019",
+      "type": "lead_caliente",
+      "language": "ca",
+      "clone_score": 10.9,
+      "bot_response": "Aww cariño, me alegro q estés mejor  que vaya bien con las gestiones, guapa",
+      "ground_truth": "Dijous no podrem fer entreno aviso😘",
+      "bot_len": 75,
+      "gt_len": 35,
+      "gaps": [
+        "longitud",
+        "emoji_falta"
+      ]
+    },
+    {
+      "id": "conv_020",
+      "type": "audio",
+      "language": "ca",
+      "clone_score": 35.7,
+      "bot_response": "Mar!!  Que et va cridar l'atenció",
+      "ground_truth": "Oleeeeee nen! Que te cuento? 🥹 Com va tot per allà?",
+      "bot_len": 33,
+      "gt_len": 51,
+      "gaps": [
+        "emoji_falta"
+      ]
+    }
+  ]
+}
