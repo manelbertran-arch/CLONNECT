@@ -1,0 +1,617 @@
+{
+  "version": "v1",
+  "created_at": "2026-03-21T18:40:05.402325",
+  "models": [
+    "gemini-2.5-flash-lite",
+    "gpt-4o-mini",
+    "gemini-2.5-flash"
+  ],
+  "test_set": "test_set_v1.json",
+  "system_prompt_chars": 6470,
+  "few_shot_examples": 10,
+  "conversations": [
+    {
+      "id": "conv_001",
+      "type": "personal",
+      "language": "ca",
+      "ground_truth": "Ay, Manel! Qué lío con las bambas. 😣 ¿Seguro que no las dejaste en casa?",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Ostia nena, no te preocupes. Demà les busco al gim i te les porto. 💪🏾🩷",
+          "score": 0.2394,
+          "latency_ms": 652,
+          "tokens_in": 2372,
+          "tokens_out": 25
+        },
+        "gpt-4o-mini": {
+          "response": "Ostiaaa, no sé on poden ser. Ja les buscaré xk si no les has trobat potser les tinc jo. 🤔🩷",
+          "score": 0.3333,
+          "latency_ms": 1435,
+          "tokens_in": 2355,
+          "tokens_out": 34
+        },
+        "gemini-2.5-flash": {
+          "response": "Nooo 😂😂😂 no",
+          "score": 0.1446,
+          "latency_ms": 1179,
+          "tokens_in": 2372,
+          "tokens_out": 5
+        }
+      }
+    },
+    {
+      "id": "conv_002",
+      "type": "saludo",
+      "language": "ca",
+      "ground_truth": "Mare meva Irene! Quina gràcia!! 😍 Com estàs, guapa?",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Que mona!🩷🩷🩷",
+          "score": 0.1905,
+          "latency_ms": 509,
+          "tokens_in": 2224,
+          "tokens_out": 7
+        },
+        "gpt-4o-mini": {
+          "response": "Que bonic!!!❤️❤️❤️",
+          "score": 0.1739,
+          "latency_ms": 1127,
+          "tokens_in": 2220,
+          "tokens_out": 7
+        },
+        "gemini-2.5-flash": {
+          "response": "❤️❤️",
+          "score": 0.0,
+          "latency_ms": 1108,
+          "tokens_in": 2224,
+          "tokens_out": 1
+        }
+      }
+    },
+    {
+      "id": "conv_003",
+      "type": "saludo",
+      "language": "es",
+      "ground_truth": "Daleee! Que haces babyyyy? 😘 Que fuerteee!",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Jajajaja que dices??😂",
+          "score": 0.3175,
+          "latency_ms": 576,
+          "tokens_in": 2219,
+          "tokens_out": 8
+        },
+        "gpt-4o-mini": {
+          "response": "Holaa!!😂😂😂 que tal reina?",
+          "score": 0.2687,
+          "latency_ms": 808,
+          "tokens_in": 2213,
+          "tokens_out": 10
+        },
+        "gemini-2.5-flash": {
+          "response": "Jajajaj",
+          "score": 0.1224,
+          "latency_ms": 1272,
+          "tokens_in": 2219,
+          "tokens_out": 4
+        }
+      }
+    },
+    {
+      "id": "conv_004",
+      "type": "saludo",
+      "language": "es",
+      "ground_truth": "Ostiaaa😂😂😂",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "No m'ha arribat res nena!",
+          "score": 0.2286,
+          "latency_ms": 626,
+          "tokens_in": 2292,
+          "tokens_out": 10
+        },
+        "gpt-4o-mini": {
+          "response": "Nooo que m'envies??😂😂😂🫠",
+          "score": 0.303,
+          "latency_ms": 1093,
+          "tokens_in": 2285,
+          "tokens_out": 13
+        },
+        "gemini-2.5-flash": {
+          "response": "Jajajajajjaja",
+          "score": 0.2609,
+          "latency_ms": 1121,
+          "tokens_in": 2292,
+          "tokens_out": 6
+        }
+      }
+    },
+    {
+      "id": "conv_005",
+      "type": "precio",
+      "language": "es",
+      "ground_truth": "Ya estás flor",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Ya estas flor🩷",
+          "score": 0.8889,
+          "latency_ms": 655,
+          "tokens_in": 2258,
+          "tokens_out": 4
+        },
+        "gpt-4o-mini": {
+          "response": "Ya estas apuntada, flor🩷 Nos vemos demà!",
+          "score": 0.4528,
+          "latency_ms": 860,
+          "tokens_in": 2242,
+          "tokens_out": 14
+        },
+        "gemini-2.5-flash": {
+          "response": "Ya estas flor",
+          "score": 0.9231,
+          "latency_ms": 1503,
+          "tokens_in": 2258,
+          "tokens_out": 3
+        }
+      }
+    },
+    {
+      "id": "conv_006",
+      "type": "precio",
+      "language": "ca",
+      "ground_truth": "Hola Iolanda! 😊",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Perfecte! Escriu-me demà al matí així t'explico tot el que necessites saber del reformer, reina. 😘",
+          "score": 0.0354,
+          "latency_ms": 699,
+          "tokens_in": 2338,
+          "tokens_out": 30
+        },
+        "gpt-4o-mini": {
+          "response": "Hola Iolanda!!🩷 Gràcies per escriure! Estic a bcn ara mateix, però demà et contesto i parlem de les classes de reformer i el que necessitis, ok?😘",
+          "score": 0.175,
+          "latency_ms": 1298,
+          "tokens_in": 2310,
+          "tokens_out": 48
+        },
+        "gemini-2.5-flash": {
+          "response": "Ahhh Iol",
+          "score": 0.4348,
+          "latency_ms": 1483,
+          "tokens_in": 2338,
+          "tokens_out": 4
+        }
+      }
+    },
+    {
+      "id": "conv_007",
+      "type": "precio",
+      "language": "es",
+      "ground_truth": "Hola Albert! 😊 Qué bien que te animas al workshop!",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Perfecte flor🩷🩷🩷",
+          "score": 0.2727,
+          "latency_ms": 513,
+          "tokens_in": 2848,
+          "tokens_out": 6
+        },
+        "gpt-4o-mini": {
+          "response": "Perfecte! Ens veiem demà x el workshop amb Tamara! 🩷 Si algú té dubtes, que m'escrigui. A gaudir!!! ✌🏽",
+          "score": 0.2632,
+          "latency_ms": 1417,
+          "tokens_in": 2722,
+          "tokens_out": 40
+        },
+        "gemini-2.5-flash": {
+          "response": "Perfecte! Ens",
+          "score": 0.1905,
+          "latency_ms": 1296,
+          "tokens_in": 2848,
+          "tokens_out": 4
+        }
+      }
+    },
+    {
+      "id": "conv_008",
+      "type": "precio",
+      "language": "es",
+      "ground_truth": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Ok cariño! T'apunto ales 13:00! 💪🩷",
+          "score": 0.5055,
+          "latency_ms": 545,
+          "tokens_in": 2312,
+          "tokens_out": 17
+        },
+        "gpt-4o-mini": {
+          "response": "Perfecte, t'apunto a les 13:00 d'abril! 🩷 Si hi ha canvis, et dic!",
+          "score": 0.2927,
+          "latency_ms": 1307,
+          "tokens_in": 2291,
+          "tokens_out": 28
+        },
+        "gemini-2.5-flash": {
+          "response": "Okaaa. Apunt",
+          "score": 0.1739,
+          "latency_ms": 1412,
+          "tokens_in": 2312,
+          "tokens_out": 6
+        }
+      }
+    },
+    {
+      "id": "conv_009",
+      "type": "precio",
+      "language": "ca",
+      "ground_truth": "Aiii Eli! 🥰 Cómo va todo?? Te paso info por privado ahora que ya he colgado.",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Perfecte reina! 💪🏾💪🏾",
+          "score": 0.1875,
+          "latency_ms": 635,
+          "tokens_in": 2242,
+          "tokens_out": 8
+        },
+        "gpt-4o-mini": {
+          "response": "Nanit🩷💤",
+          "score": 0.0482,
+          "latency_ms": 584,
+          "tokens_in": 2235,
+          "tokens_out": 7
+        },
+        "gemini-2.5-flash": {
+          "response": "Nanit🩷\"",
+          "score": 0.0482,
+          "latency_ms": 1675,
+          "tokens_in": 2242,
+          "tokens_out": 4
+        }
+      }
+    },
+    {
+      "id": "conv_010",
+      "type": "objecion",
+      "language": "es",
+      "ground_truth": "Amor, me alegro un montón de que lo estés asimilando bien. 🥰 ¡Ya verás qué bien te sienta!",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Clar que si reina🩷🩷🩷\nQuan vulguis aqui estic.\nA tope amb el ballet guapa💪🏾💪🏾",
+          "score": 0.241,
+          "latency_ms": 501,
+          "tokens_in": 2376,
+          "tokens_out": 28
+        },
+        "gpt-4o-mini": {
+          "response": "Clar que sí, flor! Pauses son necessàries x poder tornar amb més ganes. Aprofita a fer el que necessites i cuidar-te. Estaré aquí esperant-te quan tornis! 🩷✨",
+          "score": 0.1862,
+          "latency_ms": 1594,
+          "tokens_in": 2371,
+          "tokens_out": 46
+        },
+        "gemini-2.5-flash": {
+          "response": "Bueno amb la calma el",
+          "score": 0.2162,
+          "latency_ms": 1109,
+          "tokens_in": 2376,
+          "tokens_out": 5
+        }
+      }
+    },
+    {
+      "id": "conv_011",
+      "type": "objecion",
+      "language": "es",
+      "ground_truth": "Ay, mi vida, qué lío! 🫠 Entonces, ¿al final vas a la otra clase o te quedas a la de barre? 😘",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Perfecto, reina! 🫶🏽",
+          "score": 0.1622,
+          "latency_ms": 574,
+          "tokens_in": 2335,
+          "tokens_out": 8
+        },
+        "gpt-4o-mini": {
+          "response": "Ostiaaaa que guay!!!😍😍 A quina classe?✨",
+          "score": 0.3053,
+          "latency_ms": 765,
+          "tokens_in": 2311,
+          "tokens_out": 16
+        },
+        "gemini-2.5-flash": {
+          "response": "Okaaa perfecte",
+          "score": 0.1509,
+          "latency_ms": 1166,
+          "tokens_in": 2335,
+          "tokens_out": 5
+        }
+      }
+    },
+    {
+      "id": "conv_012",
+      "type": "objecion",
+      "language": "ca",
+      "ground_truth": "Hola Marta! De res, guapa! 🥰 Sempre que puguis i vulguis, aquí estic! Què et va semblar la classe d'ahir? 😊",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "[sticker]",
+          "score": 0.1034,
+          "latency_ms": 548,
+          "tokens_in": 2360,
+          "tokens_out": 3
+        },
+        "gpt-4o-mini": {
+          "response": "De res, carinyu!! 🩷🥰 A tu!",
+          "score": 0.2105,
+          "latency_ms": 861,
+          "tokens_in": 2335,
+          "tokens_out": 15
+        },
+        "gemini-2.5-flash": {
+          "response": "De res flor🩷",
+          "score": 0.1513,
+          "latency_ms": 1178,
+          "tokens_in": 2360,
+          "tokens_out": 4
+        }
+      }
+    },
+    {
+      "id": "conv_013",
+      "type": "lead_caliente",
+      "language": "ca",
+      "ground_truth": "Hola bro! Com va tot? 🥰 Que moltes ganes de barre dijous! 💪",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Tranqui nena que ja estic apuntant-te per estirar! 😘💪",
+          "score": 0.3393,
+          "latency_ms": 641,
+          "tokens_in": 2354,
+          "tokens_out": 19
+        },
+        "gpt-4o-mini": {
+          "response": "Jajajaja, no et preocupis, que al final farem reformer xk ja hi ha gent a barre! Estaré a tope! 🩷",
+          "score": 0.3077,
+          "latency_ms": 1543,
+          "tokens_in": 2336,
+          "tokens_out": 34
+        },
+        "gemini-2.5-flash": {
+          "response": "Perdonaaa",
+          "score": 0.1176,
+          "latency_ms": 1490,
+          "tokens_in": 2354,
+          "tokens_out": 4
+        }
+      }
+    },
+    {
+      "id": "conv_014",
+      "type": "lead_caliente",
+      "language": "es",
+      "ground_truth": "De nada, cariño. ❤️ Me alegro que te gustara. 😘",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "De res, guapa! ❤️🫶🏻",
+          "score": 0.3333,
+          "latency_ms": 516,
+          "tokens_in": 2315,
+          "tokens_out": 9
+        },
+        "gpt-4o-mini": {
+          "response": "Gràcies a tu, amor! M'encanta veure't x aqui 🩷 Nos veiem dimecres!",
+          "score": 0.1593,
+          "latency_ms": 975,
+          "tokens_in": 2300,
+          "tokens_out": 25
+        },
+        "gemini-2.5-flash": {
+          "response": "De nada reina! 💪🏾",
+          "score": 0.375,
+          "latency_ms": 1883,
+          "tokens_in": 2315,
+          "tokens_out": 6
+        }
+      }
+    },
+    {
+      "id": "conv_015",
+      "type": "lead_caliente",
+      "language": "es",
+      "ground_truth": "Que vendrás el domingo que es el últimooo",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Que vendrás el domingo que es el últimooo",
+          "score": 1.0,
+          "latency_ms": 624,
+          "tokens_in": 2310,
+          "tokens_out": 11
+        },
+        "gpt-4o-mini": {
+          "response": "No t'estressis, que ja ho tenim! Aprofita el matí per fer les compres i després relaxa't una estona. Diumenge ens veiem!! 🩷",
+          "score": 0.1951,
+          "latency_ms": 2381,
+          "tokens_in": 2298,
+          "tokens_out": 41
+        },
+        "gemini-2.5-flash": {
+          "response": "Que vendrás el domingo que",
+          "score": 0.7761,
+          "latency_ms": 1098,
+          "tokens_in": 2310,
+          "tokens_out": 6
+        }
+      }
+    },
+    {
+      "id": "conv_016",
+      "type": "lead_caliente",
+      "language": "ca",
+      "ground_truth": "Tranqui",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Perfecte 🫶🏻 Ens veiem ara reina!",
+          "score": 0.2051,
+          "latency_ms": 571,
+          "tokens_in": 2274,
+          "tokens_out": 11
+        },
+        "gpt-4o-mini": {
+          "response": "Okaaa, sense pressa! T'espero! 🩷",
+          "score": 0.1026,
+          "latency_ms": 746,
+          "tokens_in": 2253,
+          "tokens_out": 15
+        },
+        "gemini-2.5-flash": {
+          "response": "Okaaa",
+          "score": 0.1667,
+          "latency_ms": 1286,
+          "tokens_in": 2274,
+          "tokens_out": 3
+        }
+      }
+    },
+    {
+      "id": "conv_017",
+      "type": "audio",
+      "language": "ca",
+      "ground_truth": "Jajaja, ¡qué bueno! 😂 Me alegro que todo se haya solucionado, Sònia. ¡Un abrazo! 😘",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Ja està flor!! 🩷🩷🩷",
+          "score": 0.14,
+          "latency_ms": 560,
+          "tokens_in": 2817,
+          "tokens_out": 8
+        },
+        "gpt-4o-mini": {
+          "response": "Tia, no passa res! 🩷 La propera ja ho tenim controlat. A vegades són coses que passen. Gràcies per acceptar-ho! 😘",
+          "score": 0.2872,
+          "latency_ms": 1561,
+          "tokens_in": 2767,
+          "tokens_out": 37
+        },
+        "gemini-2.5-flash": {
+          "response": "Tranquii tiaaa",
+          "score": 0.0833,
+          "latency_ms": 1349,
+          "tokens_in": 2817,
+          "tokens_out": 5
+        }
+      }
+    },
+    {
+      "id": "conv_018",
+      "type": "audio",
+      "language": "es",
+      "ground_truth": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "[ERROR: 'candidates']",
+          "score": 0.177,
+          "latency_ms": 0,
+          "tokens_in": 0,
+          "tokens_out": 0
+        },
+        "gpt-4o-mini": {
+          "response": "Ostia mami, quina sorpresa! 😂 La veritat és que no m'ho esperava tampoc. I sí, el tema cervical... em fa un mal de coll que flipas. A veure si demà descanso i em recupero.\n\nMola que vinguis a Hipopilates i Barre, ja et valia! Que fa temps que no et veig! Estic emocionada de tornar a compartir classe amb tu! \n\nCuida't i vigila la carretera, ok? 🩷",
+          "score": 0.1731,
+          "latency_ms": 3204,
+          "tokens_in": 3072,
+          "tokens_out": 107
+        },
+        "gemini-2.5-flash": {
+          "response": "Noooo reinaaa!!",
+          "score": 0.1121,
+          "latency_ms": 1180,
+          "tokens_in": 3086,
+          "tokens_out": 5
+        }
+      }
+    },
+    {
+      "id": "conv_019",
+      "type": "lead_caliente",
+      "language": "ca",
+      "ground_truth": "Dijous no podrem fer entreno aviso😘",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Ok reina 😘",
+          "score": 0.2667,
+          "latency_ms": 763,
+          "tokens_in": 2287,
+          "tokens_out": 3
+        },
+        "gpt-4o-mini": {
+          "response": "Bon diaaa!! Mola que estiguis millor!!👌🏻 Gestiones sempre van bé, así que tranqui. Ens veiem dijous, d'acord?😘",
+          "score": 0.1517,
+          "latency_ms": 1122,
+          "tokens_in": 2273,
+          "tokens_out": 36
+        },
+        "gemini-2.5-flash": {
+          "response": "Okaaa.",
+          "score": 0.0976,
+          "latency_ms": 1104,
+          "tokens_in": 2287,
+          "tokens_out": 4
+        }
+      }
+    },
+    {
+      "id": "conv_020",
+      "type": "audio",
+      "language": "ca",
+      "ground_truth": "Oleeeeee nen! Que te cuento? 🥹 Com va tot per allà?",
+      "models": {
+        "gemini-2.5-flash-lite": {
+          "response": "Mare meva quin regalas es preciosa enhorabonaaa",
+          "score": 0.2041,
+          "latency_ms": 647,
+          "tokens_in": 2324,
+          "tokens_out": 14
+        },
+        "gpt-4o-mini": {
+          "response": "Mare meva, quina passada!!❤️❤️❤️ A tu tb, sempre amb vosaltres. A gaudir del dia i de les celebracions!!!🥂✨",
+          "score": 0.2405,
+          "latency_ms": 1231,
+          "tokens_in": 2303,
+          "tokens_out": 35
+        },
+        "gemini-2.5-flash": {
+          "response": "De nada flor🩷",
+          "score": 0.1875,
+          "latency_ms": 1302,
+          "tokens_in": 2324,
+          "tokens_out": 4
+        }
+      }
+    }
+  ],
+  "summary": {
+    "gemini-2.5-flash-lite": {
+      "avg_score": 0.3019,
+      "avg_latency_ms": 568,
+      "min_score": 0.0354,
+      "max_score": 1.0,
+      "total_conversations": 20
+    },
+    "gpt-4o-mini": {
+      "avg_score": 0.2315,
+      "avg_latency_ms": 1296,
+      "min_score": 0.0482,
+      "max_score": 0.4528,
+      "total_conversations": 20
+    },
+    "gemini-2.5-flash": {
+      "avg_score": 0.2366,
+      "avg_latency_ms": 1310,
+      "min_score": 0.0,
+      "max_score": 0.9231,
+      "total_conversations": 20
+    }
+  }
+}
