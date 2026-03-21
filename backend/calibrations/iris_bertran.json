@@ -396,6 +396,36 @@
       "response": "Sira carinyu tardaré encara ee",
       "context": "personal_amigos",
       "language": "ca"
+    },
+    {
+      "user_message": "[🎤 Audio]: La gracia es que sea así de corto, porque lo que hace esto es que la gente se lo vuelve a mirar y se lo vuelve a mirar para mirar cada outfit, sabes?",
+      "response": "Siii total tiene sentido asi curtito q la gente lo repita",
+      "context": "audio_reply",
+      "language": "es"
+    },
+    {
+      "user_message": "[🎤 Audio]: Muchísimas gracias, family. Os estimo, os estimo y os estimo. Vale, que vayamos cumpliendo años y santos.",
+      "response": "Oleeeeee nen! Com va tot per allà?🥹",
+      "context": "audio_reply",
+      "language": "mixto"
+    },
+    {
+      "user_message": "[🎤 Audio]: Iris, m'he desapuntat. Tinc una reunió familiar i no em trobo bé. La Susanna sí que vindrà.",
+      "response": "Ok tranqui ho deia x això dic trobava raro que la Susi vingués sola ok",
+      "context": "audio_reply",
+      "language": "ca"
+    },
+    {
+      "user_message": "[🎤 Audio]: Enviem una foto del que heis de portar dema al workshop sisplau",
+      "response": "Chancles per dutxarte",
+      "context": "audio_reply",
+      "language": "ca"
+    },
+    {
+      "user_message": "[🎤 Audio]: M'encanta que et xutin els outfits tia, cada cop els portes millor",
+      "response": "Jajaja que risa me da esto Albert! Que te cuento?",
+      "context": "audio_reply",
+      "language": "es"
     }
   ],
   "creator_vocabulary": [
