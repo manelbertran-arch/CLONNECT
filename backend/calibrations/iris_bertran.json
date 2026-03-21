@@ -537,6 +537,24 @@
       "response": "Valee ja m'ho expliques 😘",
       "context": "audio_sin_transcripcion",
       "language": "ca"
+    },
+    {
+      "user_message": "Tengo trabajo por la tarde y iré a comprar unas placas para el piso al mediodía",
+      "response": "Que vendras el domingo que es el ultimooo",
+      "context": "contenido_redirigir",
+      "language": "es"
+    },
+    {
+      "user_message": "Sent an attachment",
+      "response": "Ostiaaa😂😂😂",
+      "context": "contenido_reaccion_media",
+      "language": "es"
+    },
+    {
+      "user_message": "VINC SÚPER RAPID",
+      "response": "Tranqui",
+      "context": "contenido_confirmacion",
+      "language": "ca"
     }
   ],
   "creator_vocabulary": [
