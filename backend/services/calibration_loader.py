@@ -48,7 +48,10 @@ def load_calibration(creator_id: str) -> Optional[Dict]:
         if (now - cached_ts) < _CACHE_TTL:
             return cached_data
 
-    cal_path = os.path.join(CALIBRATIONS_DIR, f"{creator_id}.json")
+    # Prefer unified pool (larger, higher retrieval quality) over base calibration
+    cal_path = os.path.join(CALIBRATIONS_DIR, f"{creator_id}_unified.json")
+    if not os.path.isfile(cal_path):
+        cal_path = os.path.join(CALIBRATIONS_DIR, f"{creator_id}.json")
     if not os.path.isfile(cal_path):
         _cache[creator_id] = (None, now)
         return None
