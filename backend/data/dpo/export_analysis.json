@@ -1,0 +1,30 @@
+{
+  "export_date": "2026-03-21",
+  "creator": "iris_bertran",
+  "total_in_db": 1402,
+  "after_filter": 482,
+  "filtered_out": 920,
+  "rejection_reasons": {
+    "rejected_too_short": 256,
+    "no_user_message": 628,
+    "chosen_too_short": 36
+  },
+  "by_action_type": {
+    "pseudo_preference": 482
+  },
+  "by_intent": {
+    "unknown": 482
+  },
+  "by_language": {
+    "unknown": 381,
+    "ca": 57,
+    "es": 40,
+    "mixto": 4
+  },
+  "length_stats": {
+    "chosen_median": 25.0,
+    "chosen_mean": 36,
+    "rejected_median": 56.0,
+    "rejected_mean": 63
+  }
+}

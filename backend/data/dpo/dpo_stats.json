@@ -1,0 +1,24 @@
+{
+  "format": "trl",
+  "total_pairs": 482,
+  "train_pairs": 434,
+  "val_pairs": 48,
+  "val_split": 0.1,
+  "seed": 42,
+  "chosen_length": {
+    "median": 25.0,
+    "mean": 36,
+    "min": 5,
+    "max": 191
+  },
+  "rejected_length": {
+    "median": 56.0,
+    "mean": 63,
+    "min": 8,
+    "max": 326
+  },
+  "files": {
+    "train": "/Users/manelbertranluque/Clonnect/backend/data/dpo/dpo_train.jsonl",
+    "val": "/Users/manelbertranluque/Clonnect/backend/data/dpo/dpo_val.jsonl"
+  }
+}
