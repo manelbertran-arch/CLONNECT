@@ -65,6 +65,31 @@ async def phase_postprocessing(
     except Exception as e:
         logger.debug(f"Loop detection failed: {e}")
 
+    # A2b: Detect intra-response repetition (e.g. "jajajajaja..." repeated 100x)
+    try:
+        if response_content and len(response_content) > 30:
+            _resp_lower = response_content.lower()
+            _resp_len = len(_resp_lower)
+            for _pat_len in range(2, 9):
+                _pat = _resp_lower[:_pat_len]
+                if not _pat.strip():
+                    continue
+                _count = _resp_lower.count(_pat)
+                _coverage = (_count * _pat_len) / _resp_len
+                if _coverage > 0.7 and _count > 5:
+                    # Response is >70% a single repeated pattern — truncate to 3 reps
+                    truncated = response_content[:_pat_len] * 3
+                    logger.warning(
+                        f"[A2b] Intra-response repetition: "
+                        f"'{_pat}' covers {_coverage:.0%} of response ({_count}x) — truncated"
+                    )
+                    cognitive_metadata["repetition_truncated"] = _pat
+                    response_content = truncated
+                    llm_response.content = response_content
+                    break
+    except Exception as e:
+        logger.debug(f"Intra-response repetition detection failed: {e}")
+
     # Step 7a: Output validation (prices, links)
     if ENABLE_OUTPUT_VALIDATION:
         try:
