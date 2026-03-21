@@ -17,7 +17,6 @@ Universal: works for any creator_id with a calibration file.
 import json
 import logging
 import os
-import re
 import random
 import time
 from typing import Dict, List, Optional, Tuple
@@ -141,37 +140,19 @@ def _select_examples_by_similarity(
         return random.sample(examples, k)
 
 
-_CA_WORDS = re.compile(
-    r'\b(vaig|però|molt|avui|demà|tinc|estic|puc|podem|podeu|que fas|que et|que em|'
-    r'gràcies|fins |dilluns|dimarts|dimecres|dijous|divendres|dissabte|diumenge|'
-    r'doncs|ara |anem|hem |heu |han |venir no|vine |vindràs|vindre|l\'|d\'[aeiouàèéíòóú])\b',
-    re.IGNORECASE,
-)
-_ES_WORDS = re.compile(
-    r'\b(tengo|tienes|tiene|tenemos|pero |muy |mucho|estoy|estás|estamos|'
-    r'soy|eres|fue|fui|hoy |mañana|gracias|señor|señora|buenas|buenos|'
-    r'qué tal|cómo estás|hasta luego|me llamo|me ha|lo que|lo sé)\b',
-    re.IGNORECASE,
-)
-# ñ is exclusive to Spanish in this context
-_ES_TILDE_N = re.compile(r'[ñÑ]')
-
-
 def detect_message_language(text: str) -> Optional[str]:
-    """Detect if text is primarily Catalan ('ca') or Spanish ('es').
+    """Detect the language of a message using langdetect.
 
-    Uses unambiguous lexical markers. Returns None for mixed/unknown text.
-    Conservative: only classifies when confident. False negatives (→ None) are
-    preferable to false positives that filter out good examples.
+    Returns ISO 639-1 code (e.g. 'ca', 'es', 'en', 'it', 'pt', 'fr') or None
+    for very short texts or detection failures. Universal — works for any language.
     """
-    ca_score = len(_CA_WORDS.findall(text))
-    es_score = len(_ES_WORDS.findall(text)) + len(_ES_TILDE_N.findall(text))
-
-    if ca_score > 0 and es_score == 0:
-        return "ca"
-    if es_score > 0 and ca_score == 0:
-        return "es"
-    return None
+    if len(text.strip()) < 10:
+        return None
+    try:
+        from langdetect import detect
+        return detect(text)
+    except Exception:
+        return None
 
 
 def get_few_shot_section(
@@ -198,7 +179,7 @@ def get_few_shot_section(
 
     # Language-aware pool filtering: prefer same-language + mixto examples
     pool = examples
-    if lead_language in ("ca", "es"):
+    if lead_language:
         filtered = [
             ex for ex in examples
             if ex.get("language") in (lead_language, "mixto")
