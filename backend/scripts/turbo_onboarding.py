@@ -423,6 +423,15 @@ class TurboOnboarding:
             logger.warning(f"PersonalityExtraction failed: {e}")
             results["personality"] = {"error": str(e)}
 
+        # 4b2. Auto-distill Doc D (20K+ tokens -> ~2K tokens)
+        try:
+            distill_result = await self._auto_distill_doc_d()
+            results["doc_d_distilled"] = distill_result
+            self._log(f"Doc D distillation: {distill_result.get('status', 'unknown')}")
+        except Exception as e:
+            logger.warning(f"Doc D distillation failed: {e}")
+            results["doc_d_distilled"] = {"error": str(e)}
+
         # 4c. GoldExamples
         try:
             from services.gold_examples_service import curate_examples
@@ -455,7 +464,167 @@ class TurboOnboarding:
             logger.warning(f"RelationshipDNA failed: {e}")
             results["relationship_dna"] = {"error": str(e)}
 
+        # 4e. Auto-generate calibration file
+        try:
+            from services.calibration_generator import generate_calibration
+
+            cal = generate_calibration(
+                creator_id=self.creator_name,
+                creator_uuid=self.creator_db_id,
+            )
+            if cal:
+                n_ex = len(cal.get("few_shot_examples", []))
+                langs = cal.get("baseline", {}).get("languages", {})
+                results["calibration"] = {
+                    "examples": n_ex,
+                    "median_length": cal["baseline"].get("median_length"),
+                    "emoji_pct": cal["baseline"].get("emoji_pct"),
+                    "languages": langs,
+                }
+                self._log(f"Calibration: {n_ex} examples, langs={langs}")
+            else:
+                results["calibration"] = {"status": "skipped", "reason": "insufficient data"}
+                self._log("Calibration: skipped (insufficient manual responses)")
+        except Exception as e:
+            logger.warning(f"CalibrationGenerator failed: {e}")
+            results["calibration"] = {"error": str(e)}
+
         return results
+
+    # ─── DOC D AUTO-DISTILLATION ─────────────────────────────────────
+
+    _DISTILL_PROMPT = """\
+Distill this creator personality profile into a compact system prompt of MAX 2000 tokens.
+
+KEEP (these are verified from real data):
+- Creator identity (name, role, location, language)
+- Style rules that were VERIFIED in real messages (message length, emoji rate, punctuation style)
+- Real vocabulary list (pet names, greetings, farewells, fillers)
+- Blacklist (compact: top 15 most important prohibited phrases only)
+- Bilingual/code-switching rules if applicable
+
+REMOVE:
+- Long narrative explanations and justifications
+- Redundant examples (keep max 2 per rule)
+- Template pools (these are loaded separately)
+- Multi-bubble templates (loaded separately)
+- Calibration parameters (enforced programmatically, not via prompt)
+- Contextual tone profiles (6 audience sub-profiles — too granular, never followed by LLM)
+- Statistics and percentages (the LLM doesn't need "23.5% of messages have emojis")
+
+FORMAT:
+- Concise bullets, no prose
+- Group into sections: IDENTITY, STYLE RULES, VOCABULARY, BLACKLIST
+- Each rule on one line
+- Use the creator's actual language/dialect in examples
+
+ORIGINAL PROFILE:
+{doc_d_content}
+"""
+
+    async def _auto_distill_doc_d(self) -> dict:
+        """Auto-distill the full Doc D (~20K tokens) into a compact version (~2K tokens).
+
+        Reads the full doc_d from personality_docs, sends it to the LLM for
+        distillation, and saves the result as doc_type='doc_d_distilled'.
+        The personality_loader prefers doc_d_distilled over doc_d when available.
+        """
+        from api.database import SessionLocal
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        try:
+            # Check if distilled already exists
+            existing = session.execute(
+                text("""
+                    SELECT LENGTH(pd.content) as len
+                    FROM personality_docs pd
+                    JOIN creators c ON c.id::text = pd.creator_id
+                    WHERE (c.name = :name OR pd.creator_id = :name)
+                      AND pd.doc_type = 'doc_d_distilled'
+                    LIMIT 1
+                """),
+                {"name": self.creator_name},
+            ).fetchone()
+            if existing:
+                self._log(f"Doc D distilled already exists ({existing.len} chars), skipping")
+                return {"status": "skipped", "reason": "already_exists", "chars": existing.len}
+
+            # Load full Doc D
+            full_doc = session.execute(
+                text("""
+                    SELECT pd.content
+                    FROM personality_docs pd
+                    JOIN creators c ON c.id::text = pd.creator_id
+                    WHERE (c.name = :name OR pd.creator_id = :name)
+                      AND pd.doc_type = 'doc_d'
+                    LIMIT 1
+                """),
+                {"name": self.creator_name},
+            ).fetchone()
+            if not full_doc or not full_doc.content:
+                return {"status": "skipped", "reason": "no_doc_d_found"}
+
+            original_len = len(full_doc.content)
+            self._log(f"Distilling Doc D: {original_len} chars -> ~2K tokens target")
+
+            # Call LLM for distillation
+            from core.providers.gemini_provider import generate_dm_response
+
+            prompt = self._DISTILL_PROMPT.format(doc_d_content=full_doc.content)
+            result = await generate_dm_response(
+                [
+                    {"role": "system", "content": "You are a technical writer. Output ONLY the distilled profile, no commentary."},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=2500,
+                temperature=0.1,
+            )
+
+            if not result or not result.get("content"):
+                return {"status": "error", "reason": "llm_returned_empty"}
+
+            distilled = result["content"].strip()
+            distilled_len = len(distilled)
+
+            # Save to DB
+            import uuid
+            from datetime import datetime, timezone
+
+            session.execute(
+                text("""
+                    INSERT INTO personality_docs (id, creator_id, doc_type, content, created_at, updated_at)
+                    VALUES (:id, :creator_id, 'doc_d_distilled', :content, :now, :now)
+                """),
+                {
+                    "id": str(uuid.uuid4()),
+                    "creator_id": self.creator_db_id,
+                    "content": distilled,
+                    "now": datetime.now(timezone.utc),
+                },
+            )
+            session.commit()
+
+            # Invalidate personality cache so next request picks up distilled
+            try:
+                from core.personality_loader import invalidate_cache
+                invalidate_cache(self.creator_name)
+            except Exception:
+                pass
+
+            reduction = round((1 - distilled_len / original_len) * 100, 1)
+            self._log(
+                f"Doc D distilled: {original_len} -> {distilled_len} chars "
+                f"({reduction}% reduction)"
+            )
+            return {
+                "status": "ok",
+                "original_chars": original_len,
+                "distilled_chars": distilled_len,
+                "reduction_pct": reduction,
+            }
+        finally:
+            session.close()
 
     # ─── PHASE 5: SUMMARIES & PAIRS (NEW) ────────────────────────────
 
