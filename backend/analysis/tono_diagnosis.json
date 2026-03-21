@@ -1,0 +1,158 @@
+{
+  "date": "2026-03-21",
+  "n_analyzed": 10,
+  "problem_frequency": {
+    "b": 6,
+    "h": 1,
+    "d": 3
+  },
+  "problem_labels": {
+    "a": "Demasiado formal",
+    "b": "Falta de emojis",
+    "c": "Falta expresiones informales",
+    "d": "Falta calidez/cariño",
+    "e": "Suena a servicio al cliente",
+    "f": "Idioma incorrecto",
+    "g": "Contenido irrelevante",
+    "h": "Demasiado largo/elaborado"
+  },
+  "missing_elements": {
+    "emojis": 7,
+    "expresiones informales": 4,
+    "apelativos cariñosos": 3,
+    "cuca": 3,
+    "nena": 3,
+    "amor": 3,
+    "flor": 3,
+    "apellidos cariñosos": 1
+  },
+  "diagnoses": [
+    {
+      "problem": "b",
+      "explanation": "El bot no utiliza emojis, lo que le quita cercanía y calidez al mensaje.",
+      "missing_elements": [
+        "emojis",
+        "apellidos cariñosos",
+        "expresiones informales"
+      ],
+      "conv_id": "conv_008",
+      "tono_score": 4,
+      "bot_response": "Perfecte, Abril A les 13:00 ens veiem!",
+      "ground_truth": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂"
+    },
+    {
+      "problem": "h",
+      "explanation": "El bot es demasiado largo y elaborado en su respuesta.",
+      "missing_elements": [
+        "expresiones informales",
+        "emojis",
+        "apelativos cariñosos"
+      ],
+      "conv_id": "conv_016",
+      "tono_score": 4,
+      "bot_response": "Andrea, el VINC SÚPER RAPID es genial Es un tratamiento exprés para revitalizar la piel, perfecto si vas con prisa. ¿Te apetece que te cuente más?",
+      "ground_truth": "Tranqui"
+    },
+    {
+      "problem": "b",
+      "explanation": "El bot no utiliza emojis, que son esenciales en el tono de Iris.",
+      "missing_elements": [
+        "emojis",
+        "expresiones informales",
+        "apelativos cariñosos"
+      ],
+      "conv_id": "conv_007",
+      "tono_score": 4,
+      "bot_response": "Perfecte Albert Ens veiem demà  Gràcies pel link!",
+      "ground_truth": "Hola Albert! 😊 Qué bien que te animas al workshop!"
+    },
+    {
+      "problem": "d",
+      "explanation": "El bot no utiliza apelativos cariñosos que son característicos de Iris.",
+      "missing_elements": [
+        "cuca",
+        "nena",
+        "amor",
+        "flor"
+      ],
+      "conv_id": "conv_008",
+      "tono_score": 4,
+      "bot_response": "Oki florrr",
+      "ground_truth": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂"
+    },
+    {
+      "problem": "b",
+      "explanation": "El bot no utiliza emojis, que son esenciales en el tono de Iris.",
+      "missing_elements": [
+        "emojis",
+        "expresiones informales",
+        "apelativos cariñosos"
+      ],
+      "conv_id": "conv_003",
+      "tono_score": 5,
+      "bot_response": "Emiiii qué haces en Baires Me alegro que vengas a bajar un poco, siempre va bien desconectar acá.",
+      "ground_truth": "Daleee! Que haces babyyyy? 😘 Que fuerteee!"
+    },
+    {
+      "problem": "b",
+      "explanation": "El bot no utiliza emojis, que son esenciales en el tono de Iris.",
+      "missing_elements": [
+        "emojis"
+      ],
+      "conv_id": "conv_006",
+      "tono_score": 5,
+      "bot_response": "Iolanda, ¿todo bien ¿Necesitas algo más?",
+      "ground_truth": "Hola Iolanda! 😊"
+    },
+    {
+      "problem": "d",
+      "explanation": "El bot no utiliza apelativos cariñosos que son característicos de Iris.",
+      "missing_elements": [
+        "cuca",
+        "nena",
+        "flor",
+        "amor"
+      ],
+      "conv_id": "conv_011",
+      "tono_score": 5,
+      "bot_response": "Anda q casualidadyyy  A q clase t han invitado",
+      "ground_truth": "Ay, mi vida, qué lío! 🫠 Entonces, ¿al final vas a la otra clase o te quedas a la de barre? 😘"
+    },
+    {
+      "problem": "d",
+      "explanation": "El bot no utiliza apelativos cariñosos que son característicos de Iris.",
+      "missing_elements": [
+        "cuca",
+        "nena",
+        "flor",
+        "amor"
+      ],
+      "conv_id": "conv_012",
+      "tono_score": 5,
+      "bot_response": "De nadaaa reina",
+      "ground_truth": "Hola Marta! De res, guapa! 🥰 Sempre que puguis i vulguis, aquí estic! Què et va semblar la classe d'ahir? 😊"
+    },
+    {
+      "problem": "b",
+      "explanation": "El bot no utiliza emojis, que son esenciales en el tono de Iris.",
+      "missing_elements": [
+        "emojis"
+      ],
+      "conv_id": "conv_017",
+      "tono_score": 5,
+      "bot_response": "Jajaja que me dices Sònia",
+      "ground_truth": "Jajaja, ¡qué bueno! 😂 Me alegro que todo se haya solucionado, Sònia. ¡Un abrazo! 😘"
+    },
+    {
+      "problem": "b",
+      "explanation": "El bot no utiliza emojis, lo que le quita cercanía y calidez al mensaje.",
+      "missing_elements": [
+        "emojis"
+      ],
+      "conv_id": "conv_009",
+      "tono_score": 5,
+      "bot_response": "Que descansis cuca",
+      "ground_truth": "Aiii Eli! 🥰 Cómo va todo?? Te paso info por privado ahora que ya he colgado."
+    }
+  ]
+}

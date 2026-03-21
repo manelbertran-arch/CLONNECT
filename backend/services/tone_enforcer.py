@@ -18,17 +18,32 @@ logger = logging.getLogger(__name__)
 
 _EMOJI_PAT = re.compile(r"[\U00010000-\U0010ffff]|[\u2600-\u27bf]|[\ufe00-\ufe0f]")
 
-# Light emojis to inject when needed (neutral, positive)
-_INJECT_EMOJIS = ["😊", "💙", "💪", "🙌", "🔥"]
+# Default emojis (fallback for creators without calibration)
+_DEFAULT_INJECT_EMOJIS = ["😊", "💙", "💪", "🙌", "🔥"]
 
-# Natural questions to inject when needed
-_INJECT_QUESTIONS = [
-    " Todo bien?",
-    " Cómo vas?",
-    " Cómo estás?",
-    " En serio?",
-    " Sí?",
-]
+
+def _get_creator_emojis(calibration: Optional[Dict]) -> list:
+    """Get creator-specific emojis from calibration, or defaults."""
+    if not calibration:
+        return _DEFAULT_INJECT_EMOJIS
+    creator_emojis = calibration.get("inject_emojis")
+    if creator_emojis and isinstance(creator_emojis, list):
+        return creator_emojis
+    # Fallback: extract from notes or baseline
+    notes = calibration.get("notes", {})
+    if isinstance(notes, dict) and "emoji_clusters" in str(notes):
+        # Try to find common emojis in few_shot examples
+        examples = calibration.get("few_shot_examples", [])
+        emoji_counter = {}
+        for ex in examples:
+            resp = ex.get("response", "")
+            for ch in resp:
+                if _EMOJI_PAT.match(ch):
+                    emoji_counter[ch] = emoji_counter.get(ch, 0) + 1
+        if emoji_counter:
+            top = sorted(emoji_counter, key=emoji_counter.get, reverse=True)[:6]
+            return top
+    return _DEFAULT_INJECT_EMOJIS
 
 
 def enforce_tone(
@@ -70,11 +85,13 @@ def enforce_tone(
     has_emoji = bool(_EMOJI_PAT.search(response))
     should_have_emoji = h_emoji < (target_emoji * 1000)
 
+    # --- Emoji enforcement (creator-specific emojis) ---
+    creator_emojis = _get_creator_emojis(calibration)
     if has_emoji and not should_have_emoji:
         response = _EMOJI_PAT.sub("", response).strip()
     elif not has_emoji and should_have_emoji:
-        emoji = _INJECT_EMOJIS[int(h_base[8:10], 16) % len(_INJECT_EMOJIS)]
-        response = response.rstrip() + " " + emoji
+        emoji = creator_emojis[int(h_base[8:10], 16) % len(creator_emojis)]
+        response = response.rstrip() + emoji
 
     # --- Exclamation enforcement ---
     h_excl = int(h_base[8:16], 16) % 1000
@@ -86,15 +103,8 @@ def enforce_tone(
     elif not has_excl and should_have_excl:
         response = response.rstrip() + "!"
 
-    # --- Question enforcement ---
-    h_q = int(h_base[16:24], 16) % 1000
-    has_q = "?" in response
-    should_have_q = h_q < (target_q * 1000)
-
-    if has_q and not should_have_q:
-        response = response.replace("?", "", 1)
-    elif not has_q and should_have_q:
-        q = _INJECT_QUESTIONS[int(h_base[24:26], 16) % len(_INJECT_QUESTIONS)]
-        response = response.rstrip() + q
+    # Question enforcement removed — injecting generic questions
+    # ("Todo bien?", "Cómo vas?") made the bot sound like customer service.
+    # Question generation is better handled by the LLM itself.
 
     return response
