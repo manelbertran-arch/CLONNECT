@@ -148,7 +148,30 @@ async def _call_gemini(
                 resp.raise_for_status()
                 data = resp.json()
 
-                content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                # Safety filter / empty candidates: Gemini returns 200 but
+                # candidates is empty or candidate has no content.
+                candidates = data.get("candidates", [])
+                if not candidates:
+                    reason = data.get("promptFeedback", {}).get("blockReason", "unknown")
+                    logger.warning(
+                        "Gemini no candidates (blockReason=%s), attempt %d/%d",
+                        reason, attempt + 1, max_retries,
+                    )
+                    await asyncio.sleep(1)
+                    continue
+
+                candidate = candidates[0]
+                finish_reason = candidate.get("finishReason", "")
+                if finish_reason == "SAFETY" or "content" not in candidate:
+                    safety_ratings = candidate.get("safetyRatings", [])
+                    logger.warning(
+                        "Gemini safety filter (finishReason=%s, ratings=%s), attempt %d/%d",
+                        finish_reason, safety_ratings, attempt + 1, max_retries,
+                    )
+                    await asyncio.sleep(1)
+                    continue
+
+                content = candidate["content"]["parts"][0]["text"].strip()
                 usage = data.get("usageMetadata", {})
                 tokens_in = usage.get("promptTokenCount", 0)
                 tokens_out = usage.get("candidatesTokenCount", 0)
@@ -270,10 +293,11 @@ async def generate_simple(
                 logger.warning("generate_simple: Gemini failed: %s, falling back", e)
                 _gemini_record_failure()
 
-    # 2. Fallback: GPT-4o-mini
+    # 2. Fallback: GPT-4o-mini with anti-hallucination guard
     logger.warning("[LLM-FALLBACK] Gemini failed (generate_simple), using OpenAI GPT-4o-mini")
+    fallback_messages = _add_fallback_guard(messages)
     try:
-        result = await _call_openai_mini(messages, max_tokens, temperature)
+        result = await _call_openai_mini(fallback_messages, max_tokens, temperature)
         if result and result.get("content"):
             asyncio.create_task(_async_log_usage(result, "background"))
             return result["content"]
@@ -343,6 +367,27 @@ async def _call_openai_mini(
         return None
 
 
+_FALLBACK_GUARD = (
+    "\n\nIMPORTANTE: No inventes información. Si no tienes contexto suficiente, "
+    "responde brevemente con una reacción genérica amable."
+)
+
+
+def _add_fallback_guard(messages: list[dict]) -> list[dict]:
+    """Append anti-hallucination instruction to system prompt for GPT-4o-mini fallback."""
+    guarded = []
+    system_found = False
+    for msg in messages:
+        if msg["role"] == "system" and not system_found:
+            guarded.append({**msg, "content": msg["content"] + _FALLBACK_GUARD})
+            system_found = True
+        else:
+            guarded.append(msg)
+    if not system_found:
+        guarded.insert(0, {"role": "system", "content": _FALLBACK_GUARD.strip()})
+    return guarded
+
+
 # =============================================================================
 # Production DM response: Flash-Lite → GPT-4o-mini → None
 # =============================================================================
@@ -388,10 +433,11 @@ async def generate_dm_response(
             logger.warning("Flash-Lite failed: %s, falling back to GPT-4o-mini", e)
             _gemini_record_failure()
 
-    # 2. FALLBACK: GPT-4o-mini
+    # 2. FALLBACK: GPT-4o-mini with anti-hallucination guard
     logger.warning("[LLM-FALLBACK] Gemini failed, using OpenAI GPT-4o-mini")
+    fallback_messages = _add_fallback_guard(messages)
     try:
-        result = await _call_openai_mini(messages, max_tokens, temperature)
+        result = await _call_openai_mini(fallback_messages, max_tokens, temperature)
         if result:
             asyncio.create_task(_async_log_usage(result, "dm_response"))
             return result
