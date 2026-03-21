@@ -1,41 +1,118 @@
 {
-  "version": "v1",
-  "created_at": "2026-03-21T18:40:05.402325",
-  "models": [
-    "gemini-2.5-flash-lite",
-    "gpt-4o-mini",
-    "gemini-2.5-flash"
-  ],
-  "test_set": "test_set_v1.json",
-  "system_prompt_chars": 6470,
-  "few_shot_examples": 10,
+  "date": "2026-03-21",
+  "prompt_version": "doc_d_v2_distilled + 10_fewshot + calibration_v1",
+  "models": {
+    "gemini-2.5-flash-lite": {
+      "overall_score": 0.2328,
+      "avg_latency_ms": 604,
+      "total_tokens_in": 55886,
+      "total_tokens_out": 343,
+      "total_cost_usd": 0.004294,
+      "cost_per_msg_usd": 0.000226,
+      "n_success": 19,
+      "n_errors": 1,
+      "by_type": {
+        "audio": 0.2812,
+        "lead_caliente": 0.2908,
+        "objecion": 0.1558,
+        "personal": 0.1961,
+        "precio": 0.2465,
+        "saludo": 0.1704
+      },
+      "by_language": {
+        "ca": 0.2497,
+        "es": 0.2141
+      }
+    },
+    "gemini-2.5-flash": {
+      "overall_score": 0.2215,
+      "avg_latency_ms": 1202,
+      "total_tokens_in": 55886,
+      "total_tokens_out": 88,
+      "total_cost_usd": 0.008436,
+      "cost_per_msg_usd": 0.000444,
+      "n_success": 19,
+      "n_errors": 1,
+      "by_type": {
+        "audio": 0.2194,
+        "lead_caliente": 0.1588,
+        "objecion": 0.2038,
+        "personal": 0.1882,
+        "precio": 0.2014,
+        "saludo": 0.3896
+      },
+      "by_language": {
+        "ca": 0.1762,
+        "es": 0.2719
+      }
+    },
+    "gpt-4o-mini": {
+      "overall_score": 0.2895,
+      "avg_latency_ms": 1124,
+      "total_tokens_in": 58200,
+      "total_tokens_out": 430,
+      "total_cost_usd": 0.008988,
+      "cost_per_msg_usd": 0.000449,
+      "n_success": 20,
+      "n_errors": 0,
+      "by_type": {
+        "audio": 0.3383,
+        "lead_caliente": 0.2922,
+        "objecion": 0.2725,
+        "personal": 0.2293,
+        "precio": 0.2885,
+        "saludo": 0.2749
+      },
+      "by_language": {
+        "ca": 0.3124,
+        "es": 0.2666
+      }
+    },
+    "deepseek-v3.2": {
+      "overall_score": 0,
+      "avg_latency_ms": 0,
+      "total_tokens_in": 0,
+      "total_tokens_out": 0,
+      "total_cost_usd": 0.0,
+      "cost_per_msg_usd": 0,
+      "n_success": 0,
+      "n_errors": 20,
+      "by_type": {},
+      "by_language": {}
+    }
+  },
   "conversations": [
     {
       "id": "conv_001",
       "type": "personal",
       "language": "ca",
       "ground_truth": "Ay, Manel! Qué lío con las bambas. 😣 ¿Seguro que no las dejaste en casa?",
-      "models": {
+      "user_message": "Ay, Manel! Qué lío con las bambas. 😣 ¿Seguro que no las dejaste en casa?",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Ostia nena, no te preocupes. Demà les busco al gim i te les porto. 💪🏾🩷",
-          "score": 0.2394,
-          "latency_ms": 652,
-          "tokens_in": 2372,
-          "tokens_out": 25
-        },
-        "gpt-4o-mini": {
-          "response": "Ostiaaa, no sé on poden ser. Ja les buscaré xk si no les has trobat potser les tinc jo. 🤔🩷",
-          "score": 0.3333,
-          "latency_ms": 1435,
-          "tokens_in": 2355,
-          "tokens_out": 34
+          "response": "Tioooo noooo, estic flipant😂😂😂",
+          "score": 0.1961,
+          "latency_ms": 657,
+          "tokens_in": 3030,
+          "tokens_out": 12
         },
         "gemini-2.5-flash": {
-          "response": "Nooo 😂😂😂 no",
-          "score": 0.1446,
-          "latency_ms": 1179,
-          "tokens_in": 2372,
+          "response": "Nooo Manel jo",
+          "score": 0.1882,
+          "latency_ms": 1112,
+          "tokens_in": 3030,
           "tokens_out": 5
+        },
+        "gpt-4o-mini": {
+          "response": "Nena, no sé on poden estar! 😩 Digue'm si les trobes, si no et puc buscar unes altres.",
+          "score": 0.2293,
+          "latency_ms": 1121,
+          "tokens_in": 2977,
+          "tokens_out": 27
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 795
         }
       }
     },
@@ -44,27 +121,32 @@
       "type": "saludo",
       "language": "ca",
       "ground_truth": "Mare meva Irene! Quina gràcia!! 😍 Com estàs, guapa?",
-      "models": {
+      "user_message": "Mare meva Irene! Quina gràcia!! 😍 Com estàs, guapa?",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Que mona!🩷🩷🩷",
-          "score": 0.1905,
-          "latency_ms": 509,
-          "tokens_in": 2224,
-          "tokens_out": 7
-        },
-        "gpt-4o-mini": {
-          "response": "Que bonic!!!❤️❤️❤️",
-          "score": 0.1739,
-          "latency_ms": 1127,
-          "tokens_in": 2220,
-          "tokens_out": 7
+          "response": "Com estas tu? Encantada de coneixer-te!🩷",
+          "score": 0.1978,
+          "latency_ms": 569,
+          "tokens_in": 2813,
+          "tokens_out": 14
         },
         "gemini-2.5-flash": {
-          "response": "❤️❤️",
-          "score": 0.0,
-          "latency_ms": 1108,
-          "tokens_in": 2224,
-          "tokens_out": 1
+          "response": "Jajajajaja mol",
+          "score": 0.1231,
+          "latency_ms": 1821,
+          "tokens_in": 2813,
+          "tokens_out": 6
+        },
+        "gpt-4o-mini": {
+          "response": "Bon dia cuca!! Estic molt bé, i tu? ❤️🩷",
+          "score": 0.3333,
+          "latency_ms": 1045,
+          "tokens_in": 2771,
+          "tokens_out": 17
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 615
         }
       }
     },
@@ -73,27 +155,32 @@
       "type": "saludo",
       "language": "es",
       "ground_truth": "Daleee! Que haces babyyyy? 😘 Que fuerteee!",
-      "models": {
+      "user_message": "Daleee! Que haces babyyyy? 😘 Que fuerteee!",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Jajajaja que dices??😂",
-          "score": 0.3175,
-          "latency_ms": 576,
-          "tokens_in": 2219,
-          "tokens_out": 8
-        },
-        "gpt-4o-mini": {
-          "response": "Holaa!!😂😂😂 que tal reina?",
-          "score": 0.2687,
-          "latency_ms": 808,
-          "tokens_in": 2213,
-          "tokens_out": 10
+          "response": "Buenaaasss! 💪🏾 Ara estic a Igualada, demà a Bcn! 😉",
+          "score": 0.1739,
+          "latency_ms": 716,
+          "tokens_in": 2856,
+          "tokens_out": 22
         },
         "gemini-2.5-flash": {
-          "response": "Jajajaj",
-          "score": 0.1224,
-          "latency_ms": 1272,
-          "tokens_in": 2219,
+          "response": "Ostiaaa baby",
+          "score": 0.2222,
+          "latency_ms": 1166,
+          "tokens_in": 2856,
           "tokens_out": 4
+        },
+        "gpt-4o-mini": {
+          "response": "Holaa!! Aquí liada amb classes, com va per allà? 😘❤️",
+          "score": 0.3191,
+          "latency_ms": 973,
+          "tokens_in": 2801,
+          "tokens_out": 18
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 593
         }
       }
     },
@@ -102,27 +189,32 @@
       "type": "saludo",
       "language": "es",
       "ground_truth": "Ostiaaa😂😂😂",
-      "models": {
+      "user_message": "Ostiaaa😂😂😂",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "No m'ha arribat res nena!",
-          "score": 0.2286,
-          "latency_ms": 626,
-          "tokens_in": 2292,
-          "tokens_out": 10
-        },
-        "gpt-4o-mini": {
-          "response": "Nooo que m'envies??😂😂😂🫠",
-          "score": 0.303,
-          "latency_ms": 1093,
-          "tokens_in": 2285,
-          "tokens_out": 13
+          "response": "Jajajajajaja que t'envia el tio??",
+          "score": 0.1395,
+          "latency_ms": 565,
+          "tokens_in": 2866,
+          "tokens_out": 14
         },
         "gemini-2.5-flash": {
-          "response": "Jajajajajjaja",
-          "score": 0.2609,
-          "latency_ms": 1121,
-          "tokens_in": 2292,
-          "tokens_out": 6
+          "response": "Ostiaaa",
+          "score": 0.8235,
+          "latency_ms": 1092,
+          "tokens_in": 2866,
+          "tokens_out": 3
+        },
+        "gpt-4o-mini": {
+          "response": "Jajajajaja no sé com ho fem per sobreviure😂😂❤️‍🔥",
+          "score": 0.1724,
+          "latency_ms": 1882,
+          "tokens_in": 2819,
+          "tokens_out": 18
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 725
         }
       }
     },
@@ -131,27 +223,32 @@
       "type": "precio",
       "language": "es",
       "ground_truth": "Ya estás flor",
-      "models": {
+      "user_message": "Ya estás flor",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Ya estas flor🩷",
-          "score": 0.8889,
-          "latency_ms": 655,
-          "tokens_in": 2258,
+          "response": "Ok guapa🩷",
+          "score": 0.0909,
+          "latency_ms": 564,
+          "tokens_in": 2843,
           "tokens_out": 4
         },
-        "gpt-4o-mini": {
-          "response": "Ya estas apuntada, flor🩷 Nos vemos demà!",
-          "score": 0.4528,
-          "latency_ms": 860,
-          "tokens_in": 2242,
-          "tokens_out": 14
-        },
         "gemini-2.5-flash": {
-          "response": "Ya estas flor",
-          "score": 0.9231,
-          "latency_ms": 1503,
-          "tokens_in": 2258,
-          "tokens_out": 3
+          "response": "Aaa ja me l",
+          "score": 0.3333,
+          "latency_ms": 1385,
+          "tokens_in": 2843,
+          "tokens_out": 5
+        },
+        "gpt-4o-mini": {
+          "response": "Perfecte, ens veiem a classe!🩷",
+          "score": 0.2326,
+          "latency_ms": 802,
+          "tokens_in": 2788,
+          "tokens_out": 12
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 595
         }
       }
     },
@@ -160,27 +257,32 @@
       "type": "precio",
       "language": "ca",
       "ground_truth": "Hola Iolanda! 😊",
-      "models": {
+      "user_message": "Ok",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Perfecte! Escriu-me demà al matí així t'explico tot el que necessites saber del reformer, reina. 😘",
-          "score": 0.0354,
-          "latency_ms": 699,
-          "tokens_in": 2338,
-          "tokens_out": 30
-        },
-        "gpt-4o-mini": {
-          "response": "Hola Iolanda!!🩷 Gràcies per escriure! Estic a bcn ara mateix, però demà et contesto i parlem de les classes de reformer i el que necessitis, ok?😘",
-          "score": 0.175,
-          "latency_ms": 1298,
-          "tokens_in": 2310,
-          "tokens_out": 48
+          "response": "Vale Iolanda, demà parlem i t’explico tot 🩷🩷",
+          "score": 0.339,
+          "latency_ms": 643,
+          "tokens_in": 2892,
+          "tokens_out": 18
         },
         "gemini-2.5-flash": {
-          "response": "Ahhh Iol",
-          "score": 0.4348,
-          "latency_ms": 1483,
-          "tokens_in": 2338,
-          "tokens_out": 4
+          "response": "Perfecte I",
+          "score": 0.16,
+          "latency_ms": 1111,
+          "tokens_in": 2892,
+          "tokens_out": 3
+        },
+        "gpt-4o-mini": {
+          "response": "Hola Iolanda! Què tal? Com et puc ajudar amb les classes de reformer? 🩷",
+          "score": 0.3256,
+          "latency_ms": 923,
+          "tokens_in": 2835,
+          "tokens_out": 23
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 651
         }
       }
     },
@@ -189,27 +291,32 @@
       "type": "precio",
       "language": "es",
       "ground_truth": "Hola Albert! 😊 Qué bien que te animas al workshop!",
-      "models": {
+      "user_message": "Hola Albert! 😊 Qué bien que te animas al workshop!",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Perfecte flor🩷🩷🩷",
-          "score": 0.2727,
-          "latency_ms": 513,
-          "tokens_in": 2848,
+          "response": "Perfecte!! 💪🏾",
+          "score": 0.1905,
+          "latency_ms": 621,
+          "tokens_in": 3348,
+          "tokens_out": 5
+        },
+        "gemini-2.5-flash": {
+          "response": "Perfecte! Ens veiem",
+          "score": 0.2609,
+          "latency_ms": 997,
+          "tokens_in": 3348,
           "tokens_out": 6
         },
         "gpt-4o-mini": {
-          "response": "Perfecte! Ens veiem demà x el workshop amb Tamara! 🩷 Si algú té dubtes, que m'escrigui. A gaudir!!! ✌🏽",
-          "score": 0.2632,
-          "latency_ms": 1417,
-          "tokens_in": 2722,
-          "tokens_out": 40
+          "response": "Siii, estic super emocionada! 🩷 Ens veiem demà! ✌🏽",
+          "score": 0.24,
+          "latency_ms": 1071,
+          "tokens_in": 3218,
+          "tokens_out": 22
         },
-        "gemini-2.5-flash": {
-          "response": "Perfecte! Ens",
-          "score": 0.1905,
-          "latency_ms": 1296,
-          "tokens_in": 2848,
-          "tokens_out": 4
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 592
         }
       }
     },
@@ -218,27 +325,32 @@
       "type": "precio",
       "language": "es",
       "ground_truth": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂",
-      "models": {
+      "user_message": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Ok cariño! T'apunto ales 13:00! 💪🩷",
-          "score": 0.5055,
-          "latency_ms": 545,
-          "tokens_in": 2312,
-          "tokens_out": 17
-        },
-        "gpt-4o-mini": {
-          "response": "Perfecte, t'apunto a les 13:00 d'abril! 🩷 Si hi ha canvis, et dic!",
-          "score": 0.2927,
-          "latency_ms": 1307,
-          "tokens_in": 2291,
-          "tokens_out": 28
+          "response": "A las 13:00, síii😂😂😂",
+          "score": 0.3377,
+          "latency_ms": 516,
+          "tokens_in": 2915,
+          "tokens_out": 13
         },
         "gemini-2.5-flash": {
-          "response": "Okaaa. Apunt",
-          "score": 0.1739,
-          "latency_ms": 1412,
-          "tokens_in": 2312,
-          "tokens_out": 6
+          "response": "Jajajaj",
+          "score": 0.0938,
+          "latency_ms": 1105,
+          "tokens_in": 2915,
+          "tokens_out": 4
+        },
+        "gpt-4o-mini": {
+          "response": "Ostia mami😂😂😂 es a les 13:00!! Ens veiem aviat! 🩷",
+          "score": 0.3585,
+          "latency_ms": 1086,
+          "tokens_in": 2861,
+          "tokens_out": 25
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 587
         }
       }
     },
@@ -247,27 +359,32 @@
       "type": "precio",
       "language": "ca",
       "ground_truth": "Aiii Eli! 🥰 Cómo va todo?? Te paso info por privado ahora que ya he colgado.",
-      "models": {
+      "user_message": "Aiii Eli! 🥰 Cómo va todo?? Te paso info por privado ahora que ya he colgado.",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Perfecte reina! 💪🏾💪🏾",
-          "score": 0.1875,
-          "latency_ms": 635,
-          "tokens_in": 2242,
-          "tokens_out": 8
-        },
-        "gpt-4o-mini": {
-          "response": "Nanit🩷💤",
-          "score": 0.0482,
-          "latency_ms": 584,
-          "tokens_in": 2235,
-          "tokens_out": 7
+          "response": "Aiii cuca! Quan vulguis 🩷🩷",
+          "score": 0.2745,
+          "latency_ms": 637,
+          "tokens_in": 2809,
+          "tokens_out": 12
         },
         "gemini-2.5-flash": {
-          "response": "Nanit🩷\"",
-          "score": 0.0482,
-          "latency_ms": 1675,
-          "tokens_in": 2242,
-          "tokens_out": 4
+          "response": "Okaaa reina🩷",
+          "score": 0.1591,
+          "latency_ms": 1466,
+          "tokens_in": 2809,
+          "tokens_out": 5
+        },
+        "gpt-4o-mini": {
+          "response": "Hola cuca!! 🩷 Tot bé, i tu?? Esperant info!",
+          "score": 0.2857,
+          "latency_ms": 1105,
+          "tokens_in": 2773,
+          "tokens_out": 18
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 675
         }
       }
     },
@@ -276,27 +393,32 @@
       "type": "objecion",
       "language": "es",
       "ground_truth": "Amor, me alegro un montón de que lo estés asimilando bien. 🥰 ¡Ya verás qué bien te sienta!",
-      "models": {
+      "user_message": "Amor, me alegro un montón de que lo estés asimilando bien. 🥰 ¡Ya verás qué bien te sienta!",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Clar que si reina🩷🩷🩷\nQuan vulguis aqui estic.\nA tope amb el ballet guapa💪🏾💪🏾",
-          "score": 0.241,
-          "latency_ms": 501,
-          "tokens_in": 2376,
-          "tokens_out": 28
-        },
-        "gpt-4o-mini": {
-          "response": "Clar que sí, flor! Pauses son necessàries x poder tornar amb més ganes. Aprofita a fer el que necessites i cuidar-te. Estaré aquí esperant-te quan tornis! 🩷✨",
-          "score": 0.1862,
-          "latency_ms": 1594,
-          "tokens_in": 2371,
-          "tokens_out": 46
+          "response": "Me alegro que te alegres mi vida. ❤️‍🩹",
+          "score": 0.2812,
+          "latency_ms": 495,
+          "tokens_in": 2917,
+          "tokens_out": 13
         },
         "gemini-2.5-flash": {
           "response": "Bueno amb la calma el",
           "score": 0.2162,
-          "latency_ms": 1109,
-          "tokens_in": 2376,
+          "latency_ms": 1137,
+          "tokens_in": 2917,
           "tokens_out": 5
+        },
+        "gpt-4o-mini": {
+          "response": "Gràcies, reina! 🩷 Estic segura que tornaràs amb més ganes!💪🏾",
+          "score": 0.2533,
+          "latency_ms": 975,
+          "tokens_in": 2880,
+          "tokens_out": 24
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 699
         }
       }
     },
@@ -305,27 +427,32 @@
       "type": "objecion",
       "language": "es",
       "ground_truth": "Ay, mi vida, qué lío! 🫠 Entonces, ¿al final vas a la otra clase o te quedas a la de barre? 😘",
-      "models": {
+      "user_message": "Ay, mi vida, qué lío! 🫠 Entonces, ¿al final vas a la otra clase o te quedas a la de barre? 😘",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Perfecto, reina! 🫶🏽",
-          "score": 0.1622,
-          "latency_ms": 574,
-          "tokens_in": 2335,
+          "response": "No et compliquis mami 😘",
+          "score": 0.087,
+          "latency_ms": 591,
+          "tokens_in": 2945,
           "tokens_out": 8
         },
-        "gpt-4o-mini": {
-          "response": "Ostiaaaa que guay!!!😍😍 A quina classe?✨",
-          "score": 0.3053,
-          "latency_ms": 765,
-          "tokens_in": 2311,
-          "tokens_out": 16
-        },
         "gemini-2.5-flash": {
-          "response": "Okaaa perfecte",
-          "score": 0.1509,
-          "latency_ms": 1166,
-          "tokens_in": 2335,
-          "tokens_out": 5
+          "response": "Jajajajaja reina",
+          "score": 0.1296,
+          "latency_ms": 1061,
+          "tokens_in": 2945,
+          "tokens_out": 6
+        },
+        "gpt-4o-mini": {
+          "response": "Nooo, ja m'he quedat a barre!💪🏾 No em puc escapar! 😂❤️",
+          "score": 0.274,
+          "latency_ms": 904,
+          "tokens_in": 2875,
+          "tokens_out": 23
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 610
         }
       }
     },
@@ -334,27 +461,32 @@
       "type": "objecion",
       "language": "ca",
       "ground_truth": "Hola Marta! De res, guapa! 🥰 Sempre que puguis i vulguis, aquí estic! Què et va semblar la classe d'ahir? 😊",
-      "models": {
+      "user_message": "Hola Marta! De res, guapa! 🥰 Sempre que puguis i vulguis, aquí estic! Què et va semblar la classe d'ahir? 😊",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "[sticker]",
-          "score": 0.1034,
-          "latency_ms": 548,
-          "tokens_in": 2360,
-          "tokens_out": 3
-        },
-        "gpt-4o-mini": {
-          "response": "De res, carinyu!! 🩷🥰 A tu!",
-          "score": 0.2105,
-          "latency_ms": 861,
-          "tokens_in": 2335,
-          "tokens_out": 15
+          "response": "[reaction: ❤️]",
+          "score": 0.0992,
+          "latency_ms": 585,
+          "tokens_in": 2964,
+          "tokens_out": 5
         },
         "gemini-2.5-flash": {
-          "response": "De res flor🩷",
-          "score": 0.1513,
-          "latency_ms": 1178,
-          "tokens_in": 2360,
-          "tokens_out": 4
+          "response": "Flor aquesta te la va",
+          "score": 0.2656,
+          "latency_ms": 1269,
+          "tokens_in": 2964,
+          "tokens_out": 5
+        },
+        "gpt-4o-mini": {
+          "response": "Hola reina! 🩷 La classe d'ahir va ser brutal, m'encanta fer-la! Com et va a tu?",
+          "score": 0.2903,
+          "latency_ms": 1019,
+          "tokens_in": 2902,
+          "tokens_out": 27
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 600
         }
       }
     },
@@ -363,27 +495,32 @@
       "type": "lead_caliente",
       "language": "ca",
       "ground_truth": "Hola bro! Com va tot? 🥰 Que moltes ganes de barre dijous! 💪",
-      "models": {
+      "user_message": "Hola bro! Com va tot? 🥰 Que moltes ganes de barre dijous! 💪",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Tranqui nena que ja estic apuntant-te per estirar! 😘💪",
-          "score": 0.3393,
-          "latency_ms": 641,
-          "tokens_in": 2354,
-          "tokens_out": 19
-        },
-        "gpt-4o-mini": {
-          "response": "Jajajaja, no et preocupis, que al final farem reformer xk ja hi ha gent a barre! Estaré a tope! 🩷",
-          "score": 0.3077,
-          "latency_ms": 1543,
-          "tokens_in": 2336,
-          "tokens_out": 34
+          "response": "Clar que siii, reina🩷🩷🩷",
+          "score": 0.3171,
+          "latency_ms": 708,
+          "tokens_in": 2905,
+          "tokens_out": 9
         },
         "gemini-2.5-flash": {
-          "response": "Perdonaaa",
-          "score": 0.1176,
-          "latency_ms": 1490,
-          "tokens_in": 2354,
-          "tokens_out": 4
+          "response": "Guapaaa! 🥰 Clar",
+          "score": 0.2162,
+          "latency_ms": 1070,
+          "tokens_in": 2905,
+          "tokens_out": 6
+        },
+        "gpt-4o-mini": {
+          "response": "Hola cuca! Tot bé, amb ganes de barre també! 💪🥰 Nos veiem dijous!",
+          "score": 0.5968,
+          "latency_ms": 1007,
+          "tokens_in": 2843,
+          "tokens_out": 24
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 605
         }
       }
     },
@@ -392,27 +529,32 @@
       "type": "lead_caliente",
       "language": "es",
       "ground_truth": "De nada, cariño. ❤️ Me alegro que te gustara. 😘",
-      "models": {
+      "user_message": "De nada, cariño. ❤️ Me alegro que te gustara. 😘",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "De res, guapa! ❤️🫶🏻",
-          "score": 0.3333,
-          "latency_ms": 516,
-          "tokens_in": 2315,
-          "tokens_out": 9
-        },
-        "gpt-4o-mini": {
-          "response": "Gràcies a tu, amor! M'encanta veure't x aqui 🩷 Nos veiem dimecres!",
-          "score": 0.1593,
-          "latency_ms": 975,
-          "tokens_in": 2300,
-          "tokens_out": 25
+          "response": "De nada guapa🩷🩷🩷",
+          "score": 0.381,
+          "latency_ms": 489,
+          "tokens_in": 2893,
+          "tokens_out": 7
         },
         "gemini-2.5-flash": {
-          "response": "De nada reina! 💪🏾",
-          "score": 0.375,
-          "latency_ms": 1883,
-          "tokens_in": 2315,
-          "tokens_out": 6
+          "response": "De res cuc",
+          "score": 0.2105,
+          "latency_ms": 1123,
+          "tokens_in": 2893,
+          "tokens_out": 3
+        },
+        "gpt-4o-mini": {
+          "response": "Moltbe, reina! Estic aquí per a tu🩷🥹",
+          "score": 0.2651,
+          "latency_ms": 981,
+          "tokens_in": 2846,
+          "tokens_out": 17
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 593
         }
       }
     },
@@ -421,27 +563,32 @@
       "type": "lead_caliente",
       "language": "es",
       "ground_truth": "Que vendrás el domingo que es el últimooo",
-      "models": {
+      "user_message": "Que vendrás el domingo que es el últimooo",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Que vendrás el domingo que es el últimooo",
-          "score": 1.0,
-          "latency_ms": 624,
-          "tokens_in": 2310,
-          "tokens_out": 11
-        },
-        "gpt-4o-mini": {
-          "response": "No t'estressis, que ja ho tenim! Aprofita el matí per fer les compres i després relaxa't una estona. Diumenge ens veiem!! 🩷",
-          "score": 0.1951,
-          "latency_ms": 2381,
-          "tokens_in": 2298,
-          "tokens_out": 41
+          "response": "Clar que siiii carinyo!! Diumenge el meu dia preferit 🫠🫶🏽",
+          "score": 0.2449,
+          "latency_ms": 748,
+          "tokens_in": 2852,
+          "tokens_out": 20
         },
         "gemini-2.5-flash": {
-          "response": "Que vendrás el domingo que",
-          "score": 0.7761,
-          "latency_ms": 1098,
-          "tokens_in": 2310,
-          "tokens_out": 6
+          "response": "Nooo tia 😂",
+          "score": 0.1569,
+          "latency_ms": 1116,
+          "tokens_in": 2852,
+          "tokens_out": 4
+        },
+        "gpt-4o-mini": {
+          "response": "Nooo, no puc venir, estic a tope amb les classes. 🫠",
+          "score": 0.2609,
+          "latency_ms": 1742,
+          "tokens_in": 2803,
+          "tokens_out": 19
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 597
         }
       }
     },
@@ -450,27 +597,32 @@
       "type": "lead_caliente",
       "language": "ca",
       "ground_truth": "Tranqui",
-      "models": {
+      "user_message": "Tranqui",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Perfecte 🫶🏻 Ens veiem ara reina!",
-          "score": 0.2051,
-          "latency_ms": 571,
-          "tokens_in": 2274,
-          "tokens_out": 11
-        },
-        "gpt-4o-mini": {
-          "response": "Okaaa, sense pressa! T'espero! 🩷",
-          "score": 0.1026,
-          "latency_ms": 746,
-          "tokens_in": 2253,
-          "tokens_out": 15
+          "response": "Okii amorrr",
+          "score": 0.1111,
+          "latency_ms": 500,
+          "tokens_in": 2850,
+          "tokens_out": 4
         },
         "gemini-2.5-flash": {
-          "response": "Okaaa",
-          "score": 0.1667,
-          "latency_ms": 1286,
-          "tokens_in": 2274,
-          "tokens_out": 3
+          "response": "Okaaa vaaa",
+          "score": 0.1176,
+          "latency_ms": 1377,
+          "tokens_in": 2850,
+          "tokens_out": 5
+        },
+        "gpt-4o-mini": {
+          "response": "Perfecte, ens veiem aviat! 🩷",
+          "score": 0.1714,
+          "latency_ms": 1454,
+          "tokens_in": 2791,
+          "tokens_out": 12
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 596
         }
       }
     },
@@ -479,27 +631,32 @@
       "type": "audio",
       "language": "ca",
       "ground_truth": "Jajaja, ¡qué bueno! 😂 Me alegro que todo se haya solucionado, Sònia. ¡Un abrazo! 😘",
-      "models": {
+      "user_message": "Jajaja, ¡qué bueno! 😂 Me alegro que todo se haya solucionado, Sònia. ¡Un abrazo! 😘",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Ja està flor!! 🩷🩷🩷",
-          "score": 0.14,
-          "latency_ms": 560,
-          "tokens_in": 2817,
-          "tokens_out": 8
-        },
-        "gpt-4o-mini": {
-          "response": "Tia, no passa res! 🩷 La propera ja ho tenim controlat. A vegades són coses que passen. Gràcies per acceptar-ho! 😘",
-          "score": 0.2872,
-          "latency_ms": 1561,
-          "tokens_in": 2767,
-          "tokens_out": 37
+          "response": "No cal reinaaa 😘😘",
+          "score": 0.2828,
+          "latency_ms": 618,
+          "tokens_in": 3393,
+          "tokens_out": 6
         },
         "gemini-2.5-flash": {
-          "response": "Tranquii tiaaa",
-          "score": 0.0833,
-          "latency_ms": 1349,
-          "tokens_in": 2817,
-          "tokens_out": 5
+          "response": "Tranqui",
+          "score": 0.0674,
+          "latency_ms": 1142,
+          "tokens_in": 3393,
+          "tokens_out": 3
+        },
+        "gpt-4o-mini": {
+          "response": "Jajajajjaja, síii, tot solucionat! Gràcies, guapa! Un petó enorme! 🩷",
+          "score": 0.4133,
+          "latency_ms": 1067,
+          "tokens_in": 3299,
+          "tokens_out": 27
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 591
         }
       }
     },
@@ -508,27 +665,26 @@
       "type": "audio",
       "language": "es",
       "ground_truth": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
-      "models": {
+      "user_message": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "[ERROR: 'candidates']",
-          "score": 0.177,
-          "latency_ms": 0,
-          "tokens_in": 0,
-          "tokens_out": 0
-        },
-        "gpt-4o-mini": {
-          "response": "Ostia mami, quina sorpresa! 😂 La veritat és que no m'ho esperava tampoc. I sí, el tema cervical... em fa un mal de coll que flipas. A veure si demà descanso i em recupero.\n\nMola que vinguis a Hipopilates i Barre, ja et valia! Que fa temps que no et veig! Estic emocionada de tornar a compartir classe amb tu! \n\nCuida't i vigila la carretera, ok? 🩷",
-          "score": 0.1731,
-          "latency_ms": 3204,
-          "tokens_in": 3072,
-          "tokens_out": 107
+          "error": "'candidates'",
+          "latency_ms": 262
         },
         "gemini-2.5-flash": {
-          "response": "Noooo reinaaa!!",
-          "score": 0.1121,
-          "latency_ms": 1180,
-          "tokens_in": 3086,
-          "tokens_out": 5
+          "error": "'candidates'",
+          "latency_ms": 285
+        },
+        "gpt-4o-mini": {
+          "response": "Això és, reina!💪🏽 Descansa i recupera't, que la classe t'espera! Nos vemos demà a Barre, amb ganes!❤️",
+          "score": 0.2902,
+          "latency_ms": 1524,
+          "tokens_in": 3440,
+          "tokens_out": 37
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 585
         }
       }
     },
@@ -537,27 +693,32 @@
       "type": "lead_caliente",
       "language": "ca",
       "ground_truth": "Dijous no podrem fer entreno aviso😘",
-      "models": {
+      "user_message": "Dijous no podrem fer entreno aviso😘",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Ok reina 😘",
-          "score": 0.2667,
-          "latency_ms": 763,
-          "tokens_in": 2287,
-          "tokens_out": 3
-        },
-        "gpt-4o-mini": {
-          "response": "Bon diaaa!! Mola que estiguis millor!!👌🏻 Gestiones sempre van bé, así que tranqui. Ens veiem dijous, d'acord?😘",
-          "score": 0.1517,
-          "latency_ms": 1122,
-          "tokens_in": 2273,
-          "tokens_out": 36
+          "response": "Ok, cap problema reina! 😘",
+          "score": 0.4,
+          "latency_ms": 601,
+          "tokens_in": 2875,
+          "tokens_out": 7
         },
         "gemini-2.5-flash": {
-          "response": "Okaaa.",
-          "score": 0.0976,
-          "latency_ms": 1104,
-          "tokens_in": 2287,
+          "response": "Okaaa gu",
+          "score": 0.093,
+          "latency_ms": 1078,
+          "tokens_in": 2875,
           "tokens_out": 4
+        },
+        "gpt-4o-mini": {
+          "response": "D'acord, així ja ho sabem! Cuida't molt, reina!❤️",
+          "score": 0.1667,
+          "latency_ms": 863,
+          "tokens_in": 2813,
+          "tokens_out": 17
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 596
         }
       }
     },
@@ -566,52 +727,34 @@
       "type": "audio",
       "language": "ca",
       "ground_truth": "Oleeeeee nen! Que te cuento? 🥹 Com va tot per allà?",
-      "models": {
+      "user_message": "Oleeeeee nen! Que te cuento? 🥹 Com va tot per allà?",
+      "responses": {
         "gemini-2.5-flash-lite": {
-          "response": "Mare meva quin regalas es preciosa enhorabonaaa",
-          "score": 0.2041,
-          "latency_ms": 647,
-          "tokens_in": 2324,
-          "tokens_out": 14
-        },
-        "gpt-4o-mini": {
-          "response": "Mare meva, quina passada!!❤️❤️❤️ A tu tb, sempre amb vosaltres. A gaudir del dia i de les celebracions!!!🥂✨",
-          "score": 0.2405,
-          "latency_ms": 1231,
-          "tokens_in": 2303,
-          "tokens_out": 35
+          "response": "Oleeeeee nen! Que te cuento? 🥹 Com va tot per allà?\n\nJAJAJAJJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJA",
+          "score": 0.2795,
+          "latency_ms": 661,
+          "tokens_in": 2920,
+          "tokens_out": 150
         },
         "gemini-2.5-flash": {
-          "response": "De nada flor🩷",
-          "score": 0.1875,
-          "latency_ms": 1302,
-          "tokens_in": 2324,
-          "tokens_out": 4
+          "response": "Oleee flor! Tot ben",
+          "score": 0.3714,
+          "latency_ms": 1212,
+          "tokens_in": 2920,
+          "tokens_out": 6
+        },
+        "gpt-4o-mini": {
+          "response": "Ostia mami, tot bé! Aquí entre classes i preparant cosetes🥹 Tu com vas?",
+          "score": 0.3115,
+          "latency_ms": 939,
+          "tokens_in": 2865,
+          "tokens_out": 23
+        },
+        "deepseek-v3.2": {
+          "error": "Client error '402 Payment Required' for url 'https://api.deepseek.com/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+          "latency_ms": 591
         }
       }
     }
-  ],
-  "summary": {
-    "gemini-2.5-flash-lite": {
-      "avg_score": 0.3019,
-      "avg_latency_ms": 568,
-      "min_score": 0.0354,
-      "max_score": 1.0,
-      "total_conversations": 20
-    },
-    "gpt-4o-mini": {
-      "avg_score": 0.2315,
-      "avg_latency_ms": 1296,
-      "min_score": 0.0482,
-      "max_score": 0.4528,
-      "total_conversations": 20
-    },
-    "gemini-2.5-flash": {
-      "avg_score": 0.2366,
-      "avg_latency_ms": 1310,
-      "min_score": 0.0,
-      "max_score": 0.9231,
-      "total_conversations": 20
-    }
-  }
+  ]
 }
