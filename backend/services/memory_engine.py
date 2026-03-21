@@ -97,21 +97,21 @@ class ExtractionResult:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 FACT_EXTRACTION_PROMPT = """Analiza esta conversacion de DMs entre un creador y un lead.
-Extrae SOLO hechos concretos sobre el LEAD (no sobre el creador ni sus productos).
+Extrae SOLO hechos concretos sobre el LEAD.
 
 Tipos de hechos a extraer:
 - preference: gustos, intereses, estilo preferido del lead
-- commitment: promesas hechas por el bot/creador AL lead (ej: "te envio el enlace manana")
-- topic: temas principales discutidos en la conversacion
+- commitment: promesas o compromisos hechos por el LEAD (ej: "va a venir el jueves")
+- topic: temas principales que el lead trajo a la conversacion
 - objection: objeciones, dudas o resistencias del lead
 - personal_info: datos personales del lead (nombre, ciudad, situacion, profesion)
-- purchase_history: compras, pagos o transacciones mencionadas
+- purchase_history: compras, pagos o transacciones del lead
 
-Conversacion:
+Conversacion (las lineas "Bot:" son contexto — NO extraigas hechos de ellas):
 {messages}
 
 Responde UNICAMENTE con JSON valido (sin markdown, sin ```):
-{{"facts": [{{"type": "preference", "text": "Le interesa el curso de nutricion", "confidence": 0.9}}, {{"type": "commitment", "text": "Se le prometio enviar el enlace manana", "confidence": 0.8}}], "summary": "El lead pregunto por precios del curso de nutricion...", "sentiment": "positive", "key_topics": ["nutricion", "precios"]}}
+{{"facts": [{{"type": "preference", "text": "Le interesa el curso de nutricion", "confidence": 0.9}}, {{"type": "commitment", "text": "El lead prometio venir el jueves", "confidence": 0.8}}], "summary": "El lead pregunto por precios del curso de nutricion...", "sentiment": "positive", "key_topics": ["nutricion", "precios"]}}
 
 REGLAS:
 - Maximo {max_facts} hechos por conversacion
@@ -121,7 +121,8 @@ REGLAS:
 - NO repetir hechos que sean obvios del contexto de la conversacion
 - Si no hay hechos extraibles, retorna {{"facts": [], "summary": "...", "sentiment": "neutral", "key_topics": []}}
 - "text" debe ser una frase completa y autocontenida
-- "commitment" solo si hay una promesa EXPLICITA, no implicita"""
+- NUNCA incluyas en los hechos lo que el Bot dijo, respondio, fallo o prometio
+- Todos los hechos deben describir atributos, acciones o palabras del LEAD, no del Bot"""
 
 CONVERSATION_SUMMARY_PROMPT = """Resume esta conversacion de DMs entre un creador y un lead.
 
