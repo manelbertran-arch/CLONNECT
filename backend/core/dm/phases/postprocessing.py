@@ -256,6 +256,16 @@ async def phase_postprocessing(
     # Step 9: Update lead score (synchronous - needed for response)
     new_stage = agent._update_lead_score(follower, intent_value, metadata)
 
+    # Step 9a: Update conversation state machine (fire-and-forget)
+    try:
+        from core.conversation_state import get_state_manager
+
+        state_mgr = get_state_manager()
+        conv_state = state_mgr.get_state(sender_id, agent.creator_id)
+        state_mgr.update_state(conv_state, message, intent_value, formatted_content)
+    except Exception as e:
+        logger.debug(f"[STATE] update failed: {e}")
+
     # Step 9c: Email capture (non-blocking) — disabled by default
     if ENABLE_EMAIL_CAPTURE:
         try:
