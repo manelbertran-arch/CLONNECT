@@ -376,23 +376,26 @@ async def phase_memory_and_context(
         except Exception as e:
             logger.debug(f"[ECHO] Relationship Adapter failed: {e}")
 
-    # Priority ordering: style first, then knowledge, then context
+    # Ordering: STATIC sections first (cacheable prefix for Gemini 90% discount),
+    # then VARIABLE sections that change per lead/message.
     combined_context = "\n\n".join(
         filter(
             None,
             [
-                agent.style_prompt,       # HOW to write (highest priority)
+                # --- STATIC per creator (cacheable prefix) ---
+                agent.style_prompt,       # HOW to write (Doc D distilled)
+                few_shot_section,        # Calibration examples (10 selected)
+                advanced_section,        # Anti-hallucination rules
+                citation_context,        # Source attribution rules
+                # --- VARIABLE per lead/message ---
                 friend_context,          # Friend/family override (critical)
-                relational_block,        # ECHO: Lead-specific behavior (Sprint 4)
-                rag_context,             # Product/knowledge data
+                relational_block,        # ECHO: Lead-specific behavior
+                rag_context,             # RAG chunks relevant to message
                 memory_context,          # Per-lead facts (personalization)
-                few_shot_section,        # Examples of correct responses
+                kb_context,              # Factual knowledge base lookup
                 dna_context,             # Relationship insights
                 state_context,           # Conversation phase
                 audio_context,           # Audio message context
-                kb_context,              # Factual knowledge base
-                citation_context,        # Source attribution
-                advanced_section,        # Anti-hallucination rules
                 prompt_override,         # Manual override (lowest)
             ],
         )
