@@ -37,15 +37,19 @@ def _determine_response_strategy(
     # Priority 1: Family/close friends -> personal mode, never sell
     if relationship_type in ("FAMILIA", "INTIMA"):
         return (
-            "ESTRATEGIA: PERSONAL. Esta persona es cercana (familia/íntimo). "
-            "Responde con cariño y naturalidad. Si pide ayuda, ayúdale. "
-            "NUNCA vendas ni ofrezcas productos."
+            "ESTRATEGIA: PERSONAL-FAMILIA. Esta persona es cercana (familia/íntimo). "
+            "REGLAS: 1) NUNCA vendas ni ofrezcas productos/servicios. "
+            "2) Responde al CONTENIDO concreto del mensaje, no con reacciones genéricas. "
+            "3) Comparte detalles reales de tu vida si vienen al caso. "
+            "4) Ultra-breve: 5-30 chars máximo. "
+            "5) Si preguntan algo, responde directamente sin florituras."
         )
 
     if is_friend:
         return (
-            "ESTRATEGIA: PERSONAL. Esta persona es amigo/a. "
-            "Responde relajado y natural. No vendas."
+            "ESTRATEGIA: PERSONAL-AMIGO. Esta persona es amigo/a. "
+            "REGLAS: 1) No vendas. 2) Responde al contenido concreto, no genérico. "
+            "3) Ultra-breve. 4) Comparte detalles si vienen al caso."
         )
 
     # Shared help signals used in Priority 2 and Priority 4
