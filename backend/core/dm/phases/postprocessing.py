@@ -25,6 +25,7 @@ ENABLE_OUTPUT_VALIDATION = os.getenv("ENABLE_OUTPUT_VALIDATION", "true").lower()
 ENABLE_RESPONSE_FIXES = os.getenv("ENABLE_RESPONSE_FIXES", "true").lower() == "true"
 ENABLE_QUESTION_REMOVAL = os.getenv("ENABLE_QUESTION_REMOVAL", "true").lower() == "true"
 ENABLE_REFLEXION = os.getenv("ENABLE_REFLEXION", "true").lower() == "true"
+ENABLE_PPA = os.getenv("ENABLE_PPA", "false").lower() == "true"
 ENABLE_GUARDRAILS = os.getenv("ENABLE_GUARDRAILS", "true").lower() == "true"
 ENABLE_EMAIL_CAPTURE = os.getenv("ENABLE_EMAIL_CAPTURE", "false").lower() == "true"
 ENABLE_MESSAGE_SPLITTING = os.getenv("ENABLE_MESSAGE_SPLITTING", "true").lower() == "true"
@@ -145,7 +146,7 @@ async def phase_postprocessing(
         except Exception as e:
             logger.debug(f"Question removal failed: {e}")
 
-    # Step 7a3: Reflexion analysis for response quality
+    # Step 7a3: Reflexion analysis for response quality (legacy)
     if ENABLE_REFLEXION:
         try:
             prev_bot = [
@@ -161,42 +162,29 @@ async def phase_postprocessing(
             if r_result.needs_revision:
                 cognitive_metadata["reflexion_issues"] = r_result.issues
                 cognitive_metadata["reflexion_severity"] = r_result.severity
-
-                # Re-generate for high/medium severity issues
-                if r_result.severity in ("high", "medium"):
-                    try:
-                        revision_prompt = get_reflexion_engine().build_revision_prompt(
-                            r_result, response_content
-                        )
-                        if revision_prompt:
-                            from core.providers.gemini_provider import generate_dm_response
-                            logger.info(
-                                f"[REFLEXION] Re-generating "
-                                f"(severity={r_result.severity}, issues={r_result.issues})"
-                            )
-                            revised_result = await generate_dm_response(
-                                [
-                                    {"role": "system", "content": revision_prompt},
-                                    {"role": "user", "content": message},
-                                ],
-                                max_tokens=150,
-                                temperature=0.3,
-                            )
-                            revised_content = (revised_result or {}).get("content", "").strip()
-                            if revised_content and len(revised_content) >= 20:
-                                logger.info(
-                                    f"[REFLEXION] Revised: "
-                                    f"{len(response_content)}→{len(revised_content)} chars"
-                                )
-                                response_content = revised_content
-                                cognitive_metadata["reflexion_revised"] = True
-                            else:
-                                cognitive_metadata["reflexion_revision_rejected"] = "too_short"
-                    except Exception as e:
-                        logger.warning(f"[REFLEXION] Re-generation failed: {e}")
-                        cognitive_metadata["reflexion_revision_error"] = str(e)
         except Exception as e:
             logger.debug(f"Reflexion failed: {e}")
+
+    # Step 7a4: Post Persona Alignment (PPA) — refine response to match creator voice
+    if ENABLE_PPA and agent.calibration:
+        try:
+            from core.reasoning.ppa import apply_ppa
+
+            follower_name = (follower or {}).get("full_name", "") or (follower or {}).get("username", "")
+            ppa_result = await apply_ppa(
+                response=response_content,
+                calibration=agent.calibration,
+                lead_name=follower_name,
+                detected_language=detection.language if hasattr(detection, "language") else "ca",
+            )
+            cognitive_metadata["ppa_score"] = round(ppa_result.alignment_score, 2)
+            cognitive_metadata["ppa_scores"] = ppa_result.scores
+            if ppa_result.was_refined:
+                response_content = ppa_result.response
+                cognitive_metadata["ppa_refined"] = True
+                logger.info("[PPA] Response refined (score=%.2f)", ppa_result.alignment_score)
+        except Exception as e:
+            logger.debug(f"PPA failed: {e}")
 
     # Step 7b: Apply guardrails validation
     if ENABLE_GUARDRAILS and hasattr(agent, "guardrails"):
