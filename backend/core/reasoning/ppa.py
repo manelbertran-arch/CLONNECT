@@ -4,12 +4,14 @@ Post Persona Alignment (PPA) — refine LLM responses to match creator voice.
 Based on PPA (Chen et al., 2025): generate → retrieve similar persona examples
 → refine if misaligned. Reuses the reflexion engine slot in postprocessing.
 
-Feature flag: ENABLE_PPA (default: false)
+Score Before You Speak (Saggar et al., ECAI 2025) extension:
+  1. Score alignment → if >= 0.7 → done (0 extra calls)
+  2. If < 0.7 → PPA refine (1 extra call) → re-score
+  3. If still < 0.7 → retry generation at different temperature, pick best (2 extra calls max)
 
-Flow:
-  1. Score alignment of generated response against calibration few-shot examples
-  2. If score >= 0.7 → pass through (no LLM call)
-  3. If score < 0.7 → one refinement call with 3 most similar examples
+Feature flags:
+  - ENABLE_PPA (default: false) — basic PPA refinement
+  - ENABLE_SCORE_BEFORE_SPEAK (default: false) — full score-before-speak with retry
 """
 
 import logging
@@ -21,6 +23,10 @@ from typing import Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 ENABLE_PPA = os.getenv("ENABLE_PPA", "false").lower() == "true"
+ENABLE_SCORE_BEFORE_SPEAK = os.getenv("ENABLE_SCORE_BEFORE_SPEAK", "false").lower() == "true"
+
+# Alignment threshold — responses below this get refined/retried
+ALIGNMENT_THRESHOLD = float(os.getenv("PPA_ALIGNMENT_THRESHOLD", "0.7"))
 
 # Phrases that should never appear in Iris's responses (Doc D patterns)
 FORBIDDEN_PHRASES = [
@@ -203,7 +209,7 @@ async def apply_ppa(
     )
 
     # Step 2: If aligned enough, pass through
-    if score >= 0.7:
+    if score >= ALIGNMENT_THRESHOLD:
         return PPAResult(
             response=response, alignment_score=score,
             was_refined=False, scores=dim_scores,
@@ -221,7 +227,7 @@ async def apply_ppa(
     prompt = build_refinement_prompt(response, examples, lead_name)
     example_texts = [ex.get("response", "") for ex in examples]
 
-    logger.info("[PPA] Refining response (score=%.2f < 0.7)", score)
+    logger.info("[PPA] Refining response (score=%.2f < %.2f)", score, ALIGNMENT_THRESHOLD)
 
     try:
         from core.providers.gemini_provider import generate_dm_response
@@ -271,4 +277,145 @@ async def apply_ppa(
         response=response, alignment_score=score,
         was_refined=False, scores=dim_scores,
         matched_examples=example_texts,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# SCORE BEFORE YOU SPEAK (Saggar et al., ECAI 2025)
+# ═══════════════════════════════════════════════════════════════════════
+
+@dataclass
+class SBSResult:
+    """Result of Score Before You Speak evaluation."""
+    response: str
+    alignment_score: float
+    scores: Dict[str, float] = field(default_factory=dict)
+    total_llm_calls: int = 0
+    path: str = ""  # "pass" | "refined" | "retried"
+    candidates: List[Dict] = field(default_factory=list)
+
+
+async def score_before_speak(
+    response: str,
+    calibration: Dict,
+    system_prompt: str,
+    user_prompt: str,
+    lead_name: str = "",
+    detected_language: str = "ca",
+) -> SBSResult:
+    """Score Before You Speak — evaluate quality before sending.
+
+    Flow:
+      1. Score initial response → if aligned: done (0 extra calls)
+      2. PPA refine → if aligned: done (1 extra call)
+      3. Retry at different temperature → pick best (2 extra calls max)
+
+    Args:
+        response: The initial LLM-generated response
+        calibration: Creator calibration data (baseline, few-shot examples)
+        system_prompt: System prompt used for generation (for retry)
+        user_prompt: User prompt used for generation (for retry)
+        lead_name: Lead display name (for refinement prompt)
+        detected_language: Detected conversation language
+    """
+    if not calibration:
+        return SBSResult(
+            response=response, alignment_score=1.0, total_llm_calls=0, path="pass",
+        )
+
+    llm_calls = 0
+
+    # Step 1: Score initial response
+    score, dim_scores = compute_alignment_score(response, calibration, detected_language)
+
+    candidates = [{"response": response, "score": score, "source": "initial"}]
+
+    logger.info("[SBS] Initial score=%.2f (threshold=%.2f)", score, ALIGNMENT_THRESHOLD)
+
+    if score >= ALIGNMENT_THRESHOLD:
+        return SBSResult(
+            response=response, alignment_score=score, scores=dim_scores,
+            total_llm_calls=0, path="pass", candidates=candidates,
+        )
+
+    # Step 2: PPA refinement (1 extra call)
+    ppa_result = await apply_ppa(
+        response=response,
+        calibration=calibration,
+        lead_name=lead_name,
+        detected_language=detected_language,
+    )
+    llm_calls += 1 if ppa_result.was_refined else 0
+
+    if ppa_result.was_refined:
+        candidates.append({
+            "response": ppa_result.response,
+            "score": ppa_result.alignment_score,
+            "source": "ppa_refined",
+        })
+
+    if ppa_result.alignment_score >= ALIGNMENT_THRESHOLD:
+        logger.info("[SBS] PPA refinement sufficient (%.2f)", ppa_result.alignment_score)
+        return SBSResult(
+            response=ppa_result.response, alignment_score=ppa_result.alignment_score,
+            scores=ppa_result.scores, total_llm_calls=llm_calls,
+            path="refined", candidates=candidates,
+        )
+
+    # Step 3: Retry generation with different temperature (1 more call)
+    logger.info("[SBS] PPA insufficient (%.2f), retrying generation", ppa_result.alignment_score)
+
+    try:
+        from core.providers.gemini_provider import generate_dm_response
+
+        retry_result = await generate_dm_response(
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=80,
+            temperature=0.5,  # Lower temperature for more focused retry
+        )
+        llm_calls += 1
+
+        retry_text = (retry_result or {}).get("content", "").strip()
+
+        if retry_text and 5 <= len(retry_text) <= 200:
+            retry_score, retry_dim_scores = compute_alignment_score(
+                retry_text, calibration, detected_language,
+            )
+            candidates.append({
+                "response": retry_text,
+                "score": retry_score,
+                "source": "retry_t05",
+            })
+
+            # Pick the best candidate across all attempts
+            best = max(candidates, key=lambda c: c["score"])
+            logger.info(
+                "[SBS] Retry done. Best='%s' score=%.2f (from %s)",
+                best["response"][:40], best["score"], best["source"],
+            )
+
+            best_scores = dim_scores  # default
+            if best["source"] == "retry_t05":
+                best_scores = retry_dim_scores
+            elif best["source"] == "ppa_refined":
+                best_scores = ppa_result.scores
+
+            return SBSResult(
+                response=best["response"], alignment_score=best["score"],
+                scores=best_scores, total_llm_calls=llm_calls,
+                path="retried", candidates=candidates,
+            )
+
+    except Exception as e:
+        logger.warning("[SBS] Retry generation failed: %s", e)
+
+    # Fallback: return best of what we have
+    best = max(candidates, key=lambda c: c["score"])
+    return SBSResult(
+        response=best["response"], alignment_score=best["score"],
+        scores=dim_scores if best["source"] == "initial" else ppa_result.scores,
+        total_llm_calls=llm_calls, path="retried", candidates=candidates,
     )

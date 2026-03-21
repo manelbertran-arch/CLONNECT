@@ -26,6 +26,7 @@ ENABLE_RESPONSE_FIXES = os.getenv("ENABLE_RESPONSE_FIXES", "true").lower() == "t
 ENABLE_QUESTION_REMOVAL = os.getenv("ENABLE_QUESTION_REMOVAL", "true").lower() == "true"
 ENABLE_REFLEXION = os.getenv("ENABLE_REFLEXION", "true").lower() == "true"
 ENABLE_PPA = os.getenv("ENABLE_PPA", "false").lower() == "true"
+ENABLE_SCORE_BEFORE_SPEAK = os.getenv("ENABLE_SCORE_BEFORE_SPEAK", "false").lower() == "true"
 ENABLE_GUARDRAILS = os.getenv("ENABLE_GUARDRAILS", "true").lower() == "true"
 ENABLE_EMAIL_CAPTURE = os.getenv("ENABLE_EMAIL_CAPTURE", "false").lower() == "true"
 ENABLE_MESSAGE_SPLITTING = os.getenv("ENABLE_MESSAGE_SPLITTING", "true").lower() == "true"
@@ -165,8 +166,35 @@ async def phase_postprocessing(
         except Exception as e:
             logger.debug(f"Reflexion failed: {e}")
 
-    # Step 7a4: Post Persona Alignment (PPA) — refine response to match creator voice
-    if ENABLE_PPA and agent.calibration:
+    # Step 7a4: Score Before You Speak (supersedes PPA when enabled)
+    if ENABLE_SCORE_BEFORE_SPEAK and agent.calibration:
+        try:
+            from core.reasoning.ppa import score_before_speak
+
+            follower_name = (follower or {}).get("full_name", "") or (follower or {}).get("username", "")
+            sbs_result = await score_before_speak(
+                response=response_content,
+                calibration=agent.calibration,
+                system_prompt=context.system_prompt,
+                user_prompt=metadata.get("_full_prompt", ""),
+                lead_name=follower_name,
+                detected_language=detection.language if hasattr(detection, "language") else "ca",
+            )
+            cognitive_metadata["sbs_score"] = round(sbs_result.alignment_score, 2)
+            cognitive_metadata["sbs_scores"] = sbs_result.scores
+            cognitive_metadata["sbs_path"] = sbs_result.path
+            cognitive_metadata["sbs_llm_calls"] = sbs_result.total_llm_calls
+            if sbs_result.path != "pass":
+                response_content = sbs_result.response
+                logger.info(
+                    "[SBS] path=%s score=%.2f calls=%d",
+                    sbs_result.path, sbs_result.alignment_score, sbs_result.total_llm_calls,
+                )
+        except Exception as e:
+            logger.debug(f"Score Before You Speak failed: {e}")
+
+    # Step 7a4b: Post Persona Alignment (PPA) — fallback when SBS is disabled
+    elif ENABLE_PPA and agent.calibration:
         try:
             from core.reasoning.ppa import apply_ppa
 
