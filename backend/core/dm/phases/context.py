@@ -286,11 +286,17 @@ async def phase_memory_and_context(
     few_shot_section = ""
     if agent.calibration:
         try:
-            from services.calibration_loader import get_few_shot_section
+            from services.calibration_loader import detect_message_language, get_few_shot_section
 
+            detected_lang = detect_message_language(message)
             few_shot_section = get_few_shot_section(
-                agent.calibration, max_examples=10, current_message=message
+                agent.calibration,
+                max_examples=10,
+                current_message=message,
+                lead_language=detected_lang,
             )
+            if detected_lang:
+                cognitive_metadata["detected_language"] = detected_lang
         except Exception as e:
             logger.debug(f"Few-shot loading failed: {e}")
 

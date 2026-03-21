@@ -127,6 +127,15 @@ async def _call_gemini(
             "maxOutputTokens": max_tokens,
             "temperature": temperature,
         },
+        # Relax safety filters: fitness/dance coaching uses emotional/physical language
+        # that can trigger Gemini's default thresholds. BLOCK_ONLY_HIGH still prevents
+        # genuinely harmful content while allowing "amor", "cariño", exercise terminology.
+        "safetySettings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+        ],
     }
 
     for attempt in range(max_retries):
