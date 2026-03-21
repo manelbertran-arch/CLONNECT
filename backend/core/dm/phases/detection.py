@@ -21,6 +21,7 @@ MEDIA_PLACEHOLDERS = {
     "shared a story",
     "sent a voice message",
     "[image]", "[video]", "[sticker]",
+    "[🏷️ sticker]",
     "envió un archivo adjunto",
     "envió una foto",
     "envió un video",
