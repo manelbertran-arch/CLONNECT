@@ -248,9 +248,10 @@ async def refresh_all_active_creators() -> Dict:
 
     logger.info(f"[CONTENT-REFRESH] Starting refresh for {len(creator_ids)} active creators")
 
-    for creator_uuid, creator_name in creator_ids:
+    for _creator_uuid, creator_name in creator_ids:
         try:
-            result = await refresh_creator_content(creator_uuid)
+            # Use slug (creator name), not UUID — chunks and search both use slug
+            result = await refresh_creator_content(creator_name)
 
             if result["success"]:
                 summary["refreshed"] += 1

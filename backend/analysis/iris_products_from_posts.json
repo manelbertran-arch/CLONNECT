@@ -1,0 +1,272 @@
+{
+  "version": "v2",
+  "created_at": "2026-03-21",
+  "creator": "iris_bertran",
+  "description": "Productos, servicios y datos operativos de Iris Bertran extraidos de posts de Instagram y DMs reales. V2: datos verificados contra DMs con precios reales.",
+  "data_sources": [
+    "25 posts de Instagram (ene-mar 2026)",
+    "80+ DMs con info de precios/horarios (copilot_action IS NULL = escritos por Iris)",
+    "Captions con keywords de servicios"
+  ],
+  "location": {
+    "gym": "Dinamic Sport Gym (@dinamicsportgym)",
+    "city": "Igualada / Odena (comarca Anoia, Barcelona)",
+    "studio_personal": "Estudio propio de Iris (tiene reformer en casa)",
+    "notes": "Iris vive entre Odena e Igualada, viaja a BCN para formaciones y grabaciones"
+  },
+  "services": [
+    {
+      "id": "svc_001",
+      "name": "Barre",
+      "category": "clase_grupal",
+      "description": "Clase de barre fitness en Dinamic Sport Gym. Combina ballet, pilates y fuerza. Trabajo de fuerza, control y elegancia con coreografia. Iris prepara cada sesion con intencion y tecnica. Coreo nueva cada mes.",
+      "schedule": {
+        "martes": "horario variable (consultar)",
+        "dijous_jueves": "horario variable (consultar)",
+        "diumenge_domingo": "disponible (Sunday Bonus Session, solo temporada invierno)"
+      },
+      "pricing": {
+        "socios_dinamic": "3 EUR por clase",
+        "no_socios": "5 EUR por clase (pagar en recepcion)",
+        "source_dm": "2026-02-04: 'si no ets socia son 5e si ets socia 3e'"
+      },
+      "booking": "Llamar a recepcion de Dinamic Sport para reservar plaza. Pagar en recepcion antes de la clase.",
+      "instagram_posts": [
+        "https://www.instagram.com/reel/DV_0BtPgAWR/",
+        "https://www.instagram.com/reel/DVoo3cDAKMP/",
+        "https://www.instagram.com/p/DU3tw-ciJ6D/",
+        "https://www.instagram.com/reel/DUOhE_yCOIr/",
+        "https://www.instagram.com/reel/DTqd7H4CERf/"
+      ],
+      "notes": "Clase mas popular de Iris. Domingos abiertos hasta que llegue el buen tiempo. Dos turnos domingos por alta demanda. Se abrio segundo turno."
+    },
+    {
+      "id": "svc_002",
+      "name": "Zumba",
+      "category": "clase_grupal",
+      "description": "Clase de zumba con coreografias originales de Iris. Enfoque en actitud, soltar y pasarlo bien. Coreo nueva cada mes con musica actual (Jason Derulo, Nicky Jam, etc.).",
+      "schedule": {
+        "lunes": "en Dinamic Sport Gym (horario consultar)"
+      },
+      "pricing": {
+        "socios_dinamic": "incluido en cuota",
+        "no_socios": "consultar en recepcion"
+      },
+      "booking": "Reservar en recepcion de Dinamic Sport",
+      "instagram_posts": [
+        "https://www.instagram.com/reel/DWE9iKVgays/",
+        "https://www.instagram.com/reel/DVJxklIiPms/",
+        "https://www.instagram.com/reel/DTvnb11iMcx/"
+      ],
+      "notes": "Masterclass especiales de zumba periodicas con tematicas (carnaval, etc.)"
+    },
+    {
+      "id": "svc_003",
+      "name": "Flow4U",
+      "category": "clase_grupal",
+      "description": "Clase de baile con tacones (heels dance) en Dinamic Sport Gym. Cada mes nueva coreografia con musica diferente. Feb 2026: salsa con tacones. No necesitas ser socio para venir.",
+      "schedule": {
+        "jueves_dijous": "20:15h en Dinamic Sport Gym"
+      },
+      "pricing": {
+        "no_socios": "9 EUR por clase",
+        "socios": "incluido o precio reducido (consultar)",
+        "source_post": "2026-03-01: 'No eres socix? Prueba la clase por solo 9 EUR'"
+      },
+      "booking": "Llamar a recepcion y reservar plaza",
+      "instagram_posts": [
+        "https://www.instagram.com/reel/DVy8pkuAFwP/",
+        "https://www.instagram.com/reel/DVWnT9oAMjc/",
+        "https://www.instagram.com/reel/DUgh-C7CH_K/"
+      ],
+      "notes": "No hace falta ser socio. Tacones (heels). Cada mes coreo nueva. Feb: salsa. Mar: nuevo estilo."
+    },
+    {
+      "id": "svc_004",
+      "name": "Pilates Reformer (Entrenamiento Personal)",
+      "category": "entrenamiento_personal",
+      "description": "Entrenamiento personal 1:1 con maquina reformer en el estudio propio de Iris. Trabajo completamente supervisado, entrenamientos a medida. Mejora postura, fortalece core, gana flexibilidad. Conectar con tu cuerpo.",
+      "schedule": {
+        "disponibilidad": "Lunes a sabado, con cita previa",
+        "slots_tipicos": ["6:20", "7:00", "10:00", "11:00", "12:00", "13:00", "13:30", "15:30"],
+        "notes": "Iris gestiona agenda personalmente. Slots se llenan rapido. Se pueden recuperar sesiones canceladas con aviso."
+      },
+      "pricing": {
+        "sesion_individual": "40 EUR / 1 hora",
+        "bono_6_sesiones": "220 EUR (36.67 EUR/sesion)",
+        "bono_10_no_socio": "40 EUR total (precio especial, verificar)",
+        "source_dm": "DM Iris: 'BONO 6 SESSIONS d1 hora. 220 EUR / SESSIO 1h. 40 EUR'",
+        "source_dm_2": "DM 2026-03-14: '5e sessio NO SOCI / Si t'agrades 10sessions 40e de moment'"
+      },
+      "booking": "Contactar directamente con Iris por DM de Instagram o WhatsApp",
+      "payment": "Bizum. Iris lleva control de sesiones por tarjeta personal.",
+      "instagram_posts": [
+        "https://www.instagram.com/reel/DVtyYc9AP6y/",
+        "https://www.instagram.com/reel/DVO45e0gHE6/",
+        "https://www.instagram.com/reel/DUY0OyaiPM-/"
+      ],
+      "notes": "Servicio mas premium de Iris. Pago por Bizum. Control de sesiones en tarjeta fisica. Sesiones se recuperan si se cancela con aviso previo."
+    },
+    {
+      "id": "svc_005",
+      "name": "Hipopresivos",
+      "category": "clase_grupal",
+      "description": "Clase de ejercicios hipopresivos. Se ofrece como parte de la Sunday Bonus Session tras zumba y barre.",
+      "schedule": {
+        "diumenge_domingo": "12:30h (tras zumba a 9:30 y barre a 10:30)"
+      },
+      "pricing": {
+        "notes": "Incluido en la Sunday Bonus Session (3 EUR socios, 5 EUR no socios)"
+      },
+      "instagram_posts": [
+        "https://www.instagram.com/reel/DVbw4KYgPRc/"
+      ],
+      "notes": "Parte de la sesion triple dominical"
+    },
+    {
+      "id": "svc_006",
+      "name": "Masterclass de Twerk",
+      "category": "evento_especial",
+      "description": "Masterclass especial de twerk. Evento periodico (no semanal). Tipicamente sabado por la tarde, 2 horas.",
+      "schedule": {
+        "ejemplo": "14 marzo 2026, 18:00-20:00",
+        "notes": "Eventos especiales, se anuncian con antelacion por Instagram y canal de difusion"
+      },
+      "pricing": {
+        "notes": "Pagar en recepcion de Dinamic Sport directamente al llegar",
+        "source_dm": "DM: 'lo del twerk ho pagues a recepcio directe avui. No hi ha reserva tal com arribeu, us apunten a la llista'"
+      },
+      "booking": "Sin reserva previa, llegar y apuntarse en recepcion",
+      "notes": "Iris necesita confirmacion de Toni/Adrian (Dinamic Sport) para fechas. Promo se lanza por Instagram."
+    },
+    {
+      "id": "svc_007",
+      "name": "Masterclass de Zumba",
+      "category": "evento_especial",
+      "description": "Masterclass especiales de zumba con tematicas (carnaval, tropical, etc.). A veces con outfit sorpresa. Con otros instructores invitados.",
+      "schedule": {
+        "notes": "Eventos periodicos, se anuncian por Instagram y canal de difusion"
+      },
+      "pricing": {
+        "ejemplo": "15 EUR por evento",
+        "source_dm": "DM 2026-03-16: lista de pagados 15 EUR"
+      },
+      "notes": "Colaboracion con @ikerbefit y otros instructores"
+    },
+    {
+      "id": "svc_008",
+      "name": "Sunday Bonus Session",
+      "category": "evento_recurrente",
+      "description": "Sesion triple dominical: zumba + barre + hipopresivos en Dinamic Sport Gym. Solo temporada invierno (hasta que llegue el buen tiempo).",
+      "schedule": {
+        "domingo": "9:30 zumba, 10:30 barre, 12:30 hipopresivos"
+      },
+      "pricing": {
+        "socios": "3 EUR",
+        "no_socios": "5 EUR",
+        "source_dm": "DM 2026-02-04"
+      },
+      "booking": "Reservar y pagar con antelacion en recepcion de Dinamic Sport",
+      "instagram_posts": [
+        "https://www.instagram.com/reel/DVbw4KYgPRc/",
+        "https://www.instagram.com/reel/DT0yNSYCDdQ/"
+      ],
+      "notes": "Se complementa a veces con brunch en @brunchbalance_. Plazas limitadas (DM: 'Avui ja han reservat 10'). Disponible hasta temporada verano."
+    },
+    {
+      "id": "svc_009",
+      "name": "Formacion de Heels Dance",
+      "category": "formacion",
+      "description": "Curso/formacion de baile con tacones. Sesiones semanales con workshops de instructoras invitadas. Albert Sala coordina el grupo.",
+      "schedule": {
+        "miercoles": "17:30 - 19:30"
+      },
+      "pricing": {
+        "notes": "Precio del curso incluye workshops especiales",
+        "source_dm": "DM Albert Sala: 'entra en el precio chicxs'"
+      },
+      "notes": "Workshop Tamara Arruti (21 mar 2026, 14:00-16:00) incluido en precio. Acceso al local via enlace Google Docs."
+    },
+    {
+      "id": "svc_010",
+      "name": "Talleres al aire libre",
+      "category": "evento_estacional",
+      "description": "Talleres de fitness al sol en localizaciones especiales. Solo temporada primavera-verano.",
+      "schedule": {
+        "notes": "Temporada buen tiempo (primavera-verano)"
+      },
+      "locations": ["@canllaure"],
+      "instagram_posts": [
+        "https://www.instagram.com/reel/DT0yNSYCDdQ/"
+      ],
+      "notes": "Sustituyen a las Sunday Bonus Sessions cuando llega el buen tiempo"
+    },
+    {
+      "id": "svc_011",
+      "name": "HIIT / Functional Training",
+      "category": "entrenamiento_personal",
+      "description": "Entrenamientos de HIIT y funcional, combinados con sesiones de reformer. Para clientes de entrenamiento personal.",
+      "schedule": {
+        "notes": "Bajo cita, integrado con sesiones de reformer"
+      },
+      "pricing": {
+        "notes": "Mismo precio que reformer personal (40 EUR/sesion o bono)"
+      },
+      "source_dm": "DM: 'Amor yo toy destrozada... dijimos hiit creo sino reformer me da igual'",
+      "notes": "Se alterna con reformer segun necesidades del cliente"
+    }
+  ],
+  "pricing_summary": {
+    "barre_socio": "3 EUR / clase",
+    "barre_no_socio": "5 EUR / clase",
+    "flow4u_no_socio": "9 EUR / clase",
+    "reformer_sesion": "40 EUR / hora",
+    "reformer_bono_6": "220 EUR (36.67 EUR/sesion)",
+    "sunday_bonus_socio": "3 EUR",
+    "sunday_bonus_no_socio": "5 EUR",
+    "masterclass_evento": "~15 EUR (variable)",
+    "twerk_masterclass": "pagar en recepcion (precio no especificado)"
+  },
+  "schedule_summary": {
+    "lunes": "Zumba (Dinamic Sport)",
+    "martes": "Barre (Dinamic Sport) + Reformer personal (cita)",
+    "miercoles": "Formacion Heels (17:30-19:30)",
+    "jueves": "Barre (Dinamic Sport) + Flow4U 20:15h + Reformer personal (cita)",
+    "viernes": "Reformer personal (cita) + Grabaciones contenido",
+    "sabado": "Masterclass especiales (periodicas) + Reformer personal + Formacion heels workshops",
+    "domingo": "Sunday Bonus Session: Zumba 9:30 + Barre 10:30 + Hipos 12:30 (solo invierno)"
+  },
+  "broadcast_channel": {
+    "type": "Canal de difusion de WhatsApp (solo lectura)",
+    "content": [
+      "Avisar de masterclass y eventos",
+      "Rutinas de entrenamiento esporadicas",
+      "Sorteos de entrenamientos y pases gratuitos",
+      "Entrenar en lugares diferentes",
+      "Tips reales del dia a dia de Iris"
+    ]
+  },
+  "payment_methods": {
+    "bizum": "Para reformer personal y pagos directos a Iris",
+    "recepcion_dinamic": "Para clases grupales (barre, zumba, flow4u, sunday bonus)",
+    "notes": "No se menciona pago con tarjeta online ni Stripe/Hotmart"
+  },
+  "key_people": [
+    {"name": "Erica / Erika (@ericadelo)", "role": "Amiga intima, graba videos, colabora en contenido y grabaciones"},
+    {"name": "Albert Sala", "role": "Coordinador formacion heels, gestiona grupo WhatsApp formacion"},
+    {"name": "Toni", "role": "Responsable operativo Dinamic Sport (confirma fechas, espacios)"},
+    {"name": "Adrian", "role": "Director/dueno Dinamic Sport (decisiones estrategicas)"},
+    {"name": "Nil", "role": "Staff Dinamic Sport (gestiona redes del gym, conflicto con contenido de Iris)"},
+    {"name": "Tamara Arruti (@tamaraarruti)", "role": "Instructora invitada para workshops de heels"},
+    {"name": "@ikerbefit", "role": "Co-instructor masterclass zumba"},
+    {"name": "Sonia", "role": "Colaboradora, lleva @dinamicsportgym redes sociales"},
+    {"name": "Manel", "role": "Hermano de Iris"},
+    {"name": "Lleonard", "role": "Padre de Iris (vive en Suiza)"}
+  ],
+  "brand_identity": {
+    "languages": ["catalan (60%)", "spanish (40%)"],
+    "tone": "informal, cercana, con emojis, mezcla catalan-castellano, usa 'cuka', 'bro', 'flor', 'rei', 'baby', 'amor'",
+    "values": ["pasion por el deporte", "comunidad femenina", "superacion", "autenticidad", "bienestar"],
+    "hashtags_frecuentes": ["#barre", "#barreclass", "#barreinstructor", "#choreography", "#dancer", "#reformer", "#pilates", "#zumba"]
+  }
+}
