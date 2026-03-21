@@ -1,6 +1,5 @@
 """Tests for Post Persona Alignment (PPA) module."""
 
-import asyncio
 import json
 import os
 import pytest
@@ -11,7 +10,8 @@ from core.reasoning.ppa import (
     find_similar_examples,
     build_refinement_prompt,
     apply_ppa,
-    FORBIDDEN_PHRASES,
+    _get_forbidden_patterns,
+    _DEFAULTS,
     PPAResult,
 )
 
@@ -24,6 +24,14 @@ CALIBRATION_PATH = os.path.join(
 def calibration():
     with open(CALIBRATION_PATH) as f:
         return json.load(f)
+
+
+@pytest.fixture
+def minimal_calibration():
+    """Calibration with no baseline — simulates new creator."""
+    return {"few_shot_examples": [
+        {"user_message": "Hi", "response": "Hey! What's up?"},
+    ]}
 
 
 class TestAlignmentScore:
@@ -53,7 +61,7 @@ class TestAlignmentScore:
         """Very long response should get low length score."""
         long_resp = "Hola! " * 30 + "😊"
         score, dims = compute_alignment_score(long_resp, calibration)
-        assert dims["length"] < 0.5, f"Long response length score: {dims['length']}"
+        assert dims["length"] < 0.5
 
     def test_forbidden_phrase_zero(self, calibration):
         """Response with forbidden phrase should get 0 on forbidden dimension."""
@@ -81,9 +89,53 @@ class TestAlignmentScore:
     def test_no_emoji_mild_penalty(self, calibration):
         """Response without emoji gets mild penalty, not fatal."""
         score, dims = compute_alignment_score("Dale genial!", calibration)
-        assert dims["emoji"] == 0.4  # Penalty but not zero
-        # Overall should still be decent if everything else is fine
+        assert dims["emoji"] == 0.4
         assert score >= 0.5
+
+    def test_defaults_used_when_no_baseline(self, minimal_calibration):
+        """When calibration has no baseline, defaults are used."""
+        score, dims = compute_alignment_score(
+            "Hey what's up! 😊",
+            minimal_calibration,
+        )
+        # Should not crash, should use _DEFAULTS
+        assert 0.0 <= score <= 1.0
+        assert dims["length"] == 1.0  # 17 chars within default soft_max=80
+
+    def test_different_soft_max_changes_length_score(self):
+        """Different soft_max in calibration changes scoring."""
+        short_cal = {"baseline": {"soft_max": 20, "median_length": 10, "emoji_pct": 5.0}}
+        long_cal = {"baseline": {"soft_max": 200, "median_length": 100, "emoji_pct": 5.0}}
+
+        response = "This is a fifty character response for testing it."
+
+        score_short, dims_short = compute_alignment_score(response, short_cal)
+        score_long, dims_long = compute_alignment_score(response, long_cal)
+
+        # 50 chars exceeds soft_max=20 → low score
+        assert dims_short["length"] < 0.5
+        # 50 chars well within soft_max=200 → high score
+        assert dims_long["length"] == 1.0
+
+    def test_low_emoji_creator_no_penalty(self):
+        """Creator with low emoji_pct should not penalize missing emojis."""
+        cal = {"baseline": {"emoji_pct": 5.0, "soft_max": 80, "median_length": 40}}
+        score, dims = compute_alignment_score("Hello there friend", cal)
+        assert dims["emoji"] == 1.0  # No emoji penalty for low-emoji creator
+
+
+class TestForbiddenPatterns:
+    """Test dynamic forbidden phrase loading."""
+
+    def test_default_patterns_used_without_creator(self):
+        patterns = _get_forbidden_patterns("")
+        assert len(patterns) > 0
+        # Should match "en qué puedo ayudarte"
+        assert any(p.search("en qué puedo ayudarte") for p in patterns)
+
+    def test_default_patterns_for_unknown_creator(self):
+        patterns = _get_forbidden_patterns("nonexistent_creator_xyz")
+        assert len(patterns) > 0  # Falls back to defaults
 
 
 class TestFindSimilarExamples:
@@ -107,12 +159,18 @@ class TestFindSimilarExamples:
 class TestBuildRefinementPrompt:
     def test_prompt_contains_examples(self, calibration):
         examples = find_similar_examples("hola", calibration, n=3)
-        prompt = build_refinement_prompt("Hello how can I help?", examples, "Maria")
+        prompt = build_refinement_prompt("Hello how can I help?", examples, "Maria", "Iris")
         assert "Maria" in prompt
         assert "Iris" in prompt
         assert "Hello how can I help?" in prompt
         for ex in examples:
             assert ex["response"] in prompt
+
+    def test_prompt_uses_creator_name(self):
+        examples = [{"user_message": "Hi", "response": "Hey!"}]
+        prompt = build_refinement_prompt("Test", examples, creator_name="Stefano")
+        assert "Stefano" in prompt
+        assert "Iris" not in prompt
 
 
 class TestApplyPPA:
@@ -178,7 +236,6 @@ class TestApplyPPA:
                 response="Hola, cuéntame en qué puedo ayudarte.",
                 calibration=calibration,
             )
-            # Refinement rejected → original returned
             assert not result.was_refined
 
     @pytest.mark.asyncio
@@ -195,3 +252,14 @@ class TestApplyPPA:
             )
             assert not result.was_refined
             assert "en qué puedo ayudarte" in result.response
+
+    @pytest.mark.asyncio
+    async def test_creator_id_passed_to_scoring(self, calibration):
+        """creator_id is forwarded to compute_alignment_score."""
+        result = await apply_ppa(
+            response="Oka nena! 🩷",
+            calibration=calibration,
+            creator_id="iris_bertran",
+            creator_name="Iris",
+        )
+        assert result.alignment_score >= 0.7

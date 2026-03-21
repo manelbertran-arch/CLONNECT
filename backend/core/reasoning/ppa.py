@@ -28,8 +28,22 @@ ENABLE_SCORE_BEFORE_SPEAK = os.getenv("ENABLE_SCORE_BEFORE_SPEAK", "false").lowe
 # Alignment threshold — responses below this get refined/retried
 ALIGNMENT_THRESHOLD = float(os.getenv("PPA_ALIGNMENT_THRESHOLD", "0.7"))
 
-# Phrases that should never appear in Iris's responses (Doc D patterns)
-FORBIDDEN_PHRASES = [
+# Default values when no calibration exists (new creator without data)
+_DEFAULTS = {
+    "median_length": 40,
+    "soft_max": 80,
+    "emoji_pct": 15.0,
+}
+
+# Universal formal markers — language-independent, not creator-specific
+_FORMAL_MARKERS = [
+    r'\bEstimad[oa]\b', r'\bAtentamente\b', r'\bCordialmente\b',
+    r'\busted\b', r'\bLe informo\b', r'\bSaludos cordiales\b',
+]
+_FORMAL_COMPILED = [re.compile(p, re.IGNORECASE) for p in _FORMAL_MARKERS]
+
+# Fallback forbidden phrases — used only when no creator blacklist available
+_DEFAULT_FORBIDDEN = [
     r"en qu[eé] puedo ayudarte",
     r"c[oó]mo puedo ayudarte",
     r"no dudes en",
@@ -39,12 +53,47 @@ FORBIDDEN_PHRASES = [
     r"quedo a tu disposici[oó]n",
     r"espero que est[eé]s bien",
     r"cualquier consulta",
-    r"no dud[eé]is en",
     r"si necesitas algo",
     r"estaré encantad[oa] de",
 ]
+_DEFAULT_FORBIDDEN_COMPILED = [re.compile(p, re.IGNORECASE) for p in _DEFAULT_FORBIDDEN]
 
-_FORBIDDEN_COMPILED = [re.compile(p, re.IGNORECASE) for p in FORBIDDEN_PHRASES]
+# Cache compiled blacklists per creator to avoid re-parsing on every call
+_blacklist_cache: Dict[str, List[re.Pattern]] = {}
+
+
+def _get_forbidden_patterns(creator_id: str = "") -> List[re.Pattern]:
+    """Get forbidden phrase patterns from creator's Doc D blacklist.
+
+    Falls back to default hardcoded list if no creator extraction exists.
+    """
+    if not creator_id:
+        return _DEFAULT_FORBIDDEN_COMPILED
+
+    if creator_id in _blacklist_cache:
+        return _blacklist_cache[creator_id]
+
+    try:
+        from core.personality_loader import load_extraction
+
+        extraction = load_extraction(creator_id)
+        if extraction and extraction.blacklist_phrases:
+            patterns = []
+            for phrase_group in extraction.blacklist_phrases:
+                # Doc D blacklist uses "/" to separate alternatives:
+                # 'no dudes en" / "no dudes en contactarme'
+                for sub in phrase_group.split("/"):
+                    sub = sub.strip().strip('"').strip()
+                    if len(sub) >= 4:  # Skip very short fragments
+                        patterns.append(re.compile(re.escape(sub), re.IGNORECASE))
+
+            if patterns:
+                _blacklist_cache[creator_id] = patterns
+                return patterns
+    except Exception as e:
+        logger.debug("Could not load blacklist for %s: %s", creator_id, e)
+
+    return _DEFAULT_FORBIDDEN_COMPILED
 
 
 @dataclass
@@ -61,33 +110,38 @@ def compute_alignment_score(
     response: str,
     calibration: Dict,
     detected_language: str = "ca",
+    creator_id: str = "",
 ) -> tuple[float, Dict[str, float]]:
     """Score how well a response matches the creator's persona.
+
+    All thresholds are read from calibration["baseline"]. If missing,
+    defaults are used so PPA works for any creator without code changes.
 
     Returns (overall_score, {dimension: score}).
     """
     baseline = calibration.get("baseline", {})
-    target_median = baseline.get("median_length", 35)
-    target_soft_max = baseline.get("soft_max", 60)
+    target_median = baseline.get("median_length", _DEFAULTS["median_length"])
+    target_soft_max = baseline.get("soft_max", _DEFAULTS["soft_max"])
+    emoji_pct_target = baseline.get("emoji_pct", _DEFAULTS["emoji_pct"])
 
     scores = {}
 
-    # 1. Length alignment (target: 10-60 chars for Iris)
+    # 1. Length alignment — range derived from calibration
     resp_len = len(response)
-    if 10 <= resp_len <= target_soft_max:
+    # Acceptable range: half of median to soft_max
+    min_acceptable = max(5, target_median // 3)
+    if min_acceptable <= resp_len <= target_soft_max:
         scores["length"] = 1.0
     elif resp_len <= target_soft_max * 1.5:
-        # Mild penalty up to 1.5x soft max
-        scores["length"] = max(0.3, 1.0 - (resp_len - target_soft_max) / (target_soft_max * 1.5))
-    elif resp_len < 10:
-        scores["length"] = 0.5  # Too short but not terrible
+        overshoot = resp_len - target_soft_max
+        scores["length"] = max(0.3, 1.0 - overshoot / (target_soft_max * 0.5))
+    elif resp_len < min_acceptable:
+        scores["length"] = 0.5
     else:
-        scores["length"] = 0.2  # Way too long
+        scores["length"] = 0.2
 
-    # 2. Emoji presence (Iris uses emojis ~18% of messages)
-    emoji_pct_target = baseline.get("emoji_pct", 18.0)
+    # 2. Emoji presence — threshold from calibration
     has_emoji = bool(re.search(r'[\U0001F300-\U0001FAFF\u2600-\u27BF]', response))
-    # For individual messages, we just check presence when expected
     if emoji_pct_target > 10:
         scores["emoji"] = 1.0 if has_emoji else 0.4
     else:
@@ -102,21 +156,18 @@ def compute_alignment_score(
     ca_count = sum(1 for p in ca_markers if re.search(p, resp_lower))
     es_count = sum(1 for p in es_markers if re.search(p, resp_lower))
 
-    # Iris code-switches freely — both ca and es are fine
     if ca_count > 0 or es_count > 0:
         scores["language"] = 1.0
     else:
-        # Very short messages may not have markers — that's OK
         scores["language"] = 0.8 if resp_len < 30 else 0.6
 
-    # 4. Forbidden phrases (Doc D)
-    has_forbidden = any(p.search(response) for p in _FORBIDDEN_COMPILED)
+    # 4. Forbidden phrases — from creator's Doc D blacklist
+    forbidden = _get_forbidden_patterns(creator_id)
+    has_forbidden = any(p.search(response) for p in forbidden)
     scores["forbidden"] = 0.0 if has_forbidden else 1.0
 
-    # 5. Formality check — Iris never uses formal register
-    formal_markers = [r'\bEstimad[oa]\b', r'\bAtentamente\b', r'\bCordialmente\b',
-                      r'\busted\b', r'\bLe informo\b']
-    has_formal = any(re.search(p, response) for p in formal_markers)
+    # 5. Formality check — universal markers
+    has_formal = any(p.search(response) for p in _FORMAL_COMPILED)
     scores["formality"] = 0.0 if has_formal else 1.0
 
     # Weighted average
@@ -160,26 +211,44 @@ def build_refinement_prompt(
     response: str,
     examples: List[Dict],
     lead_name: str = "",
+    creator_name: str = "",
 ) -> str:
     """Build the PPA refinement prompt with similar examples."""
     examples_text = ""
+    name = creator_name or "the creator"
     for i, ex in enumerate(examples, 1):
         examples_text += (
             f"  {i}. Lead: \"{ex.get('user_message', '')}\"\n"
-            f"     Iris: \"{ex.get('response', '')}\"\n"
+            f"     {name}: \"{ex.get('response', '')}\"\n"
         )
 
     lead_ref = f" para {lead_name}" if lead_name else ""
 
     return (
         f"La siguiente respuesta fue generada{lead_ref} pero no suena "
-        f"suficientemente como Iris. Reescríbela manteniendo el mismo "
-        f"contenido pero con el estilo de Iris (breve, emojis, "
-        f"code-switching ca/es, directa):\n\n"
+        f"suficientemente como {name}. Reescríbela manteniendo el mismo "
+        f"contenido pero con el estilo de {name} (breve, directa, natural):\n\n"
         f"Respuesta original: {response}\n\n"
-        f"Ejemplos del estilo de Iris:\n{examples_text}\n"
+        f"Ejemplos del estilo de {name}:\n{examples_text}\n"
         f"Respuesta refinada:"
     )
+
+
+def _build_refinement_system_prompt(calibration: Dict, creator_name: str = "") -> str:
+    """Build system prompt for refinement call from calibration data."""
+    baseline = calibration.get("baseline", {})
+    soft_max = baseline.get("soft_max", _DEFAULTS["soft_max"])
+    median = baseline.get("median_length", _DEFAULTS["median_length"])
+    emoji_pct = baseline.get("emoji_pct", _DEFAULTS["emoji_pct"])
+    name = creator_name or "the creator"
+
+    parts = [f"Eres {name}. Reescribe la respuesta con su estilo:"]
+    parts.append(f"breve ({median}-{soft_max} chars)")
+    if emoji_pct > 10:
+        parts.append("emojis")
+    parts.append("tono directo e informal. NO inventes información nueva.")
+
+    return " ".join(parts)
 
 
 async def apply_ppa(
@@ -187,6 +256,8 @@ async def apply_ppa(
     calibration: Dict,
     lead_name: str = "",
     detected_language: str = "ca",
+    creator_id: str = "",
+    creator_name: str = "",
 ) -> PPAResult:
     """Apply Post Persona Alignment to a response.
 
@@ -200,7 +271,7 @@ async def apply_ppa(
 
     # Step 1: Score alignment
     score, dim_scores = compute_alignment_score(
-        response, calibration, detected_language,
+        response, calibration, detected_language, creator_id,
     )
 
     logger.info(
@@ -224,38 +295,39 @@ async def apply_ppa(
             was_refined=False, scores=dim_scores,
         )
 
-    prompt = build_refinement_prompt(response, examples, lead_name)
+    prompt = build_refinement_prompt(response, examples, lead_name, creator_name)
     example_texts = [ex.get("response", "") for ex in examples]
+    system_prompt = _build_refinement_system_prompt(calibration, creator_name)
 
     logger.info("[PPA] Refining response (score=%.2f < %.2f)", score, ALIGNMENT_THRESHOLD)
 
     try:
         from core.providers.gemini_provider import generate_dm_response
 
+        baseline = calibration.get("baseline", {})
+        soft_max = baseline.get("soft_max", _DEFAULTS["soft_max"])
+
         result = await generate_dm_response(
             [
-                {"role": "system", "content": (
-                    "Eres Iris Bertran. Reescribe la respuesta con su estilo: "
-                    "breve (10-60 chars), emojis, code-switching catalán/español, "
-                    "tono directo e informal. NO inventes información nueva."
-                )},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=80,
+            max_tokens=max(80, soft_max + 20),
             temperature=0.5,
         )
 
         refined = (result or {}).get("content", "").strip()
 
-        # Validate refinement: must not be empty, not too long, no forbidden phrases
+        # Validate refinement using creator's own blacklist
+        forbidden = _get_forbidden_patterns(creator_id)
         if (
             refined
-            and 5 <= len(refined) <= 200
-            and not any(p.search(refined) for p in _FORBIDDEN_COMPILED)
+            and 5 <= len(refined) <= soft_max * 3
+            and not any(p.search(refined) for p in forbidden)
         ):
             # Re-score the refined version
             new_score, new_dim_scores = compute_alignment_score(
-                refined, calibration, detected_language,
+                refined, calibration, detected_language, creator_id,
             )
             logger.info(
                 "[PPA] Refined: %.2f→%.2f '%s' → '%s'",
@@ -302,6 +374,8 @@ async def score_before_speak(
     user_prompt: str,
     lead_name: str = "",
     detected_language: str = "ca",
+    creator_id: str = "",
+    creator_name: str = "",
 ) -> SBSResult:
     """Score Before You Speak — evaluate quality before sending.
 
@@ -309,14 +383,6 @@ async def score_before_speak(
       1. Score initial response → if aligned: done (0 extra calls)
       2. PPA refine → if aligned: done (1 extra call)
       3. Retry at different temperature → pick best (2 extra calls max)
-
-    Args:
-        response: The initial LLM-generated response
-        calibration: Creator calibration data (baseline, few-shot examples)
-        system_prompt: System prompt used for generation (for retry)
-        user_prompt: User prompt used for generation (for retry)
-        lead_name: Lead display name (for refinement prompt)
-        detected_language: Detected conversation language
     """
     if not calibration:
         return SBSResult(
@@ -326,7 +392,9 @@ async def score_before_speak(
     llm_calls = 0
 
     # Step 1: Score initial response
-    score, dim_scores = compute_alignment_score(response, calibration, detected_language)
+    score, dim_scores = compute_alignment_score(
+        response, calibration, detected_language, creator_id,
+    )
 
     candidates = [{"response": response, "score": score, "source": "initial"}]
 
@@ -344,6 +412,8 @@ async def score_before_speak(
         calibration=calibration,
         lead_name=lead_name,
         detected_language=detected_language,
+        creator_id=creator_id,
+        creator_name=creator_name,
     )
     llm_calls += 1 if ppa_result.was_refined else 0
 
@@ -374,7 +444,7 @@ async def score_before_speak(
                 {"role": "user", "content": user_prompt},
             ],
             max_tokens=80,
-            temperature=0.5,  # Lower temperature for more focused retry
+            temperature=0.5,
         )
         llm_calls += 1
 
@@ -382,7 +452,7 @@ async def score_before_speak(
 
         if retry_text and 5 <= len(retry_text) <= 200:
             retry_score, retry_dim_scores = compute_alignment_score(
-                retry_text, calibration, detected_language,
+                retry_text, calibration, detected_language, creator_id,
             )
             candidates.append({
                 "response": retry_text,
@@ -390,14 +460,13 @@ async def score_before_speak(
                 "source": "retry_t05",
             })
 
-            # Pick the best candidate across all attempts
             best = max(candidates, key=lambda c: c["score"])
             logger.info(
                 "[SBS] Retry done. Best='%s' score=%.2f (from %s)",
                 best["response"][:40], best["score"], best["source"],
             )
 
-            best_scores = dim_scores  # default
+            best_scores = dim_scores
             if best["source"] == "retry_t05":
                 best_scores = retry_dim_scores
             elif best["source"] == "ppa_refined":
@@ -412,7 +481,6 @@ async def score_before_speak(
     except Exception as e:
         logger.warning("[SBS] Retry generation failed: %s", e)
 
-    # Fallback: return best of what we have
     best = max(candidates, key=lambda c: c["score"])
     return SBSResult(
         response=best["response"], alignment_score=best["score"],
