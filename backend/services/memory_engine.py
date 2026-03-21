@@ -132,6 +132,25 @@ Conversacion:
 Responde UNICAMENTE con JSON valido:
 {{"summary": "Resumen breve de la conversacion (max 2 frases)", "key_topics": ["tema1", "tema2"], "commitments": ["promesa1"], "sentiment": "positive|neutral|negative"}}"""
 
+MEMO_COMPRESSION_PROMPT = """Eres un asistente que resume informacion sobre un lead (seguidor/cliente).
+
+Dado estos hechos sobre un lead de una creadora de fitness (Iris Bertran), crea un resumen narrativo breve que capture la esencia de quien es, que quiere, y cual es su relacion con Iris.
+
+El memo debe incluir (solo si hay datos):
+- Nombre y datos basicos
+- Servicios de interes (barre, zumba, Flow4U, pilates, etc.)
+- Estado de la relacion (nuevo, alumna habitual, amiga)
+- Compromisos pendientes o eventos importantes
+- Idioma preferido (catalan, castellano, mixto)
+
+Hechos:
+{facts}
+
+Escribe el resumen narrativo en 2-4 frases. NO uses formato de lista. NO inventes datos que no esten en los hechos. Responde SOLO con el texto del resumen, sin comillas ni formato."""
+
+# Threshold: compress when a lead has more than this many facts
+MEMO_COMPRESSION_THRESHOLD = int(os.getenv("MEMO_COMPRESSION_THRESHOLD", "8"))
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MEMORY ENGINE
@@ -366,6 +385,10 @@ class MemoryEngine:
 
         try:
             facts = await self.search(creator_id, lead_id, new_message, top_k=MAX_FACTS_IN_PROMPT)
+            # Fetch compressed memo (stored without embedding, so search() won't find it)
+            memo = await self._get_compressed_memo(creator_id, lead_id)
+            if memo:
+                facts = [memo] + facts
             summary = await self._get_latest_summary(creator_id, lead_id)
             result = self._format_memory_section(facts, summary)
 
@@ -438,6 +461,107 @@ class MemoryEngine:
         except Exception as e:
             logger.error("[MemoryEngine] summarize_conversation() failed: %s", e, exc_info=True)
             return None
+
+    # ─────────────────────────────────────────────────────────────────────
+    # PUBLIC: compress_lead_memory() — COMEDY-inspired narrative memo
+    # ─────────────────────────────────────────────────────────────────────
+
+    async def compress_lead_memory(
+        self,
+        creator_id: str,
+        lead_id: str,
+    ) -> Optional[str]:
+        """Compress all facts about a lead into a narrative memo.
+
+        Based on the COMEDY paper (COLING 2025): a single narrative summary
+        outperforms retrieval of individual facts for long-context leads.
+
+        Stores the memo as fact_type='compressed_memo' in lead_memories.
+        Returns the memo text, or None if not enough facts to compress.
+        """
+        creator_id = self._resolve_creator_uuid(creator_id)
+        lead_id = self._resolve_lead_uuid(creator_id, lead_id)
+
+        try:
+            all_facts = await self._get_existing_active_facts(creator_id, lead_id)
+            # Filter out any existing compressed_memo
+            real_facts = [f for f in all_facts if f.fact_type != "compressed_memo"]
+
+            if len(real_facts) < MEMO_COMPRESSION_THRESHOLD:
+                logger.debug(
+                    "[MemoryEngine] compress: only %d facts for lead=%s, skipping",
+                    len(real_facts), lead_id[:8],
+                )
+                return None
+
+            # Build fact list for the prompt
+            fact_lines = []
+            for f in real_facts:
+                fact_lines.append(f"- [{f.fact_type}] {f.fact_text}")
+            facts_text = "\n".join(fact_lines)
+
+            prompt = MEMO_COMPRESSION_PROMPT.format(facts=facts_text)
+            memo_text = await self._call_llm_text(prompt)
+
+            if not memo_text or len(memo_text.strip()) < 20:
+                logger.warning("[MemoryEngine] compress: LLM returned empty/short memo")
+                return None
+
+            memo_text = memo_text.strip()
+
+            # Deactivate old compressed_memo if exists
+            await self._deactivate_old_memos(creator_id, lead_id)
+
+            # Store as a special fact_type
+            await self._store_fact(
+                creator_id=creator_id,
+                lead_id=lead_id,
+                fact_type="compressed_memo",
+                fact_text=memo_text,
+                confidence=1.0,
+                embedding=None,
+                source_message_id=None,
+                source_type="compressed",
+            )
+
+            # Invalidate recall cache
+            cache_key = f"{creator_id}:{lead_id}"
+            _recall_cache.pop(cache_key, None)
+            _recall_cache_ts.pop(cache_key, None)
+
+            logger.info(
+                "[MemoryEngine] Compressed %d facts into memo (%d chars) for lead=%s",
+                len(real_facts), len(memo_text), lead_id[:8],
+            )
+            return memo_text
+
+        except Exception as e:
+            logger.error("[MemoryEngine] compress_lead_memory() failed: %s", e, exc_info=True)
+            return None
+
+    async def _deactivate_old_memos(self, creator_id: str, lead_id: str) -> None:
+        """Deactivate existing compressed_memo entries for a lead."""
+        try:
+            from api.database import SessionLocal
+            from sqlalchemy import text
+
+            session = SessionLocal()
+            try:
+                session.execute(
+                    text(
+                        "UPDATE lead_memories SET is_active = false "
+                        "WHERE creator_id = CAST(:cid AS uuid) "
+                        "AND lead_id = CAST(:lid AS uuid) "
+                        "AND fact_type = 'compressed_memo' "
+                        "AND is_active = true"
+                    ),
+                    {"cid": creator_id, "lid": lead_id},
+                )
+                session.commit()
+            finally:
+                session.close()
+        except Exception as e:
+            logger.error("[MemoryEngine] _deactivate_old_memos() failed: %s", e)
 
     # ─────────────────────────────────────────────────────────────────────
     # PUBLIC: resolve_conflict()
@@ -669,6 +793,39 @@ class MemoryEngine:
 
         except Exception as e:
             logger.error("[MemoryEngine] LLM call failed: %s", e)
+            return ""
+
+    async def _call_llm_text(self, prompt: str) -> str:
+        """Call LLM for plain-text output (no JSON system prompt)."""
+        try:
+            from core.providers.gemini_provider import generate_dm_response
+
+            messages = [
+                {"role": "system", "content": "Eres un asistente que resume informacion. Responde SOLO con texto plano, sin JSON, sin markdown, sin comillas."},
+                {"role": "user", "content": prompt},
+            ]
+            result = await generate_dm_response(messages, max_tokens=200)
+
+            if result and result.get("content"):
+                text = result["content"].strip()
+                # Strip any JSON/markdown wrapping the LLM might add
+                if text.startswith("```"):
+                    lines = text.split("\n")
+                    lines = [l for l in lines if not l.strip().startswith("```")]
+                    text = "\n".join(lines).strip()
+                if text.startswith("{") and text.endswith("}"):
+                    # LLM wrapped in JSON despite instructions — extract the value
+                    import json as _json
+                    try:
+                        parsed = _json.loads(text)
+                        text = parsed.get("resumen", parsed.get("memo", str(list(parsed.values())[0])))
+                    except (ValueError, IndexError):
+                        pass
+                return text
+
+            return ""
+        except Exception as e:
+            logger.error("[MemoryEngine] _call_llm_text failed: %s", e)
             return ""
 
     def _parse_json_response(self, response: str) -> Optional[Dict]:
@@ -1145,6 +1302,49 @@ class MemoryEngine:
             logger.error("[MemoryEngine] _get_latest_summary() failed: %s", e)
             return None
 
+    async def _get_compressed_memo(
+        self, creator_id: str, lead_id: str
+    ) -> Optional[LeadMemory]:
+        """Get the active compressed memo for a lead, if one exists."""
+        try:
+            from api.database import SessionLocal
+            from sqlalchemy import text
+
+            session = SessionLocal()
+            try:
+                row = session.execute(
+                    text(
+                        "SELECT id, fact_text, created_at "
+                        "FROM lead_memories "
+                        "WHERE creator_id = CAST(:cid AS uuid) "
+                        "AND lead_id = CAST(:lid AS uuid) "
+                        "AND fact_type = 'compressed_memo' "
+                        "AND is_active = true "
+                        "ORDER BY created_at DESC LIMIT 1"
+                    ),
+                    {"cid": creator_id, "lid": lead_id},
+                ).fetchone()
+
+                if not row:
+                    return None
+
+                return LeadMemory(
+                    id=str(row[0]),
+                    creator_id=creator_id,
+                    lead_id=lead_id,
+                    fact_type="compressed_memo",
+                    fact_text=row[1],
+                    confidence=1.0,
+                    created_at=row[2],
+                )
+
+            finally:
+                session.close()
+
+        except Exception as e:
+            logger.error("[MemoryEngine] _get_compressed_memo() failed: %s", e)
+            return None
+
     # ═══════════════════════════════════════════════════════════════════════
     # PRIVATE: Formatting
     # ═══════════════════════════════════════════════════════════════════════
@@ -1167,13 +1367,29 @@ class MemoryEngine:
         summary: Optional[ConversationSummaryData],
         max_chars: int = 3000,
     ) -> str:
-        """Format memories into the prompt section (max ~750 tokens / 3000 chars)."""
+        """Format memories into the prompt section (max ~750 tokens / 3000 chars).
+
+        Prefers compressed narrative memo (COMEDY-style) over individual facts
+        when available, falling back to fact list for leads without a memo.
+        """
         if not facts and not summary:
             return ""
 
         lines = ["=== MEMORIA DEL LEAD ==="]
 
-        if facts:
+        # Check for compressed memo — prefer it over individual facts
+        memo = next((f for f in facts if f.fact_type == "compressed_memo"), None)
+        if memo:
+            lines.append(memo.fact_text)
+            # Still append recent commitments not captured in memo
+            recent_commitments = [
+                f for f in facts
+                if f.fact_type == "commitment" and f.fact_text not in memo.fact_text
+            ]
+            for c in recent_commitments[:3]:
+                lines.append(f"- {c.fact_text} [PENDIENTE]")
+        elif facts:
+            # Fallback: individual facts (original behavior)
             priority_order = {
                 "commitment": 0,
                 "preference": 1,
