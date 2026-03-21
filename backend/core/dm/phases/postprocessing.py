@@ -182,6 +182,8 @@ async def phase_postprocessing(
                 user_prompt=metadata.get("_full_prompt", ""),
                 lead_name=follower_name,
                 detected_language=detection.language if hasattr(detection, "language") else "ca",
+                creator_id=agent.creator_id,
+                creator_name=getattr(agent, "creator_name", ""),
             )
             cognitive_metadata["sbs_score"] = round(sbs_result.alignment_score, 2)
             cognitive_metadata["sbs_scores"] = sbs_result.scores
@@ -207,6 +209,8 @@ async def phase_postprocessing(
                 calibration=agent.calibration,
                 lead_name=follower_name,
                 detected_language=detection.language if hasattr(detection, "language") else "ca",
+                creator_id=agent.creator_id,
+                creator_name=getattr(agent, "creator_name", ""),
             )
             cognitive_metadata["ppa_score"] = round(ppa_result.alignment_score, 2)
             cognitive_metadata["ppa_scores"] = ppa_result.scores
@@ -254,7 +258,7 @@ async def phase_postprocessing(
     # Step 7b: Apply soft length guidance based on message type
     try:
         msg_type = detect_message_type(message)
-        response_content = enforce_length(response_content, message)
+        response_content = enforce_length(response_content, message, creator_id=agent.creator_id)
         cognitive_metadata["message_type"] = msg_type
     except Exception as e:
         logger.debug(f"Length control failed: {e}")

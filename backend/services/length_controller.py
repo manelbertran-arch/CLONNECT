@@ -1,14 +1,14 @@
 """
 Length Controller - Adaptive response length based on conversation context.
 
-Updated 2026-02-07 from analysis of 2,967 real Stefan messages (PostgreSQL).
+Per-creator length rules loaded from calibration files. Falls back to
+DEFAULT_RULES (from Stefan's 2,967 messages) for creators without calibration.
 
 KEY FINDING: Response length varies up to 5x by context:
 - Objection handling: median 53 chars (longest - needs persuasion)
 - General conversation: median 23 chars (baseline)
 - Interest signals: median 10 chars (shortest - just acknowledge)
 
-The assumption that Stefan "always responds ~31 chars" is INCORRECT.
 These are GUIDELINES, not hard limits. Complete sentences always win.
 """
 
@@ -33,36 +33,121 @@ class ContextLengthRule:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Data-driven rules from 2,967 real Stefan messages (2026-02-07 PostgreSQL)
-# P10=soft_min, median=target, P90=soft_max, P99=hard_max
+# DEFAULT rules (fallback for creators without calibration data).
+# Based on 2,967 real Stefan messages (2026-02-07 PostgreSQL).
 # ─────────────────────────────────────────────────────────────────────────────
-CONTEXT_LENGTH_RULES: Dict[str, ContextLengthRule] = {
-    # Objections need longer, persuasive responses (5x longer than interest!)
+DEFAULT_LENGTH_RULES: Dict[str, ContextLengthRule] = {
     "objecion": ContextLengthRule(target=53, soft_min=10, soft_max=277, hard_max=277, n_samples=9),
-    # Price questions: moderate, explain value
     "pregunta_precio": ContextLengthRule(target=22, soft_min=8, soft_max=46, hard_max=162, n_samples=29),
-    # Product questions: concise but informative
     "pregunta_producto": ContextLengthRule(target=21, soft_min=7, soft_max=43, hard_max=55, n_samples=50),
-    # General questions: quick direct answers
     "pregunta_general": ContextLengthRule(target=17, soft_min=6, soft_max=56, hard_max=101, n_samples=121),
-    # Greetings: short and warm
     "saludo": ContextLengthRule(target=17, soft_min=11, soft_max=31, hard_max=44, n_samples=21),
-    # Thanks/appreciation: brief acknowledgment
     "agradecimiento": ContextLengthRule(target=22, soft_min=10, soft_max=51, hard_max=705, n_samples=72),
-    # Interest signals: shortest - just acknowledge, don't oversell
     "interes": ContextLengthRule(target=10, soft_min=6, soft_max=34, hard_max=61, n_samples=24),
-    # Story mentions: short reaction
     "story_mention": ContextLengthRule(target=18, soft_min=8, soft_max=28, hard_max=80, n_samples=55),
-    # Casual conversation: relaxed, variable
     "casual": ContextLengthRule(target=18, soft_min=6, soft_max=42, hard_max=73, n_samples=39),
-    # Conversation starters (no previous message)
     "inicio_conversacion": ContextLengthRule(target=20, soft_min=8, soft_max=51, hard_max=663, n_samples=161),
-    # Default/other: wide range
     "otro": ContextLengthRule(target=23, soft_min=10, soft_max=60, hard_max=569, n_samples=2386),
 }
 
+# Backward-compatible alias
+CONTEXT_LENGTH_RULES = DEFAULT_LENGTH_RULES
+
 # Default rule for unrecognized contexts
 DEFAULT_RULE = ContextLengthRule(target=23, soft_min=10, soft_max=60, hard_max=300, n_samples=0)
+
+# Per-creator rules cache: creator_id -> Dict[str, ContextLengthRule]
+_creator_rules_cache: Dict[str, Dict[str, ContextLengthRule]] = {}
+
+
+def load_creator_length_rules(creator_id: str) -> Dict[str, ContextLengthRule]:
+    """Load per-creator length rules from calibration file.
+
+    Reads calibration.baseline and calibration.context_soft_max to build
+    creator-specific ContextLengthRule instances. Falls back to DEFAULT_LENGTH_RULES
+    for creators without calibration data.
+
+    Results are cached in-memory.
+    """
+    if creator_id in _creator_rules_cache:
+        return _creator_rules_cache[creator_id]
+
+    try:
+        from services.calibration_loader import load_calibration
+
+        cal = load_calibration(creator_id)
+        if not cal:
+            _creator_rules_cache[creator_id] = DEFAULT_LENGTH_RULES
+            return DEFAULT_LENGTH_RULES
+
+        baseline = cal.get("baseline", {})
+        context_maxes = cal.get("context_soft_max", {})
+
+        if not baseline and not context_maxes:
+            _creator_rules_cache[creator_id] = DEFAULT_LENGTH_RULES
+            return DEFAULT_LENGTH_RULES
+
+        # Global baseline from calibration
+        global_median = baseline.get("median_length", 23)
+        global_soft_max = baseline.get("soft_max", 60)
+
+        # Build rules: start from defaults, override with creator data
+        rules = {}
+        for ctx, default_rule in DEFAULT_LENGTH_RULES.items():
+            creator_soft_max = context_maxes.get(ctx)
+            if creator_soft_max is not None:
+                # Scale target proportionally: if creator's soft_max is 2x default,
+                # target should also scale, but never exceed soft_max
+                scale = creator_soft_max / max(default_rule.soft_max, 1)
+                target = min(int(default_rule.target * scale), creator_soft_max)
+                rules[ctx] = ContextLengthRule(
+                    target=target,
+                    soft_min=default_rule.soft_min,
+                    soft_max=creator_soft_max,
+                    hard_max=int(creator_soft_max * 1.5),
+                    n_samples=0,
+                )
+            else:
+                # No specific override — use global baseline to scale default
+                scale = global_median / 23  # 23 = default global median
+                rules[ctx] = ContextLengthRule(
+                    target=max(5, int(default_rule.target * scale)),
+                    soft_min=default_rule.soft_min,
+                    soft_max=max(default_rule.soft_max, global_soft_max),
+                    hard_max=default_rule.hard_max,
+                    n_samples=0,
+                )
+
+        # Map calibration context names to length_controller context names
+        cal_to_lc = {
+            "precio": "pregunta_precio",
+            "lead_caliente": "interes",
+            "personal": "casual",
+            "clase": "casual",
+        }
+        for cal_ctx, lc_ctx in cal_to_lc.items():
+            if cal_ctx in context_maxes and lc_ctx in rules:
+                sm = context_maxes[cal_ctx]
+                existing = rules[lc_ctx]
+                rules[lc_ctx] = ContextLengthRule(
+                    target=min(int(sm * 0.6), sm),
+                    soft_min=existing.soft_min,
+                    soft_max=sm,
+                    hard_max=int(sm * 1.5),
+                    n_samples=0,
+                )
+
+        _creator_rules_cache[creator_id] = rules
+        logger.info(
+            "Loaded creator length rules for %s: %d contexts, global_median=%d",
+            creator_id, len(rules), global_median,
+        )
+        return rules
+
+    except Exception as e:
+        logger.debug("Failed to load creator length rules for %s: %s", creator_id, e)
+        _creator_rules_cache[creator_id] = DEFAULT_LENGTH_RULES
+        return DEFAULT_LENGTH_RULES
 
 # v10.2: Aliases for new sub-categories that inherit from existing contexts
 CONTEXT_ALIASES = {
@@ -233,14 +318,19 @@ def classify_lead_context(lead_message: str) -> str:
     return "otro"
 
 
-def get_context_rule(context: str) -> ContextLengthRule:
-    """Get the length rule for a conversation context (with v10.2 alias support)."""
-    if context in CONTEXT_LENGTH_RULES:
-        return CONTEXT_LENGTH_RULES[context]
-    # Check aliases for new sub-categories
+def get_context_rule(context: str, creator_id: Optional[str] = None) -> ContextLengthRule:
+    """Get the length rule for a conversation context.
+
+    When creator_id is provided, uses per-creator rules from calibration.
+    Falls back to DEFAULT_LENGTH_RULES for unknown creators or contexts.
+    """
+    rules = load_creator_length_rules(creator_id) if creator_id else DEFAULT_LENGTH_RULES
+    if context in rules:
+        return rules[context]
+    # Check aliases for sub-categories
     alias = CONTEXT_ALIASES.get(context)
-    if alias and alias in CONTEXT_LENGTH_RULES:
-        return CONTEXT_LENGTH_RULES[alias]
+    if alias and alias in rules:
+        return rules[alias]
     return DEFAULT_RULE
 
 
@@ -268,19 +358,21 @@ def enforce_length(
     lead_message: str,
     config: Optional[LengthConfig] = None,
     context: Optional[str] = None,
+    creator_id: Optional[str] = None,
 ) -> str:
     """
     Adaptive length enforcement based on conversation context.
 
-    Uses real data from 2,967 messages. NEVER truncates mid-sentence.
-    Only trims at sentence boundaries when response significantly exceeds
-    the hard_max for its context type.
+    Uses per-creator rules from calibration when creator_id is provided,
+    falls back to defaults. NEVER truncates mid-sentence. Only trims at
+    sentence boundaries when response significantly exceeds hard_max.
 
     Args:
         response: Generated response.
         lead_message: Original lead message.
         config: Legacy config (kept for backward compatibility).
         context: Optional pre-classified context. Auto-detects if None.
+        creator_id: Optional creator ID for per-creator length rules.
 
     Returns:
         Response, possibly shortened but always complete sentences.
@@ -288,7 +380,7 @@ def enforce_length(
     if context is None:
         context = classify_lead_context(lead_message)
 
-    rule = get_context_rule(context)
+    rule = get_context_rule(context, creator_id=creator_id)
     resp_len = len(response)
 
     # Never truncate if within observed hard_max for this context
@@ -313,7 +405,9 @@ def enforce_length(
 
 # ─── New: Length Guidance for LLM Prompts ──────────────────────────────────
 
-def get_length_guidance_prompt(lead_message: str, context: Optional[str] = None) -> str:
+def get_length_guidance_prompt(
+    lead_message: str, context: Optional[str] = None, creator_id: Optional[str] = None,
+) -> str:
     """
     Generate a length guidance instruction for the LLM prompt.
 
@@ -323,6 +417,7 @@ def get_length_guidance_prompt(lead_message: str, context: Optional[str] = None)
     Args:
         lead_message: The message from the lead.
         context: Optional pre-classified context.
+        creator_id: Optional creator ID for per-creator length rules.
 
     Returns:
         A string instruction to embed in the LLM system prompt.
@@ -330,7 +425,7 @@ def get_length_guidance_prompt(lead_message: str, context: Optional[str] = None)
     if context is None:
         context = classify_lead_context(lead_message)
 
-    rule = get_context_rule(context)
+    rule = get_context_rule(context, creator_id=creator_id)
 
     # Map context to natural language description
     context_descriptions = {
