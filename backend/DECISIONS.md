@@ -4,6 +4,32 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-03-21 — Desactivar sistemas dañinos + ampliar memory budget
+
+**Problema:** El pipeline conversacional tenía 7-8 LLM calls por mensaje (Best-of-N, Self-consistency, Reflexion, Learning Rules, Autolearning) generando respuestas más genéricas y latencia alta. Memory budget de 1200 chars era insuficiente para dar contexto real del lead.
+
+**Cambios Railway env vars (no requirieron deploy de código):**
+
+| Flag | Antes | Después | Motivo |
+|------|-------|---------|--------|
+| `ENABLE_LEARNING_RULES` | `true` | `false` | Inyectaba ruido en prompt |
+| `ENABLE_SELF_CONSISTENCY` | `true` | `false` | +2 LLM calls extra |
+| `ENABLE_BEST_OF_N` | `true` | `false` | +3 LLM calls extra |
+| `ENABLE_REFLEXION` | (default=True) | `false` | +1 LLM call extra |
+| `ENABLE_AUTOLEARNING` | `true` | `false` | +1 LLM call post-copilot |
+| `AGENT_POOL_CONFIDENCE` | — | `1.1` | Deshabilita pool (ninguna response puede tener confidence >1.0) |
+
+**Cambio de código (commit f16e7776):**
+- `services/memory_engine.py:1167`: `max_chars=1200` → `max_chars=3000` (300→750 tokens de contexto del lead)
+
+**LLM calls antes/después:**
+- Antes: 7-8 calls por mensaje (Main + Best-of-N×3 + Self-consistency×2 + Autolearning)
+- Después: 1-2 calls por mensaje (Main + opcional Chain-of-Thought)
+
+**Script añadido:** `scripts/purge_contaminated_gold_examples.py` — marca gold examples con respuestas de error del sistema como `is_active=False` (no destructivo, requiere confirmación interactiva). Ejecutar con `railway run python3 scripts/purge_contaminated_gold_examples.py`.
+
+---
+
 ## 2026-03-19 — Enforced methodology hooks (advisory → blocking gates)
 
 **Problem:** CLAUDE.md rules are advisory — workers can skip the planner, code reviewer, DECISIONS.md, and smoke tests without consequence. Hooks make them enforced gates.
