@@ -1,0 +1,240 @@
+{
+  "metadata": {
+    "creator": "iris_bertran",
+    "generated_at": "2026-03-21T17:52:44.330744+00:00",
+    "period": "2025-12-21 to 2026-03-21",
+    "total_manual_responses": 294,
+    "type_distribution_real": {
+      "audio": 93,
+      "otro": 118,
+      "personal": 64,
+      "precio": 5,
+      "saludo": 6,
+      "objecion": 6,
+      "lead_caliente": 2
+    },
+    "selection_criteria": "Top 20 most natural manual responses, proportional to real type volume"
+  },
+  "examples": [
+    {
+      "id": 1,
+      "type": "personal",
+      "language": "es",
+      "lead_message": "Oleeeee!!!!👏👏👏👏",
+      "iris_response": "Jajaja, ¡qué bueno! 💪 ¿Qué te ha parecido? 😉",
+      "lead_username": "Anabel",
+      "platform": "whatsapp",
+      "response_at": "2026-03-21T15:46:20.712854+00:00",
+      "quality_score": 5.6
+    },
+    {
+      "id": 2,
+      "type": "personal",
+      "language": "ca",
+      "lead_message": "Gràcies Iris em va agardar molt i em va anar genial. \nJa em dius quan puc tornar a venir, et pago el pròxim entrenament sense problema🫶🏼",
+      "iris_response": "Oki Mari! Me alegro un montón que te gustara y que te fuera genial. ❤️ Ahora mismo estoy organizando un poco las cosas, ¿cuándo te vendría bien venir? 😊",
+      "lead_username": "wa_34622745838",
+      "platform": "whatsapp",
+      "response_at": "2026-03-19T15:32:52.679365+00:00",
+      "quality_score": 5.6
+    },
+    {
+      "id": 3,
+      "type": "personal",
+      "language": "ca",
+      "lead_message": "Pujo súper justa a barre",
+      "iris_response": "Jajaja, ¡siempre igual! 😂 ¿Vienes corriendo?",
+      "lead_username": "wa_34606434377",
+      "platform": "whatsapp",
+      "response_at": "2026-03-19T18:27:03.791750+00:00",
+      "quality_score": 5.3
+    },
+    {
+      "id": 4,
+      "type": "personal",
+      "language": "ca",
+      "lead_message": "Jejejej lindos pasos",
+      "iris_response": "Daleee! Que haces babyyyy? 😘 Que fuerteee!",
+      "lead_username": "emi_ojeda006",
+      "platform": "instagram",
+      "response_at": "2026-03-21T14:02:33.680503+00:00",
+      "quality_score": 5.0
+    },
+    {
+      "id": 5,
+      "type": "audio",
+      "language": "ca",
+      "lead_message": "Sent a voice message",
+      "iris_response": "Jajajaja, qué risa! 😂 Qué te cuento? 😘",
+      "lead_username": "juligaminde7",
+      "platform": "instagram",
+      "response_at": "2026-03-19T08:26:59.886692+00:00",
+      "quality_score": 5.3
+    },
+    {
+      "id": 6,
+      "type": "audio",
+      "language": "ca",
+      "lead_message": "Boooletaaaaaaa",
+      "iris_response": "[🎤 Audio]: Ua, Laura, però si està formada, tio! Això va ser una niña, no?",
+      "lead_username": "Olau",
+      "platform": "whatsapp",
+      "response_at": "2026-03-19T20:59:36.488954+00:00",
+      "quality_score": 5.0
+    },
+    {
+      "id": 7,
+      "type": "audio",
+      "language": "ca",
+      "lead_message": "[🎤 Audio]: Iris, m'he desapuntat. Tinc una reunió familiar i no em trobo bé. La Susanna sí que vindrà, m'ha dit que vindrà encara que jo no hi vagi. De la Cucu no en sé res.",
+      "iris_response": "Aiiiii, holaaa! 🥰 Que faig? Estic a Barcelona ara mateix. I tu? Què tal tot? Explica'm! Què et porta per aquí? 😘",
+      "lead_username": "wa_34676201433",
+      "platform": "whatsapp",
+      "response_at": "2026-03-19T17:22:30.630152+00:00",
+      "quality_score": 5.0
+    },
+    {
+      "id": 8,
+      "type": "audio",
+      "language": "ca",
+      "lead_message": "[🎤 Audio]: Muchísimas gracias, family. Os estimo, os estimo y os estimo. Vale, que vayamos cumpliendo años y santos.",
+      "iris_response": "Oleeeeee nen! Que te cuento? 🥹 Com va tot per allà?",
+      "lead_username": "Mar",
+      "platform": "whatsapp",
+      "response_at": "2026-03-19T16:10:20.827586+00:00",
+      "quality_score": 5.0
+    },
+    {
+      "id": 9,
+      "type": "audio",
+      "language": "ca",
+      "lead_message": "[🎤 Audio]: La gracia es que sea así de corto, porque lo que hace esto es que la gente se lo vuelve a mirar y se lo vuelve a mirar para mirar cada outfit, ¿sabes?",
+      "iris_response": "Jajaja, qué dices, bro! 🤣 Ya te digo yo que sí.",
+      "lead_username": "èrica ✨",
+      "platform": "whatsapp",
+      "response_at": "2026-03-21T16:11:24.159779+00:00",
+      "quality_score": 4.8
+    },
+    {
+      "id": 10,
+      "type": "audio",
+      "language": "ca",
+      "lead_message": "[🎤 Audio]: Hola Jan,\n\nMoltíssimes gràcies per aquests regals tan macos que m'has fet. Estan preciosos a casa.\n\nA més de les flors, que són meravelloses, l'abraçada que m'has donat tu és el més gran del món. Una abraçada de sorpresa.\n\nBona nit i bon descans, cariño.",
+      "iris_response": "Ay, mi vida! Me alegra un montón que te gustaran tanto. 🥰 Y sí, ese abrazo tuyo es lo más grande. ❤️",
+      "lead_username": "Mercè",
+      "platform": "whatsapp",
+      "response_at": "2026-03-19T19:02:31.144871+00:00",
+      "quality_score": 4.8
+    },
+    {
+      "id": 11,
+      "type": "otro",
+      "language": "ca",
+      "lead_message": "Espero q tot be",
+      "iris_response": "Hola Lídia! Sí, tot bé, gràcies. 😊 I tu? Què et va semblar el vestit?",
+      "lead_username": "Lídia",
+      "platform": "whatsapp",
+      "response_at": "2026-03-19T09:19:41.947174+00:00",
+      "quality_score": 5.3
+    },
+    {
+      "id": 12,
+      "type": "otro",
+      "language": "ca",
+      "lead_message": "Te como la cara",
+      "iris_response": "Holaaa! Qué genial! 🩷 Y qué te trae por aquí? 😉",
+      "lead_username": "rubycortes__",
+      "platform": "instagram",
+      "response_at": "2026-03-19T06:11:48.297829+00:00",
+      "quality_score": 5.0
+    },
+    {
+      "id": 13,
+      "type": "otro",
+      "language": "es",
+      "lead_message": "Eres una grande guapa 💛",
+      "iris_response": "Daleee! 💪 Qué bueno que ya casi lo tenés! ✨",
+      "lead_username": "23toptraining",
+      "platform": "instagram",
+      "response_at": "2026-03-20T20:49:05.244783+00:00",
+      "quality_score": 4.8
+    },
+    {
+      "id": 14,
+      "type": "otro",
+      "language": "ca",
+      "lead_message": "Nos vemos mañana *21.03* para el workshop con Tamara🌟, de *14:00h a 16:00h.*\n\nAquí os dejo el enlace para abrir la puerta de entrada:\nhttps://docs.google.com/document/d/16q47UYLdRdYF5KBBnpdSePNfROwe_ZdW/edit?usp=drivesdk&ouid=100996112409432303735&rtpof=true&sd=true",
+      "iris_response": "Hola Albert! 😊 Qué bien que te animas al workshop!",
+      "lead_username": "Albert Sala",
+      "platform": "whatsapp",
+      "response_at": "2026-03-20T12:49:07.930988+00:00",
+      "quality_score": 4.8
+    },
+    {
+      "id": 15,
+      "type": "otro",
+      "language": "ca",
+      "lead_message": "Gracias",
+      "iris_response": "Dale genial! Te paso el link para que reserves tu plaza. 😉",
+      "lead_username": "wa_34629973366",
+      "platform": "whatsapp",
+      "response_at": "2026-03-21T12:27:56.964603+00:00",
+      "quality_score": 4.5
+    },
+    {
+      "id": 16,
+      "type": "otro",
+      "language": "es",
+      "lead_message": "Vale",
+      "iris_response": "Ay, Ashley🤍! Qué bajón lo de tu mamá, mi reina. Pero bueno, ¡vamos a resolver esto! 😉",
+      "lead_username": "+34611399556",
+      "platform": "whatsapp",
+      "response_at": "2026-03-21T07:20:40.113260+00:00",
+      "quality_score": 4.5
+    },
+    {
+      "id": 17,
+      "type": "otro",
+      "language": "ca",
+      "lead_message": "I estaba molt cansada",
+      "iris_response": "Ja tenim tasses i gots nous que li ha regalat la tieta mercé x fin🙂‍↕️🙏🏽",
+      "lead_username": "Manel",
+      "platform": "whatsapp",
+      "response_at": "2026-03-19T22:22:39.594246+00:00",
+      "quality_score": 4.3
+    },
+    {
+      "id": 18,
+      "type": "otro",
+      "language": "ca",
+      "lead_message": "Oki",
+      "iris_response": "Demà et donaré 50e amb cash tranqui x venir ja saps que jo els extras sempre els pago 🙏🏽",
+      "lead_username": "èrica ✨",
+      "platform": "whatsapp",
+      "response_at": "2026-03-20T22:27:32.077196+00:00",
+      "quality_score": 4.3
+    },
+    {
+      "id": 19,
+      "type": "precio",
+      "language": "es",
+      "lead_message": "Este sábado viene Tamara a dar workshop en la formación de 14h a 16h, entra en el precio chicxs, los que os apuntéis avisar a @193162379284699",
+      "iris_response": "Hola Albert! 😊 El workshop de Tamara es este sábado de 14h a 16h y ya está incluido en el precio de la formación. ¿Te animas? ✌🏽",
+      "lead_username": "Albert Sala",
+      "platform": "whatsapp",
+      "response_at": "2026-03-19T06:52:10.434604+00:00",
+      "quality_score": 5.3
+    },
+    {
+      "id": 20,
+      "type": "saludo",
+      "language": "es",
+      "lead_message": "Hola mami buenos dias \nGracias cariño ya le dije s mi madre vale 😊🌹",
+      "iris_response": "Holaaa! Que bueno que le dijiste a tu mamá. 😊 Que tal tu día?",
+      "lead_username": "wa_34614204757",
+      "platform": "whatsapp",
+      "response_at": "2026-03-21T09:34:19.619438+00:00",
+      "quality_score": 5.3
+    }
+  ]
+}

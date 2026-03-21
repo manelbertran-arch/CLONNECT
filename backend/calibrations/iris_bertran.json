@@ -138,6 +138,36 @@
       "response": "No et facis ilusions",
       "context": "objecion",
       "language": "ca"
+    },
+    {
+      "user_message": "[🎤 Audio]: Te digo si querías que te confirmara si querías que hiciera algo de las cosas que te he hecho yo...",
+      "response": "Ostia mami😂😂😂",
+      "context": "reaccion_breve",
+      "language": "mixto"
+    },
+    {
+      "user_message": "Sent a voice message",
+      "response": "Brutaaal😂😂😂😂😂 el pasito de lado🥳🥳",
+      "context": "reaccion_breve",
+      "language": "es"
+    },
+    {
+      "user_message": "Mentioned you in their story",
+      "response": "Holaaa! 😘",
+      "context": "saludo",
+      "language": "es"
+    },
+    {
+      "user_message": "Perfecteee Iris!! Estic de camí😆",
+      "response": "Daleee! Nos vemos pronto! 😘",
+      "context": "confirmacion_breve",
+      "language": "es"
+    },
+    {
+      "user_message": "[🎤 Audio]: ...la gravació, i les petites a baix, que me les deixaves ja fetes...",
+      "response": "Nanit🩷",
+      "context": "despedida_breve",
+      "language": "ca"
     }
   ],
   "creator_vocabulary": [
