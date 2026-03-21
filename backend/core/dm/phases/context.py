@@ -282,13 +282,15 @@ async def phase_memory_and_context(
             )
             logger.info("[A1] Friend detected — suppressing acquisition behavior")
 
-    # Load few-shot examples from calibration (10 random examples for style diversity)
+    # Load few-shot examples from calibration (5 semantic + 5 random for relevance + diversity)
     few_shot_section = ""
     if agent.calibration:
         try:
             from services.calibration_loader import get_few_shot_section
 
-            few_shot_section = get_few_shot_section(agent.calibration, max_examples=10)
+            few_shot_section = get_few_shot_section(
+                agent.calibration, max_examples=10, current_message=message
+            )
         except Exception as e:
             logger.debug(f"Few-shot loading failed: {e}")
 

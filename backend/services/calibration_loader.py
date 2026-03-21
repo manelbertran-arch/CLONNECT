@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 _cache: Dict[str, Tuple[Optional[Dict], float]] = {}
 _CACHE_TTL = float(os.getenv("CALIBRATION_CACHE_TTL", "300"))
 
+# Cache for pre-computed example embeddings: content_hash -> List[Optional[List[float]]]
+_example_embeddings_cache: Dict[int, List] = {}
+
 CALIBRATIONS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
     "calibrations",
@@ -70,8 +73,80 @@ def load_calibration(creator_id: str) -> Optional[Dict]:
         return None
 
 
-def get_few_shot_section(calibration: Dict, max_examples: int = 5) -> str:
+def _cosine_similarity(a: List[float], b: List[float]) -> float:
+    """Cosine similarity between two vectors using numpy."""
+    import numpy as np
+    va, vb = np.array(a, dtype=float), np.array(b, dtype=float)
+    denom = np.linalg.norm(va) * np.linalg.norm(vb)
+    return float(np.dot(va, vb) / denom) if denom > 0 else 0.0
+
+
+def _select_examples_by_similarity(
+    examples: List[Dict],
+    current_message: str,
+    n_semantic: int,
+    n_random: int,
+) -> List[Dict]:
+    """Return n_semantic examples closest to current_message + n_random from the rest.
+
+    Falls back to pure random.sample() if embeddings are unavailable.
+    """
+    try:
+        from core.embeddings import generate_embedding, generate_embeddings_batch
+
+        # Cache example embeddings by content hash (stable across calls)
+        cache_key = hash(tuple(ex.get("user_message", "") for ex in examples))
+        if cache_key not in _example_embeddings_cache:
+            texts = [ex.get("user_message", "") for ex in examples]
+            _example_embeddings_cache[cache_key] = generate_embeddings_batch(texts)
+            logger.debug(
+                "Computed embeddings for %d few-shot examples (cache key %d)",
+                len(texts), cache_key,
+            )
+
+        example_embeddings = _example_embeddings_cache[cache_key]
+        msg_embedding = generate_embedding(current_message)
+
+        if not msg_embedding:
+            raise ValueError("Empty message embedding")
+
+        # Rank examples by cosine similarity to current_message
+        scored = [
+            (_cosine_similarity(msg_embedding, emb), i)
+            for i, emb in enumerate(example_embeddings)
+            if emb is not None
+        ]
+        scored.sort(reverse=True)
+
+        top_indices = {i for _, i in scored[:n_semantic]}
+        semantic_examples = [examples[i] for _, i in scored[:n_semantic]]
+        remaining = [ex for i, ex in enumerate(examples) if i not in top_indices]
+        random_examples = random.sample(remaining, min(n_random, len(remaining)))
+
+        logger.debug(
+            "Few-shot: %d semantic (top sim=%.2f) + %d random",
+            len(semantic_examples),
+            scored[0][0] if scored else 0,
+            len(random_examples),
+        )
+        return semantic_examples + random_examples
+
+    except Exception as e:
+        logger.debug("Semantic few-shot selection failed, using random: %s", e)
+        k = min(n_semantic + n_random, len(examples))
+        return random.sample(examples, k)
+
+
+def get_few_shot_section(
+    calibration: Dict,
+    max_examples: int = 5,
+    current_message: Optional[str] = None,
+) -> str:
     """Format few-shot examples from calibration into a prompt section.
+
+    When current_message is provided, selects half by semantic similarity to
+    the message and half randomly for variety. Falls back to random if
+    embeddings are unavailable.
 
     Returns empty string if no examples exist.
     """
@@ -79,8 +154,16 @@ def get_few_shot_section(calibration: Dict, max_examples: int = 5) -> str:
     if not examples:
         return ""
 
-    k = min(max_examples, len(examples))
-    selected = random.sample(examples, k)
+    if current_message and len(examples) > max_examples:
+        n_semantic = max_examples // 2          # e.g. 5 of 10
+        n_random = max_examples - n_semantic    # e.g. 5 of 10
+        selected = _select_examples_by_similarity(
+            examples, current_message, n_semantic, n_random
+        )
+    else:
+        k = min(max_examples, len(examples))
+        selected = random.sample(examples, k)
+
     lines = ["=== EJEMPLOS REALES DE CÓMO RESPONDES ==="]
     for ex in selected:
         user_msg = ex.get("user_message", "")
