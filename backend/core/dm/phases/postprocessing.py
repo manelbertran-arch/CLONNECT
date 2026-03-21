@@ -45,24 +45,23 @@ async def phase_postprocessing(
     response_content = llm_response.content
 
     # A2 FIX: Detect and break repetitive loops
+    # Only compare against the immediately previous bot message using full-string
+    # equality to avoid false positives from responses with similar openings.
     try:
-        recent_bot_msgs = [
+        last_bot_msgs = [
             m["content"] for m in history
             if m.get("role") == "assistant" and m.get("content")
-        ][-3:]
-        if recent_bot_msgs and response_content:
-            resp_norm = response_content.strip().lower()[:50]
-            for prev in recent_bot_msgs:
-                prev_norm = prev.strip().lower()[:50]
-                if resp_norm and prev_norm and resp_norm == prev_norm:
-                    logger.warning(
-                        "[A2] Repetitive loop detected — response matches recent message"
-                    )
-                    cognitive_metadata["loop_detected"] = True
-                    # Break the loop with a short, generic continuation
-                    response_content = "Contame más"
-                    llm_response.content = response_content
-                    break
+        ][-1:]
+        if last_bot_msgs and response_content:
+            resp_norm = response_content.strip().lower()
+            prev_norm = last_bot_msgs[0].strip().lower()
+            if resp_norm and prev_norm and resp_norm == prev_norm:
+                logger.warning(
+                    "[A2] Repetitive loop detected — response is exact duplicate of last message"
+                )
+                cognitive_metadata["loop_detected"] = True
+                response_content = "Cuéntame más"
+                llm_response.content = response_content
     except Exception as e:
         logger.debug(f"Loop detection failed: {e}")
 

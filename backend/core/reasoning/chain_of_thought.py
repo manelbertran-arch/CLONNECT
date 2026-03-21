@@ -268,8 +268,11 @@ Tu respuesta aquí (máximo 3-4 frases, tono cercano)
                 temperature=0.5  # Lower temperature for more focused reasoning
             )
 
+            # Extract string content from LLMResponse object before parsing
+            raw_response_text = raw_response.content if hasattr(raw_response, "content") else str(raw_response)
+
             # Parse response
-            reasoning_steps, final_answer = self._parse_cot_response(raw_response)
+            reasoning_steps, final_answer = self._parse_cot_response(raw_response_text)
 
             # Add health disclaimer if needed
             if query_type == "health" and final_answer:
@@ -286,7 +289,7 @@ Tu respuesta aquí (máximo 3-4 frases, tono cercano)
                 query_type=query_type,
                 confidence=0.85 if reasoning_steps else 0.6,
                 metadata={
-                    "raw_response_length": len(raw_response),
+                    "raw_response_length": len(raw_response_text),
                     "steps_found": len(reasoning_steps)
                 }
             )
