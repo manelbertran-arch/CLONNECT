@@ -98,6 +98,10 @@ def _find_doc_path(creator_id: str) -> Optional[str]:
 def _load_doc_d_from_db(creator_id: str) -> Optional[str]:
     """Load Doc D markdown content from PostgreSQL personality_docs table.
 
+    Priority: doc_d_distilled (compact, ~2K tokens) > doc_d (full, ~20K tokens).
+    The distilled version is auto-generated during onboarding and preserves only
+    CORE rules. Falls back to the full doc_d if no distilled version exists.
+
     Resolves creator slug to UUID via JOIN with creators table so that
     callers can pass either a slug ('iris_bertran') or a UUID.
 
@@ -110,20 +114,29 @@ def _load_doc_d_from_db(creator_id: str) -> Optional[str]:
 
         _s = _SL()
         try:
+            # Try distilled first (compact, better for prompt budget)
             row = _s.execute(
                 text(
                     """
-                    SELECT pd.content
+                    SELECT pd.content, pd.doc_type
                     FROM personality_docs pd
                     JOIN creators c ON c.id::text = pd.creator_id
                     WHERE (c.name = :creator_id OR pd.creator_id = :creator_id)
-                      AND pd.doc_type = 'doc_d'
+                      AND pd.doc_type IN ('doc_d_distilled', 'doc_d')
+                    ORDER BY CASE pd.doc_type
+                        WHEN 'doc_d_distilled' THEN 0
+                        WHEN 'doc_d' THEN 1
+                    END
                     LIMIT 1
                     """
                 ),
                 {"creator_id": creator_id},
             ).fetchone()
             if row:
+                logger.info(
+                    "Loaded %s for %s (%d chars)",
+                    row.doc_type, creator_id, len(row.content),
+                )
                 return row.content
         finally:
             _s.close()
