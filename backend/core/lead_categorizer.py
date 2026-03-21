@@ -104,8 +104,8 @@ KEYWORDS_CALIENTE = [
     r"\bprecio\b", r"\bcuesta\b", r"\bcuánto\b", r"\bvale\b", r"\bcost\b",
     r"\btarifa\b", r"\bpagar\b", r"\bforma de pago\b", r"\btarjeta\b",
     r"\btransferencia\b", r"\bcuotas\b",
-    # Compra
-    r"\bcomprar\b", r"\breservar\b", r"\bcontratar\b", r"\bapúntate\b",
+    # Compra — "comprar" removed: too generic (triggers on "comprar placas", "comprar comida")
+    r"\breservar\b", r"\bcontratar\b", r"\bapúntate\b",
     r"\bempezar\b", r"\binscribirme\b", r"\bquiero el\b", r"\blo quiero\b",
     r"\bme apunto\b",
     # Booking
