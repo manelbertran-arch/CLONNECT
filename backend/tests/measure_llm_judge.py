@@ -287,6 +287,10 @@ async def run_provider_pipeline(
     few_shot = _load_few_shot()
     full_system = f"{system_prompt}\n\n{few_shot}" if few_shot else system_prompt
 
+    # Disable thinking mode for Qwen3 and similar models
+    if "qwen3" in model.lower() or "deepseek" in model.lower():
+        full_system = "/no_think\n\n" + full_system
+
     logger.info(f"External provider: {provider} / {model}")
     logger.info(f"System prompt: {len(full_system)} chars")
 
