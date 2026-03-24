@@ -277,8 +277,12 @@ async def generate_simple(
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": prompt})
 
-    # 1. Try DeepInfra if configured as primary
-    if LLM_PRIMARY_PROVIDER == "deepinfra":
+    # 1. Try alternative provider if configured as primary
+    if LLM_PRIMARY_PROVIDER == "together":
+        result = await _try_together(messages, max_tokens, temperature, "background")
+        if result and result.get("content"):
+            return result["content"]
+    elif LLM_PRIMARY_PROVIDER == "deepinfra":
         result = await _try_deepinfra(messages, max_tokens, temperature, "background")
         if result and result.get("content"):
             return result["content"]
@@ -404,7 +408,7 @@ def _add_fallback_guard(messages: list[dict]) -> list[dict]:
 
 
 # =============================================================================
-# DeepInfra primary provider (when LLM_PRIMARY_PROVIDER=deepinfra)
+# Alternative primary providers (when LLM_PRIMARY_PROVIDER != gemini)
 # =============================================================================
 
 async def _try_deepinfra(
@@ -433,8 +437,34 @@ async def _try_deepinfra(
     return None
 
 
+async def _try_together(
+    messages: list[dict],
+    max_tokens: int,
+    temperature: float,
+    call_type: str,
+) -> Optional[dict]:
+    """Try Together AI as primary provider. Returns result dict or None."""
+    try:
+        from core.providers.together_provider import call_together
+
+        timeout = float(os.getenv("TOGETHER_TIMEOUT", "15"))
+        result = await asyncio.wait_for(
+            call_together(messages, max_tokens, temperature),
+            timeout=timeout,
+        )
+        if result:
+            asyncio.create_task(_async_log_usage(result, call_type))
+            return result
+        logger.warning("Together returned empty, falling back to Gemini")
+    except asyncio.TimeoutError:
+        logger.warning("Together timeout, falling back to Gemini")
+    except Exception as e:
+        logger.warning("Together failed: %s, falling back to Gemini", e)
+    return None
+
+
 # =============================================================================
-# Production DM response: [DeepInfra →] Gemini → GPT-4o-mini → None
+# Production DM response: [Together/DeepInfra →] Gemini → GPT-4o-mini → None
 # =============================================================================
 
 async def generate_dm_response(
@@ -455,13 +485,16 @@ async def generate_dm_response(
     Called from dm_agent_v2.py for all DM responses.
     """
     # 1. PRIMARY: route based on LLM_PRIMARY_PROVIDER
-    if LLM_PRIMARY_PROVIDER == "deepinfra":
+    if LLM_PRIMARY_PROVIDER == "together":
+        result = await _try_together(messages, max_tokens, temperature, "dm_response")
+        if result:
+            return result
+    elif LLM_PRIMARY_PROVIDER == "deepinfra":
         result = await _try_deepinfra(messages, max_tokens, temperature, "dm_response")
         if result:
             return result
-        # DeepInfra failed — fall through to Gemini as secondary
 
-    # 2. GEMINI: primary (default) or secondary (when DeepInfra is primary)
+    # 2. GEMINI: primary (default) or secondary (when alt provider is primary)
     if _gemini_circuit_is_open():
         logger.info("Circuit breaker open — skipping Gemini")
     else:

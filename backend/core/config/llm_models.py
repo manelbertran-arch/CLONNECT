@@ -9,6 +9,8 @@ COST REFERENCE (as of 2026-03):
   gemini-2.5-flash:      $0.30/1M input,  $2.50/1M output  ← 6-8x expensive, BLOCKED
   gemini-2.5-pro:        $1.25/1M input, $10.00/1M output  ← 80x expensive, BLOCKED
   Qwen/Qwen3-32B (DeepInfra): ~$0.20/1M input, $0.20/1M output
+  Qwen/Qwen3-32B (Together):  ~$0.30/1M input, $0.50/1M output
+  Qwen/Qwen3-8B  (Together):  ~$0.10/1M input, $0.10/1M output
 """
 import logging
 import os
@@ -18,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # PROVIDER ROUTING — which LLM provider to try first
-# Options: "gemini" (default), "deepinfra", "openai"
+# Options: "gemini" (default), "together", "deepinfra", "openai"
 # The cascade is always: PRIMARY → Gemini (if not primary) → GPT-4o-mini → None
 # ---------------------------------------------------------------------------
 LLM_PRIMARY_PROVIDER: str = os.getenv("LLM_PRIMARY_PROVIDER", "gemini")
@@ -32,6 +34,11 @@ GEMINI_PRIMARY_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 # DEEPINFRA MODEL — override via DEEPINFRA_MODEL env var
 # ---------------------------------------------------------------------------
 DEEPINFRA_MODEL: str = os.getenv("DEEPINFRA_MODEL", "Qwen/Qwen3-32B")
+
+# ---------------------------------------------------------------------------
+# TOGETHER MODEL — override via TOGETHER_MODEL env var
+# ---------------------------------------------------------------------------
+TOGETHER_MODEL: str = os.getenv("TOGETHER_MODEL", "Qwen/Qwen3-32B")
 
 # ---------------------------------------------------------------------------
 # BLOCKED MODELS — too expensive for production DM inference
@@ -66,13 +73,17 @@ def log_model_config() -> None:
     """Log current model config at startup. Call once from api/main.py."""
     logger.warning("[LLM CONFIG] Primary provider: %s", LLM_PRIMARY_PROVIDER)
     logger.warning("[LLM CONFIG] Gemini model: %s", GEMINI_PRIMARY_MODEL)
-    if LLM_PRIMARY_PROVIDER == "deepinfra":
+    if LLM_PRIMARY_PROVIDER == "together":
+        logger.warning("[LLM CONFIG] Together model: %s", TOGETHER_MODEL)
+        has_key = bool(os.getenv("TOGETHER_API_KEY"))
+        logger.warning("[LLM CONFIG] TOGETHER_API_KEY: %s", "set" if has_key else "NOT SET")
+    elif LLM_PRIMARY_PROVIDER == "deepinfra":
         logger.warning("[LLM CONFIG] DeepInfra model: %s", DEEPINFRA_MODEL)
         has_key = bool(os.getenv("DEEPINFRA_API_KEY"))
         logger.warning("[LLM CONFIG] DEEPINFRA_API_KEY: %s", "set" if has_key else "NOT SET")
     env_val = os.getenv("GEMINI_MODEL", "(not set — using default)")
     logger.warning("[LLM CONFIG] GEMINI_MODEL env var: %s", env_val)
-    _model_key_hints = {"MODEL", "LLM", "GEMINI", "GPT", "OPENAI", "PROVIDER", "DEEPINFRA"}
+    _model_key_hints = {"MODEL", "LLM", "GEMINI", "GPT", "OPENAI", "PROVIDER", "DEEPINFRA", "TOGETHER"}
     for key, val in os.environ.items():
         key_upper = key.upper()
         if not any(h in key_upper for h in _model_key_hints):
