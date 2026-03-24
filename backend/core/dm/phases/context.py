@@ -27,6 +27,7 @@ ENABLE_RELATIONSHIP_DETECTION = (
 )
 ENABLE_ADVANCED_PROMPTS = os.getenv("ENABLE_ADVANCED_PROMPTS", "true").lower() == "true"
 ENABLE_CITATIONS = os.getenv("ENABLE_CITATIONS", "true").lower() == "true"
+ENABLE_HIERARCHICAL_MEMORY = os.getenv("ENABLE_HIERARCHICAL_MEMORY", "false").lower() == "true"
 
 
 async def phase_memory_and_context(
@@ -112,6 +113,42 @@ async def phase_memory_and_context(
                 cognitive_metadata["memory_chars"] = len(memory_context)
         except Exception as e:
             logger.debug(f"[MEMORY] recall failed: {e}")
+
+    # Hierarchical memory (IMPersona-style 3-level: episodic + semantic + abstract)
+    hier_memory_context = ""
+    if ENABLE_HIERARCHICAL_MEMORY:
+        try:
+            from core.hierarchical_memory.hierarchical_memory import HierarchicalMemoryManager
+
+            hmm = HierarchicalMemoryManager(agent.creator_id)
+            lead_name = metadata.get("username", "") or (
+                follower.username if hasattr(follower, "username") else ""
+            )
+            hier_memory_context = hmm.get_context_for_message(
+                message=message,
+                lead_name=lead_name,
+                lead_id=sender_id,
+                max_tokens=300,
+            )
+            if hier_memory_context:
+                _hmm_stats = hmm.stats()
+                cognitive_metadata["hier_memory_injected"] = True
+                cognitive_metadata["hier_memory_chars"] = len(hier_memory_context)
+                cognitive_metadata["hier_memory_levels"] = {
+                    "L1": _hmm_stats["level1_count"],
+                    "L2": _hmm_stats["level2_count"],
+                    "L3": _hmm_stats["level3_count"],
+                }
+                logger.info(
+                    "[HIER-MEM] Injected %d chars (L1=%d L2=%d L3=%d) for %s",
+                    len(hier_memory_context),
+                    _hmm_stats["level1_count"],
+                    _hmm_stats["level2_count"],
+                    _hmm_stats["level3_count"],
+                    sender_id[:20],
+                )
+        except Exception as e:
+            logger.debug(f"[HIER-MEM] Failed: {e}")
 
     # ECHO Engine: Load pending commitments for this lead (Sprint 4)
     commitment_text = ""
@@ -402,6 +439,8 @@ async def phase_memory_and_context(
                 few_shot_section,        # Calibration examples (10 selected)
                 advanced_section,        # Anti-hallucination rules
                 citation_context,        # Source attribution rules
+                # --- SEMI-STATIC (creator-level, refreshed periodically) ---
+                hier_memory_context,     # IMPersona: L3 abstract + L2 patterns + L1 episodic
                 # --- VARIABLE per lead/message ---
                 friend_context,          # Friend/family override (critical)
                 relational_block,        # ECHO: Lead-specific behavior
@@ -488,6 +527,7 @@ async def phase_memory_and_context(
     ctx.audio_context = audio_context
     ctx.relational_block = relational_block
     ctx.echo_rel_ctx = _echo_rel_ctx
+    ctx.hier_memory_context = hier_memory_context
     ctx.friend_context = friend_context
     ctx.citation_context = citation_context
     ctx.advanced_section = advanced_section

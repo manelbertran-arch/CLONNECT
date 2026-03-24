@@ -11,6 +11,7 @@ COST REFERENCE (as of 2026-03):
   Qwen/Qwen3-32B (DeepInfra): ~$0.20/1M input, $0.20/1M output
   Qwen/Qwen3-32B (Together):  ~$0.30/1M input, $0.50/1M output
   Qwen/Qwen3-8B  (Together):  ~$0.10/1M input, $0.10/1M output
+  Qwen/Qwen3-8B  (Fireworks): ~$0.10/1M input, $0.10/1M output (LoRA serverless at base price)
 """
 import logging
 import os
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # PROVIDER ROUTING — which LLM provider to try first
-# Options: "gemini" (default), "together", "deepinfra", "openai"
+# Options: "gemini" (default), "together", "deepinfra", "fireworks", "openai"
 # The cascade is always: PRIMARY → Gemini (if not primary) → GPT-4o-mini → None
 # ---------------------------------------------------------------------------
 LLM_PRIMARY_PROVIDER: str = os.getenv("LLM_PRIMARY_PROVIDER", "gemini")
@@ -39,6 +40,12 @@ DEEPINFRA_MODEL: str = os.getenv("DEEPINFRA_MODEL", "Qwen/Qwen3-32B")
 # TOGETHER MODEL — override via TOGETHER_MODEL env var
 # ---------------------------------------------------------------------------
 TOGETHER_MODEL: str = os.getenv("TOGETHER_MODEL", "Qwen/Qwen3-32B")
+
+# ---------------------------------------------------------------------------
+# FIREWORKS MODEL — override via FIREWORKS_MODEL env var
+# Supports LoRA serverless: fine-tuned adapters at base model price
+# ---------------------------------------------------------------------------
+FIREWORKS_MODEL: str = os.getenv("FIREWORKS_MODEL", "accounts/fireworks/models/qwen3-8b")
 
 # ---------------------------------------------------------------------------
 # BLOCKED MODELS — too expensive for production DM inference
@@ -81,9 +88,13 @@ def log_model_config() -> None:
         logger.warning("[LLM CONFIG] DeepInfra model: %s", DEEPINFRA_MODEL)
         has_key = bool(os.getenv("DEEPINFRA_API_KEY"))
         logger.warning("[LLM CONFIG] DEEPINFRA_API_KEY: %s", "set" if has_key else "NOT SET")
+    elif LLM_PRIMARY_PROVIDER == "fireworks":
+        logger.warning("[LLM CONFIG] Fireworks model: %s", FIREWORKS_MODEL)
+        has_key = bool(os.getenv("FIREWORKS_API_KEY"))
+        logger.warning("[LLM CONFIG] FIREWORKS_API_KEY: %s", "set" if has_key else "NOT SET")
     env_val = os.getenv("GEMINI_MODEL", "(not set — using default)")
     logger.warning("[LLM CONFIG] GEMINI_MODEL env var: %s", env_val)
-    _model_key_hints = {"MODEL", "LLM", "GEMINI", "GPT", "OPENAI", "PROVIDER", "DEEPINFRA", "TOGETHER"}
+    _model_key_hints = {"MODEL", "LLM", "GEMINI", "GPT", "OPENAI", "PROVIDER", "DEEPINFRA", "TOGETHER", "FIREWORKS"}
     for key, val in os.environ.items():
         key_upper = key.upper()
         if not any(h in key_upper for h in _model_key_hints):
