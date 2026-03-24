@@ -17,7 +17,7 @@ from typing import Optional
 
 import httpx
 
-from core.config.llm_models import GEMINI_PRIMARY_MODEL, safe_model
+from core.config.llm_models import GEMINI_PRIMARY_MODEL, LLM_PRIMARY_PROVIDER, safe_model
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +277,13 @@ async def generate_simple(
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": prompt})
 
-    # 1. Try Gemini (skip if circuit is open)
+    # 1. Try DeepInfra if configured as primary
+    if LLM_PRIMARY_PROVIDER == "deepinfra":
+        result = await _try_deepinfra(messages, max_tokens, temperature, "background")
+        if result and result.get("content"):
+            return result["content"]
+
+    # 2. Try Gemini (skip if circuit is open)
     if _gemini_circuit_is_open():
         logger.info("generate_simple: circuit breaker open, skipping Gemini")
     else:
@@ -398,7 +404,37 @@ def _add_fallback_guard(messages: list[dict]) -> list[dict]:
 
 
 # =============================================================================
-# Production DM response: Flash-Lite → GPT-4o-mini → None
+# DeepInfra primary provider (when LLM_PRIMARY_PROVIDER=deepinfra)
+# =============================================================================
+
+async def _try_deepinfra(
+    messages: list[dict],
+    max_tokens: int,
+    temperature: float,
+    call_type: str,
+) -> Optional[dict]:
+    """Try DeepInfra as primary provider. Returns result dict or None."""
+    try:
+        from core.providers.deepinfra_provider import call_deepinfra
+
+        timeout = float(os.getenv("DEEPINFRA_TIMEOUT", "8"))
+        result = await asyncio.wait_for(
+            call_deepinfra(messages, max_tokens, temperature),
+            timeout=timeout,
+        )
+        if result:
+            asyncio.create_task(_async_log_usage(result, call_type))
+            return result
+        logger.warning("DeepInfra returned empty, falling back to Gemini")
+    except asyncio.TimeoutError:
+        logger.warning("DeepInfra timeout, falling back to Gemini")
+    except Exception as e:
+        logger.warning("DeepInfra failed: %s, falling back to Gemini", e)
+    return None
+
+
+# =============================================================================
+# Production DM response: [DeepInfra →] Gemini → GPT-4o-mini → None
 # =============================================================================
 
 async def generate_dm_response(
@@ -418,9 +454,16 @@ async def generate_dm_response(
 
     Called from dm_agent_v2.py for all DM responses.
     """
-    # 1. PRIMARY: Gemini Flash-Lite (skip if circuit is open)
+    # 1. PRIMARY: route based on LLM_PRIMARY_PROVIDER
+    if LLM_PRIMARY_PROVIDER == "deepinfra":
+        result = await _try_deepinfra(messages, max_tokens, temperature, "dm_response")
+        if result:
+            return result
+        # DeepInfra failed — fall through to Gemini as secondary
+
+    # 2. GEMINI: primary (default) or secondary (when DeepInfra is primary)
     if _gemini_circuit_is_open():
-        logger.info("Circuit breaker open — skipping Gemini, going direct to GPT-4o-mini")
+        logger.info("Circuit breaker open — skipping Gemini")
     else:
         try:
             primary_timeout = float(os.getenv("LLM_PRIMARY_TIMEOUT", "5"))
@@ -432,18 +475,18 @@ async def generate_dm_response(
                 _gemini_record_success()
                 asyncio.create_task(_async_log_usage(result, "dm_response"))
                 return result
-            logger.warning("Flash-Lite returned empty, falling back to GPT-4o-mini")
+            logger.warning("Flash-Lite returned empty, falling back")
             _gemini_record_failure()
         except asyncio.TimeoutError:
-            logger.warning("Flash-Lite timeout after %.0fs, falling back to GPT-4o-mini",
+            logger.warning("Flash-Lite timeout after %.0fs, falling back",
                             float(os.getenv("LLM_PRIMARY_TIMEOUT", "5")))
             _gemini_record_failure()
         except Exception as e:
-            logger.warning("Flash-Lite failed: %s, falling back to GPT-4o-mini", e)
+            logger.warning("Flash-Lite failed: %s, falling back", e)
             _gemini_record_failure()
 
-    # 2. FALLBACK: GPT-4o-mini with anti-hallucination guard
-    logger.warning("[LLM-FALLBACK] Gemini failed, using OpenAI GPT-4o-mini")
+    # 3. FALLBACK: GPT-4o-mini with anti-hallucination guard
+    logger.warning("[LLM-FALLBACK] Primary providers failed, using OpenAI GPT-4o-mini")
     fallback_messages = _add_fallback_guard(messages)
     try:
         result = await _call_openai_mini(fallback_messages, max_tokens, temperature)
