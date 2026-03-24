@@ -1,19 +1,33 @@
 """
 LLM-as-Judge Measurement Script — Primary Clone Quality Metric
 
-Runs the production DM pipeline on 50 test conversations, then evaluates
-each response with GPT-4o-mini as judge across 6 dimensions.
+Runs the production DM pipeline (or an external provider) on test conversations,
+then evaluates each response with GPT-4o-mini as judge across 6 dimensions.
 
 SequenceMatcher is included for backward-compatible tracking but LLM-Judge
 is the primary metric (SM has a ~30% ceiling and penalizes synonyms).
 
 Usage:
+    # Default: production pipeline (gemini)
     railway run python3 tests/measure_llm_judge.py
     railway run python3 tests/measure_llm_judge.py --output tests/my_run.json
     railway run python3 tests/measure_llm_judge.py --test-set tests/test_set_v2.json
-    railway run python3 tests/measure_llm_judge.py --judge-only tests/baseline_v3_final.json
 
-The --test-set flag uses a custom test set (default: test_set_v1.json).
+    # External provider: Together AI, Fireworks, DeepInfra
+    python3 tests/measure_llm_judge.py \\
+      --provider together --model Qwen/Qwen3-32B \\
+      --test-set tests/test_set_v2.json -o tests/score_qwen32b_v1.json
+
+    python3 tests/measure_llm_judge.py \\
+      --provider deepinfra --model Qwen/Qwen3-32B \\
+      -o tests/score_deepinfra.json
+
+    # Judge-only: re-evaluate existing results
+    python3 tests/measure_llm_judge.py --judge-only tests/baseline_v3_final.json
+
+The --provider flag selects the model provider (gemini, together, fireworks, deepinfra).
+The --model flag specifies the exact model ID for external providers.
+The --limit flag restricts the number of conversations to evaluate.
 The --judge-only flag skips the pipeline run and evaluates an existing
 baseline file (must contain conversations[].bot_response).
 """
@@ -23,6 +37,7 @@ import json
 import logging
 import os
 import random
+import re
 import statistics
 import sys
 import time
@@ -194,6 +209,159 @@ async def run_pipeline(conversations: List[Dict]) -> List[Dict]:
             "sm_score": sm_score,
             "elapsed_ms": elapsed_ms,
         })
+
+    return results
+
+
+# =========================================================================
+# EXTERNAL PROVIDER PIPELINE (Together, Fireworks, DeepInfra)
+# =========================================================================
+
+PROVIDER_CONFIGS = {
+    "together": {
+        "base_url": "https://api.together.xyz/v1",
+        "env_key": "TOGETHER_API_KEY",
+    },
+    "fireworks": {
+        "base_url": "https://api.fireworks.ai/inference/v1",
+        "env_key": "FIREWORKS_API_KEY",
+    },
+    "deepinfra": {
+        "base_url": "https://api.deepinfra.com/v1/openai",
+        "env_key": "DEEPINFRA_API_KEY",
+    },
+}
+
+
+def _load_system_prompt() -> str:
+    """Load Doc D distilled as system prompt for external providers."""
+    doc_d_path = REPO_ROOT / "data" / "personality_extractions" / "iris_bertran_v2_distilled.md"
+    if doc_d_path.exists():
+        return doc_d_path.read_text(encoding="utf-8")
+    logger.warning("Doc D not found, using minimal system prompt")
+    return "Eres Iris Bertran. Responde como ella: breve, informal, con emojis."
+
+
+def _load_few_shot() -> str:
+    """Load few-shot examples from calibration file."""
+    cal_path = REPO_ROOT / "calibrations" / f"{CREATOR_ID}.json"
+    if not cal_path.exists():
+        return ""
+    try:
+        with open(cal_path) as f:
+            cal = json.load(f)
+        examples = cal.get("few_shot_examples", [])
+        if not examples:
+            return ""
+        selected = random.sample(examples, min(10, len(examples)))
+        lines = ["=== EJEMPLOS REALES DE CÓMO RESPONDES ==="]
+        for ex in selected:
+            lines.append(f"Follower: {ex.get('user_message', '')}")
+            lines.append(f"Tú: {ex.get('response', '')}")
+            lines.append("")
+        lines.append("Responde de forma breve y natural, como en los ejemplos.")
+        lines.append("=== FIN EJEMPLOS ===")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.warning(f"Could not load calibration: {e}")
+        return ""
+
+
+def _get_provider_client(provider: str):
+    """Create an OpenAI-compatible client for the given provider."""
+    from openai import OpenAI
+    config = PROVIDER_CONFIGS[provider]
+    api_key = os.environ.get(config["env_key"])
+    if not api_key:
+        logger.error(f"{config['env_key']} not set")
+        sys.exit(1)
+    return OpenAI(api_key=api_key, base_url=config["base_url"])
+
+
+async def run_provider_pipeline(
+    conversations: List[Dict], provider: str, model: str
+) -> List[Dict]:
+    """Run an external provider model on all test conversations."""
+    client = _get_provider_client(provider)
+    system_prompt = _load_system_prompt()
+    few_shot = _load_few_shot()
+    full_system = f"{system_prompt}\n\n{few_shot}" if few_shot else system_prompt
+
+    logger.info(f"External provider: {provider} / {model}")
+    logger.info(f"System prompt: {len(full_system)} chars")
+
+    results = []
+    for i, conv in enumerate(conversations, 1):
+        conv_id = conv["id"]
+        test_input = conv.get("test_input", "")
+        ground_truth = conv.get("ground_truth", "")
+        conv_type = conv.get("type", "unknown")
+        language = conv.get("language", "es")
+
+        logger.info(f"[{i}/{len(conversations)}] {conv_id}: {conv_type}/{language}")
+
+        # Build message history
+        messages = [{"role": "system", "content": full_system}]
+        for turn in conv.get("turns", [])[-6:]:
+            role = turn.get("role", "")
+            content = turn.get("content", "")
+            if not content:
+                continue
+            if role == "iris":
+                messages.append({"role": "assistant", "content": content})
+            elif role == "lead":
+                messages.append({"role": "user", "content": content})
+
+        # Add the test input as the final user message
+        messages.append({"role": "user", "content": test_input})
+
+        t0 = time.monotonic()
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=150,
+            )
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            bot_response = response.choices[0].message.content.strip()
+            # Strip <think>...</think> reasoning tags (Qwen3, DeepSeek, etc.)
+            # Also handle truncated thinking (no closing tag — increase max_tokens and retry)
+            bot_response = re.sub(r"<think>.*?</think>\s*", "", bot_response, flags=re.DOTALL).strip()
+            if bot_response.startswith("<think>"):
+                # Thinking was truncated — retry with more tokens
+                try:
+                    response2 = client.chat.completions.create(
+                        model=model, messages=messages, temperature=0.7, max_tokens=512,
+                    )
+                    bot_response = response2.choices[0].message.content.strip()
+                    bot_response = re.sub(r"<think>.*?</think>\s*", "", bot_response, flags=re.DOTALL).strip()
+                except Exception:
+                    pass
+                # If still stuck in think mode, extract any text after </think> or discard
+                if bot_response.startswith("<think>"):
+                    bot_response = ""
+        except Exception as e:
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            logger.error(f"[{conv_id}] FAILED: {e}")
+            bot_response = ""
+
+        sm_score = compute_sm_score(bot_response, ground_truth)
+        logger.info(f"  -> SM={sm_score}% | {elapsed_ms}ms | '{bot_response[:50]}...'")
+
+        results.append({
+            "id": conv_id,
+            "type": conv_type,
+            "language": language,
+            "test_input": test_input,
+            "bot_response": bot_response,
+            "ground_truth": ground_truth,
+            "sm_score": sm_score,
+            "elapsed_ms": elapsed_ms,
+        })
+
+        # Rate limit: small sleep between calls
+        time.sleep(0.2)
 
     return results
 
@@ -427,7 +595,18 @@ async def main():
                         help="Custom test set JSON (default: tests/test_set_v2.json)")
     parser.add_argument("--judge-only", type=str, default=None,
                         help="Skip pipeline, judge an existing baseline JSON file")
+    parser.add_argument("--provider", type=str, default="gemini",
+                        choices=["gemini", "together", "fireworks", "deepinfra"],
+                        help="Model provider for generating responses (default: gemini)")
+    parser.add_argument("--model", type=str, default=None,
+                        help="Model ID for external providers (e.g. Qwen/Qwen3-32B)")
+    parser.add_argument("--limit", type=int, default=None,
+                        help="Limit number of conversations to evaluate")
     args = parser.parse_args()
+
+    # Validate: external providers require --model
+    if args.provider != "gemini" and not args.model and not args.judge_only:
+        parser.error(f"--model is required when using --provider {args.provider}")
 
     output_path = Path(args.output)
 
@@ -438,6 +617,10 @@ async def main():
         test_data = json.load(f)
     test_convs = test_data.get("conversations", [])
     test_inputs = {c["id"]: c.get("test_input", "") for c in test_convs}
+
+    # Apply limit if specified
+    if args.limit and not args.judge_only:
+        test_convs = test_convs[:args.limit]
     logger.info(f"Loaded {len(test_convs)} conversations from test set")
 
     if args.judge_only:
@@ -457,10 +640,16 @@ async def main():
                 "sm_score": c.get("clone_score", c.get("sm_score", 0)),
                 "elapsed_ms": c.get("elapsed_ms", 0),
             })
-    else:
-        # Full mode: run pipeline then judge
+        if args.limit:
+            conversations = conversations[:args.limit]
+    elif args.provider == "gemini":
+        # Production pipeline (local agent with Gemini)
         logger.info(f"Full mode: running pipeline on {len(test_convs)} conversations")
         conversations = await run_pipeline(test_convs)
+    else:
+        # External provider pipeline
+        logger.info(f"External mode: {args.provider}/{args.model} on {len(test_convs)} conversations")
+        conversations = await run_provider_pipeline(test_convs, args.provider, args.model)
 
     # Run LLM-as-judge
     logger.info(f"Running LLM-as-Judge ({JUDGE_MODEL}) on {len(conversations)} conversations...")
@@ -470,17 +659,21 @@ async def main():
     agg = aggregate(conversations)
 
     # Build output
-    try:
-        from core.config.llm_models import GEMINI_PRIMARY_MODEL
-        bot_model = GEMINI_PRIMARY_MODEL
-    except Exception:
-        bot_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+    if args.provider == "gemini":
+        try:
+            from core.config.llm_models import GEMINI_PRIMARY_MODEL
+            bot_model = GEMINI_PRIMARY_MODEL
+        except Exception:
+            bot_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+    else:
+        bot_model = f"{args.provider}/{args.model}"
 
     output = {
         "version": "llm_judge",
         "date": str(date.today()),
         "judge_model": JUDGE_MODEL,
         "bot_model": bot_model,
+        "provider": args.provider,
         "baselines": {
             "v1_sm": BASELINE_V1_SM,
             "v1_judge": BASELINE_V1_JUDGE,
