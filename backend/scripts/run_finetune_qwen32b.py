@@ -14,7 +14,7 @@ import argparse
 import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(BASE_DIR, "data", "dpo", "trl")
+DATA_DIR = os.path.join(BASE_DIR, "data", "dpo")
 OUTPUT_BASE = "/output"
 
 MODEL_ID = "Qwen/Qwen3-32B"
