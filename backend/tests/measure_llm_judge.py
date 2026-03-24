@@ -230,6 +230,10 @@ PROVIDER_CONFIGS = {
         "base_url": "https://api.deepinfra.com/v1/openai",
         "env_key": "DEEPINFRA_API_KEY",
     },
+    "openrouter": {
+        "base_url": "https://openrouter.ai/api/v1",
+        "env_key": "OPENROUTER_API_KEY",
+    },
 }
 
 
@@ -267,6 +271,22 @@ def _load_few_shot() -> str:
         return ""
 
 
+def _load_hierarchical_memory() -> str:
+    """Load hierarchical memory context if ENABLE_HIERARCHICAL_MEMORY=true."""
+    if os.getenv("ENABLE_HIERARCHICAL_MEMORY", "false").lower() != "true":
+        return ""
+    try:
+        from core.hierarchical_memory.hierarchical_memory import HierarchicalMemoryManager
+        hmm = HierarchicalMemoryManager(CREATOR_ID)
+        ctx = hmm.get_context_for_message(message="", max_tokens=500)
+        if ctx:
+            logger.warning(f"[HierMem] Injecting {len(ctx)} chars of hierarchical memory")
+        return ctx
+    except Exception as e:
+        logger.warning(f"[HierMem] Failed to load: {e}")
+        return ""
+
+
 def _get_provider_client(provider: str):
     """Create an OpenAI-compatible client for the given provider."""
     from openai import OpenAI
@@ -285,7 +305,13 @@ async def run_provider_pipeline(
     client = _get_provider_client(provider)
     system_prompt = _load_system_prompt()
     few_shot = _load_few_shot()
-    full_system = f"{system_prompt}\n\n{few_shot}" if few_shot else system_prompt
+    hier_memory = _load_hierarchical_memory()
+    parts = [system_prompt]
+    if hier_memory:
+        parts.append(f"\n=== MEMORIA DEL CREATOR ===\n{hier_memory}\n=== FIN MEMORIA ===")
+    if few_shot:
+        parts.append(few_shot)
+    full_system = "\n\n".join(parts)
 
     # Disable thinking mode for Qwen3 and similar models
     if "qwen3" in model.lower() or "deepseek" in model.lower():
@@ -600,7 +626,7 @@ async def main():
     parser.add_argument("--judge-only", type=str, default=None,
                         help="Skip pipeline, judge an existing baseline JSON file")
     parser.add_argument("--provider", type=str, default="gemini",
-                        choices=["gemini", "together", "fireworks", "deepinfra"],
+                        choices=["gemini", "together", "fireworks", "deepinfra", "openrouter"],
                         help="Model provider for generating responses (default: gemini)")
     parser.add_argument("--model", type=str, default=None,
                         help="Model ID for external providers (e.g. Qwen/Qwen3-32B)")
