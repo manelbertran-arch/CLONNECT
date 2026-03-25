@@ -499,6 +499,7 @@ async def phase_memory_and_context(
         stage=current_stage,
         history=history,
         lead_info=_lead_info if _lead_info else None,
+        include_history=False,  # history injected as multi-turn messages in generation phase
     )
 
     _t2 = time.monotonic()

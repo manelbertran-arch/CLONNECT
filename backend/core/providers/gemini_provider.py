@@ -116,12 +116,17 @@ async def _call_gemini(
     max_tokens: int,
     temperature: float,
     max_retries: int = 2,
+    contents: Optional[list] = None,
 ) -> Optional[str]:
-    """Call Google Gemini API with fast retry (fail fast for interactive use)."""
+    """Call Google Gemini API with fast retry (fail fast for interactive use).
+
+    If `contents` is provided (multi-turn format), it takes priority over `user_message`.
+    `contents` should be a list of {"role": "user"|"model", "parts": [{"text": "..."}]}.
+    """
     url = f"{GEMINI_API_URL}/{model}:generateContent?key={api_key}"
 
     payload = {
-        "contents": [{"parts": [{"text": user_message}]}],
+        "contents": contents if contents is not None else [{"parts": [{"text": user_message}]}],
         "systemInstruction": {"parts": [{"text": system_prompt}]},
         "generationConfig": {
             "maxOutputTokens": max_tokens,
@@ -232,8 +237,8 @@ async def generate_response_gemini(
 ) -> Optional[str]:
     """Call Gemini Flash-Lite. Accepts OpenAI-format messages for compatibility.
 
-    Extracts system prompt and user message from the messages list,
-    then calls the Gemini generateContent API.
+    Converts OpenAI-format multi-turn messages to Gemini's contents format,
+    supporting full conversation history for better context utilization.
     """
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
@@ -242,22 +247,27 @@ async def generate_response_gemini(
 
     model = safe_model(os.getenv("GEMINI_MODEL", GEMINI_PRIMARY_MODEL))
 
-    # Extract system prompt and user message from OpenAI-format messages
+    # Build system prompt and multi-turn contents from OpenAI-format messages.
+    # Gemini uses "model" for assistant role; content must alternate user/model.
     system_prompt = ""
-    user_message = ""
+    contents = []
     for msg in messages:
-        if msg["role"] == "system":
-            system_prompt = msg["content"]
-        elif msg["role"] == "user":
-            user_message = msg["content"]
+        role = msg.get("role", "")
+        content = msg.get("content", "")
+        if role == "system":
+            system_prompt = content
+        elif role == "user":
+            contents.append({"role": "user", "parts": [{"text": content}]})
+        elif role == "assistant":
+            contents.append({"role": "model", "parts": [{"text": content}]})
 
-    if not user_message:
+    if not contents:
         logger.error("Gemini: no user message found in messages")
         return None
 
     result = await _call_gemini(
-        model, api_key, system_prompt, user_message,
-        max_tokens, temperature,
+        model, api_key, system_prompt, "",
+        max_tokens, temperature, contents=contents,
     )
     return result  # dict or None
 

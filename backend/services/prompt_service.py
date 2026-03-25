@@ -150,6 +150,7 @@ class PromptBuilder:
         stage: str,
         history: Optional[List[Dict[str, str]]] = None,
         lead_info: Optional[Dict[str, Any]] = None,
+        include_history: bool = True,
     ) -> str:
         """
         Build user context for the LLM.
@@ -189,8 +190,9 @@ class PromptBuilder:
 
         context_parts.append("=== FIN CONTEXTO ===")
 
-        # Add conversation history
-        if history:
+        # Add conversation history (only in single-turn mode; multi-turn injects
+        # history as separate messages directly in the LLM messages list)
+        if include_history and history:
             context_parts.append("")
             context_parts.append("=== HISTORIAL DE CONVERSACION ===")
             # Include last 10 messages to avoid context overflow

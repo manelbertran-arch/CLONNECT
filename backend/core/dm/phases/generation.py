@@ -261,10 +261,24 @@ async def phase_llm_generation(
     # Path: webhook → process_dm() → generate_dm_response() → gemini/openai
     from core.providers.gemini_provider import generate_dm_response
 
-    llm_messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": full_prompt},
-    ]
+    # Build multi-turn messages: system + history turns + current user message.
+    # History is passed as separate user/assistant messages so the LLM sees full
+    # conversational context (vs the old single-message flattened format).
+    llm_messages = [{"role": "system", "content": system_prompt}]
+    if history:
+        # Use last 10 messages; ensure we start with a user turn (Gemini requirement)
+        history_slice = history[-10:]
+        while history_slice and history_slice[0].get("role") != "user":
+            history_slice = history_slice[1:]
+        for msg in history_slice:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role in ("user", "assistant") and content:
+                # Truncate very long individual messages to control token spend
+                if len(content) > 600:
+                    content = content[:597] + "..."
+                llm_messages.append({"role": role, "content": content})
+    llm_messages.append({"role": "user", "content": full_prompt})
 
     # Best-of-N: generate 3 candidates at different temperatures (copilot only)
     best_of_n_result = None

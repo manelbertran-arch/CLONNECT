@@ -63,7 +63,7 @@ async def phase_postprocessing(
                     "[A2] Repetitive loop detected — response is exact duplicate of last message"
                 )
                 cognitive_metadata["loop_detected"] = True
-                response_content = "Cuéntame más"
+                response_content = "Jajaja 😂"
                 llm_response.content = response_content
     except Exception as e:
         logger.debug(f"Loop detection failed: {e}")
