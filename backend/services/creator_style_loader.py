@@ -31,29 +31,34 @@ def get_creator_style_prompt(creator_id: str) -> str:
     Returns:
         Formatted style prompt string, or empty string if no data
     """
-    # Priority 1: Personality extraction (Doc D full) — replaces all legacy sources
-    # Returns the full Doc D file (§4.1 system prompt + §4.2 blacklist + §4.3 calibration)
-    # so the LLM sees all three sections as explicit instructions, not just §4.1.
+    # Priority 1: Personality extraction (Doc D §4.1 + §4.2 blacklist) — replaces all legacy sources
+    # §4.1 is the core system prompt. §4.2 blacklist is appended as explicit LLM instructions
+    # so the model avoids banned service-bot phrases before post-processing filters.
     try:
+        import re as _re
         from core.personality_loader import load_extraction, _find_doc_path
 
         extraction = load_extraction(creator_id)
         if extraction and extraction.system_prompt:
+            combined = extraction.system_prompt
+
+            # Append §4.2 BLACKLIST as explicit instructions if available
             doc_path = _find_doc_path(creator_id)
             if doc_path:
-                import os as _os
-                full_content = open(doc_path, encoding="utf-8").read()
-                logger.info(
-                    "Using full Doc D for %s: %d chars (§4.1+§4.2+§4.3, replaces legacy sources)",
-                    creator_id, len(full_content),
+                raw = open(doc_path, encoding="utf-8").read()
+                m = _re.search(
+                    r"## 4\.2 BLACKLIST[^\n]*\n(.*?)(?=^##|\Z)",
+                    raw, _re.DOTALL | _re.MULTILINE,
                 )
-                return full_content
-            # Fallback to §4.1 only if file not found
+                if m:
+                    blacklist_text = m.group(1).strip()
+                    combined = combined + "\n\n=== FRASES PROHIBIDAS (NUNCA uses estas) ===\n" + blacklist_text
+
             logger.info(
-                "Using Doc D §4.1 for %s: %d chars (file not found, fallback)",
-                creator_id, len(extraction.system_prompt),
+                "Using Doc D §4.1+§4.2 for %s: %d chars (replaces legacy sources)",
+                creator_id, len(combined),
             )
-            return extraction.system_prompt
+            return combined
     except Exception as e:
         logger.warning("Could not load personality extraction for %s: %s", creator_id, e)
 
