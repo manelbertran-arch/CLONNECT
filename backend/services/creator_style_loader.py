@@ -31,14 +31,26 @@ def get_creator_style_prompt(creator_id: str) -> str:
     Returns:
         Formatted style prompt string, or empty string if no data
     """
-    # Priority 1: Personality extraction (Doc D §4.1) — replaces all legacy sources
+    # Priority 1: Personality extraction (Doc D full) — replaces all legacy sources
+    # Returns the full Doc D file (§4.1 system prompt + §4.2 blacklist + §4.3 calibration)
+    # so the LLM sees all three sections as explicit instructions, not just §4.1.
     try:
-        from core.personality_loader import load_extraction
+        from core.personality_loader import load_extraction, _find_doc_path
 
         extraction = load_extraction(creator_id)
         if extraction and extraction.system_prompt:
+            doc_path = _find_doc_path(creator_id)
+            if doc_path:
+                import os as _os
+                full_content = open(doc_path, encoding="utf-8").read()
+                logger.info(
+                    "Using full Doc D for %s: %d chars (§4.1+§4.2+§4.3, replaces legacy sources)",
+                    creator_id, len(full_content),
+                )
+                return full_content
+            # Fallback to §4.1 only if file not found
             logger.info(
-                "Using personality extraction for %s: %d chars (replaces legacy sources)",
+                "Using Doc D §4.1 for %s: %d chars (file not found, fallback)",
                 creator_id, len(extraction.system_prompt),
             )
             return extraction.system_prompt
