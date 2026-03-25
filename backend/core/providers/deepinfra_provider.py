@@ -11,6 +11,7 @@ Env vars:
 import asyncio
 import logging
 import os
+import re
 import time
 import time as _time
 from typing import Optional
@@ -53,7 +54,7 @@ def _record_failure():
 
 async def call_deepinfra(
     messages: list[dict],
-    max_tokens: int = 60,
+    max_tokens: int = 400,
     temperature: float = 0.7,
     model: Optional[str] = None,
 ) -> Optional[dict]:
@@ -82,6 +83,18 @@ async def call_deepinfra(
     timeout = float(os.getenv("DEEPINFRA_TIMEOUT", "8"))
     start = time.monotonic()
 
+    # Qwen3 thinking models: append /no_think to last user message to skip
+    # the chain-of-thought block and get direct responses at ~400ms vs ~5s.
+    send_messages = messages
+    if "Qwen3" in model or "qwen3" in model.lower():
+        send_messages = []
+        for i, msg in enumerate(messages):
+            if i == len(messages) - 1 and msg.get("role") == "user":
+                content = msg["content"].rstrip()
+                if not content.endswith("/no_think"):
+                    msg = {**msg, "content": content + " /no_think"}
+            send_messages.append(msg)
+
     try:
         from openai import AsyncOpenAI
 
@@ -93,7 +106,7 @@ async def call_deepinfra(
         response = await asyncio.wait_for(
             client.chat.completions.create(
                 model=model,
-                messages=messages,
+                messages=send_messages,
                 max_tokens=max_tokens,
                 temperature=temperature,
             ),
@@ -101,6 +114,8 @@ async def call_deepinfra(
         )
 
         content = (response.choices[0].message.content or "").strip()
+        # Strip empty or residual <think>...</think> blocks (Qwen3 /no_think leaves an empty block)
+        content = re.sub(r"<think>\s*</think>\s*", "", content).strip()
         latency_ms = int((time.monotonic() - start) * 1000)
         usage = response.usage
         tokens_in = usage.prompt_tokens if usage else 0
