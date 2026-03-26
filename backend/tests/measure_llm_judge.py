@@ -93,7 +93,7 @@ JUDGE_USER_PROMPT = """Evaluate this bot response against the creator's real res
 
 Type: {conv_type}
 Expected language: {language}
-Lead message: {lead_message}
+{history_section}Lead message: {lead_message}
 REAL Iris response: {ground_truth}
 BOT response: {bot_response}
 
@@ -528,14 +528,32 @@ def get_openai_client():
     return OpenAI(api_key=api_key)
 
 
+def _format_history_section(conv: Dict) -> str:
+    """Format conversation history for the judge prompt (last 5 turns)."""
+    turns = conv.get("turns", [])
+    if not turns:
+        return ""
+    # Show last 8 turns as context (enough to capture callback jokes, inside references)
+    recent = turns[-8:]
+    lines = ["Conversation history (last turns before the lead message):"]
+    for t in recent:
+        role = "Iris" if t.get("role") == "assistant" else "Lead"
+        content = t.get("content", "")[:100]
+        if content:
+            lines.append(f"  {role}: {content}")
+    return "\n".join(lines) + "\n\n"
+
+
 def judge_single(client, conv: Dict) -> Dict:
     """Call GPT-4o-mini to evaluate a single bot response. Returns dimension scores."""
+    history_section = _format_history_section(conv)
     prompt = JUDGE_USER_PROMPT.format(
         conv_type=conv["type"],
         language=conv["language"],
         lead_message=conv.get("test_input", "(unknown)"),
         ground_truth=conv["ground_truth"],
         bot_response=conv["bot_response"],
+        history_section=history_section,
     )
 
     try:
