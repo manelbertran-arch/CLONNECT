@@ -428,47 +428,29 @@ async def phase_memory_and_context(
         except Exception as e:
             logger.debug(f"[ECHO] Relationship Adapter failed: {e}")
 
-    # MRPrompt ordering: Enacting → Anchoring → Recalling → Bounding
-    # Bounding (IMPORTANTE guardrails) is appended last by prompt_service.build_system_prompt().
-
-    # RECALLING: Consolidate all lead-specific context into one block so the
-    # model receives a clear, unified cue to personalize its reply.
-    _lead_username = (follower.username if hasattr(follower, "username") and follower.username else sender_id)
-    _recall_parts = list(filter(None, [
-        memory_context,    # per-lead facts from memory engine
-        dna_context,       # relationship insights
-        relational_block,  # ECHO: warmth / stage-specific instructions
-        state_context,     # conversation phase
-    ]))
-    if _recall_parts:
-        lead_context_block = (
-            f"Sobre @{_lead_username}:\n"
-            + "\n".join(_recall_parts)
-            + "\nTen en cuenta esta info al responder."
-        )
-    else:
-        lead_context_block = ""
-
+    # Ordering: STATIC sections first (cacheable prefix for Gemini 90% discount),
+    # then VARIABLE sections that change per lead/message.
     combined_context = "\n\n".join(
         filter(
             None,
             [
-                # 1. ENACTING — examples first (strongest style signal for the model)
-                few_shot_section,
-                # 2. ANCHORING — creator identity + style rules (Doc D distilled)
-                agent.style_prompt,
-                advanced_section,        # Anti-hallucination rules (static, creator-level)
-                hier_memory_context,     # IMPersona hierarchical memory (semi-static)
-                # 3. RECALLING — per-lead context (consolidated)
-                lead_context_block,
-                # 4. FACTUAL DATA — grounding for product/info queries
-                rag_context,
-                kb_context,
-                citation_context,
-                # 5. CONDITIONAL — message-specific overrides
-                friend_context,          # Friend/family safety override
-                audio_context,           # Audio enrichment
-                prompt_override,         # Manual system override (lowest priority)
+                # --- STATIC per creator (cacheable prefix) ---
+                agent.style_prompt,       # HOW to write (Doc D distilled)
+                few_shot_section,        # Calibration examples (10 selected)
+                advanced_section,        # Anti-hallucination rules
+                citation_context,        # Source attribution rules
+                # --- SEMI-STATIC (creator-level, refreshed periodically) ---
+                hier_memory_context,     # IMPersona: L3 abstract + L2 patterns + L1 episodic
+                # --- VARIABLE per lead/message ---
+                friend_context,          # Friend/family override (critical)
+                relational_block,        # ECHO: Lead-specific behavior
+                rag_context,             # RAG chunks relevant to message
+                memory_context,          # Per-lead facts (personalization)
+                kb_context,              # Factual knowledge base lookup
+                dna_context,             # Relationship insights
+                state_context,           # Conversation phase
+                audio_context,           # Audio message context
+                prompt_override,         # Manual override (lowest)
             ],
         )
     )
