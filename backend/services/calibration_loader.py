@@ -31,51 +31,96 @@ _CACHE_TTL = float(os.getenv("CALIBRATION_CACHE_TTL", "300"))
 # Cache for pre-computed example embeddings: content_hash -> List[Optional[List[float]]]
 _example_embeddings_cache: Dict[int, List] = {}
 
+# Cache for per-creator Doc D vocabulary (blacklist + approved terms)
+_vocab_cache: Dict[str, Optional[Dict]] = {}
+
 CALIBRATIONS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
     "calibrations",
 )
 
 
-def _load_creator_blacklist(creator_id: str) -> List[str]:
-    """Extract prohibited terms from creator's Doc D personality file.
+def _load_creator_vocab(creator_id: str) -> Dict:
+    """Load creator vocabulary from Doc D: blacklist + approved substitutes.
 
-    Parses three sources in order:
-    1. 'NO usa: X, Y, Z' lines → prohibited words/phrases
-    2. '## 4.2 BLACKLIST' section → bulleted quoted phrases
-    3. 'NUNCA uses: emoji...' lines → forbidden emojis
+    Parses per-creator Doc D file and extracts four lists:
+    - blacklist_words:  prohibited address terms ('NO usa: compa, bro, mi vida...')
+    - blacklist_emojis: forbidden emojis ('NUNCA uses: 😊 😉 🥰...')
+    - approved_terms:   approved address terms ('SÍ usa: nena, tia, cuca...')
+    - approved_emojis:  top approved emojis ('Top emojis: 😂 🫠 🩷...')
+    - blacklist_phrases: service-bot phrases from §4.2 BLACKLIST section
 
-    Returns empty list if no Doc D found — safe default, no filtering applied.
+    Returns empty dict if no Doc D found — safe default, no filtering/replacement.
+    Cached per creator_id (module-level, never expires — Doc D changes rarely).
     Universal: works for any creator with a doc_d_bot_configuration.md.
     """
+    if creator_id in _vocab_cache:
+        return _vocab_cache[creator_id] or {}
+
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    candidates = [
+    doc_paths = [
         os.path.join(base_dir, "data", "personality_extractions", creator_id, "doc_d_bot_configuration.md"),
         os.path.join(base_dir, "data", "personality_extractions", f"{creator_id}_v2_distilled.md"),
         os.path.join(base_dir, "data", "personality_extractions", f"{creator_id}_distilled.md"),
     ]
 
     content = None
-    for path in candidates:
+    for path in doc_paths:
         if os.path.isfile(path):
             with open(path, encoding="utf-8") as fh:
                 content = fh.read()
             break
 
     if not content:
-        return []
+        _vocab_cache[creator_id] = None
+        return {}
 
-    terms: List[str] = []
+    def _dedup(lst: List[str]) -> List[str]:
+        seen: set = set()
+        return [x for x in lst if x and not (x in seen or seen.add(x))]  # type: ignore[func-returns-value]
 
-    # 1. "NO usa: X, Y, Z" → prohibited words (strip parenthetical comments)
+    # ── 1. "NO usa: X, Y, Z" → prohibited address terms ─────────────────────
+    blacklist_words: List[str] = []
     for m in _re.finditer(r"NO\s+usa:\s*([^\n.]+)", content, _re.IGNORECASE):
         raw = _re.sub(r"\([^)]*\)", "", m.group(1))
         for part in _re.split(r"[,;/]", raw):
             term = part.strip().strip('"').strip("'").strip()
-            if 2 <= len(term) <= 40:
-                terms.append(term.lower())
+            if 2 <= len(term) <= 30:
+                blacklist_words.append(term.lower())
 
-    # 2. BLACKLIST section: lines like '- "frase prohibida" / "otra frase"'
+    # ── 2. "SÍ usa: X, Y, Z" → approved address terms ───────────────────────
+    approved_terms: List[str] = []
+    for m in _re.finditer(r"SÍ\s+usa:\s*([^\n]+)", content, _re.IGNORECASE):
+        raw = _re.sub(r"\([^)]*\)", "", m.group(1))
+        for part in _re.split(r"[,;]", raw):
+            term = part.strip().strip('"').strip("'").strip()
+            if 2 <= len(term) <= 20:
+                approved_terms.append(term.lower())
+
+    # ── 3. "NUNCA uses: 😊 😉 ..." → forbidden emojis ───────────────────────
+    # Match base emoji + optional skin-tone modifier (U+1F3FB–U+1F3FF) or variation selector.
+    # This prevents splitting "✌🏽" into "✌" + "🏽" (a dangling modifier).
+    _EMOJI_RE = _re.compile(
+        r"[\U0001F300-\U0001FAFF\u2600-\u27BF][\U0001F3FB-\U0001F3FF\uFE0F]?"
+    )
+    # Pure skin-tone modifier chars (U+1F3FB–U+1F3FF) are never standalone emojis.
+    _SKIN_TONE_RE = _re.compile(r"^[\U0001F3FB-\U0001F3FF]$")
+
+    blacklist_emojis: List[str] = []
+    for m in _re.finditer(r"NUNCA\s+uses?:\s*([^\n\(]+)", content, _re.IGNORECASE):
+        blacklist_emojis.extend(
+            e for e in _EMOJI_RE.findall(m.group(1)) if not _SKIN_TONE_RE.match(e)
+        )
+
+    # ── 4. "Top emojis: 😂 🫠 ..." → approved emojis ────────────────────────
+    approved_emojis: List[str] = []
+    for m in _re.finditer(r"Top emojis[^:]*:\s*([^\n]+)", content, _re.IGNORECASE):
+        approved_emojis.extend(
+            e for e in _EMOJI_RE.findall(m.group(1)) if not _SKIN_TONE_RE.match(e)
+        )
+
+    # ── 5. §4.2 BLACKLIST section → service-bot phrases ─────────────────────
+    blacklist_phrases: List[str] = []
     in_blacklist = False
     for line in content.splitlines():
         if "4.2" in line or "BLACKLIST" in line.upper():
@@ -86,24 +131,118 @@ def _load_creator_blacklist(creator_id: str) -> List[str]:
             for m in _re.finditer(r'"([^"]{4,60})"', line):
                 phrase = m.group(1).strip().lower()
                 if phrase:
-                    terms.append(phrase)
+                    blacklist_phrases.append(phrase)
 
-    # 3. Forbidden emojis: "NUNCA uses: 😊 😉 ..."
-    for m in _re.finditer(r"NUNCA\s+uses?:\s*([^\n\(]+)", content, _re.IGNORECASE):
-        emojis = _re.findall(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]", m.group(1))
-        terms.extend(emojis)
+    vocab = {
+        "blacklist_words": _dedup(blacklist_words),
+        "blacklist_emojis": _dedup(blacklist_emojis),
+        "approved_terms": _dedup(approved_terms),
+        "approved_emojis": _dedup(approved_emojis),
+        "blacklist_phrases": _dedup(blacklist_phrases),
+    }
+    _vocab_cache[creator_id] = vocab
 
-    # Deduplicate preserving order
+    logger.debug(
+        "[Vocab] %s: %d blacklist_words, %d blacklist_emojis, %d approved_terms, %d approved_emojis",
+        creator_id,
+        len(vocab["blacklist_words"]),
+        len(vocab["blacklist_emojis"]),
+        len(vocab["approved_terms"]),
+        len(vocab["approved_emojis"]),
+    )
+    return vocab
+
+
+def _load_creator_blacklist(creator_id: str) -> List[str]:
+    """Return flat list of all prohibited terms for few-shot filtering.
+
+    Combines blacklist_words + blacklist_emojis + blacklist_phrases from Doc D.
+    Returns empty list if no Doc D found — safe default, no filtering applied.
+    """
+    vocab = _load_creator_vocab(creator_id)
+    if not vocab:
+        return []
+    terms = (
+        vocab.get("blacklist_words", [])
+        + vocab.get("blacklist_emojis", [])
+        + vocab.get("blacklist_phrases", [])
+    )
     seen: set = set()
-    result = []
-    for t in terms:
-        if t and t not in seen:
-            seen.add(t)
-            result.append(t)
-
+    result = [t for t in terms if t and not (t in seen or seen.add(t))]  # type: ignore[func-returns-value]
     if result:
-        logger.debug("[Blacklist] %s: %d prohibited terms loaded from Doc D", creator_id, len(result))
+        logger.debug("[Blacklist] %s: %d prohibited terms", creator_id, len(result))
     return result
+
+
+def apply_blacklist_replacement(response: str, creator_id: str) -> "tuple[str, bool]":
+    """Replace prohibited words/emojis in a generated response with approved equivalents.
+
+    Reads the creator's Doc D to determine:
+    - Words to replace (from 'NO usa:') → substituted with a random approved address term
+    - Emojis to replace (from 'NUNCA uses:') → substituted with a random approved emoji
+
+    Only applies to SHORT address-term words (≤3 words) to avoid mangling sentences.
+    Full service-bot phrases (§4.2) are NOT replaced here — they indicate a deeper
+    style failure that would require regeneration.
+
+    Returns (modified_response, was_changed).
+    Safe no-op if no Doc D found or no violations detected.
+    """
+    vocab = _load_creator_vocab(creator_id)
+    if not vocab:
+        return response, False
+
+    import random as _rng
+
+    modified = response
+    changed = False
+    approved_terms = vocab.get("approved_terms", [])
+    approved_emojis = vocab.get("approved_emojis", [])
+
+    # ── Replace prohibited address words ─────────────────────────────────────
+    for word in vocab.get("blacklist_words", []):
+        # Only replace single or two-word address terms, never fragments of long phrases
+        if len(word.split()) > 2:
+            continue
+        pattern = r"\b" + _re.escape(word) + r"\b"
+        if not _re.search(pattern, modified, _re.IGNORECASE):
+            continue
+
+        if approved_terms:
+            replacement = _rng.choice(approved_terms)
+            new_modified = _re.sub(pattern, replacement, modified, flags=_re.IGNORECASE)
+        else:
+            # No replacement defined — strip the word with its surrounding comma/space
+            new_modified = _re.sub(
+                r"(\s*,\s*)?\b" + _re.escape(word) + r"\b(\s*,\s*)?",
+                lambda m: " " if (m.group(1) and m.group(2)) else "",
+                modified,
+                flags=_re.IGNORECASE,
+            ).strip()
+
+        if new_modified != modified:
+            logger.info(
+                "[Blacklist] %s: '%s' → '%s' in response",
+                creator_id, word, approved_terms[0] if approved_terms else "(removed)",
+            )
+            modified = new_modified
+            changed = True
+
+    # ── Replace forbidden emojis ──────────────────────────────────────────────
+    for emoji in vocab.get("blacklist_emojis", []):
+        if emoji not in modified:
+            continue
+        replacement_emoji = _rng.choice(approved_emojis) if approved_emojis else ""
+        new_modified = modified.replace(emoji, replacement_emoji)
+        if new_modified != modified:
+            logger.info(
+                "[Blacklist] %s: emoji %s → %s",
+                creator_id, emoji, replacement_emoji or "(removed)",
+            )
+            modified = new_modified
+            changed = True
+
+    return modified, changed
 
 
 def _filter_blacklisted_examples(

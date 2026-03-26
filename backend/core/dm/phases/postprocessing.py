@@ -170,6 +170,20 @@ async def phase_postprocessing(
     except Exception as e:
         logger.debug(f"Emoji limit failed: {e}")
 
+    # Step 7a2b3: Blacklist word/emoji replacement from Doc D
+    # Replaces prohibited address terms ('compa'→'nena') and forbidden emojis (🥰→🩷).
+    # Reads creator's Doc D — no-op if no Doc D exists. Universal across creators.
+    try:
+        from services.calibration_loader import apply_blacklist_replacement
+
+        response_content, _bl_changed = apply_blacklist_replacement(
+            response_content, agent.creator_id
+        )
+        if _bl_changed:
+            cognitive_metadata["blacklist_replacement"] = True
+    except Exception as e:
+        logger.debug(f"Blacklist replacement failed: {e}")
+
     # Step 7a2c: Question removal
     if ENABLE_QUESTION_REMOVAL:
         try:
