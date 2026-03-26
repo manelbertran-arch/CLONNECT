@@ -13,6 +13,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
@@ -149,6 +150,7 @@ class PreferencePair(Base):
     confidence_delta = Column(Float, nullable=True)
     edit_diff = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_active = Column(Boolean, server_default=text("true"), nullable=False)
     exported_at = Column(DateTime(timezone=True), nullable=True)
     batch_analyzed_at = Column(DateTime(timezone=True), nullable=True)
 
