@@ -234,6 +234,10 @@ PROVIDER_CONFIGS = {
         "base_url": "https://openrouter.ai/api/v1",
         "env_key": "OPENROUTER_API_KEY",
     },
+    "openai": {
+        "base_url": "https://api.openai.com/v1",
+        "env_key": "OPENAI_API_KEY",
+    },
 }
 
 
@@ -287,22 +291,20 @@ def _load_hierarchical_memory() -> str:
         return ""
 
 
-def _get_provider_client(provider: str):
+def _get_provider_client(provider: str, base_url_override: str = None):
     """Create an OpenAI-compatible client for the given provider."""
     from openai import OpenAI
     config = PROVIDER_CONFIGS[provider]
-    api_key = os.environ.get(config["env_key"])
-    if not api_key:
-        logger.error(f"{config['env_key']} not set")
-        sys.exit(1)
-    return OpenAI(api_key=api_key, base_url=config["base_url"])
+    api_key = os.environ.get(config["env_key"]) or "hf-token"
+    base_url = base_url_override or config["base_url"]
+    return OpenAI(api_key=api_key, base_url=base_url)
 
 
 async def run_provider_pipeline(
-    conversations: List[Dict], provider: str, model: str
+    conversations: List[Dict], provider: str, model: str, base_url_override: str = None
 ) -> List[Dict]:
     """Run an external provider model on all test conversations."""
-    client = _get_provider_client(provider)
+    client = _get_provider_client(provider, base_url_override=base_url_override)
     system_prompt = _load_system_prompt()
     few_shot = _load_few_shot()
     hier_memory = _load_hierarchical_memory()
@@ -337,9 +339,9 @@ async def run_provider_pipeline(
             content = turn.get("content", "")
             if not content:
                 continue
-            if role == "iris":
+            if role in ("iris", "assistant"):
                 messages.append({"role": "assistant", "content": content})
-            elif role == "lead":
+            elif role in ("lead", "user"):
                 messages.append({"role": "user", "content": content})
 
         # Add the test input as the final user message
@@ -392,6 +394,123 @@ async def run_provider_pipeline(
 
         # Rate limit: small sleep between calls
         time.sleep(0.2)
+
+    return results
+
+
+# =========================================================================
+# LOCAL PROVIDER (transformers + peft on MPS/CPU)
+# =========================================================================
+
+_local_model = None
+_local_tokenizer = None
+_local_sampler = None
+
+
+def _load_local_model(model_path: str):
+    """Load a merged model via mlx-lm (Apple Silicon optimized). Cached across calls."""
+    global _local_model, _local_tokenizer, _local_sampler
+    if _local_model is not None:
+        return _local_model, _local_tokenizer, _local_sampler
+
+    from mlx_lm import load
+    from mlx_lm.sample_utils import make_sampler
+
+    logger.info(f"Loading model via mlx-lm from {model_path}...")
+    _local_model, _local_tokenizer = load(model_path)
+    _local_sampler = make_sampler(temp=0.7, top_p=0.9)
+    logger.info("mlx-lm model ready.")
+    return _local_model, _local_tokenizer, _local_sampler
+
+
+def _local_generate(model, tokenizer, sampler, messages: list, max_tokens: int = 150) -> str:
+    """Generate a response from the local mlx-lm model given chat messages."""
+    from mlx_lm import generate
+    # Truncate system prompt if too long to avoid Metal OOM (24GB Mac, 16GB model)
+    truncated = []
+    for m in messages:
+        if m["role"] == "system" and len(m["content"]) > 3000:
+            truncated.append({**m, "content": m["content"][:3000]})
+        else:
+            truncated.append(m)
+    prompt = tokenizer.apply_chat_template(truncated, tokenize=False, add_generation_prompt=True)
+    response = generate(
+        model, tokenizer, prompt=prompt, max_tokens=max_tokens,
+        sampler=sampler, max_kv_size=2048
+    )
+    # Strip <think>...</think> blocks
+    response = re.sub(r"<think>.*?</think>\s*", "", response, flags=re.DOTALL).strip()
+    if response.startswith("<think>"):
+        response = ""
+    return response
+
+
+async def run_local_pipeline(
+    conversations: List[Dict], model_path: str
+) -> List[Dict]:
+    """Run local model via mlx-lm on all test conversations."""
+    model, tokenizer, sampler = _load_local_model(model_path)
+
+    system_prompt = _load_system_prompt()
+    few_shot = _load_few_shot()
+    hier_memory = _load_hierarchical_memory()
+    parts = [system_prompt]
+    if hier_memory:
+        parts.append(f"\n=== MEMORIA DEL CREATOR ===\n{hier_memory}\n=== FIN MEMORIA ===")
+    if few_shot:
+        parts.append(few_shot)
+    parts.append("/no_think")
+    full_system = "\n\n".join(parts)
+
+    logger.info(f"Local provider: {model_path}")
+    logger.info(f"System prompt: {len(full_system)} chars")
+
+    results = []
+    for i, conv in enumerate(conversations, 1):
+        conv_id = conv["id"]
+        test_input = conv.get("test_input", "")
+        ground_truth = conv.get("ground_truth", "")
+        conv_type = conv.get("type", "unknown")
+        language = conv.get("language", "es")
+
+        logger.info(f"[{i}/{len(conversations)}] {conv_id}: {conv_type}/{language}")
+
+        messages = [{"role": "system", "content": full_system}]
+        for turn in conv.get("turns", [])[-6:]:
+            role = turn.get("role", "")
+            content = turn.get("content", "")
+            if not content:
+                continue
+            if role in ("iris", "assistant"):
+                messages.append({"role": "assistant", "content": content})
+            elif role in ("lead", "user"):
+                messages.append({"role": "user", "content": content})
+        messages.append({"role": "user", "content": test_input})
+
+        t0 = time.monotonic()
+        try:
+            bot_response = await asyncio.to_thread(
+                _local_generate, model, tokenizer, sampler, messages, 150
+            )
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+        except Exception as e:
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            logger.error(f"[{conv_id}] FAILED: {e}")
+            bot_response = ""
+
+        sm_score = compute_sm_score(bot_response, ground_truth)
+        logger.info(f"  -> SM={sm_score}% | {elapsed_ms}ms | '{bot_response[:60]}...'")
+
+        results.append({
+            "id": conv_id,
+            "type": conv_type,
+            "language": language,
+            "test_input": test_input,
+            "bot_response": bot_response,
+            "ground_truth": ground_truth,
+            "sm_score": sm_score,
+            "elapsed_ms": elapsed_ms,
+        })
 
     return results
 
@@ -626,17 +745,21 @@ async def main():
     parser.add_argument("--judge-only", type=str, default=None,
                         help="Skip pipeline, judge an existing baseline JSON file")
     parser.add_argument("--provider", type=str, default="gemini",
-                        choices=["gemini", "together", "fireworks", "deepinfra", "openrouter"],
+                        choices=["gemini", "together", "fireworks", "deepinfra", "openrouter", "openai", "local"],
                         help="Model provider for generating responses (default: gemini)")
     parser.add_argument("--model", type=str, default=None,
                         help="Model ID for external providers (e.g. Qwen/Qwen3-32B)")
+    parser.add_argument("--base-url", type=str, default=None,
+                        help="Custom base URL for OpenAI-compatible endpoints (overrides provider default)")
     parser.add_argument("--limit", type=int, default=None,
                         help="Limit number of conversations to evaluate")
     args = parser.parse_args()
 
     # Validate: external providers require --model
-    if args.provider != "gemini" and not args.model and not args.judge_only:
+    if args.provider not in ("gemini", "local") and not args.model and not args.judge_only:
         parser.error(f"--model is required when using --provider {args.provider}")
+    if args.provider == "local" and not args.model and not args.judge_only:
+        parser.error("--model is required for local provider (path to merged model dir)")
 
     output_path = Path(args.output)
 
@@ -659,13 +782,17 @@ async def main():
         with open(args.judge_only) as f:
             existing = json.load(f)
         conversations = []
-        for c in existing.get("conversations", []):
+        # Support both {"conversations": [...]} and plain list formats
+        raw_list = existing if isinstance(existing, list) else existing.get("conversations", [])
+        for c in raw_list:
+            # Support both "id"/"bot_response" (judge format) and "conv_id"/"response" (baseline format)
+            cid = c.get("id") or c.get("conv_id", "")
             conversations.append({
-                "id": c["id"],
-                "type": c["type"],
-                "language": c["language"],
-                "test_input": test_inputs.get(c["id"], ""),
-                "bot_response": c.get("bot_response", ""),
+                "id": cid,
+                "type": c.get("type", ""),
+                "language": c.get("language", ""),
+                "test_input": c.get("test_input") or test_inputs.get(cid, ""),
+                "bot_response": c.get("bot_response") or c.get("response", ""),
                 "ground_truth": c.get("ground_truth", ""),
                 "sm_score": c.get("clone_score", c.get("sm_score", 0)),
                 "elapsed_ms": c.get("elapsed_ms", 0),
@@ -676,10 +803,14 @@ async def main():
         # Production pipeline (local agent with Gemini)
         logger.info(f"Full mode: running pipeline on {len(test_convs)} conversations")
         conversations = await run_pipeline(test_convs)
+    elif args.provider == "local":
+        # Local inference with transformers + peft
+        logger.info(f"Local mode: {args.model} on {len(test_convs)} conversations")
+        conversations = await run_local_pipeline(test_convs, args.model)
     else:
         # External provider pipeline
         logger.info(f"External mode: {args.provider}/{args.model} on {len(test_convs)} conversations")
-        conversations = await run_provider_pipeline(test_convs, args.provider, args.model)
+        conversations = await run_provider_pipeline(test_convs, args.provider, args.model, base_url_override=args.base_url)
 
     # Run LLM-as-judge
     logger.info(f"Running LLM-as-Judge ({JUDGE_MODEL}) on {len(conversations)} conversations...")
