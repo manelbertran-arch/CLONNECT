@@ -122,6 +122,13 @@ _KEEP_PATTERNS: list[re.Pattern] = [
     re.compile(r'servicio\s+al\s+cliente', re.I),
     re.compile(r'NO\s+eres\s+(asistente|bot|virtual)', re.I),
     re.compile(r'\bPROHIBIDO\b'),    # whole PROHIBIDO lines (bot-phrase blacklists)
+
+    # 7. VOCABULARY METADATA — "NO usa:" / "NUNCA uses:" lists are read by
+    #    calibration_loader._load_creator_vocab() to build blacklist replacement.
+    #    These are machine-readable data lines, NOT redundant LLM behavior rules.
+    re.compile(r'\bNO\s+usa[sr]?\s*:', re.I),   # "NO usa: compa, bro, ..."
+    re.compile(r'\bNUNCA\s+uses?\s*:', re.I),    # "NUNCA uses: 😊 😉 ..."
+    re.compile(r'\bS[IÍ]\s+usa[sr]?\s*:', re.I), # "SÍ usa: nena, tia, ..." (approved terms)
 ]
 
 

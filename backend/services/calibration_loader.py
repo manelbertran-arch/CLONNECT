@@ -57,19 +57,27 @@ def _load_creator_vocab(creator_id: str) -> Dict:
     if creator_id in _vocab_cache:
         return _vocab_cache[creator_id] or {}
 
-    base_dir = os.path.dirname(os.path.dirname(__file__))
-    doc_paths = [
-        os.path.join(base_dir, "data", "personality_extractions", creator_id, "doc_d_bot_configuration.md"),
-        os.path.join(base_dir, "data", "personality_extractions", f"{creator_id}_v2_distilled.md"),
-        os.path.join(base_dir, "data", "personality_extractions", f"{creator_id}_distilled.md"),
-    ]
-
+    # ── Try DB first (survives Railway deploys, primary source) ──────────────
     content = None
-    for path in doc_paths:
-        if os.path.isfile(path):
-            with open(path, encoding="utf-8") as fh:
-                content = fh.read()
-            break
+    try:
+        from core.personality_loader import _load_doc_d_from_db
+        content = _load_doc_d_from_db(creator_id)
+    except Exception:
+        pass
+
+    # ── Fall back to disk ─────────────────────────────────────────────────────
+    if not content:
+        base_dir = os.path.dirname(os.path.dirname(__file__))
+        doc_paths = [
+            os.path.join(base_dir, "data", "personality_extractions", creator_id, "doc_d_bot_configuration.md"),
+            os.path.join(base_dir, "data", "personality_extractions", f"{creator_id}_v2_distilled.md"),
+            os.path.join(base_dir, "data", "personality_extractions", f"{creator_id}_distilled.md"),
+        ]
+        for path in doc_paths:
+            if os.path.isfile(path):
+                with open(path, encoding="utf-8") as fh:
+                    content = fh.read()
+                break
 
     if not content:
         _vocab_cache[creator_id] = None
