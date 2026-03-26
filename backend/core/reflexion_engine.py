@@ -61,7 +61,7 @@ class ReflexionEngine:
 
     # Maximum response length guidelines
     MAX_RESPONSE_LENGTH = 300  # Shorter for simple questions
-    MIN_RESPONSE_LENGTH = 20
+    MIN_RESPONSE_LENGTH = 2  # Iris writes "Ok", "Va", "Sí" (2-3 chars)
     IDEAL_RESPONSE_LENGTH = 150
 
     # Patterns indicating questions

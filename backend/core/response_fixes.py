@@ -466,11 +466,8 @@ def apply_all_response_fixes(
     # FIX 7: Personality extraction blacklist (after all other fixes)
     response = apply_blacklist_filter(response, creator_id)
 
-    # FIX 8: Emoji limit from calibration
-    response = apply_emoji_limit(response, creator_id)
-
-    # FIX 9: Global catchphrase removal (after blacklist to catch remaining)
-    response = remove_catchphrases(response)
+    # FIX 8: Emoji limit — MOVED to postprocessing.py (after tone_enforcer)
+    # FIX 9: Catchphrase removal — MERGED into question_remover.py
 
     # BUG-10 fix: if all fixes stripped the response to empty, use a safe fallback
     # C2 fix (2026-03-26): replaced call-center tone fallback with neutral reaction

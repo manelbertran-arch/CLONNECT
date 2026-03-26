@@ -30,7 +30,18 @@ BANNED_QUESTIONS = [
     r"¿hay algo en lo que pueda ayudarte\?",
     r"¿te puedo ayudar en algo\?",
     r"¿en qué te puedo ayudar\?",
+    # Merged from Fix 9 catchphrases (accent-insensitive)
+    r"¿?qu[eé]\s+te\s+trajo\s+por\s+ac[aá][^?]*\??",
+    r"contame\s+qu[eé]\s+te\s+trae\s+por\s+ac[aá][^?]*\??",
+    r"contame\s+(?:de\s+lo\s+que\s+comparto|qu[eé]\s+te\s+llam[oó])[^?]*\??",
 ]
+
+# Standalone filler responses (entire response = just this phrase)
+# Merged from Fix 9 catchphrases
+FILLER_EXACT = {
+    "contame mas", "contame más",
+    "cuentame mas", "cuéntame más",
+}
 
 # Replacements for removed questions
 QUESTION_REPLACEMENTS = {
@@ -114,6 +125,11 @@ def should_allow_question(lead_message: str, response: str) -> bool:
     return False
 
 
+def _normalize_for_filler(text: str) -> str:
+    """Strip emojis and punctuation for filler check."""
+    return re.sub(r"[^\w\s]", "", text).strip().lower()
+
+
 def process_questions(response: str, lead_message: str, question_rate: float = 0.10) -> str:
     """
     Process and remove unnecessary questions from response.
@@ -126,6 +142,10 @@ def process_questions(response: str, lead_message: str, question_rate: float = 0
     Returns:
         Response without unnecessary questions
     """
+    # Check for standalone filler responses (merged from Fix 9)
+    if _normalize_for_filler(response) in FILLER_EXACT:
+        return response  # Return as-is — caller should regenerate
+
     # If no question, return as-is
     if "?" not in response:
         return response
