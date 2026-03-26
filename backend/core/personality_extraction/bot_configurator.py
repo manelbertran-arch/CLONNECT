@@ -727,6 +727,18 @@ async def generate_bot_configuration(
     logger.info("Generating system prompt (3 parallel calls)...")
     config.system_prompt = await generate_system_prompt(profile)
 
+    # ── Negation reducer (post-generation cleanup) ──
+    try:
+        from core.personality_extraction.negation_reducer import reduce_negations
+        config.system_prompt, _nr_kept, _nr_removed = reduce_negations(config.system_prompt)
+        if _nr_removed:
+            logger.info(
+                "[NegRed] system_prompt cleaned: %d negation lines removed, %d kept",
+                _nr_removed, _nr_kept,
+            )
+    except Exception as _e:
+        logger.warning("[NegRed] reduce_negations failed (non-critical): %s", _e)
+
     # ── Blacklist (Bug 5: multi-source merge) ──
     logger.info("Building blacklist...")
     all_blacklist = set(UNIVERSAL_BLACKLIST)

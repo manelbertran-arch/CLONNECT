@@ -231,7 +231,20 @@ def _parse_system_prompt(data: ExtractionData, content: str) -> None:
         content, re.DOTALL,
     )
     if match:
-        data.system_prompt = match.group(1).strip()
+        raw = match.group(1).strip()
+        # Apply universal negation reducer at load time so all existing Doc Ds
+        # are filtered without requiring a DB migration.
+        try:
+            from core.personality_extraction.negation_reducer import reduce_negations
+            raw, _kept, _removed = reduce_negations(raw)
+            if _removed:
+                logger.debug(
+                    "[NegRed] %d non-critical negations filtered from style_prompt at load",
+                    _removed,
+                )
+        except Exception as _e:
+            logger.debug("[NegRed] skip at load time: %s", _e)
+        data.system_prompt = raw
 
 
 def _parse_blacklist(data: ExtractionData, content: str) -> None:
