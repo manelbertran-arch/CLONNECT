@@ -51,7 +51,7 @@ async def phase_detection(
     msg_stripped = message.strip().lower().rstrip(".")
     if msg_stripped in MEDIA_PLACEHOLDERS:
         metadata["is_media_placeholder"] = True
-        cognitive_metadata["intent_override"] = "media_share"
+        cognitive_metadata["intent_override"] = "media_share"  # NOTE: written, not consumed downstream
         logger.info("Media placeholder detected: %s", message.strip())
 
     # PRE-PIPELINE: SENSITIVE CONTENT DETECTION (Security)
@@ -93,6 +93,7 @@ async def phase_detection(
             logger.debug(f"Frustration detection failed: {e}")
 
     # Step 1b: Detect context signals (sarcasm, B2B, etc.)
+    # NOTE: context_signals stored on result but not consumed in generation phase
     if ENABLE_CONTEXT_DETECTION:
         try:
             history = metadata.get("history", [])

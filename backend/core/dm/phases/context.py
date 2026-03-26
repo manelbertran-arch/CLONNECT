@@ -25,7 +25,7 @@ ENABLE_QUERY_EXPANSION = os.getenv("ENABLE_QUERY_EXPANSION", "true").lower() == 
 ENABLE_RELATIONSHIP_DETECTION = (
     os.getenv("ENABLE_RELATIONSHIP_DETECTION", "true").lower() == "true"
 )
-ENABLE_ADVANCED_PROMPTS = os.getenv("ENABLE_ADVANCED_PROMPTS", "true").lower() == "true"
+ENABLE_ADVANCED_PROMPTS = os.getenv("ENABLE_ADVANCED_PROMPTS", "false").lower() == "true"
 ENABLE_CITATIONS = os.getenv("ENABLE_CITATIONS", "true").lower() == "true"
 ENABLE_HIERARCHICAL_MEMORY = os.getenv("ENABLE_HIERARCHICAL_MEMORY", "false").lower() == "true"
 
@@ -532,6 +532,6 @@ async def phase_memory_and_context(
     ctx.friend_context = friend_context
     ctx.citation_context = citation_context
     ctx.advanced_section = advanced_section
-    ctx.prompt_override = prompt_override
+    ctx.prompt_override = prompt_override  # NOTE: stored but not read in generation phase
     ctx.cognitive_metadata = cognitive_metadata
     return ctx

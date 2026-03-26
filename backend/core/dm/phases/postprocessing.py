@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 ENABLE_OUTPUT_VALIDATION = os.getenv("ENABLE_OUTPUT_VALIDATION", "true").lower() == "true"
 ENABLE_RESPONSE_FIXES = os.getenv("ENABLE_RESPONSE_FIXES", "true").lower() == "true"
 ENABLE_QUESTION_REMOVAL = os.getenv("ENABLE_QUESTION_REMOVAL", "true").lower() == "true"
-ENABLE_REFLEXION = os.getenv("ENABLE_REFLEXION", "true").lower() == "true"
+ENABLE_REFLEXION = os.getenv("ENABLE_REFLEXION", "false").lower() == "true"
 ENABLE_PPA = os.getenv("ENABLE_PPA", "false").lower() == "true"
 ENABLE_SCORE_BEFORE_SPEAK = os.getenv("ENABLE_SCORE_BEFORE_SPEAK", "false").lower() == "true"
 ENABLE_GUARDRAILS = os.getenv("ENABLE_GUARDRAILS", "true").lower() == "true"
