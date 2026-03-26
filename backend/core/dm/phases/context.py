@@ -383,6 +383,24 @@ async def phase_memory_and_context(
             "con entusiasmo brevemente, no preguntes qué es]"
         )
 
+    # Build Recalling block: consolidate all per-lead context into one coherent section
+    # with an explicit usage trigger (MRPrompt pattern) so the LLM actually uses the data.
+    def _build_recalling_block(
+        username: str,
+        relational: str,
+        memory: str,
+        dna: str,
+        state: str,
+    ) -> str:
+        """Consolidate per-lead context into a single 'Sobre @username' block
+        with a Recalling trigger that instructs the LLM to use it naturally."""
+        parts = [p for p in [relational, memory, dna, state] if p]
+        if not parts:
+            return ""
+        header = f"Sobre @{username}:"
+        footer = "Usa esta info naturalmente en tu respuesta — no la repitas textual."
+        return header + "\n" + "\n".join(parts) + "\n" + footer
+
     # ECHO Engine: Generate relational context (Sprint 4)
     relational_block = ""
     _echo_rel_ctx = None
@@ -443,12 +461,15 @@ async def phase_memory_and_context(
                 hier_memory_context,     # IMPersona: L3 abstract + L2 patterns + L1 episodic
                 # --- VARIABLE per lead/message ---
                 friend_context,          # Friend/family override (critical)
-                relational_block,        # ECHO: Lead-specific behavior
+                _build_recalling_block(  # Consolidated lead data + Recalling trigger
+                    username=follower.username or sender_id,
+                    relational=relational_block,
+                    memory=memory_context,
+                    dna=dna_context,
+                    state=state_context,
+                ),
                 rag_context,             # RAG chunks relevant to message
-                memory_context,          # Per-lead facts (personalization)
                 kb_context,              # Factual knowledge base lookup
-                dna_context,             # Relationship insights
-                state_context,           # Conversation phase
                 audio_context,           # Audio message context
                 prompt_override,         # Manual override (lowest)
             ],
