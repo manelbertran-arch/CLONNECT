@@ -74,7 +74,21 @@ async def phase_detection(
                     )
                     return result
         except Exception as e:
-            logger.debug(f"Sensitive detection failed: {e}")
+            # FAIL-CLOSED: if we can't verify it's NOT a crisis, escalate to human
+            logger.error(f"CRITICAL: Sensitive detection failed, escalating by default: {e}")
+            creator_name = getattr(agent, "creator_id", "el creador")
+            result.pool_response = DMResponse(
+                content=(
+                    f"Ahora mismo no puedo responderte bien. "
+                    f"Le paso tu mensaje a {creator_name} directamente 🙏"
+                ),
+                intent="sensitive_detection_failure",
+                lead_stage="unknown",
+                confidence=1.0,
+                tokens_used=0,
+                metadata={"sensitive_failsafe": True, "error": str(e)},
+            )
+            return result
 
     # Step 1a: Detect frustration level
     if ENABLE_FRUSTRATION_DETECTION and hasattr(agent, "frustration_detector"):

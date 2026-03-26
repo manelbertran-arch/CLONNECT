@@ -72,6 +72,15 @@ SELF_HARM_PATTERNS = [
     r'\b(?:tomar(?:me)?\s+(?:todas?\s+las?\s+)?(?:pastillas|medicamentos))\b',
     r'\bsobredosis\b',
     r'\b(?:tirarme\s+(?:de|del|por))\b',
+    # Catalán
+    r'\b(?:vull\s+morir)\b',
+    r'\b(?:em\s+vull\s+matar)\b',
+    r'\b(?:no\s+vull\s+viure)\b',
+    r'\b(?:em\s+faig\s+mal)\b',
+    r'\b(?:em\s+tallo)\b',  # me corto
+    r'\b(?:vull\s+desapar[eè]ixer)\b',
+    r'\b(?:vull\s+acabar\s+amb\s+tot)\b',
+    r'\b(?:su[ïi]cid(?:ar-me|i))\b',
     # English
     r'\b(?:want\s+to\s+(?:die|disappear|end\s+it))\b',
     r'\b(?:self[\s-]?harm|cutting\s+myself)\b',
