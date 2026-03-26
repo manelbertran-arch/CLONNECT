@@ -128,17 +128,17 @@ def compute_alignment_score(
 
     # 1. Length alignment — range derived from calibration
     resp_len = len(response)
-    # Acceptable range: half of median to soft_max
+    # Acceptable range: median/3 to soft_max
     min_acceptable = max(5, target_median // 3)
     if min_acceptable <= resp_len <= target_soft_max:
         scores["length"] = 1.0
+    elif resp_len < min_acceptable:
+        scores["length"] = 0.5  # Too short but not fatal
     elif resp_len <= target_soft_max * 1.5:
         overshoot = resp_len - target_soft_max
         scores["length"] = max(0.3, 1.0 - overshoot / (target_soft_max * 0.5))
-    elif resp_len < min_acceptable:
-        scores["length"] = 0.5
     else:
-        scores["length"] = 0.2
+        scores["length"] = 0.2  # Way too long
 
     # 2. Emoji presence — threshold from calibration
     has_emoji = bool(re.search(r'[\U0001F300-\U0001FAFF\u2600-\u27BF]', response))
