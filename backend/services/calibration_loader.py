@@ -141,16 +141,53 @@ def _select_examples_by_similarity(
 
 
 def detect_message_language(text: str) -> Optional[str]:
-    """Detect the language of a message using langdetect.
+    """Detect the language of a message, including ca-es code-switching.
 
-    Returns ISO 639-1 code (e.g. 'ca', 'es', 'en', 'it', 'pt', 'fr') or None
-    for very short texts or detection failures. Universal — works for any language.
+    Returns 'ca', 'es', 'ca-es' (code-switching), other ISO 639-1 codes, or None.
+
+    Barcelona-style code-switching (ca-es) is detected when a message contains
+    markers from BOTH Catalan and Spanish. This is common for bilingual speakers
+    who mix mid-sentence: "Tinc la veu molt malament pero bueno es lo que hay".
+
+    When 'ca-es' is returned, the few-shot pool should NOT be filtered by language,
+    so the LLM sees examples in both languages and learns to mix naturally.
     """
-    if len(text.strip()) < 10:
+    import re
+
+    stripped = text.strip()
+    if len(stripped) < 10:
         return None
+
+    lower = stripped.lower()
+
+    # Catalan-only markers (words that don't exist in Spanish)
+    ca_only = re.findall(
+        r"\b(tinc|estic|però|molt|doncs|també|perquè|aquí|això|tinc|vull|"
+        r"puc|fes|mira|clar|setmana|dimarts|dijous|dissabte|diumenge|"
+        r"què|què tal|gracies|gràcies|bona nit|bona tarda|bon dia|"
+        r"nosaltres|ells|elles|puguis|vulguis|necessites|"
+        r"xk|pq|xfi|na mais)\b",
+        lower,
+    )
+    # Spanish-only markers (words that don't exist in Catalan)
+    es_only = re.findall(
+        r"\b(tengo|estoy|pero|mucho|entonces|también|porque|aquí|quiero|"
+        r"puedo|necesito|bueno|gracias|vale|claro|genial|"
+        r"miércoles|jueves|sábado|domingo|semana|"
+        r"nosotros|ellos|ellas|puedes|quieres|necesitas)\b",
+        lower,
+    )
+
+    if ca_only and es_only:
+        logger.debug(
+            "Code-switching detected: ca_markers=%d (%s) es_markers=%d (%s)",
+            len(ca_only), ca_only[:3], len(es_only), es_only[:3],
+        )
+        return "ca-es"
+
     try:
         from langdetect import detect
-        return detect(text)
+        return detect(stripped)
     except Exception:
         return None
 
@@ -177,9 +214,10 @@ def get_few_shot_section(
     if not examples:
         return ""
 
-    # Language-aware pool filtering: prefer same-language + mixto examples
+    # Language-aware pool filtering: prefer same-language + mixto examples.
+    # For code-switching (ca-es): use FULL pool so LLM sees both languages.
     pool = examples
-    if lead_language:
+    if lead_language and lead_language != "ca-es":
         filtered = [
             ex for ex in examples
             if ex.get("language") in (lead_language, "mixto")
@@ -191,6 +229,8 @@ def get_few_shot_section(
                 "Few-shot: language filter=%s reduced pool %d→%d",
                 lead_language, len(examples), len(pool),
             )
+    elif lead_language == "ca-es":
+        logger.debug("Few-shot: code-switching detected, using full pool (%d examples)", len(pool))
 
     if current_message and len(pool) > max_examples:
         n_semantic = max_examples // 2          # e.g. 5 of 10
