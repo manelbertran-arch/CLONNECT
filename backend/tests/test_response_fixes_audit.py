@@ -213,8 +213,8 @@ class TestMultipleFixesIntegration:
         result = apply_all_response_fixes(text, creator_name="Stefano")
         # FIX 3: broken link fixed
         assert "https://www.example.com" in result
-        # FIX 4: identity claim fixed
-        assert "asistente" in result.lower()
+        # FIX 4: disabled (2026-03-26) — identity preserved, not rewritten
+        assert "Stefano" in result
         # FIX 5: raw CTA removed
         assert "COMPRA AHORA" not in result
 

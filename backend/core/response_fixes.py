@@ -456,7 +456,10 @@ def apply_all_response_fixes(
     # Apply fixes in order
     response = fix_price_typo(response)
     response = fix_broken_links(response)
-    response = fix_identity_claim(response, creator_name)
+    # DISABLED: breaks first-person creators like Iris (audit 2026-03-26)
+    # fix_identity_claim turns "Soy Iris" → "Soy el asistente de Iris" for all creators.
+    # Re-enable conditionally if a creator ever needs bot_mode="assistant".
+    # response = fix_identity_claim(response, creator_name)
     response = clean_raw_ctas(response)
     response = hide_technical_errors(response)
 
@@ -470,9 +473,10 @@ def apply_all_response_fixes(
     response = remove_catchphrases(response)
 
     # BUG-10 fix: if all fixes stripped the response to empty, use a safe fallback
+    # C2 fix (2026-03-26): replaced call-center tone fallback with neutral reaction
     if not response.strip():
         logger.warning("[FIXES] All fixes resulted in empty response — using fallback")
-        return "Estoy aquí para ayudarte. ¿En qué puedo echarte una mano?"
+        return "Jajaja 😊"
 
     return response
 

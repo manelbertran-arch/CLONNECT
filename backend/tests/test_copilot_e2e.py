@@ -141,11 +141,13 @@ class TestResponseFixesAndConfidence:
         fixed = apply_all_response_fixes(raw)
         assert "https://www.example.com" in fixed
 
-    def test_identity_claim_fixed(self):
-        """Identity claims are rewritten."""
+    def test_identity_claim_passthrough(self):
+        """Fix 4 (identity rewrite) is disabled — response passes through unchanged."""
+        # Fix 4 disabled 2026-03-26: breaks first-person creators (Iris). Re-enable
+        # conditionally if a creator ever needs bot_mode="assistant".
         raw = "Soy Stefano y te voy a ayudar con todo"
         fixed = apply_all_response_fixes(raw, creator_name="Stefano")
-        assert "asistente" in fixed.lower()
+        assert "Stefano" in fixed  # identity preserved, not rewritten
 
     def test_clean_response_confidence_is_high(self):
         """A clean, post-processed response should score well."""
@@ -315,7 +317,8 @@ class TestFullPipelineIntegration:
         fixed = apply_all_response_fixes(raw_response, creator_name="Stefano")
 
         # Verify fixes applied
-        assert "asistente" in fixed.lower()
+        # FIX 4 disabled (2026-03-26) — identity preserved, not rewritten
+        assert "Stefano" in fixed
         assert "COMPRA AHORA" not in fixed
         assert "https://www.example.com" in fixed
 

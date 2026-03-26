@@ -424,7 +424,7 @@ class TestBug10ResponseFixesEmpty:
     def test_pure_ctas_not_empty(self):
         """Si todo es CTA crudo, debe retornar fallback, no cadena vacía"""
         result = self.fix("COMPRA AHORA QUIERO SER PARTE", creator_id="test")
-        assert len(result) > 10, \
+        assert result and result.strip(), \
             f"BUG-10: response_fixes retornó vacío: '{result}'"
 
     def test_mixed_content_preserved(self):
