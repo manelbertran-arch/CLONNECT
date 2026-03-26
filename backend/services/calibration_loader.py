@@ -57,11 +57,38 @@ def _load_creator_vocab(creator_id: str) -> Dict:
     if creator_id in _vocab_cache:
         return _vocab_cache[creator_id] or {}
 
-    # ── Load from disk (manually-curated doc_d_bot_configuration.md) ───────────
-    # Note: the LLM-generated DB doc_d uses prose format incompatible with
-    # keyword parsing. Vocabulary patterns ("NO usa:", "NUNCA uses:") are only
-    # present in the manually-curated on-disk files.
-    # TODO: store vocabulary as structured data in personality_docs to work in production.
+    # ── 1. Try DB: vocab_metadata JSON (structured, survives Railway deploys) ──
+    try:
+        import json as _json
+        from api.database import SessionLocal as _SL
+        from sqlalchemy import text as _text
+
+        _s = _SL()
+        try:
+            _row = _s.execute(
+                _text(
+                    """
+                    SELECT pd.content
+                    FROM personality_docs pd
+                    JOIN creators c ON c.id::text = pd.creator_id
+                    WHERE (c.name = :cid OR pd.creator_id = :cid)
+                      AND pd.doc_type = 'vocab_meta'
+                    LIMIT 1
+                    """
+                ),
+                {"cid": creator_id},
+            ).fetchone()
+            if _row:
+                vocab = _json.loads(_row.content)
+                _vocab_cache[creator_id] = vocab
+                logger.debug("[Vocab] %s: loaded from DB vocab_metadata", creator_id)
+                return vocab
+        finally:
+            _s.close()
+    except Exception as _e:
+        logger.debug("[Vocab] DB vocab_metadata lookup failed for %s: %s", creator_id, _e)
+
+    # ── 2. Fall back to disk (manually-curated on-disk files) ────────────────
     base_dir = os.path.dirname(os.path.dirname(__file__))
     doc_paths = [
         os.path.join(base_dir, "data", "personality_extractions", creator_id, "doc_d_bot_configuration.md"),
