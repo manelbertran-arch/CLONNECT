@@ -102,7 +102,6 @@ async def phase_detection(
             )
             if result.frustration_level > 0.3:
                 logger.info(f"Frustration detected: {result.frustration_level:.2f}")
-                cognitive_metadata["frustration_level"] = result.frustration_level
         except Exception as e:
             logger.debug(f"Frustration detection failed: {e}")
 

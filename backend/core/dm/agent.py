@@ -90,7 +90,7 @@ from core.dm.models import (
 # Feature flags still used in _init_services
 ENABLE_FRUSTRATION_DETECTION = os.getenv("ENABLE_FRUSTRATION_DETECTION", "true").lower() == "true"
 ENABLE_GUARDRAILS = os.getenv("ENABLE_GUARDRAILS", "true").lower() == "true"
-ENABLE_CHAIN_OF_THOUGHT = os.getenv("ENABLE_CHAIN_OF_THOUGHT", "true").lower() == "true"
+ENABLE_CHAIN_OF_THOUGHT = os.getenv("ENABLE_CHAIN_OF_THOUGHT", "false").lower() == "true"
 
 logger = logging.getLogger(__name__)
 
@@ -366,6 +366,8 @@ class DMResponderAgentV2:
                 self.chain_of_thought = ChainOfThoughtReasoner(self.llm_service)
             except Exception as e:
                 logger.warning(f"Could not initialize chain of thought: {e}")
+        else:
+            self.chain_of_thought = None
 
         # Conversation memory cache (per follower)
         self._conversation_memories: Dict[str, ConversationMemory] = {}
@@ -416,7 +418,7 @@ class DMResponderAgentV2:
 
             # Phase 4: LLM Generation (prompt built inside this phase)
             llm_response = await self._phase_llm_generation(
-                message, "", context.system_prompt, context, cognitive_metadata
+                message, "", context.system_prompt, context, cognitive_metadata, detection
             )
 
             _t3 = time.monotonic()
@@ -460,9 +462,10 @@ class DMResponderAgentV2:
     async def _phase_llm_generation(
         self, message: str, full_prompt: str, system_prompt: str,
         context: ContextBundle, cognitive_metadata: Dict,
+        detection=None,
     ) -> "LLMResponse":
         from core.dm.phases.generation import phase_llm_generation
-        return await phase_llm_generation(self, message, full_prompt, system_prompt, context, cognitive_metadata)
+        return await phase_llm_generation(self, message, full_prompt, system_prompt, context, cognitive_metadata, detection)
 
     async def _phase_postprocessing(
         self, message: str, sender_id: str, metadata: Dict,

@@ -27,6 +27,7 @@ ENABLE_CHAIN_OF_THOUGHT = os.getenv("ENABLE_CHAIN_OF_THOUGHT", "false").lower() 
 async def phase_llm_generation(
     agent, message: str, full_prompt: str, system_prompt: str,
     context: ContextBundle, cognitive_metadata: Dict,
+    detection=None,
 ) -> LLMResponse:
     """Phase 4: Prompt finalization + LLM call with fallback chain."""
     _t2 = time.monotonic()
@@ -49,7 +50,7 @@ async def phase_llm_generation(
     _echo_rel_ctx = context.echo_rel_ctx
     history = context.history
     rag_results = context.rag_results
-    frustration_level = cognitive_metadata.get("frustration_level", 0) if isinstance(cognitive_metadata, dict) else 0
+    frustration_level = detection.frustration_level if detection is not None else 0
     sender_id = follower.follower_id if hasattr(follower, 'follower_id') else ""
 
     # Step 5b: Determine response strategy
@@ -97,11 +98,7 @@ async def phase_llm_generation(
                         lines.append(f'  NO: "{r["example_bad"]}"')
                     if r.get("example_good"):
                         lines.append(f'  SI: "{r["example_good"]}"')
-                learning_rules_section = (
-                    "=== REGLAS APRENDIDAS (del propio creador) ===\n"
-                    + "\n".join(lines) + "\n"
-                    "=== FIN REGLAS ==="
-                )
+                learning_rules_section = "\n".join(lines)
                 cognitive_metadata["learning_rules_applied"] = len(_learning_rules)
                 logger.info(f"[LEARNING] Injected {len(_learning_rules)} rules for {sender_id}")
 
@@ -172,11 +169,7 @@ async def phase_llm_generation(
                         f"Lead: \"{ex['user_message']}\"\n"
                         f"{agent.creator_id}: \"{ex['creator_response']}\""
                     )
-                gold_examples_section = (
-                    f"=== EJEMPLOS DE COMO RESPONDE {agent.creator_id.upper()} ===\n"
-                    + "\n---\n".join(ex_lines) + "\n"
-                    "=== FIN EJEMPLOS ==="
-                )
+                gold_examples_section = "\n---\n".join(ex_lines)
                 cognitive_metadata["gold_examples_injected"] = len(_gold_examples)
                 logger.info(f"[FEWSHOT] Injected {len(_gold_examples)} examples for {sender_id}")
         except Exception as ge_err:
@@ -187,11 +180,7 @@ async def phase_llm_generation(
     # relational_block + dna_context + state_context. No need to repeat here.
     prompt_parts = []
     if _bot_instructions:
-        prompt_parts.append(
-            "=== INSTRUCCIONES ESPECÍFICAS PARA ESTE LEAD ===\n"
-            f"{_bot_instructions}\n"
-            "=== FIN INSTRUCCIONES ==="
-        )
+        prompt_parts.append(_bot_instructions)
     if learning_rules_section:
         prompt_parts.append(learning_rules_section)
     if preference_profile_section:
@@ -227,11 +216,7 @@ async def phase_llm_generation(
                     context={"creator_name": agent.creator_id, "products": agent.products},
                 )
                 if _cot_result.reasoning_steps:
-                    _cot_section = (
-                        "=== ANÁLISIS PREVIO (Chain of Thought) ===\n"
-                        + "\n".join(f"- {s}" for s in _cot_result.reasoning_steps)
-                        + "\n=== FIN ANÁLISIS ==="
-                    )
+                    _cot_section = "\n".join(f"- {s}" for s in _cot_result.reasoning_steps)
                     system_prompt = system_prompt + "\n\n" + _cot_section
                     cognitive_metadata["cot_applied"] = True
                     cognitive_metadata["cot_query_type"] = _query_type

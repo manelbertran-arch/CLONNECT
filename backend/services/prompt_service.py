@@ -80,7 +80,6 @@ class PromptBuilder:
         # Knowledge about creator (factual data from personality dict)
         knowledge = self.personality.get("knowledge_about", {})
         if knowledge:
-            prompt_parts.append("=== SOBRE TI ===")
             if knowledge.get("website_url"):
                 prompt_parts.append(f"Tu web: {knowledge['website_url']}")
             if knowledge.get("bio"):
@@ -98,7 +97,7 @@ class PromptBuilder:
 
         # Products (factual data — prices and links are the source of truth)
         if products:
-            prompt_parts.append("=== PRODUCTOS Y SERVICIOS ===")
+            prompt_parts.append("Productos/servicios:")
             for p in products:
                 product_name = p.get("name", "Producto")
                 price = p.get("price", "Consultar")
@@ -111,7 +110,6 @@ class PromptBuilder:
                 if url:
                     line += f"\n  Link: {url}"
                 prompt_parts.append(line)
-            prompt_parts.append("=== FIN PRODUCTOS ===")
 
         # Safety + guardrails (minimal, natural tone)
         prompt_parts.extend([
@@ -147,7 +145,6 @@ class PromptBuilder:
             User context string
         """
         context_parts = [
-            "=== CONTEXTO DEL USUARIO ===",
             f"Usuario: {username}",
             f"Etapa: {stage}",
         ]
@@ -170,13 +167,11 @@ class PromptBuilder:
             if lead_info.get("summary"):
                 context_parts.append(f"Resumen conversación: {lead_info['summary']}")
 
-        context_parts.append("=== FIN CONTEXTO ===")
-
         # Add conversation history (only in single-turn mode; multi-turn injects
         # history as separate messages directly in the LLM messages list)
         if include_history and history:
             context_parts.append("")
-            context_parts.append("=== HISTORIAL DE CONVERSACION ===")
+            context_parts.append("Historial:")
             # Include last 10 messages to avoid context overflow
             for msg in history[-10:]:
                 role = msg.get("role", "user")
@@ -186,7 +181,6 @@ class PromptBuilder:
                     content = content[:297] + "..."
                 role_label = "Usuario" if role == "user" else "Asistente"
                 context_parts.append(f"{role_label}: {content}")
-            context_parts.append("=== FIN HISTORIAL ===")
 
         return "\n".join(context_parts)
 
