@@ -180,12 +180,11 @@ class ResponseVariatorV2:
 
         for cat, items in fallback.items():
             if cat not in self.pools or not self.pools[cat]:
+                # No calibration pool for this category — use fallback
                 self.pools[cat] = items
-            else:
-                existing = set(self.pools[cat])
-                for item in items:
-                    if item not in existing:
-                        self.pools[cat].append(item)
+            # NOTE: if calibration pool exists for this category, do NOT merge
+            # Stefan's fallback entries. Calibration pools are creator-specific
+            # and mixing in generic "hermano/bro" responses breaks persona.
 
     def _build_tfidf_index(self) -> None:
         """Build TF-IDF index over all pool responses for context-aware selection."""
@@ -602,14 +601,8 @@ class ResponseVariatorV2:
 
         response = random.choice(candidates)
 
-        # v9.3b: If we wanted a question but couldn't find one, append a natural question
-        if want_question and "?" not in response:
-            natural_questions = [
-                " Todo bien?", " Cómo vas?", " Cómo estás?",
-                " En serio?", " Sí?", " Vos?",
-            ]
-            q_idx = h % len(natural_questions)
-            response = response.rstrip() + natural_questions[q_idx]
+        # v9.3b removed: question injection ("Todo bien?", "Cómo estás?") made the
+        # bot sound like customer service. Pool responses should stand alone.
 
         # v10.3: Mark as used
         self._mark_used(response, conv_id)
