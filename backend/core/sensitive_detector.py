@@ -116,20 +116,23 @@ MINOR_PATTERNS = [
 ]
 
 # PHISHING / INGENIERÍA SOCIAL
+# NOTE: In Instagram/WhatsApp DMs, leads legitimately ask for contact info
+# ("dame tu email", "pasa tu número", "tienes WhatsApp?"). These are NOT
+# phishing — they're normal lead behavior. Only flag actual social engineering.
 PHISHING_PATTERNS = [
     # Suplantación de autoridad
     r'\b(?:soy\s+(?:de\s+la\s+)?polic[ií]a)\b',
     r'\b(?:guardia\s+civil|investigaci[oó]n\s+oficial)\b',
     r'\b(?:requerimiento\s+judicial|orden\s+judicial)\b',
-    # Solicitud de datos personales - más flexible
-    r'\b(?:dame|pasame|env[ií]ame)\s+(?:su|el)\s+(?:email|tel[eé]fono|direcci[oó]n|contacto)',
-    r'\b(?:necesito|quiero)\s+(?:su|el)\s+(?:tel[eé]fono|email|contacto)\s*(?:personal|privado)?',
+    # Solicitud de datos del CREATOR a terceros (not lead asking for themselves)
     r'\b(?:necesito|dame)\s+(?:sus?|los?)\s+datos\s+personales\b',
     r'\bdatos\s+personales\s+(?:de|del)\s+creador\b',
-    r'\b(?:informaci[oó]n\s+(?:personal|privada)\s+(?:de|sobre))',
-    # Urgencia + solicitud de info
-    r'\b(?:es\s+urgente).*(?:informaci[oó]n|datos|contacto)\b',
+    r'\b(?:informaci[oó]n\s+(?:personal|privada)\s+(?:de|sobre)\s+(?:el|la|iris|stefan))',
+    # Urgencia + amenaza (not just urgency)
     r'\b(?:tendr[aá]s?\s+problemas?\s+si\s+no)\b',
+    # Account verification scams
+    r'\b(?:verifica(?:r)?\s+(?:tu|su)\s+cuenta)\b',
+    r'\b(?:tu\s+cuenta\s+(?:ser[aá]|ha\s+sido)\s+(?:suspendida|bloqueada|eliminada))\b',
 ]
 
 # SPAM / BOTS

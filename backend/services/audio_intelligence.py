@@ -27,6 +27,7 @@ ENABLE_AUDIO_INTELLIGENCE = (
 )
 MIN_WORDS_FOR_PROCESSING = 30
 LAYER_TIMEOUT_SECONDS = 12  # per-layer LLM timeout
+GLOBAL_PIPELINE_TIMEOUT = 10  # total pipeline timeout (circuit breaker)
 
 # Human-readable language names for prompt injection
 _LANGUAGE_NAMES = {
@@ -269,6 +270,49 @@ class AudioIntelligenceService:
             result.summary = raw_text
             return result
 
+        # Global circuit breaker: if full pipeline doesn't complete in
+        # GLOBAL_PIPELINE_TIMEOUT seconds, return with raw transcript only.
+        # This prevents the 4-layer pipeline (48s worst case) from blocking.
+        try:
+            result = await asyncio.wait_for(
+                self._full_pipeline(result, raw_text, language, role),
+                timeout=GLOBAL_PIPELINE_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "[AudioIntel] Pipeline timeout after %ds — using raw transcript",
+                GLOBAL_PIPELINE_TIMEOUT,
+            )
+            result.clean_text = raw_text
+            result.summary = raw_text
+
+        result.processed_at = datetime.now(timezone.utc).isoformat()
+        result.processing_time_ms = int((time.time() - start) * 1000)
+
+        logger.info(
+            "[AudioIntel] %ds audio in %dms. "
+            "Raw:%d→Clean:%d→Summary:%d chars. "
+            "Entities: %dppl %dplaces %dactions",
+            duration_seconds,
+            result.processing_time_ms,
+            len(result.raw_text),
+            len(result.clean_text),
+            len(result.summary),
+            len(result.entities.people),
+            len(result.entities.places),
+            len(result.action_items),
+        )
+
+        return result
+
+    async def _full_pipeline(
+        self,
+        result: AudioIntelligence,
+        raw_text: str,
+        language: str,
+        role: str,
+    ) -> AudioIntelligence:
+        """Run layers 2-4. Wrapped by global timeout circuit breaker."""
         # ── Layer 2: Clean ──
         result.clean_text = await self._clean(raw_text, language)
 
@@ -289,23 +333,6 @@ class AudioIntelligenceService:
 
         # ── Layer 4: Synthesize ──
         result.summary = await self._synthesize(result, role)
-
-        result.processed_at = datetime.now(timezone.utc).isoformat()
-        result.processing_time_ms = int((time.time() - start) * 1000)
-
-        logger.info(
-            "[AudioIntel] %ds audio in %dms. "
-            "Raw:%d→Clean:%d→Summary:%d chars. "
-            "Entities: %dppl %dplaces %dactions",
-            duration_seconds,
-            result.processing_time_ms,
-            len(result.raw_text),
-            len(result.clean_text),
-            len(result.summary),
-            len(result.entities.people),
-            len(result.entities.places),
-            len(result.action_items),
-        )
 
         return result
 

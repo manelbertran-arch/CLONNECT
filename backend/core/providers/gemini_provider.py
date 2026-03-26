@@ -322,11 +322,10 @@ async def generate_simple(
                 logger.warning("generate_simple: Gemini failed: %s, falling back", e)
                 _gemini_record_failure()
 
-    # 2. Fallback: GPT-4o-mini with anti-hallucination guard
+    # 2. Fallback: GPT-4o-mini — same prompt, no extra guard
     logger.warning("[LLM-FALLBACK] Gemini failed (generate_simple), using OpenAI GPT-4o-mini")
-    fallback_messages = _add_fallback_guard(messages)
     try:
-        result = await _call_openai_mini(fallback_messages, max_tokens, temperature)
+        result = await _call_openai_mini(messages, max_tokens, temperature)
         if result and result.get("content"):
             asyncio.create_task(_async_log_usage(result, "background"))
             return result["content"]
@@ -528,12 +527,16 @@ async def generate_dm_response(
             logger.warning("Flash-Lite failed: %s, falling back", e)
             _gemini_record_failure()
 
-    # 3. FALLBACK: GPT-4o-mini with anti-hallucination guard
+    # 3. FALLBACK: GPT-4o-mini — same prompt, no extra anti-hallucination guard.
+    # The system prompt already contains all identity/style rules for every provider.
+    # Adding an extra "don't hallucinate" instruction was causing GPT-4o-mini to
+    # generate overly cautious, generic responses (conv_015: "perrito" hallucination).
     logger.warning("[LLM-FALLBACK] Primary providers failed, using OpenAI GPT-4o-mini")
-    fallback_messages = _add_fallback_guard(messages)
     try:
-        result = await _call_openai_mini(fallback_messages, max_tokens, temperature)
+        result = await _call_openai_mini(messages, max_tokens, temperature)
         if result:
+            if isinstance(result, dict):
+                result["provider"] = "openai-fallback"
             asyncio.create_task(_async_log_usage(result, "dm_response"))
             return result
         logger.error("GPT-4o-mini returned empty")
