@@ -204,7 +204,10 @@ def apply_blacklist_replacement(response: str, creator_id: str) -> "tuple[str, b
         # Only replace single or two-word address terms, never fragments of long phrases
         if len(word.split()) > 2:
             continue
-        pattern = r"\b" + _re.escape(word) + r"s?\b"
+        # Allow elongated last char (e.g. "compaa", "brooo") + optional plural 's'
+        stem = _re.escape(word[:-1])
+        tail = _re.escape(word[-1])
+        pattern = r"\b" + stem + tail + r"+s?\b"
         if not _re.search(pattern, modified, _re.IGNORECASE):
             continue
 
@@ -214,7 +217,7 @@ def apply_blacklist_replacement(response: str, creator_id: str) -> "tuple[str, b
         else:
             # No replacement defined — strip the word with its surrounding comma/space
             new_modified = _re.sub(
-                r"(\s*,\s*)?\b" + _re.escape(word) + r"s?\b(\s*,\s*)?",
+                r"(\s*,\s*)?\b" + stem + tail + r"+s?\b(\s*,\s*)?",
                 lambda m: " " if (m.group(1) and m.group(2)) else "",
                 modified,
                 flags=_re.IGNORECASE,
