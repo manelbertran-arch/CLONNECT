@@ -182,8 +182,10 @@ async def phase_llm_generation(
         except Exception as ge_err:
             logger.debug(f"[FEWSHOT] Example loading failed: {ge_err}")
 
-    # Step 6: Build full prompt with bot_instructions + strategy + frustration
-    prompt_parts = [user_context]
+    # Step 6: Build full prompt — pure message as last content, no XML wrappers.
+    # User context (username, stage, interests) is already in system_prompt via
+    # relational_block + dna_context + state_context. No need to repeat here.
+    prompt_parts = []
     if _bot_instructions:
         prompt_parts.append(
             "=== INSTRUCCIONES ESPECÍFICAS PARA ESTE LEAD ===\n"
@@ -203,7 +205,7 @@ async def phase_llm_generation(
             f"⚠️ NOTA: El usuario parece frustrado (nivel: {frustration_level:.0%}). "
             f"Responde con empatía y ofrece ayuda concreta."
         )
-    prompt_parts.append(f"Mensaje actual:\n<user_message>\n{message}\n</user_message>")
+    prompt_parts.append(message)
     full_prompt = "\n\n".join(prompt_parts)
 
     # Cap total context to ~12K tokens to control LLM cost/latency
