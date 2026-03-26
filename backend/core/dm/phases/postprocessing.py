@@ -95,6 +95,38 @@ async def phase_postprocessing(
     except Exception as e:
         logger.debug(f"Intra-response repetition detection failed: {e}")
 
+    # A2c: Sentence-level deduplication
+    # Handles longer repeated phrases (≥9 chars) that A2b's char-limited regex misses.
+    # Also handles space-separated repetitions that break A2b's adjacency requirement.
+    # Example: "On estas?  On estas?  On estas?" → "On estas?"
+    # Trigger: any sentence appears 3+ times in the response.
+    try:
+        if response_content and len(response_content) > 30:
+            _sents = re.split(r'(?<=[.!?\n])\s*|\s{2,}', response_content.strip())
+            _sents = [s.strip() for s in _sents if len(s.strip()) > 3]
+            if len(_sents) >= 3:
+                _norm = [s.lower().strip('¡¿ ') for s in _sents]
+                _max_count = max((_norm.count(n) for n in set(_norm)), default=0)
+                if _max_count >= 3:
+                    _seen: set = set()
+                    _kept = []
+                    for s, n in zip(_sents, _norm):
+                        if n not in _seen:
+                            _seen.add(n)
+                            _kept.append(s)
+                    _fixed = ' '.join(_kept).strip()
+                    if _fixed and _fixed != response_content:
+                        _removed = len(_sents) - len(_kept)
+                        logger.warning(
+                            f"[A2c] Sentence repetition: '{_norm[0][:30]}' x{_max_count}"
+                            f" — dedup {len(_sents)}→{len(_kept)} sentences"
+                        )
+                        cognitive_metadata["sentence_dedup"] = _removed
+                        response_content = _fixed
+                        llm_response.content = response_content
+    except Exception as e:
+        logger.debug(f"Sentence dedup failed: {e}")
+
     # Step 7a: Output validation (prices, links)
     if ENABLE_OUTPUT_VALIDATION:
         try:
