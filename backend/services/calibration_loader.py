@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import random
+import re as _re
 import time
 from typing import Dict, List, Optional, Tuple
 
@@ -34,6 +35,108 @@ CALIBRATIONS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
     "calibrations",
 )
+
+
+def _load_creator_blacklist(creator_id: str) -> List[str]:
+    """Extract prohibited terms from creator's Doc D personality file.
+
+    Parses three sources in order:
+    1. 'NO usa: X, Y, Z' lines → prohibited words/phrases
+    2. '## 4.2 BLACKLIST' section → bulleted quoted phrases
+    3. 'NUNCA uses: emoji...' lines → forbidden emojis
+
+    Returns empty list if no Doc D found — safe default, no filtering applied.
+    Universal: works for any creator with a doc_d_bot_configuration.md.
+    """
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    candidates = [
+        os.path.join(base_dir, "data", "personality_extractions", creator_id, "doc_d_bot_configuration.md"),
+        os.path.join(base_dir, "data", "personality_extractions", f"{creator_id}_v2_distilled.md"),
+        os.path.join(base_dir, "data", "personality_extractions", f"{creator_id}_distilled.md"),
+    ]
+
+    content = None
+    for path in candidates:
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as fh:
+                content = fh.read()
+            break
+
+    if not content:
+        return []
+
+    terms: List[str] = []
+
+    # 1. "NO usa: X, Y, Z" → prohibited words (strip parenthetical comments)
+    for m in _re.finditer(r"NO\s+usa:\s*([^\n.]+)", content, _re.IGNORECASE):
+        raw = _re.sub(r"\([^)]*\)", "", m.group(1))
+        for part in _re.split(r"[,;/]", raw):
+            term = part.strip().strip('"').strip("'").strip()
+            if 2 <= len(term) <= 40:
+                terms.append(term.lower())
+
+    # 2. BLACKLIST section: lines like '- "frase prohibida" / "otra frase"'
+    in_blacklist = False
+    for line in content.splitlines():
+        if "4.2" in line or "BLACKLIST" in line.upper():
+            in_blacklist = True
+        elif line.startswith("## ") and in_blacklist:
+            in_blacklist = False
+        if in_blacklist:
+            for m in _re.finditer(r'"([^"]{4,60})"', line):
+                phrase = m.group(1).strip().lower()
+                if phrase:
+                    terms.append(phrase)
+
+    # 3. Forbidden emojis: "NUNCA uses: 😊 😉 ..."
+    for m in _re.finditer(r"NUNCA\s+uses?:\s*([^\n\(]+)", content, _re.IGNORECASE):
+        emojis = _re.findall(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]", m.group(1))
+        terms.extend(emojis)
+
+    # Deduplicate preserving order
+    seen: set = set()
+    result = []
+    for t in terms:
+        if t and t not in seen:
+            seen.add(t)
+            result.append(t)
+
+    if result:
+        logger.debug("[Blacklist] %s: %d prohibited terms loaded from Doc D", creator_id, len(result))
+    return result
+
+
+def _filter_blacklisted_examples(
+    examples: List[Dict],
+    blacklist: List[str],
+    creator_id: str = "",
+) -> List[Dict]:
+    """Remove few-shot examples whose response contains a blacklisted term.
+
+    Safe: returns all examples unchanged if blacklist is empty.
+    """
+    if not blacklist or not examples:
+        return examples
+
+    clean, removed = [], 0
+    for ex in examples:
+        response_lower = ex.get("response", "").lower()
+        if any(term in response_lower for term in blacklist):
+            removed += 1
+            logger.debug(
+                "[Blacklist] %s: removed example '%s...'",
+                creator_id or "?",
+                ex.get("response", "")[:50],
+            )
+        else:
+            clean.append(ex)
+
+    if removed:
+        logger.info(
+            "[Blacklist] %s: removed %d/%d blacklisted few-shot examples, %d remain",
+            creator_id or "?", removed, len(examples), len(clean),
+        )
+    return clean
 
 
 def load_calibration(creator_id: str) -> Optional[Dict]:
@@ -59,6 +162,19 @@ def load_calibration(creator_id: str) -> Optional[Dict]:
     try:
         with open(cal_path, "r", encoding="utf-8") as f:
             data = json.load(f)
+
+        # Filter few-shot examples against the creator's Doc D blacklist.
+        # Removes responses containing prohibited words/phrases/emojis defined in §4.2 or
+        # "NO usa:" / "NUNCA uses:" sections. No-op if no Doc D found.
+        few_shot = data.get("few_shot_examples", [])
+        if few_shot:
+            blacklist = _load_creator_blacklist(creator_id)
+            if blacklist:
+                filtered = _filter_blacklisted_examples(few_shot, blacklist, creator_id)
+                if len(filtered) != len(few_shot):
+                    data = dict(data)
+                    data["few_shot_examples"] = filtered
+
         _cache[creator_id] = (data, now)
         baseline = data.get("baseline", {})
         n_fse = len(data.get("few_shot_examples", []))

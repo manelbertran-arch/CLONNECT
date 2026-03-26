@@ -154,12 +154,6 @@
       "language": "mixto"
     },
     {
-      "user_message": "Sent a voice message",
-      "response": "Brutaaal😂😂😂😂😂 el pasito de lado🥳🥳",
-      "context": "reaccion_breve",
-      "language": "es"
-    },
-    {
       "user_message": "Mentioned you in their story",
       "response": "Holaaa! 😘",
       "context": "saludo",
@@ -364,24 +358,6 @@
       "language": "es"
     },
     {
-      "user_message": "Gracies preciosa!! 😍😍💖💖",
-      "response": "De res guapa! 🥰 Sempre que puguis i vulguis, aqui estic! Que et va semblar la classe d'ahir?",
-      "context": "gracias_engagement",
-      "language": "ca"
-    },
-    {
-      "user_message": "Mil gracias reina!! Eres la mejor 💕",
-      "response": "Aww carino! Me alegro un monton 🥰 como te fue??",
-      "context": "gracias_engagement",
-      "language": "es"
-    },
-    {
-      "user_message": "Li has fet el dia",
-      "response": "Ay mi vida, qué dices! 🩷 Me alegro un montón. Un abrazo enorme. 😘",
-      "context": "personal_familia",
-      "language": "es"
-    },
-    {
       "user_message": "estava valorant la comprenció del audio del sistema y ha donat la casualitat que parlaves davui i que estaves cansada",
       "response": "Si lo que mas quiero es desconnectar😂😂😂",
       "context": "personal_familia",
@@ -426,12 +402,6 @@
     {
       "user_message": "Digueu-li a sa mare",
       "response": "La Magda ha de venir??",
-      "context": "personal_familia",
-      "language": "ca"
-    },
-    {
-      "user_message": "Una forta abraçada i ena veiem aviat",
-      "response": "Petonet amor!🥰",
       "context": "personal_familia",
       "language": "ca"
     },

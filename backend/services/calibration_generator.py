@@ -290,6 +290,19 @@ def generate_calibration(
             len(candidates), creator_id,
         )
 
+        # Filter candidates against creator's Doc D blacklist (same logic as loader).
+        # Ensures generated calibration files are born clean — no prohibited words in responses.
+        try:
+            from services.calibration_loader import (
+                _filter_blacklisted_examples,
+                _load_creator_blacklist,
+            )
+            blacklist = _load_creator_blacklist(creator_id)
+            if blacklist:
+                candidates = _filter_blacklisted_examples(candidates, blacklist, creator_id)
+        except Exception as _bl_err:
+            logger.debug("[CalGen] Blacklist filter skipped: %s", _bl_err)
+
         # Select diverse subset
         examples = _select_diverse_examples(candidates, max_examples)
 
