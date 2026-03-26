@@ -10,7 +10,7 @@ from typing import Dict
 from core.agent_config import AGENT_THRESHOLDS
 from core.dm.models import ContextBundle, DetectionResult, DMResponse
 from core.dm.text_utils import _message_mentions_product
-from core.output_validator import validate_links, validate_prices
+from core.output_validator import validate_links
 from core.reflexion_engine import get_reflexion_engine
 from core.response_fixes import apply_all_response_fixes
 from services import LLMResponse
@@ -127,22 +127,9 @@ async def phase_postprocessing(
     except Exception as e:
         logger.debug(f"Sentence dedup failed: {e}")
 
-    # Step 7a: Output validation (prices, links)
+    # Step 7a: Output validation (links only — price validation handled by guardrails)
     if ENABLE_OUTPUT_VALIDATION:
         try:
-            # Build known prices from products
-            known_prices = {
-                p.get("name", ""): p.get("price", 0)
-                for p in agent.products
-                if p.get("price")
-            }
-            price_issues = validate_prices(response_content, known_prices)
-            if price_issues:
-                logger.warning(f"Output validation: {len(price_issues)} price issues")
-                cognitive_metadata["output_validation_issues"] = [
-                    i.details for i in price_issues
-                ]
-            # Build known links from products
             known_links = [p.get("url", "") for p in agent.products if p.get("url")]
             link_issues, corrected = validate_links(response_content, known_links)
             if link_issues:
@@ -175,6 +162,14 @@ async def phase_postprocessing(
         except Exception as e:
             logger.debug(f"Tone enforcement failed: {e}")
 
+    # Step 7a2b2: Emoji limit (AFTER tone_enforcer so added emojis get capped too)
+    try:
+        from core.response_fixes import apply_emoji_limit
+
+        response_content = apply_emoji_limit(response_content, creator_id=agent.creator_id)
+    except Exception as e:
+        logger.debug(f"Emoji limit failed: {e}")
+
     # Step 7a2c: Question removal
     if ENABLE_QUESTION_REMOVAL:
         try:
@@ -201,7 +196,12 @@ async def phase_postprocessing(
         except Exception as e:
             logger.debug(f"Reflexion failed: {e}")
 
-    # Step 7a4: Score Before You Speak (supersedes PPA when enabled)
+    # Step 7a4: QUALITY GATE — Score Before You Speak (SBS)
+    # SBS evaluates persona alignment via CPU-only scoring (~1ms).
+    #   score >= 0.7 (ALIGNMENT_THRESHOLD) -> send as-is (fast path)
+    #   score <  0.7 -> PPA refines via Gemini LLM call (~300-500ms)
+    #   still < 0.7  -> retry generation at temp=0.5, pick best (2 extra calls max)
+    # When SBS is disabled, PPA runs standalone as fallback (elif branch below).
     if ENABLE_SCORE_BEFORE_SPEAK and agent.calibration:
         try:
             from core.reasoning.ppa import score_before_speak

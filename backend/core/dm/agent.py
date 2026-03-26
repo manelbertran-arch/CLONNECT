@@ -414,14 +414,9 @@ class DMResponderAgentV2:
             _t2 = time.monotonic()
             logger.info(f"[TIMING] Phase 2-3 (context+RAG+prompt): {int((_t2 - _t1) * 1000)}ms")
 
-            # Phase 3b: Prompt Construction
-            full_prompt = self._phase_prompt_construction(
-                message, sender_id, metadata, context, detection, cognitive_metadata
-            )
-
-            # Phase 4: LLM Generation
+            # Phase 4: LLM Generation (prompt built inside this phase)
             llm_response = await self._phase_llm_generation(
-                message, full_prompt, context.system_prompt, context, cognitive_metadata
+                message, "", context.system_prompt, context, cognitive_metadata
             )
 
             _t3 = time.monotonic()
@@ -461,14 +456,6 @@ class DMResponderAgentV2:
     ) -> ContextBundle:
         from core.dm.phases.context import phase_memory_and_context
         return await phase_memory_and_context(self, message, sender_id, metadata, cognitive_metadata, detection)
-
-    def _phase_prompt_construction(
-        self, message: str, sender_id: str, metadata: Dict,
-        context: ContextBundle, detection: DetectionResult,
-        cognitive_metadata: Dict,
-    ) -> str:
-        from core.dm.phases.prompt import phase_prompt_construction
-        return phase_prompt_construction(self, message, sender_id, metadata, context, detection, cognitive_metadata)
 
     async def _phase_llm_generation(
         self, message: str, full_prompt: str, system_prompt: str,
