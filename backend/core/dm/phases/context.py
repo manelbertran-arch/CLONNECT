@@ -116,6 +116,8 @@ async def phase_memory_and_context(
                 )
                 if q_type != QuestionType.UNKNOWN:
                     cognitive_metadata["question_context"] = q_type.value
+                    cognitive_metadata["question_confidence"] = q_conf
+                    cognitive_metadata["is_short_affirmation"] = True
         except Exception as e:
             logger.debug(f"Question context failed: {e}")
 
@@ -548,6 +550,30 @@ async def phase_memory_and_context(
             _cnotes = getattr(_csig, "context_notes", [])
             if _cnotes:
                 _context_notes_str = "\n".join(_cnotes)
+
+    # Question Context — resolve affirmation collapse for short messages
+    # When the lead says "Si", "Vale", "Ok" etc., the LLM often generates a
+    # generic "Genial!" instead of acting on what it asked. This note tells
+    # the LLM what the affirmation refers to.
+    if ENABLE_QUESTION_CONTEXT:
+        _q_ctx = cognitive_metadata.get("question_context")
+        _q_conf = cognitive_metadata.get("question_confidence", 0)
+        if _q_ctx and _q_ctx != "unknown" and _q_conf >= 0.7:
+            _Q_NOTES = {
+                "purchase": "El lead confirma que quiere comprar/apuntarse.",
+                "payment": "El lead confirma el método de pago.",
+                "booking": "El lead confirma la reserva o cita.",
+                "interest": "El lead confirma interés en tus servicios.",
+                "information": "El lead pide más información.",
+                "confirmation": "El lead confirma lo que le propusiste.",
+            }
+            _q_note = _Q_NOTES.get(_q_ctx, "")
+            if _q_note:
+                _context_notes_str = (
+                    (_context_notes_str + "\n" + _q_note)
+                    if _context_notes_str else _q_note
+                )
+                logger.info("[QUESTION_CONTEXT] Injected: %s (conf=%.2f)", _q_ctx, _q_conf)
 
     # ECHO Engine: Generate relational context (Sprint 4)
     relational_block = ""

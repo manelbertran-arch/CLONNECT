@@ -270,16 +270,28 @@ def get_bot_question_analyzer() -> BotQuestionAnalyzer:
 # UTILIDADES PARA AFIRMACIONES
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Palabras que son afirmaciones simples
+# Palabras que son afirmaciones simples (multilingual: ES, CA, IT, EN)
 AFFIRMATION_WORDS = {
+    # Español
     'si', 'sí', 'ok', 'okay', 'okey', 'vale', 'dale', 'claro',
     'bueno', 'bien', 'perfecto', 'genial', 'venga', 'va',
     'de acuerdo', 'por supuesto', 'obvio', 'seguro', 'ya',
     'eso', 'exacto', 'correcto', 'así es', 'afirmativo',
     'entendido', 'entiendo', 'comprendo', 'listo', 'hecho',
+    # Catalán
+    'clar', 'fet', 'entesos', 'perfecte', 'bé', 'molt bé', 'moltbé',
+    'sip', 'oka', 'okaaa', 'okaa', "d'acord", 'endavant', 'vinga',
+    'siii', 'siiii', 'top', 'va bé', 'entenc',
+    # Italiano
+    'sì', 'certo', 'perfetto', 'va bene', "d'accordo", 'capito',
+    'esatto', 'giusto', 'benissimo', 'fatto',
+    # English
+    'yes', 'sure', 'alright', 'right', 'yep', 'yup', 'cool', 'fine',
+    'got it', 'sounds good', 'perfect', 'done',
     # Variantes con signos
     'si!', 'sí!', 'ok!', 'vale!', 'dale!', 'claro!',
     'si.', 'sí.', 'ok.', 'vale.', 'claro.', 'entendido.',
+    'clar!', 'perfecte!', 'top!', 'siii!', 'oka!',
 }
 
 
