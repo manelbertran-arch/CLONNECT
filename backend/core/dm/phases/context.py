@@ -261,12 +261,27 @@ async def phase_memory_and_context(
             hist = metadata.get("history", [])
             user_msgs = [m for m in hist if m.get("role") == "user"]
 
-            # Get lead facts if memory engine loaded them
+            # Get lead facts from memory_context (already computed above).
+            # Parse the formatted string to extract fact texts for the scorer.
+            # The scorer checks for PERSONAL_MARKERS ("madre", "amigo", ...) in text,
+            # so text-only extraction is sufficient — fact_type "general" is OK.
             lead_facts = []
             if memory_context:
-                # Memory context is a text string; pass raw facts if available
-                # For now, pass empty — the scorer also uses lead_status from DB
-                pass
+                import re as _re
+                _time_re = _re.compile(
+                    r'\s*\(hace[^)]*\)\s*(?:\[PENDIENTE\])?\s*$', _re.IGNORECASE
+                )
+                for _line in memory_context.split('\n'):
+                    _line = _line.strip()
+                    if (not _line
+                            or _line.startswith('===')
+                            or _line.startswith('Hechos')
+                            or _line.startswith('Resumen')):
+                        continue
+                    _line = _line.lstrip('- •').strip()
+                    _line = _time_re.sub('', _line).strip()
+                    if len(_line) > 5:
+                        lead_facts.append({"fact_type": "general", "fact_text": _line})
 
             # Calculate days span from follower data
             days_span = 0
@@ -488,16 +503,17 @@ async def phase_memory_and_context(
                 session.close()
 
             adapter = RelationshipAdapter()
-            _rel_type = "DESCONOCIDO"
+            # Use local var to avoid clobbering _rel_type="" set by the scorer
+            _echo_rel_type = "DESCONOCIDO"
             if isinstance(raw_dna, dict):
-                _rel_type = raw_dna.get("relationship_type", "DESCONOCIDO")
+                _echo_rel_type = raw_dna.get("relationship_type", "DESCONOCIDO")
 
             _echo_rel_ctx = adapter.get_relational_context(
                 lead_status=current_stage,
                 style_profile=_sp,
                 commitment_text=commitment_text,
                 lead_memory_summary=memory_context,
-                relationship_type=_rel_type,
+                relationship_type=_echo_rel_type,
                 lead_name=follower.username if hasattr(follower, 'username') else None,
                 message_count=follower.total_messages if hasattr(follower, 'total_messages') else 0,
                 has_doc_d=bool(agent.style_prompt),
