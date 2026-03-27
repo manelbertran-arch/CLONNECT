@@ -466,7 +466,7 @@ def apply_all_response_fixes(
     # FIX 7: Personality extraction blacklist (after all other fixes)
     response = apply_blacklist_filter(response, creator_id)
 
-    # FIX 8: Emoji limit — MOVED to postprocessing.py (after tone_enforcer)
+    # FIX 8: Emoji limit — MOVED to postprocessing.py
     # FIX 9: Catchphrase removal — MERGED into question_remover.py
 
     # BUG-10 fix: if all fixes stripped the response to empty, use a safe fallback

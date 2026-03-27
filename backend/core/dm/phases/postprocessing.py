@@ -150,19 +150,7 @@ async def phase_postprocessing(
         except Exception as e:
             logger.debug(f"Response fixes failed: {e}")
 
-    # Step 7a2b: Tone enforcement (emoji/excl/question rates from calibration)
-    if agent.calibration:
-        try:
-            from services.tone_enforcer import enforce_tone
-
-            response_content = enforce_tone(
-                response_content, agent.calibration,
-                sender_id=sender_id, message=message,
-            )
-        except Exception as e:
-            logger.debug(f"Tone enforcement failed: {e}")
-
-    # Step 7a2b2: Emoji limit (AFTER tone_enforcer so added emojis get capped too)
+    # Step 7a2b2: Emoji limit
     try:
         from core.response_fixes import apply_emoji_limit
 

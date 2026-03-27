@@ -8,8 +8,7 @@ Calibration JSON contains:
 - context_soft_max: {saludo: 22, casual: 25, ...}
 
 Used by:
-- core/dm_agent_v2.py (few-shot injection, tone enforcement targets)
-- services/tone_enforcer.py (emoji/excl/question rate targets)
+- core/dm_agent_v2.py (few-shot injection, length targets)
 
 Universal: works for any creator_id with a calibration file.
 """
