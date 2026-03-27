@@ -7,7 +7,9 @@
     "emoji_pct": 30.0,
     "exclamation_pct": 12.0,
     "question_frequency_pct": 8.0,
-    "soft_max": 60
+    "soft_max": 60,
+    "temperature": 0.8,
+    "max_tokens": 100
   },
   "inject_emojis": [
     "😂",

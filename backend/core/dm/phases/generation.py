@@ -293,9 +293,14 @@ async def phase_llm_generation(
         cognitive_metadata["best_of_n"] = serialize_candidates(best_of_n_result)
     else:
         # A4/A5: generate_dm_response returns dict with model/provider/latency
-        # ECHO: Use dynamic max_tokens/temperature from Relationship Adapter
-        _llm_max_tokens = 150
-        _llm_temperature = 0.7
+        # Priority: ECHO adapter (highest) > calibration baseline > hardcoded default
+        _llm_max_tokens = 100   # conservative default (was 150 — too permissive)
+        _llm_temperature = 0.7  # universal default
+        _cal_baseline = (agent.calibration or {}).get("baseline", {}) if agent.calibration else {}
+        if _cal_baseline.get("temperature") is not None:
+            _llm_temperature = float(_cal_baseline["temperature"])
+        if _cal_baseline.get("max_tokens") is not None:
+            _llm_max_tokens = int(_cal_baseline["max_tokens"])
         if _echo_rel_ctx:
             _llm_max_tokens = _echo_rel_ctx.llm_max_tokens
             _llm_temperature = _echo_rel_ctx.llm_temperature
