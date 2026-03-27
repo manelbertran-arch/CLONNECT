@@ -1,0 +1,677 @@
+{
+  "conversations": [
+    {
+      "id": "real_003",
+      "lead_id": "c9a93563-be70-4445-b9f4-7cc3e2d743c9",
+      "username": "+34636022878",
+      "platform": "whatsapp",
+      "type": "real",
+      "language": "es",
+      "test_input": "On estas?",
+      "ground_truth": "Aiiii Eli\nCom va tot?\nTe paso info per privat ara que ja he colgat.",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Si vols que fem un lapsos a les 18:15 em dius"
+        },
+        {
+          "role": "assistant",
+          "content": "I ens apuntem"
+        },
+        {
+          "role": "user",
+          "content": "Cuca no puc perqe jo treballo fins les 19h"
+        },
+        {
+          "role": "user",
+          "content": "Ara he pogut escoltar audio"
+        },
+        {
+          "role": "user",
+          "content": "Nena, et puc fer una tècnica al turmell"
+        },
+        {
+          "role": "user",
+          "content": "Qe funciona a tothom qe li faig"
+        },
+        {
+          "role": "user",
+          "content": "I son2 minuts"
+        },
+        {
+          "role": "user",
+          "content": "A mi tmb em fa pal pujar jaja pero bueno un cop ja estem alla, ja esta!"
+        },
+        {
+          "role": "user",
+          "content": "Cagada de pato😂😂😂"
+        },
+        {
+          "role": "user",
+          "content": "Jo no es per pasa, jo cago perqe menjo molt i merdes jajaj"
+        },
+        {
+          "role": "user",
+          "content": "Me lo he buscado yo solita"
+        },
+        {
+          "role": "user",
+          "content": "Cucaa"
+        }
+      ],
+      "msg_count": 1526
+    },
+    {
+      "id": "real_004",
+      "lead_id": "72e24413-79c5-4ddf-a001-be1e98baa0aa",
+      "username": "wa_34654148949",
+      "platform": "whatsapp",
+      "type": "real",
+      "language": "es",
+      "test_input": "VINC SÚPER RAPID",
+      "ground_truth": "Tranqui",
+      "turns": [
+        {
+          "role": "user",
+          "content": "El necessites avui,?"
+        },
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        },
+        {
+          "role": "user",
+          "content": "Ah vale val doncs demà tel porto 😘😘😘"
+        },
+        {
+          "role": "user",
+          "content": "Babyy"
+        },
+        {
+          "role": "user",
+          "content": "Plego 21:30 vale"
+        },
+        {
+          "role": "user",
+          "content": "Trigo 5 min en arribar a casa teva 🫶🏻"
+        },
+        {
+          "role": "assistant",
+          "content": "Hem quedat al dinamic"
+        },
+        {
+          "role": "assistant",
+          "content": "Hem quedat al dinamic"
+        },
+        {
+          "role": "user",
+          "content": "Ah vale okeii"
+        },
+        {
+          "role": "assistant",
+          "content": "Que no vens?"
+        },
+        {
+          "role": "assistant",
+          "content": "Que no vens?"
+        },
+        {
+          "role": "user",
+          "content": "[🎤 Audio]: Iris, en canvi, ja veig que a les se'ns mor una senyora i no puguem marxar abans."
+        }
+      ],
+      "msg_count": 1250
+    },
+    {
+      "id": "real_007",
+      "lead_id": "cf0a8e41-9469-4f7f-b4a0-22f4df62ae1b",
+      "username": "ericadelo",
+      "platform": "instagram",
+      "type": "real",
+      "language": "es",
+      "test_input": "A ver si mi suegra se viene conmigo el jueves",
+      "ground_truth": "Ayyy es veldaaa",
+      "turns": [
+        {
+          "role": "user",
+          "content": "❤️‍🔥❤️‍🔥❤️‍🔥❤️‍🔥"
+        },
+        {
+          "role": "assistant",
+          "content": "Ostiaaa😂😂😂"
+        },
+        {
+          "role": "user",
+          "content": "Sent an attachment"
+        },
+        {
+          "role": "assistant",
+          "content": "Ostiaaa😂😂😂"
+        },
+        {
+          "role": "user",
+          "content": "Shared content"
+        },
+        {
+          "role": "user",
+          "content": "Sent an attachment"
+        },
+        {
+          "role": "assistant",
+          "content": "Jajajaja que arte tienes flor!"
+        },
+        {
+          "role": "assistant",
+          "content": "Sent a voice message"
+        },
+        {
+          "role": "user",
+          "content": "Vale perfe"
+        },
+        {
+          "role": "user",
+          "content": "Esq ja estem conectades mamasita"
+        },
+        {
+          "role": "assistant",
+          "content": "Ayyy es veldaaa"
+        },
+        {
+          "role": "user",
+          "content": "Pues magradaria intentar venir pero mañana llegan mis suegros tengo q adelantar"
+        }
+      ],
+      "msg_count": 595
+    },
+    {
+      "id": "real_008",
+      "lead_id": "67490a27-449e-4d81-862d-8b1c7caddaaf",
+      "username": "wa_34638569076",
+      "platform": "whatsapp",
+      "type": "real",
+      "language": "es",
+      "test_input": "Tengo yo alitas",
+      "ground_truth": "Jajajaja ostia 😂",
+      "gt_note": "Original GT was inside joke callback (De pollo → sudada como un Pollo). Replaced with achievable Iris-style reaction.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Vale nos vemos a las 21"
+        },
+        {
+          "role": "user",
+          "content": "Reina"
+        },
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        },
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        },
+        {
+          "role": "assistant",
+          "content": "Eduuu si puedes compra toallitas🫩que vendré sudada como un\nPollo"
+        },
+        {
+          "role": "assistant",
+          "content": "Eduuu si puedes compra toallitas🫩que vendré sudada como un\nPollo"
+        },
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        },
+        {
+          "role": "assistant",
+          "content": "No te asustes esta es mi barriga hoy"
+        },
+        {
+          "role": "assistant",
+          "content": "[📷 Photo]"
+        },
+        {
+          "role": "assistant",
+          "content": "El domingo cojí alguna intolerancia"
+        },
+        {
+          "role": "assistant",
+          "content": "A ver si podemos salvar algo"
+        },
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        }
+      ],
+      "msg_count": 573
+    },
+    {
+      "id": "real_009",
+      "lead_id": "0e386e03-79fe-44e7-93da-793239bbc828",
+      "username": "+34638287533",
+      "platform": "whatsapp",
+      "type": "real",
+      "language": "es",
+      "test_input": "Valeeee",
+      "ground_truth": "Dale amor",
+      "turns": [
+        {
+          "role": "user",
+          "content": "[🎤 Audio]: ¿Qué pasa? Es que acabo de salir de Martorell. ¿Qué pasa con Laura? No, no me ha dicho nada, Laura. Nada de nada. ¿Por qué? ¿Qué ha pasado?"
+        },
+        {
+          "role": "assistant",
+          "content": "Escribe"
+        },
+        {
+          "role": "user",
+          "content": "Que pasa con Laura"
+        },
+        {
+          "role": "assistant",
+          "content": "Que si vienes o nooo"
+        },
+        {
+          "role": "assistant",
+          "content": "Que si vienes o nooo"
+        },
+        {
+          "role": "user",
+          "content": "Pues no me da tiempo para hacer todo y llegar! A ver si llego a hit!"
+        },
+        {
+          "role": "assistant",
+          "content": "Buahhh tiaaa tranqui"
+        },
+        {
+          "role": "assistant",
+          "content": "Nereaaa que me has dicho que el viernes no tenenmos entreno o si"
+        },
+        {
+          "role": "assistant",
+          "content": "Bua ahora me he liaou"
+        },
+        {
+          "role": "user",
+          "content": "Que no tenemos"
+        },
+        {
+          "role": "assistant",
+          "content": "Perfecto 😘😘😘"
+        },
+        {
+          "role": "assistant",
+          "content": "Perfecto 😘😘😘"
+        }
+      ],
+      "msg_count": 568
+    },
+    {
+      "id": "real_010",
+      "lead_id": "bfadbe38-4b4a-4c5d-98f2-c9d4ee8863ef",
+      "username": "Alba",
+      "platform": "whatsapp",
+      "type": "real",
+      "language": "es",
+      "test_input": "[🎤 Audio]: Nena, que ara m'ha vingut al cap: hi ha llet de coco al Branch o no? Perquè si ets d'agafar-te un cafè divendres, i no hi ha llet de coco, jo no hi vaig. Ja em diràs, betonet.",
+      "ground_truth": "Jajajaja nena! 🤣🤣\nDilluns et dic algo. 😘",
+      "gt_note": "Original GT had personal pet name (betonet) impossible without prior context. Replaced with generic apelativo.",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Jajajaja, me alegro, cariño! Qué bien que ya estés más tranquila. 👍"
+        },
+        {
+          "role": "user",
+          "content": "Reina dilluns Nooooo \nNo puc no tinc el David 🙏🏻🙏🏻\nSorry \nEns veiem dimecres"
+        },
+        {
+          "role": "user",
+          "content": "Gràcies Per la clase d’avui \nI Per la paciencia ❤️🫶🏻"
+        },
+        {
+          "role": "assistant",
+          "content": "De nada, cariño. ❤️ Me alegro que te gustara. 😘"
+        },
+        {
+          "role": "assistant",
+          "content": "Si tas a casa"
+        },
+        {
+          "role": "assistant",
+          "content": "Porta’m enantyums xfis"
+        },
+        {
+          "role": "assistant",
+          "content": "Si tens algún"
+        },
+        {
+          "role": "assistant",
+          "content": "Sino no passa res"
+        },
+        {
+          "role": "user",
+          "content": "Yes lady"
+        },
+        {
+          "role": "user",
+          "content": "Ja te’n porto 🫶🏻"
+        },
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        },
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        }
+      ],
+      "msg_count": 536
+    },
+    {
+      "id": "real_011",
+      "lead_id": "5e1b8d08-2b2c-473c-b503-96fb86cfd0c7",
+      "username": "wa_34619379120",
+      "platform": "whatsapp",
+      "type": "real",
+      "language": "es",
+      "test_input": "[🎤 Audio]: ¡Hustia! Me ha sorprendido, no me lo esperaba. Pensaba que era un rollo de estar todo el día en el gimnasio, desconectando y sin pensar. Pero bueno, por los vídeos que hagas, tampoco pasa nada.\n\n¿Ya notabas que te quedaba clavada la cervical? Joder, tío, qué putada. Si no vas a descansar, olvídate.\n\nHoy duerme, descansa, desconecta. Si has hecho la clase, ya te han ido bien, seguro. Y cuando quieras venir a verme a Pibonacos de Barcelona, me parece perfecto. Es un planazo estupendo. Cuando queráis, vigilar la carretera, ¿vale?\n\nY mañana, en principio, si todo va bien, creo que sí, vengo a Hipopilates y Barre. Tengo ganas porque hace mucho que no vengo a Barre.",
+      "ground_truth": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Enjoy my love estàs preciosa com sempre❤️"
+        },
+        {
+          "role": "user",
+          "content": "Irisss !! M’he apuntat a barre perque havia de tenir lliure però al final s’ha m’ha liat la feina… \nHo sentooo 💔💔💔"
+        },
+        {
+          "role": "user",
+          "content": "Dijous 100%"
+        },
+        {
+          "role": "assistant",
+          "content": "[🎤 Audio]: Tío, de verdad, hoy que soy cuatro gatos, hostia puta, tío Pues nada, otra menos, no pasa nada"
+        },
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        },
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        },
+        {
+          "role": "assistant",
+          "content": "[sticker]"
+        },
+        {
+          "role": "user",
+          "content": "[🎤 Audio]: ¡Uah! Luego te lo explico bien. Fui a buscar la plancha a \"A Cada Roger\" y me dijeron: \"¡Ay! ¡Ahora trabajaré por el Dinámico!\". No lo sabía. Me dijeron: \"¡Ah! ¡Mira tú qué bien!\".\n\nVeo que lo llevará el Toni. Él ha abierto diciendo que quiere que le lleve todo el tema de los vídeos. Todavía había de pasar el precio, eh. Pero me he quedado flipando. Me sorprende, te lo quería comentar.\n\nDigo: \"Gracias, Toni, tío\". No me has contratado mientras he estado contigo, y ahora que no estoy, ¿me lo hará el puto gimnasio? Que no pasa nada, eh. Pero me ha sobrado. Me ha sobrado mucho."
+        },
+        {
+          "role": "assistant",
+          "content": "Wstic flipant"
+        },
+        {
+          "role": "assistant",
+          "content": "Wstic flipant"
+        },
+        {
+          "role": "assistant",
+          "content": "[🎤 Audio]: Estoy saliendo. Ahora voy a hacer el coche de Barna. Vaya pibe, madre mía. Estoy flipando, porque no sabía nada. El Tani no me ha dicho nada. El otro día nos quejábamos del Nil. ¿Qué representa? ¿Que han puteado por el Nil? No entiendo nada. Vale. \n\nMalapela. Moni y yo no hemos creado palabras con Roger desde que... desde el estero que me vas a enviar. No me he puesto en contacto con él, cariño. No tengo ni idea de su vida. Se me cae una mica la cara de vergüenza, porque, a ver, yo qué sé. También podría haber dicho que no sé, pero claro, nena, yo voy con ti. \n\nNo he visto ningún video, porque estoy con la Erika. Hoy he ido fatal. He tenido un tirón en los cervicales a mitad del examen, he vuelto a repetir y he vuelto fatal. Pero es igual, ahora vengo de la Axos. He llevado al hermano, se ha pasado pipa, que lo necesitaba, porque aquí también está en proceso de separación. \n\nVoy a hacer una recadida y, así que nada, ahora estoy guay, porque ya he acabado la clase, he desconectado y he hecho lo que tenía que hacer. Hoy había dormido muy poco, y cuando no dormimos es una mierda. ¿Mañana te becas o no?"
+        }
+      ],
+      "msg_count": 520
+    },
+    {
+      "id": "real_012",
+      "lead_id": "84f853fd-68ea-4eec-a335-3e3676394b2e",
+      "username": "wa_34606434377",
+      "platform": "whatsapp",
+      "type": "real",
+      "language": "es",
+      "test_input": "Pujo súper justa a barre",
+      "ground_truth": "Jajaja, ¡siempre igual! 😂 ¿Vienes corriendo?",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "[sticker]"
+        },
+        {
+          "role": "user",
+          "content": "[reaction: 😂]"
+        },
+        {
+          "role": "user",
+          "content": "Baby el sap molt greu  no haber arribat a zumba pero tot just ha acabat el curs ara\nPerdo"
+        },
+        {
+          "role": "user",
+          "content": "[🎤 Audio]: Iris, me estoy mirando esto y a las cuatro y media me engancharás en la feina. Tú de una a tres no tienes nada, ¿verdad? Lo tienes todo lleno de entrenos, ¿no? Pregunto."
+        },
+        {
+          "role": "user",
+          "content": "[🎤 Audio]: Tengo un poco complicado, ¿vale? Sería a las 4:30, porque me engancharás entre medio de un sacado y de un tratamiento, y no lo veo viable."
+        },
+        {
+          "role": "user",
+          "content": "Es igual vine quan sortis del massatge i ja fare"
+        },
+        {
+          "role": "assistant",
+          "content": "I demà a les 9;00"
+        },
+        {
+          "role": "assistant",
+          "content": "I demà a les 9;00"
+        },
+        {
+          "role": "assistant",
+          "content": "Et va millor cuca?"
+        },
+        {
+          "role": "user",
+          "content": "No no"
+        },
+        {
+          "role": "assistant",
+          "content": "Què tal, lloverasperruquers? 😄 Que t'ha cridat l'atenció?✨"
+        },
+        {
+          "role": "assistant",
+          "content": "[reaction: ❤️]"
+        }
+      ],
+      "msg_count": 505
+    },
+    {
+      "id": "real_013",
+      "lead_id": "48e69654-82ea-44dd-8101-d10565bacfe6",
+      "username": "wa_34640884248",
+      "platform": "whatsapp",
+      "type": "real",
+      "language": "es",
+      "test_input": "Tengo trabajo por la tarde y iré a comprar unas placas para el piso 🤯 al mediodía",
+      "ground_truth": "Que vendrás el domingo que es el últimooo",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Es que ya no sé donde escribirle"
+        },
+        {
+          "role": "user",
+          "content": "[contact]"
+        },
+        {
+          "role": "user",
+          "content": "Si este lo tiene de hace 2 semanas"
+        },
+        {
+          "role": "assistant",
+          "content": "Mañana a las 8:45 tiene que estar lista ok"
+        },
+        {
+          "role": "assistant",
+          "content": "Mañana a las 8:45 tiene que estar lista ok"
+        },
+        {
+          "role": "user",
+          "content": "Si me lo ha dicho"
+        },
+        {
+          "role": "assistant",
+          "content": "Le diré Andrea que la pase a buscar"
+        },
+        {
+          "role": "user",
+          "content": "Vale sino la llevo yo"
+        },
+        {
+          "role": "assistant",
+          "content": "Que vaaa si tiene que venir Andrea tia no le viene de aqui"
+        },
+        {
+          "role": "user",
+          "content": "Pásame la dirección y la llevo"
+        },
+        {
+          "role": "assistant",
+          "content": "Que vaaa si tiene que venir Andrea tia no le viene de aqui"
+        },
+        {
+          "role": "assistant",
+          "content": "Tu desconecta"
+        }
+      ],
+      "msg_count": 501
+    },
+    {
+      "id": "real_014",
+      "lead_id": "03753146-44d9-4eb7-9090-5f0b6e6286be",
+      "username": "wa_34649776345",
+      "platform": "whatsapp",
+      "type": "real",
+      "language": "es",
+      "test_input": "Pacient llarga",
+      "ground_truth": "Ostia bro dimeeee🫠!",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Ho sento"
+        },
+        {
+          "role": "user",
+          "content": "Iris si m'agrada que et respectis i t'entenc ❤️"
+        },
+        {
+          "role": "assistant",
+          "content": "[🎤 Audio]: Alba, carinyo, el problema és que el dissabte vaig fer la masterclass, també per les amigues de la Dara. Avui porto des d'ahir amb molt mal de panxa i rampes, estic com dèbil.\n\nNo m'he ficat ni a fer la sessió encara perquè estic molt cansada, tio. No m'he mogut del sofà, estic estirada perquè estic amb rampes des d'ahir. Alguna cosa del menjar em va caure malament.\n\nTant de bo ho tingués i ho pogués provar amb tu, saps? Necessito provar-ho abans de fer-ho a classe, però bé, no res. És per això més que res."
+        },
+        {
+          "role": "assistant",
+          "content": "[🎤 Audio]: Alba, carinyo, el problema és que el dissabte vaig fer la masterclass, també per les amigues de la Dara. Avui porto des d'ahir amb molt mal de panxa i rampes, estic com dèbil.\n\nNo m'he ficat ni a fer la sessió encara perquè estic molt cansada, tio. No m'he mogut del sofà, estic estirada perquè estic amb rampes des d'ahir. Alguna cosa del menjar em va caure malament.\n\nTant de bo ho tingués i ho pogués provar amb tu, saps? Necessito provar-ho abans de fer-ho a classe, però bé, no res. És per això més que res."
+        },
+        {
+          "role": "user",
+          "content": "Ai nena.. Normal! Es que a part no pares!"
+        },
+        {
+          "role": "user",
+          "content": "Vaaaa recupera't🙌🏻"
+        },
+        {
+          "role": "user",
+          "content": "Iris m'ha anulat la pacient D ara, si vols que vingui abans diga'm-ho😘"
+        },
+        {
+          "role": "assistant",
+          "content": "No puc, si tens un boli me’l podràs deixar🥹"
+        },
+        {
+          "role": "assistant",
+          "content": "No puc, si tens un boli me’l podràs deixar🥹"
+        },
+        {
+          "role": "user",
+          "content": "Dimecres 12h reformer"
+        },
+        {
+          "role": "assistant",
+          "content": "Cariño, dime dimeee"
+        },
+        {
+          "role": "user",
+          "content": "Vinc eh"
+        }
+      ],
+      "msg_count": 427
+    },
+    {
+      "id": "real_015",
+      "lead_id": "7b8a6206-501c-487c-a204-24871916d301",
+      "username": "wa_34666722290",
+      "platform": "whatsapp",
+      "type": "real",
+      "language": "es",
+      "test_input": "Ja m’informes quan puguis💖💖",
+      "ground_truth": "Dale, Sira",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Morninnnng princess!! De la panxa bé, encara no he esmorzat, a veure com em senta"
+        },
+        {
+          "role": "user",
+          "content": "Però ahir a la nit tenia un mal d cap que em vaig prendre un espidi…"
+        },
+        {
+          "role": "assistant",
+          "content": "😂😂😂😂✌🏽"
+        },
+        {
+          "role": "assistant",
+          "content": "😂😂😂😂✌🏽"
+        },
+        {
+          "role": "user",
+          "content": "La rica ensaimada del otro día"
+        },
+        {
+          "role": "user",
+          "content": "I les rempallades a la panxa😂😂😂"
+        },
+        {
+          "role": "assistant",
+          "content": "Ostia puta"
+        },
+        {
+          "role": "assistant",
+          "content": "Ostia puta"
+        },
+        {
+          "role": "user",
+          "content": "[📄 Document]"
+        },
+        {
+          "role": "user",
+          "content": "Hola neni, vaig rebre això al email i li vaig dir a la meva Andrea d’anar-hi. Mirant així l’insta, hem vist que tu havies comentat la publicaació"
+        },
+        {
+          "role": "user",
+          "content": "Ens ho recomanes? És per professionals? Jajajaja"
+        },
+        {
+          "role": "user",
+          "content": "Tmb és per fer una escapada i fer algo de retiro"
+        }
+      ],
+      "msg_count": 407
+    }
+  ]
+}
