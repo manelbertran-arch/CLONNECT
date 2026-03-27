@@ -120,14 +120,22 @@ def _compute_baseline(responses: List[str]) -> Dict:
         if lang != "unknown"
     }
 
+    # Auto-calibrate temperature and max_tokens from message signals
+    from core.personality_extraction.auto_calibrator import auto_calibrate
+
+    cal_result = auto_calibrate(responses)
+
     return {
         "median_length": median_len,
         "emoji_pct": round(sum(has_emoji) / len(responses) * 100, 1),
         "exclamation_pct": round(sum(has_excl) / len(responses) * 100, 1),
         "question_frequency_pct": round(sum(has_question) / len(responses) * 100, 1),
-        "soft_max": soft_max,
+        "soft_max": cal_result.get("soft_max_chars", soft_max),
+        "temperature": cal_result["temperature"],
+        "max_tokens": cal_result["max_tokens"],
         "languages": languages,
         "total_responses_analyzed": len(responses),
+        "auto_calibration_signals": cal_result.get("signals", {}),
     }
 
 
