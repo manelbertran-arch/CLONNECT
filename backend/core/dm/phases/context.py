@@ -28,6 +28,60 @@ ENABLE_RELATIONSHIP_DETECTION = (
 ENABLE_ADVANCED_PROMPTS = os.getenv("ENABLE_ADVANCED_PROMPTS", "false").lower() == "true"
 ENABLE_CITATIONS = os.getenv("ENABLE_CITATIONS", "true").lower() == "true"
 ENABLE_HIERARCHICAL_MEMORY = os.getenv("ENABLE_HIERARCHICAL_MEMORY", "false").lower() == "true"
+ENABLE_EPISODIC_MEMORY = os.getenv("ENABLE_EPISODIC_MEMORY", "false").lower() == "true"
+
+
+def _episodic_search(creator_slug: str, sender_id: str, message: str) -> str:
+    """Search conversation_embeddings for past messages relevant to current message.
+
+    Runs synchronously (called via asyncio.to_thread).
+    Handles ID resolution: conversation_embeddings may use UUID or slug for creator_id,
+    and lead UUID or platform_user_id for follower_id.
+
+    Returns formatted context string for the Recalling block, or "".
+    """
+    from core.semantic_memory_pgvector import SemanticMemoryPgvector
+
+    # Strategy: try slug+platform_id first (Stefano pattern),
+    # then UUID+lead_uuid (Iris pattern) via DB lookup
+    sm = SemanticMemoryPgvector(creator_slug, sender_id)
+    results = sm.search(message, k=3, min_similarity=0.45)
+
+    if not results:
+        # Try UUID-based lookup
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=creator_slug).first()
+                if creator:
+                    from sqlalchemy import text
+                    lead = session.execute(
+                        text("SELECT id FROM leads WHERE platform_user_id = :pid AND creator_id = :cid LIMIT 1"),
+                        {"pid": sender_id, "cid": str(creator.id)},
+                    ).fetchone()
+                    if lead:
+                        sm2 = SemanticMemoryPgvector(str(creator.id), str(lead[0]))
+                        results = sm2.search(message, k=3, min_similarity=0.45)
+            finally:
+                session.close()
+        except Exception:
+            pass
+
+    if not results:
+        return ""
+
+    # Format for Recalling block — factual, concise
+    lines = []
+    for r in results:
+        role = "lead" if r["role"] == "user" else "tú"
+        content = r["content"][:150]
+        if len(r["content"]) > 150:
+            content += "..."
+        lines.append(f"- {role}: \"{content}\"")
+
+    return "Conversaciones pasadas relevantes:\n" + "\n".join(lines)
 
 
 async def phase_memory_and_context(
@@ -113,6 +167,21 @@ async def phase_memory_and_context(
                 cognitive_metadata["memory_chars"] = len(memory_context)
         except Exception as e:
             logger.debug(f"[MEMORY] recall failed: {e}")
+
+    # Episodic memory: search conversation_embeddings for past messages relevant
+    # to the current message. Complements Memory Engine facts with raw conversation
+    # snippets the lead actually said. Skip for short/casual messages.
+    episodic_context = ""
+    if ENABLE_EPISODIC_MEMORY and len(message.strip()) >= 15:
+        try:
+            episodic_context = await asyncio.to_thread(
+                _episodic_search, agent.creator_id, sender_id, message
+            )
+            if episodic_context:
+                cognitive_metadata["episodic_recalled"] = True
+                cognitive_metadata["episodic_chars"] = len(episodic_context)
+        except Exception as e:
+            logger.debug(f"[EPISODIC] search failed: {e}")
 
     # Hierarchical memory (IMPersona-style 3-level: episodic + semantic + abstract)
     hier_memory_context = ""
@@ -439,10 +508,11 @@ async def phase_memory_and_context(
         state: str,
         frustration_note: str = "",
         context_notes: str = "",
+        episodic: str = "",
     ) -> str:
         """Consolidate per-lead context into a single 'Sobre @username' block
         with a Recalling trigger that instructs the LLM to use it naturally."""
-        parts = [p for p in [relational, memory, dna, state, frustration_note, context_notes] if p]
+        parts = [p for p in [relational, memory, dna, state, frustration_note, context_notes, episodic] if p]
         if not parts:
             return ""
         header = f"Sobre @{username}:"
@@ -549,6 +619,7 @@ async def phase_memory_and_context(
                     state=state_context,
                     frustration_note=_frustration_note,
                     context_notes=_context_notes_str,
+                    episodic=episodic_context,
                 ),
                 rag_context,             # RAG chunks relevant to message
                 kb_context,              # Factual knowledge base lookup
