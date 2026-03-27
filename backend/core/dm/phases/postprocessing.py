@@ -212,9 +212,10 @@ async def phase_postprocessing(
 
     # Step 7a4: QUALITY GATE — Score Before You Speak (SBS)
     # SBS evaluates persona alignment via CPU-only scoring (~1ms).
-    #   score >= 0.7 (ALIGNMENT_THRESHOLD) -> send as-is (fast path)
-    #   score <  0.7 -> PPA refines via Gemini LLM call (~300-500ms)
-    #   still < 0.7  -> retry generation at temp=0.5, pick best (2 extra calls max)
+    #   score >= 0.7 (ALIGNMENT_THRESHOLD) -> send as-is (0 extra LLM calls)
+    #   score <  0.7 -> retry with primary model at temp=0.5 (1 extra call max)
+    #                   picks max(initial, retry) — never outputs a worse retry
+    #                   if user_prompt missing or retry fails, returns original
     # When SBS is disabled, PPA runs standalone as fallback (elif branch below).
     if ENABLE_SCORE_BEFORE_SPEAK and agent.calibration:
         try:

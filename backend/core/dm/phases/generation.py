@@ -196,6 +196,8 @@ async def phase_llm_generation(
         )
     prompt_parts.append(message)
     full_prompt = "\n\n".join(prompt_parts)
+    # Store for SBS retry — allows regenerating with identical prompt at lower temperature
+    cognitive_metadata["_full_prompt"] = full_prompt
 
     # Cap total context to ~12K tokens to control LLM cost/latency
     _MAX_CONTEXT_CHARS = AGENT_THRESHOLDS.max_context_chars
