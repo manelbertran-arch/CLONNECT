@@ -358,7 +358,8 @@ async def phase_memory_and_context(
             logger.debug(f"Citation loading failed: {e}")
 
     # Product suppression is handled by gradated scoring:
-    # is_friend=True (score >= 0.6) → products stripped from prompt
+    # is_friend=True (score > 0.8, PERSONAL only) → products stripped from prompt
+    # CLOSE (0.6-0.8) and below: products visible, no extra instructions.
     # Doc D already defines tone for personal conversations — no extra
     # friend_context instructions needed (they contradict Doc D).
     friend_context = ""
