@@ -1,0 +1,18 @@
+{
+  "language": "universal",
+  "language_name": "Universal (language-independent)",
+  "patterns": {
+    "phishing": [
+      "\\b(?:bit\\.ly|tinyurl|t\\.co)/\\w+\\b",
+      "\\b(?:verifica(?:r|re|te)?\\s+(?:tu|su|tuo|votre|your|seu)\\s+(?:cuenta|conto|compte|account|conta))\\b"
+    ],
+    "spam": [
+      "\\b(?:check|mira)\\s*(?:out\\s+)?(?:my|mi|mio|mon|meu)\\s+(?:profile|perfil|profilo)\\b",
+      "\\b(?:click|haz\\s+click|clicca|clique)\\s+(?:here|aquí|qui|ici|aqui)\\b",
+      "\\b(?:hot\\s+pics?|sexy\\s+(?:pics?|photos?|fotos?)|onlyfans)\\b",
+      "\\b(?:dm\\s+(?:me\\s+)?for\\s+(?:exclusive|private)\\s+content)\\b",
+      "\\b(?:free|gratis|gratuito?)\\s+(?:iphone|regalo|giveaway|prize|premio)\\b"
+    ]
+  },
+  "crisis_resources": ""
+}

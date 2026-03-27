@@ -1,0 +1,38 @@
+{
+  "language": "en",
+  "language_name": "English",
+  "patterns": {
+    "self_harm": [
+      "\\b(?:want\\s+to\\s+(?:die|disappear|end\\s+it(?:\\s+all)?))\\b",
+      "\\b(?:self[\\s-]?harm|cutting\\s+myself)\\b",
+      "\\b(?:suicid|kill\\s+myself)\\b",
+      "\\b(?:don'?t\\s+want\\s+to\\s+(?:live|exist|be\\s+alive))\\b",
+      "\\b(?:end\\s+my\\s+life)\\b",
+      "\\b(?:take\\s+(?:all\\s+(?:the|my)\\s+)?pills)\\b",
+      "\\boverdo(?:se|sing)\\b"
+    ],
+    "eating_disorder": [
+      "\\b(?:eat(?:ing)?\\s+(?:only|less\\s+than)\\s+\\d{2,3}\\s*calories?)\\b",
+      "\\b(?:\\d+\\s+days?\\s+without\\s+eating)\\b",
+      "\\b(?:purg|laxativ)\\b",
+      "\\b(?:make\\s+myself\\s+(?:throw\\s+up|vomit))\\b"
+    ],
+    "minor": [
+      "\\b(?:i'?m\\s+1[0-7]\\s*(?:years?\\s+old|yo))\\b",
+      "\\b(?:i'?m\\s+(?:a\\s+)?minor)\\b",
+      "\\b(?:my\\s+parents\\s+(?:will|would|can)\\s+pay)\\b",
+      "\\b(?:in\\s+(?:middle|high)\\s+school)\\b"
+    ],
+    "threat": [
+      "\\b(?:i\\s+know\\s+where\\s+you\\s+live)\\b",
+      "\\b(?:i'?(?:ll|m\\s+going\\s+to)\\s+(?:find|kill|hurt)\\s+you)\\b",
+      "\\b(?:you'?(?:ll|re\\s+going\\s+to)\\s+(?:pay|regret))\\b"
+    ],
+    "economic_distress": [
+      "\\b(?:i\\s+(?:lost|don'?t\\s+have)\\s+(?:my\\s+)?job)\\b",
+      "\\b(?:can'?t\\s+afford)\\b",
+      "\\b(?:no\\s+money|broke|bankrupt)\\b"
+    ]
+  },
+  "crisis_resources": "If you're going through a difficult time, there are people who can help:\n- National Suicide Prevention: 988 (24h)\n- Crisis Text Line: Text HOME to 741741\n- IASP: https://www.iasp.info/resources/Crisis_Centres/"
+}

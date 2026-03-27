@@ -1,0 +1,36 @@
+{
+  "language": "pt",
+  "language_name": "Português",
+  "patterns": {
+    "self_harm": [
+      "\\b(?:quero\\s+morrer)\\b",
+      "\\b(?:me\\s+(?:matar|suicidar))\\b",
+      "\\b(?:não\\s+quero\\s+(?:viver|mais\\s+viver))\\b",
+      "\\b(?:me\\s+(?:corto|machuco|faço\\s+mal))\\b",
+      "\\bsuicíd(?:io|ar|a)\\b",
+      "\\b(?:acabar\\s+com\\s+tudo)\\b",
+      "\\b(?:tirar\\s+(?:a\\s+)?minha\\s+vida)\\b"
+    ],
+    "eating_disorder": [
+      "\\b(?:como\\s+(?:só|menos\\s+de)\\s+\\d{2,3}\\s*calorias?)\\b",
+      "\\b(?:dias?\\s+sem\\s+comer)\\b",
+      "\\b(?:vomit|purg|laxant)\\b"
+    ],
+    "minor": [
+      "\\b(?:tenho\\s+1[0-7]\\s*anos?)\\b",
+      "\\b(?:sou\\s+menor)\\b",
+      "\\b(?:meus\\s+pais\\s+(?:vão|podem)\\s+pagar)\\b"
+    ],
+    "threat": [
+      "\\b(?:sei\\s+onde\\s+(?:tu\\s+)?mor(?:a|as))\\b",
+      "\\b(?:(?:vou|irei)\\s+te\\s+(?:encontrar|matar))\\b",
+      "\\b(?:(?:tu|você)\\s+vai\\s+(?:pagar|se\\s+arrepender))\\b"
+    ],
+    "economic_distress": [
+      "\\b(?:estou\\s+desempregad[oa])\\b",
+      "\\b(?:não\\s+tenho\\s+(?:emprego|dinheiro|trabalho))\\b",
+      "\\b(?:não\\s+(?:posso|consigo)\\s+pagar)\\b"
+    ]
+  },
+  "crisis_resources": "Se você está passando por um momento difícil, há pessoas que podem ajudar:\n- CVV (Centro de Valorização da Vida): 188 (24h)\n- Ligue 188 ou acesse cvv.org.br"
+}

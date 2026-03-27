@@ -1,0 +1,37 @@
+{
+  "language": "it",
+  "language_name": "Italiano",
+  "patterns": {
+    "self_harm": [
+      "\\b(?:voglio\\s+morire)\\b",
+      "\\b(?:mi\\s+voglio\\s+(?:uccidere|ammazzare))\\b",
+      "\\b(?:non\\s+voglio\\s+(?:vivere|più\\s+vivere))\\b",
+      "\\b(?:mi\\s+faccio\\s+(?:del\\s+)?male)\\b",
+      "\\b(?:mi\\s+taglio)\\b",
+      "\\bsuicid(?:armi|io|a)\\b",
+      "\\b(?:farla\\s+finita)\\b",
+      "\\b(?:togliermi\\s+la\\s+vita)\\b"
+    ],
+    "eating_disorder": [
+      "\\b(?:mangio\\s+(?:solo|meno\\s+di)\\s+\\d{2,3}\\s*calorie)\\b",
+      "\\b(?:giorni?\\s+senza\\s+mangiare)\\b",
+      "\\b(?:vomit|purg|lassativ)\\b"
+    ],
+    "minor": [
+      "\\b(?:ho\\s+1[0-7]\\s*anni)\\b",
+      "\\b(?:sono\\s+minorenne)\\b",
+      "\\b(?:i\\s+miei\\s+genitori\\s+pag)\\b"
+    ],
+    "threat": [
+      "\\b(?:so\\s+dove\\s+(?:vivi|abiti))\\b",
+      "\\b(?:ti\\s+(?:troverò|ammazzo|uccido))\\b",
+      "\\b(?:me\\s+la\\s+pagher(?:ai|ete))\\b"
+    ],
+    "economic_distress": [
+      "\\b(?:sono\\s+disoccupat[oa])\\b",
+      "\\b(?:non\\s+ho\\s+(?:lavoro|soldi))\\b",
+      "\\b(?:non\\s+posso\\s+(?:pagare|permettermi))\\b"
+    ]
+  },
+  "crisis_resources": "Se stai attraversando un momento difficile, ci sono persone che possono aiutarti:\n- Telefono Amico: 02 2327 2327\n- Telefono Azzurro: 19696\n- Linea di ascolto: 800 274 274"
+}

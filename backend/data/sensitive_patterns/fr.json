@@ -1,0 +1,37 @@
+{
+  "language": "fr",
+  "language_name": "Français",
+  "patterns": {
+    "self_harm": [
+      "\\b(?:je\\s+veux\\s+mourir)\\b",
+      "\\b(?:me\\s+(?:suicider|tuer))\\b",
+      "\\b(?:je\\s+ne\\s+veux\\s+plus\\s+vivre)\\b",
+      "\\b(?:je\\s+me\\s+(?:fais|fais\\s+du)\\s+mal)\\b",
+      "\\b(?:je\\s+me\\s+coupe)\\b",
+      "\\bsuicid(?:e|er|aire)\\b",
+      "\\b(?:en\\s+finir)\\b",
+      "\\b(?:mettre\\s+fin\\s+à\\s+(?:mes|ma)\\s+(?:jours|vie))\\b"
+    ],
+    "eating_disorder": [
+      "\\b(?:mange\\s+(?:seulement|moins\\s+de)\\s+\\d{2,3}\\s*calories?)\\b",
+      "\\b(?:jours?\\s+sans\\s+manger)\\b",
+      "\\b(?:vomi|purg|laxati)\\b"
+    ],
+    "minor": [
+      "\\b(?:j'?ai\\s+1[0-7]\\s*ans?)\\b",
+      "\\b(?:je\\s+suis\\s+mineur)\\b",
+      "\\b(?:mes\\s+parents\\s+(?:vont|peuvent)\\s+payer)\\b"
+    ],
+    "threat": [
+      "\\b(?:je\\s+sais\\s+où\\s+tu\\s+(?:vis|habites))\\b",
+      "\\b(?:je\\s+vais\\s+te\\s+(?:trouver|tuer|retrouver))\\b",
+      "\\b(?:tu\\s+(?:vas|va)\\s+(?:payer|le\\s+regretter))\\b"
+    ],
+    "economic_distress": [
+      "\\b(?:je\\s+suis\\s+au\\s+chômage)\\b",
+      "\\b(?:je\\s+n'?ai\\s+(?:pas\\s+de\\s+)?(?:travail|argent))\\b",
+      "\\b(?:je\\s+(?:ne\\s+)?(?:peux|arrive)\\s+(?:pas\\s+)?payer)\\b"
+    ]
+  },
+  "crisis_resources": "Si tu traverses un moment difficile, il y a des personnes qui peuvent t'aider :\n- Numéro national de prévention du suicide : 3114 (24h)\n- SOS Amitié : 09 72 39 40 50\n- Fil Santé Jeunes : 0 800 235 236"
+}

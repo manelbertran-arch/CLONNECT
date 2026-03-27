@@ -1,0 +1,43 @@
+{
+  "language": "ca",
+  "language_name": "Català",
+  "patterns": {
+    "self_harm": [
+      "\\b(?:vull\\s+morir)\\b",
+      "\\b(?:em\\s+vull\\s+matar)\\b",
+      "\\b(?:no\\s+vull\\s+viure)\\b",
+      "\\b(?:em\\s+faig\\s+mal)\\b",
+      "\\b(?:em\\s+tallo)\\b",
+      "\\b(?:vull\\s+desapar[eè]ixer)\\b",
+      "\\b(?:vull\\s+acabar\\s+amb\\s+tot)\\b",
+      "\\b(?:su[ïi]cid(?:ar-me|i))\\b",
+      "\\b(?:em\\s+vull\\s+fer\\s+mal)\\b",
+      "\\b(?:no\\s+vull\\s+seguir)\\b"
+    ],
+    "eating_disorder": [
+      "\\b(?:menjo\\s+menys\\s+de\\s+\\d{2,3}\\s*calories)\\b",
+      "\\b(?:dies?\\s+sense\\s+menjar)\\b",
+      "\\b(?:vomit|purg|laxant)\\b",
+      "\\b(?:em\\s+provoco\\s+el\\s+v[oò]mit)\\b"
+    ],
+    "minor": [
+      "\\b(?:tinc\\s+1[0-7]\\s*anys?)\\b",
+      "\\b(?:sóc\\s+menor)\\b",
+      "\\b(?:els\\s+meus\\s+pares)\\b.*\\b(?:pagar|pagen)\\b",
+      "\\b(?:vaig\\s+a\\s+l'(?:escola|institut))\\b"
+    ],
+    "threat": [
+      "\\b(?:sé\\s+on\\s+vius?)\\b",
+      "\\b(?:et\\s+trobaré)\\b",
+      "\\b(?:(?:te|et)\\s+mataré)\\b",
+      "\\b(?:me\\s+les\\s+pagaràs)\\b"
+    ],
+    "economic_distress": [
+      "\\b(?:estic\\s+a\\s+l'atur)\\b",
+      "\\b(?:no\\s+tinc\\s+feina)\\b",
+      "\\b(?:no\\s+(?:puc|tinc)\\s+pagar)\\b",
+      "\\b(?:sense\\s+diners|sense\\s+recursos)\\b"
+    ]
+  },
+  "crisis_resources": "Si estàs passant per un moment difícil, hi ha persones que et poden ajudar:\n- Telèfon de l'Esperança: 717 003 717 (24h)\n- Telèfon contra el Suïcidi: 024 (24h)"
+}

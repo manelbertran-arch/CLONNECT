@@ -1,0 +1,53 @@
+{
+  "language": "es",
+  "language_name": "Español",
+  "patterns": {
+    "self_harm": [
+      "\\bme\\s+(?:hago|corto|lastimo|provoco)\\s+da[ñn]o\\b",
+      "\\bme\\s+corto\\b",
+      "\\bme\\s+lastimo\\b",
+      "\\b(?:quiero\\s+(?:morir|desaparecer|acabar\\s+con\\s+todo))\\b",
+      "\\b(?:no\\s+quiero\\s+(?:vivir|seguir|existir))\\b",
+      "\\b(?:pienso\\s+en\\s+(?:suicid|matarme|quitarme\\s+la\\s+vida))\\b",
+      "\\bsuicid(?:arme|io|a)\\b",
+      "\\b(?:autolesion(?:es|arme)?|cortarme|hacerme\\s+da[ñn]o)\\b",
+      "\\b(?:me\\s+voy\\s+a\\s+(?:suicidar|matar|hacer\\s+da[ñn]o))\\b",
+      "\\b(?:voy\\s+a\\s+(?:suicidarme|matarme|quitarme\\s+la\\s+vida))\\b",
+      "\\b(?:voy\\s+a\\s+acabar\\s+con\\s+todo)\\b",
+      "\\b(?:quiero\\s+(?:quitarme\\s+la\\s+vida|matarme|acabar\\s+con\\s+todo))\\b",
+      "\\b(?:tomar(?:me)?\\s+(?:todas?\\s+las?\\s+)?(?:pastillas|medicamentos))\\b",
+      "\\bsobredosis\\b",
+      "\\b(?:tirarme\\s+(?:de|del|por))\\b"
+    ],
+    "eating_disorder": [
+      "\\b(?:como\\s+(?:solo|menos\\s+de)\\s+\\d{2,3}\\s*calor[ií]as?)\\b",
+      "\\b(?:\\d{2,3}\\s*calor[ií]as?\\s+al\\s+d[ií]a)\\b",
+      "\\b(?:ayuno\\s+(?:de\\s+)?\\d{2}\\s*horas?)\\b",
+      "\\b(?:llevo\\s+\\d+\\s+d[ií]as?\\s+sin\\s+comer)\\b",
+      "\\b(?:perder\\s+\\d{2,}\\s*kilos?\\s+en\\s+(?:una?\\s+semana|un\\s+mes|pocos\\s+d[ií]as))\\b",
+      "\\b(?:vomit|purg|laxant)\\b",
+      "\\b(?:me\\s+provoco\\s+(?:el\\s+)?v[oó]mito)\\b"
+    ],
+    "minor": [
+      "\\b(?:tengo\\s+1[0-7]\\s*a[ñn]os?)\\b",
+      "\\b(?:soy\\s+menor)\\b",
+      "\\b(?:mis\\s+padres\\s+(?:me\\s+)?(?:lo\\s+)?pagar[ií]an?)\\b",
+      "\\b(?:en\\s+el\\s+(?:colegio|instituto|secundaria))\\b",
+      "\\b(?:voy\\s+al\\s+(?:cole|insti))\\b"
+    ],
+    "threat": [
+      "\\b(?:s[eé]\\s+d[oó]nde\\s+vive)\\b",
+      "\\b(?:(?:te|le|os)\\s+voy\\s+a\\s+(?:encontrar|buscar|matar))\\b",
+      "\\b(?:esto\\s+no\\s+va\\s+a\\s+quedar\\s+as[ií])\\b",
+      "\\b(?:(?:te|se)\\s+va[ns]?\\s+a\\s+enterar)\\b",
+      "\\b(?:me\\s+las\\s+vas?\\s+a\\s+pagar)\\b"
+    ],
+    "economic_distress": [
+      "\\b(?:estoy\\s+en\\s+(?:el\\s+)?paro)\\b",
+      "\\b(?:no\\s+tengo\\s+trabajo)\\b",
+      "\\b(?:no\\s+(?:puedo|tengo\\s+(?:para|dinero\\s+para))\\s+pagar)\\b",
+      "\\b(?:sin\\s+dinero|sin\\s+recursos)\\b"
+    ]
+  },
+  "crisis_resources": "Si estás pasando por un momento difícil, hay personas que pueden ayudarte:\n- Teléfono de la Esperanza: 717 003 717 (24h)\n- Teléfono contra el Suicidio: 024 (24h)\n- Cruz Roja Escucha: 900 107 917"
+}
