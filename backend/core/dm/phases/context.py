@@ -287,17 +287,30 @@ async def phase_memory_and_context(
     logger.info(f"[TIMING] Phase 2 sub: intent={int((_t1a - _t1) * 1000)}ms parallel_io={int((_t1b - _t1a) * 1000)}ms")
 
     # Fast in-memory operations (no parallelization needed)
-    # RAG retrieval — skip for simple intents that don't need knowledge
-    _SKIP_RAG_INTENTS = {"greeting", "farewell", "thanks", "saludo", "despedida"}
+    # RAG retrieval — skip for intents that don't need knowledge retrieval
+    _SKIP_RAG_INTENTS = {
+        "greeting", "farewell", "thanks", "saludo", "despedida",
+        "humor", "other", "media_share", "continuation", "pool_response",
+    }
+    # Also skip if message is very short AND has no product keywords
+    _PRODUCT_KEYWORDS = {
+        "precio", "preu", "cuanto", "cuánto", "horario", "horari", "clase",
+        "classe", "reserv", "apunt", "pack", "bono", "barre", "pilates",
+        "reformer", "zumba", "flow", "entreno", "entrenament", "sesion",
+        "sessió", "cuesta", "costa",
+    }
+    msg_lower = message.lower()
+    _short_no_product = len(message.strip()) < 20 and not any(kw in msg_lower for kw in _PRODUCT_KEYWORDS)
+
     rag_query = message
     if not ENABLE_RAG:
         rag_results = []
         cognitive_metadata["rag_disabled"] = True
         logger.info("[RAG] Disabled via ENABLE_RAG=false")
-    elif intent_value in _SKIP_RAG_INTENTS:
+    elif intent_value in _SKIP_RAG_INTENTS or _short_no_product:
         rag_results = []
-        cognitive_metadata["rag_skipped"] = intent_value
-        logger.info(f"[RAG] Skipped for intent={intent_value} (no knowledge needed)")
+        cognitive_metadata["rag_skipped"] = intent_value if intent_value in _SKIP_RAG_INTENTS else "short_no_product"
+        logger.info(f"[RAG] Skipped: {cognitive_metadata['rag_skipped']}")
     else:
         if ENABLE_QUERY_EXPANSION:
             try:
