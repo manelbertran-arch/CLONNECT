@@ -723,5 +723,151 @@
       "No tinc temps avui🥹"
     ]
   },
-  "pool_source": "extracted from 2000 real Iris messages (2026-03-26)"
+  "pool_source": "extracted from 2000 real Iris messages (2026-03-26)",
+  "conversation_types": {
+    "casual_chat": {
+      "frequency": 0.467,
+      "count": 6814,
+      "creator_avg_length": 44,
+      "creator_emoji_rate": 0.32,
+      "products_relevant": false,
+      "sample_user_msgs": [
+        "Me podrias dar mas informacion porfa",
+        "T’ho ha dit???",
+        "Potser ho han deixat i per aixo es muda"
+      ]
+    },
+    "short_response": {
+      "frequency": 0.201,
+      "count": 2925,
+      "creator_avg_length": 46,
+      "creator_emoji_rate": 0.31,
+      "products_relevant": false,
+      "sample_user_msgs": [
+        "Que rarooooo",
+        "[🏷️ Sticker]",
+        "Nose la gent"
+      ]
+    },
+    "audio_message": {
+      "frequency": 0.088,
+      "count": 1289,
+      "creator_avg_length": 96,
+      "creator_emoji_rate": 0.28,
+      "products_relevant": false,
+      "sample_user_msgs": [
+        "[🎤 Audio]: No está mal, ¿por qué lo dices? ¿No te gusta? Yo no lo veo mal del to",
+        "[🎤 Audio]: ¡Flipante el vídeo en diagonal! Yo también me quedé alucinada cuando ",
+        "[🎤 Audio]: Una cosa, no entiendo la foto de la Marta en los goías. ¿Qué boldillo"
+      ]
+    },
+    "question": {
+      "frequency": 0.057,
+      "count": 827,
+      "creator_avg_length": 66,
+      "creator_emoji_rate": 0.31,
+      "products_relevant": false,
+      "sample_user_msgs": [
+        "🤨🤨🤨 perq no respon?? No entiendo, q et digui q ho ha de consultar o algo ni q si",
+        "I el Dani Molero que es una peonza? Hahha no estaba al Box ?",
+        "Pero realment es això, pqq esta enfadat?? Hahahaha no entiendo el motivo"
+      ]
+    },
+    "long_personal": {
+      "frequency": 0.056,
+      "count": 818,
+      "creator_avg_length": 88,
+      "creator_emoji_rate": 0.43,
+      "products_relevant": false,
+      "sample_user_msgs": [
+        "A ver no esta mal a mi tampóc em desagrada osigui com a grupal ens veiem totes i",
+        "Sisi jo prefereixo tmb recte eh pero vull dir q si ho te gravat aixi potser no t",
+        "Asobre si pensa aixo q tu digui a tu no faci sentir malament a la mama sas que c"
+      ]
+    },
+    "casual_humor": {
+      "frequency": 0.039,
+      "count": 575,
+      "creator_avg_length": 35,
+      "creator_emoji_rate": 0.39,
+      "products_relevant": false,
+      "sample_user_msgs": [
+        "Hombreee por fin🤣🤣🤣",
+        "Hahahhahahahh",
+        "No puc 🤣🤣"
+      ]
+    },
+    "thanks": {
+      "frequency": 0.038,
+      "count": 559,
+      "creator_avg_length": 54,
+      "creator_emoji_rate": 0.44,
+      "products_relevant": false,
+      "sample_user_msgs": [
+        "Aiiiii🥹. Gràcies Crack!!!\nMig segle no és res 💪🤣",
+        "Aii graciiaaas mi Julii te amo mi niña🥹❤️",
+        "Merci"
+      ]
+    },
+    "emoji_reaction": {
+      "frequency": 0.032,
+      "count": 463,
+      "creator_avg_length": 42,
+      "creator_emoji_rate": 0.32,
+      "products_relevant": false,
+      "sample_user_msgs": [
+        "😱😱😱😳😳😳😳😳",
+        "🤣🤣🤣🤣",
+        "🤣🤣🤣🤣"
+      ]
+    },
+    "greeting": {
+      "frequency": 0.011,
+      "count": 163,
+      "creator_avg_length": 32,
+      "creator_emoji_rate": 0.21,
+      "products_relevant": false,
+      "sample_user_msgs": [
+        "Hola hente",
+        "Buenas tardes iris",
+        "Buenos días Iris"
+      ]
+    },
+    "product_inquiry": {
+      "frequency": 0.004,
+      "count": 60,
+      "creator_avg_length": 53,
+      "creator_emoji_rate": 0.26,
+      "products_relevant": true,
+      "sample_user_msgs": [
+        "Ostiaaa a mi em costa 90 euros",
+        "Son 100 euros i paguen gasolina",
+        "Buenas, creo grupo para regalo Javi. No me he complicado mucho, y he añadido las"
+      ]
+    },
+    "farewell": {
+      "frequency": 0.003,
+      "count": 45,
+      "creator_avg_length": 99,
+      "creator_emoji_rate": 0.59,
+      "products_relevant": false,
+      "sample_user_msgs": [
+        "Bona nit babiesss💕",
+        "Bona nit!!❤️",
+        "Bona nit!😘"
+      ]
+    },
+    "link_share": {
+      "frequency": 0.003,
+      "count": 39,
+      "creator_avg_length": 40,
+      "creator_emoji_rate": 0.83,
+      "products_relevant": false,
+      "sample_user_msgs": [
+        "https://www.loom.com/share/40d3492e2daf4ef6a1580f9515fa3911",
+        "https://drive.google.com/drive/folders/1jOCEPiU_I01RNmgcqKJ4YiN8AQRFLFFe",
+        "https://drive.google.com/drive/folders/1kbkhsNIVZwhLuVf34av6cTP6Dy4xr44I"
+      ]
+    }
+  }
 }
