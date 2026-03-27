@@ -431,16 +431,19 @@ def _select_examples_by_similarity(
 
 
 def detect_message_language(text: str) -> Optional[str]:
-    """Detect the language of a message, including ca-es code-switching.
+    """Detect the language of a message, including code-switching between any pair.
 
-    Returns 'ca', 'es', 'ca-es' (code-switching), other ISO 639-1 codes, or None.
+    Returns an ISO 639-1 code ('ca', 'es', 'it', 'en', ...), a hyphenated
+    code-switching tag ('ca-es', 'es-it', 'en-fr', ...), or None.
 
-    Barcelona-style code-switching (ca-es) is detected when a message contains
-    markers from BOTH Catalan and Spanish. This is common for bilingual speakers
-    who mix mid-sentence: "Tinc la veu molt malament pero bueno es lo que hay".
+    Strategy:
+      1. Fast-path: ca/es marker detection (langdetect can't reliably
+         distinguish Catalan from Spanish on short text).
+      2. Clause-level langdetect: split by punctuation, detect each clause.
+         If 2+ languages → code-switching. Works for ANY language pair.
 
-    When 'ca-es' is returned, the few-shot pool should NOT be filtered by language,
-    so the LLM sees examples in both languages and learns to mix naturally.
+    When a hyphenated tag is returned, the few-shot pool should NOT be
+    filtered by language so the LLM sees examples in both languages.
     """
     import re
 
@@ -450,36 +453,184 @@ def detect_message_language(text: str) -> Optional[str]:
 
     lower = stripped.lower()
 
-    # Catalan-only markers (words that don't exist in Spanish)
-    ca_only = re.findall(
-        r"\b(tinc|estic|però|molt|doncs|també|perquè|aquí|això|tinc|vull|"
-        r"puc|fes|mira|clar|setmana|dimarts|dijous|dissabte|diumenge|"
-        r"què|què tal|gracies|gràcies|bona nit|bona tarda|bon dia|"
-        r"nosaltres|ells|elles|puguis|vulguis|necessites|"
-        r"xk|pq|xfi|na mais)\b",
-        lower,
+    # ── Fast-path: ca/es markers (langdetect merges them) ──────────────
+    _CA_RE = re.compile(
+        r"\b(tinc|estic|però|molt|doncs|també|perquè|això|vull|"
+        r"puc|setmana|dimarts|dijous|dissabte|diumenge|"
+        r"gràcies|gracies|bona nit|bona tarda|bon dia|"
+        r"nosaltres|puguis|vulguis|xk|pq|xfi)\b"
     )
-    # Spanish-only markers (words that don't exist in Catalan)
-    es_only = re.findall(
-        r"\b(tengo|estoy|pero|mucho|entonces|también|porque|aquí|quiero|"
+    _ES_RE = re.compile(
+        r"\b(tengo|estoy|pero|mucho|entonces|también|porque|quiero|"
         r"puedo|necesito|bueno|gracias|vale|claro|genial|"
-        r"miércoles|jueves|sábado|domingo|semana|"
-        r"nosotros|ellos|ellas|puedes|quieres|necesitas)\b",
-        lower,
+        r"miércoles|jueves|sábado|domingo|"
+        r"nosotros|puedes|quieres|necesitas)\b"
     )
+    ca_hits = _CA_RE.findall(lower)
+    es_hits = _ES_RE.findall(lower)
 
-    if ca_only and es_only:
-        logger.debug(
-            "Code-switching detected: ca_markers=%d (%s) es_markers=%d (%s)",
-            len(ca_only), ca_only[:3], len(es_only), es_only[:3],
-        )
+    if ca_hits and es_hits:
+        logger.debug("Code-switching ca-es: ca=%s es=%s", ca_hits[:3], es_hits[:3])
         return "ca-es"
+    if ca_hits and not es_hits:
+        return "ca"
 
+    # ── Clause-level langdetect (universal for all other pairs) ────────
     try:
-        from langdetect import detect
-        return detect(stripped)
-    except Exception:
+        from langdetect import detect, DetectorFactory
+        DetectorFactory.seed = 0
+    except ImportError:
         return None
+
+    clauses = re.split(r'[,.;!?\n]+', stripped)
+    clauses = [c.strip() for c in clauses if len(c.strip()) > 5]
+
+    if len(clauses) < 2:
+        try:
+            return detect(stripped)
+        except Exception:
+            return None
+
+    langs = []
+    for clause in clauses:
+        try:
+            langs.append(detect(clause))
+        except Exception:
+            pass
+
+    if not langs:
+        return None
+
+    unique = set(langs)
+    if len(unique) >= 2:
+        from collections import Counter
+        top2 = [lang for lang, _ in Counter(langs).most_common(2)]
+        tag = "-".join(sorted(top2))
+        logger.debug("Code-switching detected: %s (clause langs: %s)", tag, langs)
+        return tag
+
+    return langs[0]
+
+
+# ── Intent → calibration context mapping ──────────────────────────────────
+# Maps Intent enum values to calibration example "context" field values.
+# Universal: works for any creator. Add new intents here as needed.
+_INTENT_TO_CONTEXTS: Dict[str, List[str]] = {
+    # Greetings
+    "greeting": ["saludo", "reaccion_breve", "reaccion_emoji"],
+    "farewell": ["despedida", "despedida_breve"],
+    "thanks": ["confirmacion_breve", "ultra_breve_ca"],
+    # Product / pricing
+    "question_product": ["precio", "lead_caliente", "clase_entreno", "clase"],
+    "question_general": ["conversacional", "contenido_confirmacion"],
+    "purchase_intent": ["precio", "lead_caliente", "confirmacion_breve"],
+    # Interest
+    "interest_soft": ["lead_caliente", "conversacional"],
+    "interest_strong": ["lead_caliente", "precio", "confirmacion_breve"],
+    # Objections
+    "objection_price": ["objecion", "precio"],
+    "objection_time": ["objecion", "redirect_clase"],
+    "objection_doubt": ["objecion", "conversacional"],
+    "objection_later": ["objecion", "empatia"],
+    "objection_works": ["objecion"],
+    "objection_not_for_me": ["objecion", "empatia"],
+    "objection_complicated": ["objecion"],
+    "objection_already_have": ["objecion"],
+    # Support
+    "escalation": ["empatia"],
+    "support": ["empatia", "conversacional"],
+    "feedback_negative": ["empatia", "objecion"],
+    # Casual
+    "humor": ["reaccion_breve", "conversacional", "personal_amigos"],
+    "pool_response": ["reaccion_breve", "ultra_breve_ca"],
+    "continuation": ["conversacional", "confirmacion_breve"],
+    # Media
+    "media_share": ["reaccion_sticker", "reaccion_emoji", "reaccion_breve",
+                     "audio_reply", "audio_sin_transcripcion", "contenido_reaccion_media"],
+    # Other
+    "other": ["conversacional", "personal_amigos"],
+}
+
+
+def _select_stratified(
+    pool: List[Dict],
+    intent_value: Optional[str],
+    current_message: Optional[str],
+    max_examples: int,
+) -> List[Dict]:
+    """Intent-stratified + semantic hybrid selection. Universal.
+
+    Strategy (for max_examples=10):
+      1. Up to 3 examples from intent-matched contexts
+      2. Up to 5 examples from diverse OTHER contexts (1 per context group)
+      3. Up to 2 semantic matches (only if message > 15 chars)
+
+    Falls back to 5 semantic + 5 random if no intent is provided.
+    """
+    n_intent = min(3, max_examples // 3)
+    n_diverse = min(5, max_examples // 2)
+    n_semantic = max_examples - n_intent - n_diverse
+
+    selected: List[Dict] = []
+    used_indices: set = set()
+
+    # ── Step 1: Intent-matched examples ───────────────────────────────────
+    if intent_value:
+        target_contexts = _INTENT_TO_CONTEXTS.get(intent_value, [])
+        intent_pool = [
+            (i, ex) for i, ex in enumerate(pool)
+            if ex.get("context") in target_contexts
+        ]
+        if intent_pool:
+            k = min(n_intent, len(intent_pool))
+            picks = random.sample(intent_pool, k)
+            for idx, ex in picks:
+                selected.append(ex)
+                used_indices.add(idx)
+            logger.debug(
+                "Few-shot: %d intent-matched (%s → %s)",
+                len(picks), intent_value, target_contexts[:2],
+            )
+
+    # ── Step 2: Diverse examples from OTHER contexts ──────────────────────
+    # Group remaining examples by context, pick 1 from each
+    from collections import defaultdict
+    ctx_groups: Dict[str, List[tuple]] = defaultdict(list)
+    for i, ex in enumerate(pool):
+        if i not in used_indices:
+            ctx_groups[ex.get("context", "other")].append((i, ex))
+
+    diverse_picks = []
+    group_keys = list(ctx_groups.keys())
+    random.shuffle(group_keys)
+    for ctx_key in group_keys:
+        if len(diverse_picks) >= n_diverse:
+            break
+        candidates = ctx_groups[ctx_key]
+        idx, ex = random.choice(candidates)
+        if idx not in used_indices:
+            diverse_picks.append(ex)
+            used_indices.add(idx)
+    selected.extend(diverse_picks)
+
+    # ── Step 3: Semantic matches (only for non-trivial messages) ──────────
+    remaining_needed = max_examples - len(selected)
+    if remaining_needed > 0 and current_message and len(current_message) > 15:
+        remaining_pool = [ex for i, ex in enumerate(pool) if i not in used_indices]
+        if remaining_pool:
+            sem_picks = _select_examples_by_similarity(
+                remaining_pool, current_message,
+                n_semantic=remaining_needed, n_random=0,
+            )
+            selected.extend(sem_picks[:remaining_needed])
+    elif remaining_needed > 0:
+        # Short message — fill with random
+        remaining_pool = [ex for i, ex in enumerate(pool) if i not in used_indices]
+        if remaining_pool:
+            k = min(remaining_needed, len(remaining_pool))
+            selected.extend(random.sample(remaining_pool, k))
+
+    return selected[:max_examples]
 
 
 def get_few_shot_section(
@@ -487,17 +638,20 @@ def get_few_shot_section(
     max_examples: int = 5,
     current_message: Optional[str] = None,
     lead_language: Optional[str] = None,
+    detected_intent: Optional[str] = None,
 ) -> str:
     """Format few-shot examples from calibration into a prompt section.
 
-    When current_message is provided, selects half by semantic similarity to
-    the message and half randomly for variety. Falls back to random if
-    embeddings are unavailable.
+    Selection strategy (intent-stratified + semantic hybrid):
+      - 3 examples matching the detected intent context
+      - 5 examples from diverse other contexts (1 per group)
+      - 2 semantic matches (for messages > 15 chars)
+    Falls back to semantic + random if no intent is provided.
 
-    When lead_language is 'ca' or 'es', pre-filters the pool to prefer examples
-    in that language + 'mixto' examples. Falls back to full pool if the filtered
-    pool is too small.
+    Language filtering: same-language + 'mixto'. Code-switching tags
+    (e.g. 'ca-es') skip filtering to expose the LLM to both languages.
 
+    Universal: works for any creator with a calibration file.
     Returns empty string if no examples exist.
     """
     examples: List[Dict] = calibration.get("few_shot_examples", [])
@@ -505,40 +659,33 @@ def get_few_shot_section(
         return ""
 
     # Language-aware pool filtering: prefer same-language + mixto examples.
-    # For code-switching (ca-es): use FULL pool so LLM sees both languages.
+    # For code-switching (any "X-Y" tag): use FULL pool so LLM sees both languages.
     pool = examples
-    if lead_language and lead_language != "ca-es":
+    is_code_switching = lead_language and "-" in lead_language
+    if lead_language and not is_code_switching:
         filtered = [
             ex for ex in examples
             if ex.get("language") in (lead_language, "mixto")
         ]
-        # Only use the filtered pool if it has enough variety (≥ max_examples)
         if len(filtered) >= max_examples:
             pool = filtered
             logger.debug(
-                "Few-shot: language filter=%s reduced pool %d→%d",
+                "Few-shot: language filter=%s reduced pool %d->%d",
                 lead_language, len(examples), len(pool),
             )
-    elif lead_language == "ca-es":
-        logger.debug("Few-shot: code-switching detected, using full pool (%d examples)", len(pool))
+    elif is_code_switching:
+        logger.debug("Few-shot: code-switching %s, full pool (%d)", lead_language, len(pool))
 
-    if current_message and len(pool) > max_examples:
-        n_semantic = max_examples // 2          # e.g. 5 of 10
-        n_random = max_examples - n_semantic    # e.g. 5 of 10
-        selected = _select_examples_by_similarity(
-            pool, current_message, n_semantic, n_random
-        )
-    else:
-        k = min(max_examples, len(pool))
-        selected = random.sample(pool, k)
+    # Select examples using intent-stratified strategy
+    selected = _select_stratified(pool, detected_intent, current_message, max_examples)
 
-    lines = ["=== EJEMPLOS REALES DE CÓMO RESPONDES ==="]
+    lines = ["=== EJEMPLOS REALES DE COMO RESPONDES ==="]
     for ex in selected:
         user_msg = ex.get("user_message", "")
         response = ex.get("response", "")
         if user_msg and response:
             lines.append(f"Follower: {user_msg}")
-            lines.append(f"Tú: {response}")
+            lines.append(f"Tu: {response}")
             lines.append("")
     lines.append("Responde de forma breve y natural, como en los ejemplos.")
     lines.append("=== FIN EJEMPLOS ===")

@@ -22,6 +22,7 @@ ENABLE_QUESTION_CONTEXT = os.getenv("ENABLE_QUESTION_CONTEXT", "true").lower() =
 ENABLE_CONVERSATION_STATE = os.getenv("ENABLE_CONVERSATION_STATE", "true").lower() == "true"
 ENABLE_DNA_AUTO_CREATE = os.getenv("ENABLE_DNA_AUTO_CREATE", "true").lower() == "true"
 ENABLE_QUERY_EXPANSION = os.getenv("ENABLE_QUERY_EXPANSION", "true").lower() == "true"
+ENABLE_RAG = os.getenv("ENABLE_RAG", "true").lower() == "true"
 ENABLE_RELATIONSHIP_DETECTION = (
     os.getenv("ENABLE_RELATIONSHIP_DETECTION", "true").lower() == "true"
 )
@@ -219,7 +220,11 @@ async def phase_memory_and_context(
     # RAG retrieval — skip for simple intents that don't need knowledge
     _SKIP_RAG_INTENTS = {"greeting", "farewell", "thanks", "saludo", "despedida"}
     rag_query = message
-    if intent_value in _SKIP_RAG_INTENTS:
+    if not ENABLE_RAG:
+        rag_results = []
+        cognitive_metadata["rag_disabled"] = True
+        logger.info("[RAG] Disabled via ENABLE_RAG=false")
+    elif intent_value in _SKIP_RAG_INTENTS:
         rag_results = []
         cognitive_metadata["rag_skipped"] = intent_value
         logger.info(f"[RAG] Skipped for intent={intent_value} (no knowledge needed)")
@@ -319,7 +324,7 @@ async def phase_memory_and_context(
             )
             logger.info("[A1] Friend detected — suppressing acquisition behavior")
 
-    # Load few-shot examples from calibration (5 semantic + 5 random for relevance + diversity)
+    # Load few-shot examples from calibration (intent-stratified + semantic hybrid)
     few_shot_section = ""
     if agent.calibration:
         try:
@@ -331,6 +336,7 @@ async def phase_memory_and_context(
                 max_examples=10,
                 current_message=message,
                 lead_language=detected_lang,
+                detected_intent=intent_value,
             )
             if detected_lang:
                 cognitive_metadata["detected_language"] = detected_lang
