@@ -397,15 +397,37 @@ async def phase_memory_and_context(
         memory: str,
         dna: str,
         state: str,
+        frustration_note: str = "",
     ) -> str:
         """Consolidate per-lead context into a single 'Sobre @username' block
         with a Recalling trigger that instructs the LLM to use it naturally."""
-        parts = [p for p in [relational, memory, dna, state] if p]
+        parts = [p for p in [relational, memory, dna, state, frustration_note] if p]
         if not parts:
             return ""
         header = f"Sobre @{username}:"
         footer = "Usa esta info naturalmente en tu respuesta — no la repitas textual."
         return header + "\n" + "\n".join(parts) + "\n" + footer
+
+    # Frustration note — factual, no behavior instruction (v2)
+    _frustration_note = ""
+    if detection is not None:
+        _fsig = getattr(detection, "frustration_signals", None)
+        if _fsig is not None:
+            _fl = getattr(_fsig, "level", 0)
+            _fr = getattr(_fsig, "reasons", [])
+            if _fl == 1:
+                _frustration_note = "Nota: el lead puede estar algo molesto."
+            elif _fl == 2:
+                _reason_str = ", ".join(r.split(":")[0] for r in _fr[:3]) if _fr else ""
+                _frustration_note = (
+                    f"Nota: el lead parece frustrado ({_reason_str}). No vendas ahora."
+                    if _reason_str else "Nota: el lead parece frustrado. No vendas ahora."
+                )
+            elif _fl >= 3:
+                _frustration_note = (
+                    "Nota: el lead está muy frustrado. "
+                    f"Prioriza resolver su problema o escalar a {agent.creator_id}."
+                )
 
     # ECHO Engine: Generate relational context (Sprint 4)
     relational_block = ""
@@ -474,6 +496,7 @@ async def phase_memory_and_context(
                     memory=memory_context,
                     dna=dna_context,
                     state=state_context,
+                    frustration_note=_frustration_note,
                 ),
                 rag_context,             # RAG chunks relevant to message
                 kb_context,              # Factual knowledge base lookup

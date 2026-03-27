@@ -189,11 +189,6 @@ async def phase_llm_generation(
         prompt_parts.append(gold_examples_section)
     if strategy_hint:
         prompt_parts.append(strategy_hint)
-    if frustration_level > 0.5:
-        prompt_parts.append(
-            f"⚠️ NOTA: El usuario parece frustrado (nivel: {frustration_level:.0%}). "
-            f"Responde con empatía y ofrece ayuda concreta."
-        )
     prompt_parts.append(message)
     full_prompt = "\n\n".join(prompt_parts)
     # Store for SBS retry — allows regenerating with identical prompt at lower temperature
