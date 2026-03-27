@@ -287,30 +287,34 @@ async def phase_memory_and_context(
     logger.info(f"[TIMING] Phase 2 sub: intent={int((_t1a - _t1) * 1000)}ms parallel_io={int((_t1b - _t1a) * 1000)}ms")
 
     # Fast in-memory operations (no parallelization needed)
-    # RAG retrieval — skip for intents that don't need knowledge retrieval
-    _SKIP_RAG_INTENTS = {
-        "greeting", "farewell", "thanks", "saludo", "despedida",
-        "humor", "other", "media_share", "continuation", "pool_response",
-    }
-    # Also skip if message is very short AND has no product keywords
+    # RAG retrieval — Self-RAG simplified: only activate for product-related queries.
+    # Casual/social messages get ZERO retrieval (prevents IG caption noise injection).
     _PRODUCT_KEYWORDS = {
         "precio", "preu", "cuanto", "cuánto", "horario", "horari", "clase",
         "classe", "reserv", "apunt", "pack", "bono", "barre", "pilates",
         "reformer", "zumba", "flow", "entreno", "entrenament", "sesion",
-        "sessió", "cuesta", "costa",
+        "sessió", "cuesta", "costa", "taller", "hipopresivos", "heels",
+        "hiit", "masterclass", "workshop", "precio", "price", "cost",
+    }
+    _PRODUCT_INTENTS = {
+        "question_product", "question_price", "interest_strong",
+        "purchase_intent", "objection_price",
     }
     msg_lower = message.lower()
-    _short_no_product = len(message.strip()) < 20 and not any(kw in msg_lower for kw in _PRODUCT_KEYWORDS)
+    _needs_retrieval = (
+        ENABLE_RAG
+        and (
+            intent_value in _PRODUCT_INTENTS
+            or any(kw in msg_lower for kw in _PRODUCT_KEYWORDS)
+        )
+    )
 
     rag_query = message
+    rag_results = []
     if not ENABLE_RAG:
-        rag_results = []
         cognitive_metadata["rag_disabled"] = True
-        logger.info("[RAG] Disabled via ENABLE_RAG=false")
-    elif intent_value in _SKIP_RAG_INTENTS or _short_no_product:
-        rag_results = []
-        cognitive_metadata["rag_skipped"] = intent_value if intent_value in _SKIP_RAG_INTENTS else "short_no_product"
-        logger.info(f"[RAG] Skipped: {cognitive_metadata['rag_skipped']}")
+    elif not _needs_retrieval:
+        cognitive_metadata["rag_skipped"] = "no_product_signal"
     else:
         if ENABLE_QUERY_EXPANSION:
             try:
@@ -323,15 +327,26 @@ async def phase_memory_and_context(
         rag_results = agent.semantic_rag.search(
             rag_query, top_k=agent.config.rag_top_k, creator_id=agent.creator_id
         )
+        # Filter out IG captions — only keep product_catalog and faq sources
+        if rag_results:
+            _useful_types = {"product_catalog", "faq", "knowledge_base"}
+            filtered = [
+                r for r in rag_results
+                if r.get("metadata", {}).get("type", "") in _useful_types
+            ]
+            if filtered:
+                rag_results = filtered
+                cognitive_metadata["rag_filtered"] = True
+            # If no product chunks match, keep original results but log warning
+            elif rag_results:
+                logger.debug("[RAG] No product/faq results — using IG captions as fallback")
+
     if rag_results:
         logger.info(f"[RAG] query='{rag_query[:50]}' results={len(rag_results)}")
+        if ENABLE_RERANKING:
+            cognitive_metadata["rag_reranked"] = True
     else:
         logger.debug(f"[RAG] query='{rag_query[:50]}' results=0")
-
-    # Note: reranking already happens inside semantic_rag.search()
-    # No need for a second reranking pass here
-    if ENABLE_RERANKING and rag_results:
-        cognitive_metadata["rag_reranked"] = True
 
     rag_context = agent._format_rag_context(rag_results)
 
