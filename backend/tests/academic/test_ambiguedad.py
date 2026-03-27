@@ -28,14 +28,16 @@ class TestAmbiguedad:
         message = "Me interesa"
 
         intent_simple = classify_intent_simple(message)
-        interest = detect_interest_level(message)
         ctx = detect_all(message, is_first_message=False)
 
         # 'me interesa' is explicitly in interest_soft keywords
         assert (
             intent_simple == "interest_soft"
         ), f"Vague interest should be 'interest_soft', got '{intent_simple}'"
-        assert interest == "soft", f"Vague interest level should be 'soft', got '{interest}'"
+        # detect_interest_level delegates to intent classifier — test via detect_all
+        assert ctx.interest_level == "soft", (
+            f"Vague interest level should be 'soft', got '{ctx.interest_level}'"
+        )
         # Should NOT be strong - that would be over-interpreting
         assert (
             ctx.interest_level != "strong"

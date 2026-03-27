@@ -1,578 +1,339 @@
 """
-Context Detector - Individual Detection Functions
+Context Detector — Individual Detection Functions (Universal/Multilingual).
 
-Individual detection functions for contextual signals in messages.
-Detectors only INFORM, they do NOT respond. The LLM decides what to do.
+Redesigned: language-extensible via keyword dicts. No hardcoded Spanish.
+Removed: frustration (FrustrationDetector v2), sarcasm (LLM handles it).
+Kept: B2B, meta-message, correction, objection, user name, interest.
 
-Part of refactor/context-injection-v2
+To add a language: add a key to the relevant KEYWORDS dict.
 """
 
 import re
 from typing import Any, Dict, List, Optional
 
-from core.intent_classifier import Intent
+from .models import B2BResult
 
-from .models import B2BResult, FrustrationResult, SarcasmResult
+# =============================================================================
+# Multilingual keyword dictionaries
+# To add a new language: add a key (ISO 639-1 code) with its keyword list.
+# "universal" patterns work regardless of language.
+# =============================================================================
 
+B2B_KEYWORDS: Dict[str, List[str]] = {
+    "universal": [
+        r"@\w+\.\w+",          # email pattern
+        r"https?://",           # URL
+        r"www\.",               # website
+    ],
+    "es": [
+        r"\bcolaboraci[oó]n\b", r"\bempresa\b", r"\bmarca\b",
+        r"\bsponsor\b", r"\bpropuesta\b", r"\bcorporativo\b",
+        r"\bcontrato\b", r"\bacuerdo\b", r"\bproveedor\b",
+    ],
+    "ca": [
+        r"\bcol·laboraci[oó]\b", r"\bempresa\b", r"\bmarca\b",
+        r"\bproposta\b", r"\bcorporatiu\b", r"\bcontracte\b",
+        r"\bacord\b",
+    ],
+    "en": [
+        r"\bcollaboration\b", r"\bcompany\b", r"\bbrand\b",
+        r"\bpartnership\b", r"\bproposal\b", r"\bcorporate\b",
+        r"\bcontract\b", r"\bagreement\b", r"\bsupplier\b",
+        r"\bsponsor\b",
+    ],
+    "it": [
+        r"\bcollaborazione\b", r"\bazienda\b", r"\bmarca\b",
+        r"\bproposta\b", r"\bcorporativo\b", r"\bcontratto\b",
+    ],
+    "fr": [
+        r"\bcollaboration\b", r"\bentreprise\b", r"\bmarque\b",
+        r"\bproposition\b", r"\bcorporatif\b", r"\bcontrat\b",
+    ],
+    "pt": [
+        r"\bcolaboração\b", r"\bempresa\b", r"\bmarca\b",
+        r"\bproposta\b", r"\bcorporativo\b", r"\bcontrato\b",
+    ],
+}
 
-def detect_frustration(
-    message: str, history: Optional[List[Dict[str, Any]]] = None
-) -> FrustrationResult:
-    """
-    Detect user frustration from message and history.
+B2B_INTRO_PATTERNS: Dict[str, List[str]] = {
+    "es": [
+        r"(?:soy|les escribe|mi nombre es|me llamo)\s+\w+\s+de\s+([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+?)(?:[,.\s]|$)",
+    ],
+    "ca": [
+        r"(?:sóc|em dic|el meu nom és)\s+(?:l[ae]\s+)?\w+\s+de\s+([A-ZÀÈÉÍÒÓÚÇa-zàèéíòóúç\s]+?)(?:[,.\s]|$)",
+    ],
+    "en": [
+        r"(?:i'?m|my name is|this is)\s+\w+\s+from\s+([A-Za-z\s]+?)(?:[,.\s]|$)",
+    ],
+    "it": [
+        r"(?:sono|mi chiamo)\s+\w+\s+di\s+([A-ZÀÈÉÌÒÙa-zàèéìòù\s]+?)(?:[,.\s]|$)",
+    ],
+    "fr": [
+        r"(?:je suis|je m'appelle)\s+\w+\s+de\s+([A-ZÀÂÆÇÈÉÊa-zàâæçèéê\s]+?)(?:[,.\s]|$)",
+    ],
+    "pt": [
+        r"(?:sou|meu nome é|me chamo)\s+\w+\s+(?:de|da)\s+([A-ZÃÁÂÉÊÍÓÔÚa-zãáâéêíóôú\s]+?)(?:[,.\s]|$)",
+    ],
+}
 
-    Patterns migrated from dm_agent.py _detect_meta_message.
+B2B_PREVIOUS_WORK: Dict[str, List[str]] = {
+    "es": [r"ya habíamos trabajado", r"trabajamos (?:antes|juntos)", r"hemos trabajado",
+           r"colabor(?:amos|ábamos|ación anterior)"],
+    "ca": [r"ja havíem treballat", r"vam treballar junts", r"hem col·laborat"],
+    "en": [r"we(?:'ve)? worked (?:together|before)", r"previous collaboration",
+           r"we collaborated"],
+    "it": [r"abbiamo (?:lavorato|collaborato)", r"collaborazione precedente"],
+    "fr": [r"nous avons (?:travaillé|collaboré)", r"collaboration précédente"],
+    "pt": [r"já trabalhamos", r"colaboração anterior"],
+}
 
-    Args:
-        message: Current user message
-        history: Conversation history (optional)
+META_KEYWORDS: Dict[str, List[str]] = {
+    "es": [r"\bya te (?:lo )?dije\b", r"\bte lo (?:acabo de )?decir\b",
+           r"\brevisa el chat\b", r"\blee (?:el chat|arriba)\b",
+           r"\bmira (?:el chat|arriba)\b", r"\bya lo mencion[ée]\b",
+           r"\bcomo (?:ya )?te dije\b", r"\bte lo coment[ée]\b"],
+    "ca": [r"\bja t'ho (?:he|vaig) dir\b", r"\bmira (?:el xat|amunt)\b",
+           r"\bcom (?:ja )?et vaig dir\b", r"\brellegeix\b"],
+    "en": [r"\bi (?:already|just) (?:said|told|asked)\b", r"\bcheck above\b",
+           r"\bscroll up\b", r"\bread (?:above|back)\b",
+           r"\bas i (?:said|mentioned)\b"],
+    "it": [r"\bte l'ho già detto\b", r"\brileggi\b", r"\bcome (?:ho|ti ho) detto\b"],
+    "fr": [r"\bje (?:te )?l'ai déjà dit\b", r"\brelis\b", r"\bcomme je (?:t'ai )?dit\b"],
+    "pt": [r"\bjá te disse\b", r"\breleia\b", r"\bcomo eu disse\b"],
+}
 
-    Returns:
-        FrustrationResult with level and reason
-    """
-    if not message:
-        return FrustrationResult()
+CORRECTION_KEYWORDS: Dict[str, List[str]] = {
+    "es": [r"\bno (?:te )?he dicho\b", r"\bno quiero comprar\b",
+           r"\bme has entendido mal\b", r"\bno es eso\b",
+           r"\bno me refiero\b", r"\bno era eso\b", r"\bmalentendido\b",
+           r"\bno he pedido\b", r"\bno dije eso\b", r"\bno quise decir\b"],
+    "ca": [r"\bno (?:t')?he dit\b", r"\bno és això\b",
+           r"\bm'has entès malament\b", r"\bno em refereixo\b",
+           r"\bmalentès\b", r"\bno volia dir\b"],
+    "en": [r"\bthat'?s not what i (?:said|meant)\b", r"\bi didn'?t say\b",
+           r"\bmisunderstanding\b", r"\bi don'?t mean\b",
+           r"\bthat'?s not (?:it|right)\b", r"\byou misunderstood\b"],
+    "it": [r"\bnon (?:è|ho detto) (?:quello|così)\b", r"\bmalinteso\b",
+           r"\bnon intendevo\b"],
+    "fr": [r"\bce n'est pas ce que j'ai dit\b", r"\bmalentendu\b",
+           r"\bje n'ai pas dit\b"],
+    "pt": [r"\bnão (?:é|foi) isso\b", r"\bmal-entendido\b",
+           r"\bnão quis dizer\b"],
+}
 
-    msg_lower = message.lower().strip()
+OBJECTION_KEYWORDS: Dict[str, Dict[str, List[str]]] = {
+    "price": {
+        "es": [r"\bcaro\b", r"\bmuy caro\b", r"\bno puedo pagar\b",
+               r"\bno tengo (?:el )?dinero\b", r"\bfuera de (?:mi )?presupuesto\b"],
+        "ca": [r"\bcar\b", r"\bmolt car\b", r"\bno puc pagar\b",
+               r"\bno tinc (?:els )?diners\b"],
+        "en": [r"\bexpensive\b", r"\btoo much\b", r"\bcan'?t afford\b",
+               r"\bout of (?:my )?budget\b"],
+    },
+    "time": {
+        "es": [r"\bno tengo tiempo\b", r"\bahora no\b", r"\bmás adelante\b",
+               r"\bno es (?:el )?buen momento\b"],
+        "ca": [r"\bno tinc temps\b", r"\bara no\b", r"\bmés endavant\b"],
+        "en": [r"\bno time\b", r"\bnot now\b", r"\bmaybe later\b",
+               r"\bnot (?:a )?good time\b"],
+    },
+    "trust": {
+        "es": [r"\bno (?:me )?fío\b", r"\bno confío\b", r"\blo pienso\b",
+               r"\blo voy a pensar\b", r"\bno me convence\b"],
+        "ca": [r"\bno m'ho crec\b", r"\bm'ho pensaré\b", r"\bno em convenç\b"],
+        "en": [r"\bi'?m not sure\b", r"\blet me think\b", r"\bnot convinced\b"],
+    },
+    "need": {
+        "es": [r"\bno lo necesito\b", r"\bno me hace falta\b",
+               r"\bno creo que (?:me )?sirva\b", r"\bno es para mí\b"],
+        "ca": [r"\bno ho necessito\b", r"\bno em fa falta\b",
+               r"\bno crec que em serveixi\b"],
+        "en": [r"\bdon'?t need\b", r"\bnot for me\b", r"\bi'?m fine without\b"],
+    },
+}
 
-    # Severe frustration patterns
-    severe_patterns = [
-        (r"\bin\u00fatil\b", "Insulto directo"),
-        (r"\bno sirves\b", "Cr\u00edtica directa al bot"),
-        (r"\beres (un )?bot\b", "Identificaci\u00f3n como bot"),
-        (r"\bpersona real\b", "Solicita humano"),
-        (r"\bhab(lar|la) con (una? )?persona\b", "Quiere hablar con humano"),
-        (r"\b(3|tres|cuatro|4|cinco|5|mil) veces\b", "Repetici\u00f3n excesiva"),
-        (r"\bya te (lo )?dije (mil veces|muchas veces)\b", "Frustraci\u00f3n por repetici\u00f3n"),
-    ]
-
-    for pattern, reason in severe_patterns:
-        if re.search(pattern, msg_lower):
-            return FrustrationResult(
-                is_frustrated=True,
-                level="severe",
-                reason=reason,
-                matched_pattern=pattern,
-            )
-
-    # Moderate frustration patterns
-    moderate_patterns = [
-        (r"\bno me entiendes\b", "No se siente comprendido"),
-        (r"\bno entiendes\b", "Falta de comprensi\u00f3n"),
-        (r"\bno me escuchas\b", "No se siente escuchado"),
-        (r"\bno ayudas\b", "Percibe falta de ayuda"),
-        (r"\bqu\u00e9 malo\b", "Cr\u00edtica de calidad"),
-        (r"\bya te (lo )?dije\b", "Repetici\u00f3n"),
-        (r"\bte lo (acabo de )?decir\b", "Repetici\u00f3n reciente"),
-        (r"\brevisa el chat\b", "Pide que lea el historial"),
-        (r"\blee (el chat|arriba)\b", "Pide que revise mensajes"),
-        (r"\bmira (el chat|arriba)\b", "Pide que revise mensajes"),
-    ]
-
-    for pattern, reason in moderate_patterns:
-        if re.search(pattern, msg_lower):
-            return FrustrationResult(
-                is_frustrated=True,
-                level="moderate",
-                reason=reason,
-                matched_pattern=pattern,
-            )
-
-    # Mild frustration patterns
-    mild_patterns = [
-        (r"\botra vez\b", "Repetici\u00f3n solicitada"),
-        (r"\bde nuevo\b", "Pide repetici\u00f3n"),
-        (r"\bno entend[\u00edi]\b", "No entendi\u00f3"),
-        (r"^\?+$", "Solo signos de interrogaci\u00f3n"),
-        (r"\bpero\s+ya\b", "Impaciencia"),
-    ]
-
-    for pattern, reason in mild_patterns:
-        if re.search(pattern, msg_lower):
-            return FrustrationResult(
-                is_frustrated=True,
-                level="mild",
-                reason=reason,
-                matched_pattern=pattern,
-            )
-
-    # Check history for repeated questions (indicates frustration)
-    if history and len(history) >= 4:
-        user_messages = [
-            m.get("content", "").lower()
-            for m in history
-            if m.get("role") == "user"
-        ]
-        if len(user_messages) >= 2:
-            # If user is repeating similar questions
-            last_msg = user_messages[-1] if user_messages else ""
-            for prev_msg in user_messages[-3:-1]:
-                # Simple similarity check
-                if _messages_similar(last_msg, prev_msg):
-                    return FrustrationResult(
-                        is_frustrated=True,
-                        level="moderate",
-                        reason="Usuario repitiendo preguntas similares",
-                        matched_pattern="history_repetition",
-                    )
-
-    return FrustrationResult()
-
-
-def _messages_similar(msg1: str, msg2: str, threshold: float = 0.6) -> bool:
-    """Check if two messages are similar (simple word overlap)."""
-    if not msg1 or not msg2:
-        return False
-
-    words1 = set(msg1.lower().split())
-    words2 = set(msg2.lower().split())
-
-    if not words1 or not words2:
-        return False
-
-    intersection = words1 & words2
-    union = words1 | words2
-
-    return len(intersection) / len(union) >= threshold
-
-
-def detect_sarcasm(message: str) -> SarcasmResult:
-    """
-    Detect sarcasm/irony in message.
-
-    IMPORTANT: Uses word boundaries (\\b) to avoid false positives.
-    Example: "trabajado" should NOT match "aj\u00e1".
-
-    Patterns migrated from dm_agent.py with proper boundaries.
-
-    Args:
-        message: User message
-
-    Returns:
-        SarcasmResult with confidence
-    """
-    if not message:
-        return SarcasmResult()
-
-    msg_lower = message.lower().strip()
-
-    # High confidence sarcasm patterns (with word boundaries)
-    high_confidence_patterns = [
-        (r"\baj[\u00e1a]\b", 0.85),  # "aj\u00e1" but not "trabajado"
-        (r"\bya ya\b", 0.85),
-        (r"\bseguro que s[\u00edi]\b", 0.80),
-        (r"\bqu[\u00e9e] gracioso\b", 0.90),
-        (r"\bclaro[,\s]+como si\b", 0.85),
-        (r"\bobvio que no\b", 0.85),
-    ]
-
-    for pattern, confidence in high_confidence_patterns:
-        if re.search(pattern, msg_lower):
-            return SarcasmResult(
-                is_sarcastic=True,
-                confidence=confidence,
-                matched_pattern=pattern,
-            )
-
-    # Medium confidence patterns
-    medium_confidence_patterns = [
-        (r"\bcomo si\b", 0.60),
-        (r"\bya ver[\u00e1a]s\b", 0.55),
-        (r"\bs[\u00edi].*(?:claro|seguro).*no\b", 0.65),
-        (r"\bseguro.*(?:vas|puedes|sabes)\b", 0.55),
-        (r"\botra vez.*(?:igual|lo mismo)\b", 0.60),
-    ]
-
-    for pattern, confidence in medium_confidence_patterns:
-        if re.search(pattern, msg_lower):
-            return SarcasmResult(
-                is_sarcastic=True,
-                confidence=confidence,
-                matched_pattern=pattern,
-            )
-
-    return SarcasmResult()
-
-
-def extract_user_name(message: str) -> Optional[str]:
-    """
-    Extract user name from message if they introduce themselves.
-
-    Patterns:
-    - "soy [Nombre]"
-    - "me llamo [Nombre]"
-    - "mi nombre es [Nombre]"
-    - "les escribe [Nombre]"  (B2B case)
-    - "I'm [Name]" / "my name is [Name]"
-
-    Migrated from dm_agent.py extract_name_from_message.
-
-    Args:
-        message: User message
-
-    Returns:
-        Extracted name or None
-    """
-    if not message:
-        return None
-
-    text = message.strip()
-
-    # Patterns in Spanish and English (order matters - more specific first)
-    # Note: "soy X de [Company]" - we only want X, not "X de"
-    patterns = [
-        # Spanish - stop before "de [Company]" pattern
-        r"(?i)(?:^|\s)soy\s+([A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1]+)\s+de\s+[A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1]",  # "soy Pedro de Company"
-        r"(?i)(?:^|\s)les escribe\s+([A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1]+)\s+de\s+[A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1]",  # "les escribe Silvia de Bamos"
-        # Spanish with full name support (first + last name)
-        r"(?i)(?:^|\s)me llamo\s+([A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1]+(?:\s+[A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1]+)?)",
-        r"(?i)(?:^|\s)mi nombre es\s+([A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1]+(?:\s+[A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1]+)?)",
-        r"(?i)(?:^|\s)soy\s+([A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1]+(?:\s+[A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1]+)?)",
-        r"(?i)(?:^|\s)(?:hola[,!]?\s*)?soy\s+([A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1]+)",
-        # B2B pattern: "les escribe [Name]"
-        r"(?i)(?:^|\s)les escribe\s+([A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1]+)",
-        # English
+NAME_PATTERNS: Dict[str, List[str]] = {
+    "es": [
+        r"(?i)(?:^|\s)(?:soy|me llamo|mi nombre es|les escribe)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)?)",
+    ],
+    "ca": [
+        r"(?i)(?:^|\s)(?:sóc|em dic|el meu nom és)\s+(?:l[ae]\s+)?([A-ZÀÈÉÍÒÓÚÇ][a-zàèéíòóúç]+(?:\s+[A-ZÀÈÉÍÒÓÚÇ][a-zàèéíòóúç]+)?)",
+    ],
+    "en": [
         r"(?i)(?:^|\s)(?:i'?m|my name is|call me|i am)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
-        r"(?i)(?:^|\s)(?:hey[,!]?\s*)?i'?m\s+([A-Z][a-z]+)",
-        # Fallback for single word
-        r"(?i)(?:^|\s)(?:soy|me llamo|les escribe|mi nombre es)\s+(\w+)",
-        r"(?i)(?:^|\s)(?:i'?m|my name is)\s+(\w+)",
-    ]
+    ],
+    "it": [
+        r"(?i)(?:^|\s)(?:sono|mi chiamo)\s+([A-ZÀÈÉÌÒÙ][a-zàèéìòù]+(?:\s+[A-ZÀÈÉÌÒÙ][a-zàèéìòù]+)?)",
+    ],
+    "fr": [
+        r"(?i)(?:^|\s)(?:je suis|je m'appelle)\s+([A-ZÀÂÆÇÈÉÊ][a-zàâæçèéê]+(?:\s+[A-ZÀÂÆÇÈÉÊ][a-zàâæçèéê]+)?)",
+    ],
+    "pt": [
+        r"(?i)(?:^|\s)(?:sou|meu nome é|me chamo)\s+([A-ZÃÁÂÉÊÍÓÔÚ][a-zãáâéêíóôú]+(?:\s+[A-ZÃÁÂÉÊÍÓÔÚ][a-zãáâéêíóôú]+)?)",
+    ],
+}
 
-    common_words = {
-        "el", "la", "un", "una", "de", "que", "a", "the", "an", "of",
-        "interested", "looking", "here", "nuevo", "nueva", "good", "fine",
-        "ok", "okay", "bien", "mal", "not", "no", "yes", "si", "tu", "your",
-        "aqu\u00ed", "aca", "para", "por", "con", "sin", "muy", "m\u00e1s", "less",
-    }
+_COMMON_WORDS = {
+    "el", "la", "un", "una", "de", "que", "a", "the", "an", "of",
+    "interested", "looking", "here", "nuevo", "nueva", "good", "fine",
+    "ok", "okay", "bien", "mal", "not", "no", "yes", "si", "tu", "your",
+    "aquí", "aca", "para", "por", "con", "sin", "muy", "más", "less",
+    "jo", "tu", "ell", "ella", "io", "je", "eu",
+    "from", "di", "da", "del", "las", "los", "les", "il",
+}
 
-    for pattern in patterns:
-        match = re.search(pattern, text)
-        if match:
-            name = match.group(1).strip()
-            if name.lower() not in common_words and len(name) >= 2:
-                return name.title()
+# Words that should be stripped from end of extracted names (prepositions/articles)
+_NAME_SUFFIX_STRIP = {"de", "del", "from", "di", "da", "la", "el", "les"}
 
+
+def _match_any(msg_lower: str, keywords_dict: Dict[str, List[str]]) -> bool:
+    """Check if message matches any keyword from any language."""
+    for _lang, patterns in keywords_dict.items():
+        for pattern in patterns:
+            if re.search(pattern, msg_lower, re.IGNORECASE):
+                return True
+    return False
+
+
+def _match_which(msg_lower: str, keywords_dict: Dict[str, List[str]]) -> Optional[str]:
+    """Return the matched pattern, or None."""
+    for _lang, patterns in keywords_dict.items():
+        for pattern in patterns:
+            if re.search(pattern, msg_lower, re.IGNORECASE):
+                return pattern
     return None
 
 
+# =============================================================================
+# Detectors
+# =============================================================================
+
+
 def detect_b2b(message: str) -> B2BResult:
-    """
-    Detect B2B/collaboration context in message.
-
-    NEW detector for cases like Silvia:
-    "Les escribe Silvia de Bamos, ya hab\u00edamos trabajado antes con
-    grupos de estudiantes Erasmus"
-
-    Args:
-        message: User message
-
-    Returns:
-        B2BResult with company context
-    """
+    """Detect B2B/collaboration context. Universal/multilingual."""
     if not message:
         return B2BResult()
 
     msg_lower = message.lower().strip()
-
     result = B2BResult()
 
-    # Pattern 1: "[Name] de [Company]" - extract company
-    company_pattern = r"(?:soy|les escribe|mi nombre es|me llamo)\s+\w+\s+de\s+([A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1\s]+?)(?:[,.\s]|$)"
-    company_match = re.search(company_pattern, message, re.IGNORECASE)
-    if company_match:
-        company = company_match.group(1).strip()
-        # Filter out common non-company words
-        non_companies = {"aqu\u00ed", "ac\u00e1", "espa\u00f1a", "madrid", "barcelona", "m\u00e9xico"}
-        if company.lower() not in non_companies and len(company) >= 2:
-            result.is_b2b = True
-            result.company_context = company
-            result.collaboration_type = "company_intro"
+    # 1. Company intro pattern: "[Name] de/from [Company]"
+    for _lang, patterns in B2B_INTRO_PATTERNS.items():
+        for pattern in patterns:
+            match = re.search(pattern, message, re.IGNORECASE)
+            if match:
+                company = match.group(1).strip()
+                non_companies = {"aquí", "acá", "españa", "madrid", "barcelona",
+                                 "méxico", "here", "there", "home"}
+                if company.lower() not in non_companies and len(company) >= 2:
+                    result.is_b2b = True
+                    result.company_context = company
+                    result.collaboration_type = "company_intro"
+                    break
+        if result.is_b2b:
+            break
 
-    # Pattern 2: Previous collaboration
-    previous_work_patterns = [
-        r"ya hab[\u00edi]amos trabajado",
-        r"trabajamos (antes|juntos|anteriormente)",
-        r"colabor(amos|\u00e1bamos|aci\u00f3n anterior)",
-        r"hemos trabajado",
-        r"trabaj\u00e9 con (ustedes|vosotros)",
-    ]
-    for pattern in previous_work_patterns:
-        if re.search(pattern, msg_lower):
+    # 2. Previous collaboration
+    if not result.is_b2b:
+        if _match_any(msg_lower, B2B_PREVIOUS_WORK):
             result.is_b2b = True
             result.collaboration_type = "previous_work"
-            break
 
-    # Pattern 3: B2B keywords
-    b2b_keywords = [
-        (r"\bcolaboraci[o\u00f3]n\b", "collaboration"),
-        (r"\bpartnership\b", "partnership"),
-        (r"\bpropuesta\b", "proposal"),
-        (r"\bempresa\b", "company"),
-        (r"\bcorporativo\b", "corporate"),
-        (r"\bgrupos?\s+de\s+estudiantes\b", "student_groups"),
-        (r"\berasmus\b", "erasmus"),
-        (r"\buniversidad\b", "university"),
-        (r"\binstituto\b", "institute"),
-        (r"\borganizaci[o\u00f3]n\b", "organization"),
-        (r"\bfundaci[o\u00f3]n\b", "foundation"),
-        (r"\bempresa\b", "business"),
-        (r"\bclientes?\s+corporativos?\b", "corporate_clients"),
-        (r"\bcontrato\b", "contract"),
-        (r"\bacuerdo\b", "agreement"),
-        (r"\bproveedor\b", "supplier"),
-        (r"\bservicio\s+para\s+empresas\b", "b2b_service"),
-    ]
-
-    for pattern, collab_type in b2b_keywords:
-        if re.search(pattern, msg_lower):
+    # 3. B2B keywords (any language)
+    if not result.is_b2b:
+        if _match_any(msg_lower, B2B_KEYWORDS):
             result.is_b2b = True
-            if not result.collaboration_type:
-                result.collaboration_type = collab_type
-            break
+            result.collaboration_type = "keyword"
 
-    # Extract contact name if B2B detected
+    # Extract contact name
     if result.is_b2b:
         name = extract_user_name(message)
         if name:
             result.contact_name = name
-
-    # Build company context string
-    if result.is_b2b and not result.company_context:
-        # Build context from matched type
-        context_map = {
-            "previous_work": "Cliente B2B con historial de colaboraci\u00f3n",
-            "collaboration": "Solicitud de colaboraci\u00f3n profesional",
-            "partnership": "Propuesta de partnership",
-            "proposal": "Propuesta de negocio",
-            "student_groups": "Grupos de estudiantes/educativo",
-            "erasmus": "Programa Erasmus/educativo",
-            "university": "Instituci\u00f3n universitaria",
-            "corporate": "Cliente corporativo",
-        }
-        result.company_context = context_map.get(
-            result.collaboration_type, "Contexto B2B"
-        )
+        if not result.company_context:
+            context_map = {
+                "previous_work": "Cliente B2B con historial",
+                "keyword": "Contexto B2B",
+                "company_intro": "Empresa",
+            }
+            result.company_context = context_map.get(result.collaboration_type, "B2B")
 
     return result
 
 
-def detect_interest_level(message: str, intent: Optional[Intent] = None) -> str:
-    """
-    Detect level of purchase interest.
-
-    Uses patterns from intent_classifier.py.
-
-    Args:
-        message: User message
-        intent: Optional already-classified intent
-
-    Returns:
-        "strong", "soft", or "none"
-    """
+def extract_user_name(message: str) -> Optional[str]:
+    """Extract user name from self-introduction. Universal/multilingual."""
     if not message:
-        return "none"
+        return None
 
-    msg_lower = message.lower().strip()
-
-    # Strong interest keywords (direct purchase intent)
-    strong_patterns = [
-        r"\bquiero comprar\b",
-        r"\bc\u00f3mo pago\b",
-        r"\bcomo pago\b",
-        r"\bme apunto\b",
-        r"\blo quiero\b",
-        r"\bd\u00f3nde compro\b",
-        r"\bdonde compro\b",
-        r"\bquiero el curso\b",
-        r"\bquiero inscribirme\b",
-        r"\bme lo llevo\b",
-        r"\breservar\b",
-        r"\bagendar\b",
-        r"\blink de pago\b",
-        r"\bcu\u00e1ndo empezamos\b",
-        r"\bcuando empezamos\b",
-        r"\bquiero contratar\b",
-    ]
-
-    for pattern in strong_patterns:
-        if re.search(pattern, msg_lower):
-            return "strong"
-
-    # Also check intent if provided
-    if intent in (Intent.INTEREST_STRONG,):
-        return "strong"
-
-    # Soft interest keywords
-    soft_patterns = [
-        r"\bme interesa\b",
-        r"\bcu\u00e9ntame m\u00e1s\b",
-        r"\bcuentame mas\b",
-        r"\bsuena bien\b",
-        r"\bsuena interesante\b",
-        r"\bquiero saber m\u00e1s\b",
-        r"\bm\u00e1s informaci\u00f3n\b",
-        r"\binfo\b",
-        r"\bdetalles\b",
-        r"\bqu\u00e9 incluye\b",
-        r"\bque incluye\b",
-    ]
-
-    for pattern in soft_patterns:
-        if re.search(pattern, msg_lower):
-            return "soft"
-
-    # Also check intent if provided
-    if intent in (Intent.INTEREST_SOFT, Intent.QUESTION_PRODUCT):
-        return "soft"
-
-    return "none"
+    for _lang, patterns in NAME_PATTERNS.items():
+        for pattern in patterns:
+            match = re.search(pattern, message.strip())
+            if match:
+                name = match.group(1).strip()
+                # Strip trailing prepositions/articles (e.g. "María De" → "María")
+                words = name.split()
+                while len(words) > 1 and words[-1].lower() in _NAME_SUFFIX_STRIP:
+                    words.pop()
+                name = " ".join(words)
+                if name.lower() not in _COMMON_WORDS and len(name) >= 2:
+                    return name.title()
+    return None
 
 
 def detect_meta_message(message: str) -> bool:
-    """
-    Detect if user is referencing the conversation itself.
-
-    Patterns like "ya te lo dije", "revisa el chat", etc.
-
-    Args:
-        message: User message
-
-    Returns:
-        True if meta-message detected
-    """
+    """Detect lead referencing earlier messages. Universal/multilingual."""
     if not message:
         return False
-
-    msg_lower = message.lower().strip()
-
-    meta_patterns = [
-        r"\bya te (lo )?dije\b",
-        r"\bte lo (acabo de )?decir\b",
-        r"\brevisa el chat\b",
-        r"\blee (el chat|arriba)\b",
-        r"\bmira (el chat|arriba)\b",
-        r"\bscroll up\b",
-        r"\bya lo mencion[\u00e9e]\b",
-        r"\bcomo te dije\b",
-        r"\bcomo ya te dije\b",
-        r"\bte lo coment[\u00e9e]\b",
-    ]
-
-    for pattern in meta_patterns:
-        if re.search(pattern, msg_lower):
-            return True
-
-    return False
+    return _match_any(message.lower().strip(), META_KEYWORDS)
 
 
 def detect_correction(message: str) -> bool:
-    """
-    Detect if user is correcting a misunderstanding.
-
-    Args:
-        message: User message
-
-    Returns:
-        True if correction detected
-    """
+    """Detect lead correcting a misunderstanding. Universal/multilingual."""
     if not message:
         return False
-
-    msg_lower = message.lower().strip()
-
-    correction_patterns = [
-        r"\bno te he dicho\b",
-        r"\bno he dicho\b",
-        r"\bno quiero comprar\b",
-        r"\bme has entendido mal\b",
-        r"\bno es eso\b",
-        r"\bno me refiero\b",
-        r"\bno era eso\b",
-        r"\bmalentendido\b",
-        r"\bno he pedido\b",
-        r"\byo no dije\b",
-        r"\bno dije eso\b",
-        r"\bno es lo que dije\b",
-        r"\bno quise decir\b",
-    ]
-
-    for pattern in correction_patterns:
-        if re.search(pattern, msg_lower):
-            return True
-
-    return False
+    return _match_any(message.lower().strip(), CORRECTION_KEYWORDS)
 
 
 def detect_objection_type(message: str) -> str:
-    """
-    Detect type of objection in message.
+    """Detect objection type. Universal/multilingual.
 
-    Args:
-        message: User message
-
-    Returns:
-        Objection type: "price", "time", "trust", "need", or ""
+    Returns: "price", "time", "trust", "need", or "".
     """
     if not message:
         return ""
-
     msg_lower = message.lower().strip()
-
-    # Price objection
-    price_patterns = [
-        r"\bcaro\b",
-        r"\bmuy caro\b",
-        r"\bdemasiado caro\b",
-        r"\bno puedo pagar\b",
-        r"\bno tengo (el )?dinero\b",
-        r"\bfuera de (mi )?presupuesto\b",
-        r"\bprecio\b.*\b(alto|mucho)\b",
-    ]
-    for pattern in price_patterns:
-        if re.search(pattern, msg_lower):
-            return "price"
-
-    # Time objection
-    time_patterns = [
-        r"\bno tengo tiempo\b",
-        r"\bahora no\b",
-        r"\bm\u00e1s adelante\b",
-        r"\bdespu\u00e9s\b",
-        r"\bno es (el )?buen momento\b",
-        r"\bm[\u00e1a]s tarde\b",
-        r"\bla semana que viene\b",
-        r"\bel mes que viene\b",
-    ]
-    for pattern in time_patterns:
-        if re.search(pattern, msg_lower):
-            return "time"
-
-    # Trust objection
-    trust_patterns = [
-        r"\bno (me )?f[\u00edi]o\b",
-        r"\bno conf\u00edo\b",
-        r"\bno (estoy )?seguro\b",
-        r"\blo pienso\b",
-        r"\blo voy a pensar\b",
-        r"\bno s\u00e9 si\b",
-        r"\bno me convence\b",
-        r"\bdudas\b",
-    ]
-    for pattern in trust_patterns:
-        if re.search(pattern, msg_lower):
-            return "trust"
-
-    # Need objection
-    need_patterns = [
-        r"\bno lo necesito\b",
-        r"\bno me hace falta\b",
-        r"\bpara qu\u00e9\b.*\b(sirve|necesito)\b",
-        r"\bno creo que (me )?sirva\b",
-        r"\bno es para m[\u00edi]\b",
-    ]
-    for pattern in need_patterns:
-        if re.search(pattern, msg_lower):
-            return "need"
-
+    for obj_type, lang_patterns in OBJECTION_KEYWORDS.items():
+        if _match_any(msg_lower, lang_patterns):
+            return obj_type
     return ""
+
+
+def detect_interest_level(message: str, intent=None) -> str:
+    """Detect interest level. Delegates to intent classifier when available.
+
+    Returns: "strong", "soft", or "none".
+    """
+    # If intent already classified, reuse it (no duplication)
+    if intent is not None:
+        intent_val = intent.value if hasattr(intent, "value") else str(intent)
+        if intent_val in ("interest_strong", "purchase"):
+            return "strong"
+        if intent_val in ("interest_soft", "question_product"):
+            return "soft"
+    return "none"
+
+
+# Backward compat stubs — these are no longer used in production but
+# tests import them. Return empty/no-op results.
+
+def detect_frustration(message: str, history=None):
+    """Stub — frustration detection moved to FrustrationDetector v2."""
+    from .models import FrustrationResult
+    return FrustrationResult()
+
+
+def detect_sarcasm(message: str):
+    """Stub — sarcasm detection removed (LLM handles natively)."""
+    from .models import SarcasmResult
+    return SarcasmResult()

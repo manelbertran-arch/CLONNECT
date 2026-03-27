@@ -10,7 +10,7 @@ All tests are FAST: no LLM calls, no DB access.
 
 from datetime import datetime, timedelta, timezone
 
-from core.context_detector import detect_all, detect_interest_level, detect_objection_type
+from core.context_detector import detect_all, detect_objection_type
 from core.intent_classifier import ConversationAnalyzer, IntentClassifier, classify_intent_simple
 from core.lead_categorization import calcular_categoria
 from core.lead_categorizer import LeadCategorizer, LeadCategory
@@ -48,10 +48,10 @@ class TestTemporal:
         assert (
             intent_urgent == "interest_strong"
         ), f"'Lo quiero ya' should be 'interest_strong', got '{intent_urgent}'"
-        interest_urgent = detect_interest_level(msg_urgent)
+        ctx_urgent = detect_all(msg_urgent, is_first_message=False)
         assert (
-            interest_urgent == "strong"
-        ), f"'Lo quiero ya' interest should be 'strong', got '{interest_urgent}'"
+            ctx_urgent.interest_level == "strong"
+        ), f"'Lo quiero ya' interest should be 'strong', got '{ctx_urgent.interest_level}'"
 
     def test_maneja_urgencia_tiempo(self):
         """
@@ -68,7 +68,6 @@ class TestTemporal:
 
         intent_simple = classify_intent_simple(message)
         ctx = detect_all(message, is_first_message=False)
-        interest = detect_interest_level(message)
 
         # 'lo necesito' maps to interest_strong in classify_intent_simple
         assert (
@@ -76,9 +75,9 @@ class TestTemporal:
         ), f"Urgent need should be 'interest_strong', got '{intent_simple}'"
 
         # The context should reflect high purchase intent
-        assert ctx.interest_level == "strong" or interest == "strong", (
+        assert ctx.interest_level == "strong", (
             "Urgent context should show strong interest, "
-            f"ctx.interest_level={ctx.interest_level}, interest={interest}"
+            f"ctx.interest_level={ctx.interest_level}"
         )
 
         # Lead categorization should mark as caliente via 'comprar' and 'quiero'

@@ -10,7 +10,6 @@ All tests are FAST: no LLM calls, no DB access.
 
 from core.context_detector import (
     detect_all,
-    detect_interest_level,
     detect_objection_type,
     format_alerts_for_prompt,
 )
@@ -146,7 +145,6 @@ class TestCausal:
 
         intent_simple = classify_intent_simple(message)
         ctx = detect_all(message, is_first_message=False)
-        interest = detect_interest_level(message)
 
         # Strong purchase intent
         assert intent_simple in (
@@ -154,19 +152,12 @@ class TestCausal:
             "purchase",
         ), f"Purchase request should be strong interest, got '{intent_simple}'"
         assert (
-            interest == "strong"
-        ), f"Purchase request should have 'strong' interest, got '{interest}'"
+            ctx.interest_level == "strong"
+        ), f"Purchase request should have 'strong' interest, got '{ctx.interest_level}'"
 
-        # Alerts should guide toward facilitating the purchase
-        alerts_text = format_alerts_for_prompt(ctx)
-        assert (
-            "compra" in alerts_text.lower()
-            or "pago" in alerts_text.lower()
-            or "reserva" in alerts_text.lower()
-        ), (
-            "Strong purchase intent should generate purchase-related alerts, "
-            f"got: {alerts_text}"
-        )
+        # Interest level is on ctx.interest_level, not in context_notes
+        # (context_notes are for B2B, name, meta, correction, objection only)
+        assert ctx.interest_level == "strong"
 
         # Lead categorization should mark as 'caliente'
         messages = [{"role": "user", "content": message}]

@@ -1,10 +1,8 @@
 """
-Context Detector Module
+Context Detector Module — Universal/Multilingual (v2).
 
-Detects contextual signals in messages for LLM prompt injection.
-Detectors only INFORM, they do NOT respond. The LLM decides what to do.
-
-Part of refactor/context-injection-v2
+Detects contextual signals in messages. Produces factual observations
+for the Recalling block — no behavior instructions.
 """
 
 from .detectors import (
@@ -26,20 +24,20 @@ from .orchestration import (
 )
 
 __all__ = [
-    # Models / Dataclasses
+    # Models
+    "DetectedContext",
+    "B2BResult",
     "FrustrationResult",
     "SarcasmResult",
-    "B2BResult",
-    "DetectedContext",
-    # Individual detectors
-    "detect_frustration",
-    "detect_sarcasm",
-    "extract_user_name",
+    # Detectors
     "detect_b2b",
+    "detect_correction",
+    "detect_frustration",
     "detect_interest_level",
     "detect_meta_message",
-    "detect_correction",
     "detect_objection_type",
+    "detect_sarcasm",
+    "extract_user_name",
     # Orchestration
     "detect_all",
     "detect_all_async",

@@ -1,10 +1,9 @@
 """
-Context Detector - Orchestration Functions
+Context Detector — Orchestration (v2 Universal/Multilingual).
 
-Main detection orchestration and utility functions.
-Detectors only INFORM, they do NOT respond. The LLM decides what to do.
-
-Part of refactor/context-injection-v2
+Main entry point: detect_all(). Calls individual detectors,
+builds factual context notes for the Recalling block.
+No behavior instructions — only factual observations.
 """
 
 import logging
@@ -34,63 +33,33 @@ def detect_all(
     is_first_message: bool = True,
     use_llm_intent: bool = False,
 ) -> DetectedContext:
-    """
-    Run all detectors and return complete context.
+    """Run all detectors and return complete context.
 
-    This is the main entry point for context detection.
-
-    Args:
-        message: Current user message
-        history: Conversation history (optional)
-        is_first_message: Whether this is the first message
-        use_llm_intent: Whether to use LLM for intent (requires async)
-
-    Returns:
-        DetectedContext with all detected signals and alerts
+    Main entry point for context detection.
+    All results are factual observations — no behavior instructions.
     """
     ctx = DetectedContext()
     ctx.is_first_message = is_first_message
 
     if not message:
-        ctx.build_alerts()
+        ctx.build_context_notes()
         return ctx
 
-    # 1. Detect frustration
-    frustration = detect_frustration(message, history)
-    if frustration.is_frustrated:
-        ctx.frustration_level = frustration.level
-        ctx.frustration_reason = frustration.reason
-        ctx.sentiment = "frustrated"
-
-    # 2. Detect sarcasm (only if not already frustrated)
-    if ctx.sentiment != "frustrated":
-        sarcasm = detect_sarcasm(message)
-        if sarcasm.is_sarcastic and sarcasm.confidence >= 0.6:
-            ctx.sentiment = "sarcastic"
-
-    # 3. Detect B2B context
+    # 1. B2B context
     b2b = detect_b2b(message)
     if b2b.is_b2b:
         ctx.is_b2b = True
         ctx.company_context = b2b.company_context
         ctx.b2b_contact_name = b2b.contact_name
 
-        # B2B context should reset frustration detection
-        # "ya hab\u00edamos trabajado" should NOT be seen as frustrated
-        if b2b.collaboration_type == "previous_work":
-            ctx.frustration_level = "none"
-            ctx.frustration_reason = ""
-            if ctx.sentiment == "frustrated":
-                ctx.sentiment = "neutral"
-
-    # 4. Extract user name
+    # 2. Extract user name
     name = extract_user_name(message)
     if name:
         ctx.user_name = name
     elif b2b.contact_name:
         ctx.user_name = b2b.contact_name
 
-    # 5. Classify intent (simple, non-LLM)
+    # 3. Classify intent (simple, non-LLM)
     intent_str = classify_intent_simple(message)
     intent_map = {
         "interest_strong": Intent.INTEREST_STRONG,
@@ -105,36 +74,37 @@ def detect_all(
     ctx.intent = intent_map.get(intent_str, Intent.OTHER)
     ctx.intent_sub = intent_str
 
-    # 6. Detect interest level
+    # 4. Interest level (delegates to intent classifier)
     ctx.interest_level = detect_interest_level(message, ctx.intent)
 
-    # 7. Detect meta-message
+    # 5. Meta-message
     ctx.is_meta_message = detect_meta_message(message)
 
-    # 8. Detect correction
+    # 6. Correction
     ctx.is_correction = detect_correction(message)
 
-    # 9. Detect objection type
+    # 7. Objection type
     if ctx.intent == Intent.OBJECTION or intent_str == "objection":
         ctx.objection_type = detect_objection_type(message)
 
-    # 10. Check for positive sentiment (if not already set)
-    if ctx.sentiment == "neutral":
-        positive_patterns = [
-            r"\bgracias\b",
-            r"\bgenial\b",
-            r"\bperfecto\b",
-            r"\bexcelente\b",
-            r"\bincre[\u00edi]ble\b",
-            r"\bme encanta\b",
-        ]
-        for pattern in positive_patterns:
-            if re.search(pattern, message.lower()):
-                ctx.sentiment = "positive"
-                break
+    # 8. Sentiment (positive only — frustration handled externally)
+    positive_patterns = [
+        r"\bgracias\b", r"\bgràcies\b", r"\bthanks?\b",
+        r"\bgenial\b", r"\bperfecto\b", r"\bexcelente\b",
+        r"\bincre[ií]ble\b", r"\bme encanta\b", r"\bgreat\b",
+        r"\bperfecte\b", r"\bfantàstic\b",
+    ]
+    for pattern in positive_patterns:
+        if re.search(pattern, message.lower()):
+            ctx.sentiment = "positive"
+            break
 
-    # Build alerts
-    ctx.build_alerts()
+    # 9. Backward compat: frustration/sarcasm stubs (always return empty)
+    detect_frustration(message, history)
+    detect_sarcasm(message)
+
+    # Build factual context notes for Recalling block
+    ctx.build_context_notes()
 
     return ctx
 
@@ -143,7 +113,6 @@ def detect_all(
 # ASYNC VERSION (for LLM intent classification)
 # =============================================================================
 
-
 async def detect_all_async(
     message: str,
     history: Optional[List[Dict[str, Any]]] = None,
@@ -151,23 +120,9 @@ async def detect_all_async(
     llm_client=None,
     creator_context: str = "",
 ) -> DetectedContext:
-    """
-    Async version of detect_all that can use LLM for intent classification.
-
-    Args:
-        message: Current user message
-        history: Conversation history (optional)
-        is_first_message: Whether this is the first message
-        llm_client: Optional LLM client for intent classification
-        creator_context: Context about the creator for intent classification
-
-    Returns:
-        DetectedContext with all detected signals and alerts
-    """
-    # Start with sync detection
+    """Async version — enhances with LLM intent classification if client provided."""
     ctx = detect_all(message, history, is_first_message, use_llm_intent=False)
 
-    # If LLM client provided, enhance intent classification
     if llm_client:
         try:
             classifier = IntentClassifier(llm_client)
@@ -181,14 +136,13 @@ async def detect_all_async(
             ctx.intent_confidence = result.confidence
             ctx.intent_sub = result.sub_intent
 
-            # Update interest level based on LLM intent
             if result.intent == Intent.INTEREST_STRONG:
                 ctx.interest_level = "strong"
             elif result.intent in (Intent.INTEREST_SOFT, Intent.QUESTION_PRODUCT):
                 ctx.interest_level = "soft"
 
-            # Rebuild alerts with new data
-            ctx.build_alerts()
+            # Rebuild context notes with updated intent
+            ctx.build_context_notes()
         except Exception as e:
             logger.warning(f"LLM intent classification failed: {e}")
 
@@ -199,57 +153,29 @@ async def detect_all_async(
 # UTILITY FUNCTIONS
 # =============================================================================
 
-
 def format_alerts_for_prompt(ctx: DetectedContext) -> str:
-    """
-    Format detected context alerts for LLM prompt injection.
-
-    Args:
-        ctx: DetectedContext with alerts
-
-    Returns:
-        Formatted string for prompt injection
-    """
-    if not ctx.alerts:
+    """Backward compat — returns context notes formatted for injection.
+    Prefer using ctx.context_notes directly in the Recalling block."""
+    if not ctx.context_notes:
         return ""
-
-    lines = ["=== ALERTAS DE CONTEXTO ==="]
-    for alert in ctx.alerts:
-        lines.append(f"\u2022 {alert}")
-    lines.append("")
-
-    return "\n".join(lines)
+    return "\n".join(f"• {note}" for note in ctx.context_notes)
 
 
 def get_context_summary(ctx: DetectedContext) -> str:
-    """
-    Get a brief summary of detected context for logging.
-
-    Args:
-        ctx: DetectedContext
-
-    Returns:
-        Brief summary string
-    """
+    """Brief summary for logging."""
     parts = []
-
     if ctx.is_b2b:
         parts.append(f"B2B({ctx.company_context[:20]})" if ctx.company_context else "B2B")
-
-    if ctx.frustration_level != "none":
-        parts.append(f"Frustration({ctx.frustration_level})")
-
-    if ctx.sentiment == "sarcastic":
-        parts.append("Sarcasm")
-
     if ctx.interest_level != "none":
         parts.append(f"Interest({ctx.interest_level})")
-
     if ctx.user_name:
         parts.append(f"Name({ctx.user_name})")
-
-    # Only add intent if it's meaningful (not OTHER)
+    if ctx.is_meta_message:
+        parts.append("Meta")
+    if ctx.is_correction:
+        parts.append("Correction")
+    if ctx.objection_type:
+        parts.append(f"Objection({ctx.objection_type})")
     if ctx.intent and ctx.intent != Intent.OTHER:
         parts.append(f"Intent({ctx.intent.value})")
-
     return " | ".join(parts) if parts else "neutral"

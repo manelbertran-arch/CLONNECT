@@ -13,7 +13,7 @@ Uses REAL modules (length_controller, context_detector, prompt_builder)
 and mocks only the LLM service.
 """
 
-from core.context_detector import detect_all, detect_interest_level, format_alerts_for_prompt
+from core.context_detector import detect_all, format_alerts_for_prompt
 from core.intent_classifier import Intent
 from services.length_controller import (
     classify_lead_context,
@@ -171,16 +171,14 @@ class TestSensibilidadContexto:
         ctx = detect_all(message, is_first_message=False)
         assert ctx.interest_level == "strong"
 
-        # 2. Alerts should include high-interest indicator
-        alerts_text = " ".join(ctx.alerts)
-        assert any(
-            keyword in alerts_text.lower()
-            for keyword in ["intenci", "compra", "pago", "reserva", "alta"]
-        ), f"High interest alerts should indicate purchase facilitation, got: {ctx.alerts}"
+        # 2. Interest level is on ctx.interest_level (not in alerts/context_notes)
+        assert ctx.interest_level == "strong", (
+            f"Purchase intent should be 'strong', got '{ctx.interest_level}'"
+        )
 
-        # 3. The interest detection function works directly
-        level = detect_interest_level(message)
-        assert level == "strong"
+        # 3. The interest detection function works via detect_all
+        ctx2 = detect_all(message, is_first_message=False)
+        assert ctx2.interest_level == "strong"
 
         # 4. Length controller classifies as interest (short ack, don't oversell)
         msg_type = classify_lead_context(message)

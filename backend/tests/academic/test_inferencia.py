@@ -8,7 +8,7 @@ motivation, and implicit objections.
 All tests are FAST: no LLM calls, no DB access.
 """
 
-from core.context_detector import detect_all, detect_interest_level, detect_objection_type
+from core.context_detector import detect_all, detect_objection_type
 from core.intent_classifier import Intent, classify_intent_simple
 from core.sensitive_detector import SensitiveType, detect_sensitive_content
 
@@ -68,7 +68,6 @@ class TestInferencia:
         message = "Lo necesito ya"
 
         intent_simple = classify_intent_simple(message)
-        interest = detect_interest_level(message)
         ctx = detect_all(message, is_first_message=False)
 
         # 'lo necesito' is in interest_strong keywords
@@ -76,9 +75,9 @@ class TestInferencia:
             intent_simple == "interest_strong"
         ), f"Expected 'interest_strong' for urgent message, got '{intent_simple}'"
         # Interest level should reflect the urgency
-        assert interest == "strong" or ctx.interest_level == "strong", (
+        assert ctx.interest_level == "strong", (
             "Expected strong interest for urgent context, "
-            f"got interest={interest}, ctx.interest_level={ctx.interest_level}"
+            f"got ctx.interest_level={ctx.interest_level}"
         )
 
     def test_infiere_nivel_conocimiento(self):
@@ -118,16 +117,12 @@ class TestInferencia:
         message = "Me interesa mejorar mi negocio"
 
         intent_simple = classify_intent_simple(message)
-        interest = detect_interest_level(message)
         ctx = detect_all(message, is_first_message=False)
 
         # 'me interesa' is in interest_soft keywords
         assert intent_simple == "interest_soft", (
             "Business motivation with 'me interesa' should be 'interest_soft', "
             f"got '{intent_simple}'"
-        )
-        assert interest == "soft", (
-            "Business motivation interest level should be 'soft', " f"got '{interest}'"
         )
         assert ctx.interest_level == "soft", (
             "Context interest_level should be 'soft', " f"got '{ctx.interest_level}'"

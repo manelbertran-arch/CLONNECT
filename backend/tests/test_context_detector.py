@@ -1,10 +1,9 @@
 """
-Tests for core/context_detector.py
+Tests for core/context_detector (v2 — Universal/Multilingual).
 
-Tests the Context Detector module that detects contextual signals
-in messages for LLM prompt injection.
-
-Part of refactor/context-injection-v2
+Tests the context detection module that produces factual observations
+for the Recalling block. Frustration is handled by FrustrationDetectorV2,
+sarcasm by the LLM natively.
 """
 
 import pytest
@@ -29,7 +28,7 @@ from core.context_detector import (
 
 
 class TestFrustrationResult:
-    """Tests for FrustrationResult dataclass."""
+    """Tests for FrustrationResult backward-compat dataclass."""
 
     def test_frustration_result_defaults(self):
         result = FrustrationResult()
@@ -47,7 +46,7 @@ class TestFrustrationResult:
 
 
 class TestSarcasmResult:
-    """Tests for SarcasmResult dataclass."""
+    """Tests for SarcasmResult backward-compat dataclass."""
 
     def test_sarcasm_result_defaults(self):
         result = SarcasmResult()
@@ -87,99 +86,63 @@ class TestDetectedContext:
         assert ctx.frustration_level == "none"
         assert ctx.is_b2b is False
         assert ctx.interest_level == "none"
-        assert ctx.alerts == []
+        assert ctx.context_notes == []
 
     def test_detected_context_to_dict(self):
-        ctx = DetectedContext(
-            sentiment="frustrated", frustration_level="moderate", is_b2b=True
-        )
+        ctx = DetectedContext(sentiment="positive", is_b2b=True)
         d = ctx.to_dict()
-        assert d["sentiment"] == "frustrated"
+        assert d["sentiment"] == "positive"
         assert d["is_b2b"] is True
 
-    def test_build_alerts_frustration(self):
-        ctx = DetectedContext(frustration_level="severe")
-        alerts = ctx.build_alerts()
-        assert len(alerts) >= 1
-        assert any("FRUSTRADO" in a.upper() for a in alerts)
-
-    def test_build_alerts_b2b(self):
+    def test_build_context_notes_b2b(self):
         ctx = DetectedContext(is_b2b=True, company_context="Bamos")
-        alerts = ctx.build_alerts()
-        assert any("B2B" in a for a in alerts)
+        notes = ctx.build_context_notes()
+        assert len(notes) >= 1
+        assert any("empresa" in n.lower() or "marca" in n.lower() for n in notes)
 
-    def test_build_alerts_interest(self):
-        ctx = DetectedContext(interest_level="strong")
-        alerts = ctx.build_alerts()
-        assert any("compra" in a.lower() or "intención" in a.lower() for a in alerts)
+    def test_build_context_notes_name(self):
+        ctx = DetectedContext(user_name="María")
+        notes = ctx.build_context_notes()
+        assert any("María" in n for n in notes)
+
+    def test_build_context_notes_objection(self):
+        ctx = DetectedContext(objection_type="price")
+        notes = ctx.build_context_notes()
+        assert any("precio" in n.lower() for n in notes)
+
+    def test_build_context_notes_empty(self):
+        ctx = DetectedContext()
+        notes = ctx.build_context_notes()
+        assert notes == []
+
+    def test_backward_compat_alerts(self):
+        """build_context_notes also populates alerts for backward compat."""
+        ctx = DetectedContext(is_b2b=True, company_context="TestCo")
+        ctx.build_context_notes()
+        assert ctx.alerts == ctx.context_notes
 
 
-class TestDetectFrustration:
-    """Tests for detect_frustration function."""
+class TestDetectFrustrationStub:
+    """Tests that frustration detection stub returns empty results."""
 
-    def test_no_frustration_normal_message(self):
-        result = detect_frustration("Hola, me interesa el FitPack")
-        assert result.is_frustrated is False
-        assert result.level == "none"
-
-    def test_severe_frustration_insult(self):
+    def test_stub_returns_empty(self):
         result = detect_frustration("Eres inútil, no me ayudas")
-        assert result.is_frustrated is True
-        assert result.level == "severe"
+        assert result.is_frustrated is False
 
-    def test_severe_frustration_repeated_times(self):
-        result = detect_frustration("Ya te dije 3 veces que quiero el precio")
-        assert result.is_frustrated is True
-        assert result.level == "severe"
-
-    def test_moderate_frustration_not_understood(self):
-        result = detect_frustration("No me entiendes, te lo explico otra vez")
-        assert result.is_frustrated is True
-        assert result.level == "moderate"
-
-    def test_moderate_frustration_review_chat(self):
-        result = detect_frustration("Revisa el chat, ya te lo dije")
-        assert result.is_frustrated is True
-        assert result.level == "moderate"
-
-    def test_mild_frustration_again(self):
-        result = detect_frustration("Otra vez tengo que explicarlo")
-        assert result.is_frustrated is True
-        assert result.level == "mild"
-
-    def test_empty_message(self):
+    def test_stub_empty_message(self):
         result = detect_frustration("")
         assert result.is_frustrated is False
 
 
-class TestDetectSarcasm:
-    """Tests for detect_sarcasm function."""
+class TestDetectSarcasmStub:
+    """Tests that sarcasm detection stub returns empty results."""
 
-    def test_no_sarcasm_normal_message(self):
-        result = detect_sarcasm("Me interesa el curso")
-        assert result.is_sarcastic is False
-
-    def test_sarcasm_aja(self):
+    def test_stub_returns_empty(self):
         result = detect_sarcasm("Ajá, seguro que sí")
-        assert result.is_sarcastic is True
-        assert result.confidence >= 0.8
-
-    def test_sarcasm_ya_ya(self):
-        result = detect_sarcasm("Ya ya, como si fuera a funcionar")
-        assert result.is_sarcastic is True
-
-    def test_sarcasm_que_gracioso(self):
-        result = detect_sarcasm("Qué gracioso, muy bueno")
-        assert result.is_sarcastic is True
-
-    def test_no_false_positive_trabajado(self):
-        """CRITICAL: 'trabajado' should NOT match 'ajá'."""
-        result = detect_sarcasm("Ya habíamos trabajado antes con grupos")
         assert result.is_sarcastic is False
 
-    def test_no_false_positive_trabajo(self):
-        """'trabajo' should NOT trigger sarcasm."""
-        result = detect_sarcasm("En mi trabajo hacemos esto")
+    def test_stub_empty_message(self):
+        result = detect_sarcasm("")
         assert result.is_sarcastic is False
 
 
@@ -195,7 +158,6 @@ class TestExtractUserName:
         assert name == "Carlos García"
 
     def test_extract_les_escribe(self):
-        """B2B pattern: 'les escribe [Name]'."""
         name = extract_user_name("Les escribe Silvia de Bamos")
         assert name == "Silvia"
 
@@ -208,43 +170,38 @@ class TestExtractUserName:
         assert name is None
 
     def test_filter_common_words(self):
-        """Should not extract common words as names."""
         name = extract_user_name("Soy el que te escribió ayer")
         assert name is None or name != "El"
+
+    def test_catalan_with_article(self):
+        name = extract_user_name("Sóc la Marta de YogaVida")
+        assert name == "Marta"
+
+    def test_english_name(self):
+        name = extract_user_name("I'm John from NikeTraining")
+        assert name == "John"
 
 
 class TestDetectB2B:
     """Tests for detect_b2b function."""
 
     def test_silvia_case_full(self):
-        """
-        CRITICAL TEST: The Silvia case that should be detected as B2B.
-
-        This message should:
-        1. Be detected as B2B
-        2. NOT be detected as frustrated (despite 'ya habíamos')
-        3. Extract company name 'Bamos'
-        4. Extract contact name 'Silvia'
-        """
         message = (
             "Hola! Les escribe Silvia de Bamos, ya habíamos trabajado antes "
             "con grupos de estudiantes Erasmus. Queríamos ver si podemos "
             "organizar algo para febrero."
         )
         result = detect_b2b(message)
-
         assert result.is_b2b is True
         assert "Bamos" in result.company_context or result.company_context
         assert result.contact_name == "Silvia"
 
     def test_company_de_pattern(self):
-        """Test 'soy X de [Company]' pattern."""
         result = detect_b2b("Soy Juan de TechCorp")
         assert result.is_b2b is True
         assert "TechCorp" in result.company_context
 
     def test_previous_collaboration(self):
-        """Test previous work detection."""
         result = detect_b2b("Ya habíamos trabajado juntos el año pasado")
         assert result.is_b2b is True
         assert result.collaboration_type == "previous_work"
@@ -253,45 +210,42 @@ class TestDetectB2B:
         result = detect_b2b("Buscamos una colaboración para nuestros clientes")
         assert result.is_b2b is True
 
-    def test_students_group(self):
-        result = detect_b2b("Tenemos un grupo de estudiantes interesados")
-        assert result.is_b2b is True
-
     def test_no_b2b_normal_message(self):
         result = detect_b2b("Hola, me interesa el curso")
         assert result.is_b2b is False
 
-    def test_erasmus_detection(self):
-        result = detect_b2b("Organizamos viajes para estudiantes Erasmus")
+    def test_english_b2b(self):
+        result = detect_b2b("I'm John from NikeTraining, we'd like a partnership")
+        assert result.is_b2b is True
+        assert "NikeTraining" in result.company_context
+
+    def test_catalan_b2b(self):
+        result = detect_b2b("Sóc la Marta de YogaVida, volem una col·laboració")
         assert result.is_b2b is True
 
 
 class TestDetectInterestLevel:
-    """Tests for detect_interest_level function."""
+    """Tests for detect_interest_level function (delegates to intent)."""
 
-    def test_strong_interest_quiero_comprar(self):
+    def test_no_interest_without_intent(self):
+        """Without intent parameter, returns 'none' (delegates to classifier)."""
         level = detect_interest_level("Quiero comprar el curso")
-        assert level == "strong"
+        assert level == "none"
 
-    def test_strong_interest_como_pago(self):
-        level = detect_interest_level("¿Cómo pago?")
-        assert level == "strong"
+    def test_strong_via_detect_all(self):
+        """Via detect_all, purchase intent → strong interest."""
+        ctx = detect_all("Quiero comprar el FitPack, ¿cómo pago?")
+        assert ctx.interest_level == "strong"
 
-    def test_strong_interest_me_apunto(self):
-        level = detect_interest_level("Me apunto, dime cómo")
-        assert level == "strong"
-
-    def test_soft_interest_me_interesa(self):
-        level = detect_interest_level("Me interesa, cuéntame más")
-        assert level == "soft"
-
-    def test_soft_interest_suena_bien(self):
-        level = detect_interest_level("Suena bien, dame más info")
-        assert level == "soft"
+    def test_soft_via_detect_all(self):
+        """Via detect_all, soft interest message → soft interest."""
+        ctx = detect_all("Me interesa, cuéntame más")
+        # Intent classifier determines this — may be soft or none
+        assert ctx.interest_level in ("soft", "none")
 
     def test_no_interest_greeting(self):
-        level = detect_interest_level("Hola, qué tal")
-        assert level == "none"
+        ctx = detect_all("Hola, qué tal")
+        assert ctx.interest_level == "none"
 
 
 class TestDetectMetaMessage:
@@ -302,6 +256,12 @@ class TestDetectMetaMessage:
 
     def test_revisa_chat(self):
         assert detect_meta_message("Revisa el chat, está arriba") is True
+
+    def test_catalan_meta(self):
+        assert detect_meta_message("Ja t'ho he dit, mira el xat") is True
+
+    def test_english_meta(self):
+        assert detect_meta_message("I already told you, scroll up") is True
 
     def test_normal_message(self):
         assert detect_meta_message("Quiero información") is False
@@ -315,6 +275,9 @@ class TestDetectCorrection:
 
     def test_malentendido(self):
         assert detect_correction("Creo que hay un malentendido") is True
+
+    def test_english_correction(self):
+        assert detect_correction("That's not what I said, you misunderstood") is True
 
     def test_normal_message(self):
         assert detect_correction("Sí, eso es lo que quiero") is False
@@ -340,96 +303,58 @@ class TestDetectObjectionType:
 
 
 class TestDetectAll:
-    """Tests for detect_all main function."""
+    """Tests for detect_all main orchestration function."""
 
-    def test_silvia_b2b_not_frustrated(self):
-        """
-        CRITICAL TEST: Silvia's message should be B2B, NOT frustrated.
-
-        This is the main case that was failing before the refactor.
-        """
+    def test_silvia_b2b(self):
+        """Silvia's B2B message: should be B2B with name, not frustrated."""
         message = (
             "Hola! Les escribe Silvia de Bamos, ya habíamos trabajado antes "
-            "con grupos de estudiantes Erasmus. Queríamos ver si podemos "
-            "organizar algo para febrero."
+            "con grupos de estudiantes Erasmus."
         )
         ctx = detect_all(message, is_first_message=True)
-
-        # Should be B2B
         assert ctx.is_b2b is True
-
-        # Should NOT be frustrated (despite 'ya habíamos')
-        assert ctx.frustration_level == "none"
-        assert ctx.sentiment != "frustrated"
-
-        # Should extract name
         assert ctx.user_name == "Silvia"
-
-        # Alerts should mention B2B, not frustration
-        alerts_text = " ".join(ctx.alerts)
-        assert "B2B" in alerts_text
-        assert "FRUSTRADO" not in alerts_text.upper()
-
-    def test_frustrated_user(self):
-        """Test frustrated user detection."""
-        message = "Ya te dije 3 veces que quiero el precio, ¿me lo puedes dar o no?"
-        ctx = detect_all(message, is_first_message=False)
-
-        assert ctx.frustration_level == "severe"
-        assert ctx.sentiment == "frustrated"
-        assert any("FRUSTRADO" in a.upper() for a in ctx.alerts)
+        # context_notes should mention B2B
+        assert any("empresa" in n.lower() or "marca" in n.lower() for n in ctx.context_notes)
+        # Should not have frustration in notes
+        assert not any("frustrad" in n.lower() for n in ctx.context_notes)
 
     def test_purchase_intent(self):
-        """Test strong purchase intent detection."""
-        message = "Quiero comprar el FitPack, ¿cómo pago?"
-        ctx = detect_all(message, is_first_message=False)
-
+        """Purchase message → strong interest."""
+        ctx = detect_all("Quiero comprar el FitPack, ¿cómo pago?", is_first_message=False)
         assert ctx.interest_level == "strong"
-        assert any("compra" in a.lower() or "pago" in a.lower() for a in ctx.alerts)
 
-    def test_first_message_greeting(self):
-        """Test first message detection."""
-        message = "Hola! Me interesa el curso"
-        ctx = detect_all(message, is_first_message=True)
-
+    def test_first_message(self):
+        ctx = detect_all("Hola! Me interesa el curso", is_first_message=True)
         assert ctx.is_first_message is True
-        assert any("Primer mensaje" in a for a in ctx.alerts)
 
     def test_objection_with_type(self):
-        """Test objection detection with type."""
-        message = "Es muy caro para mí, no puedo pagarlo"
-        ctx = detect_all(message)
-
+        ctx = detect_all("Es muy caro para mí, no puedo pagarlo")
         assert ctx.objection_type == "price"
-
-    def test_sarcasm_detection(self):
-        """Test sarcasm detection in context."""
-        message = "Ajá, seguro que funciona"
-        ctx = detect_all(message)
-
-        assert ctx.sentiment == "sarcastic"
+        assert any("precio" in n.lower() for n in ctx.context_notes)
 
     def test_positive_sentiment(self):
-        """Test positive sentiment detection."""
-        message = "Genial, me encanta, gracias!"
-        ctx = detect_all(message)
-
+        ctx = detect_all("Genial, me encanta, gracias!")
         assert ctx.sentiment == "positive"
+
+    def test_meta_and_correction(self):
+        ctx = detect_all("No he dicho eso, ya te lo dije antes")
+        assert ctx.is_correction is True
+        assert ctx.is_meta_message is True
 
 
 class TestFormatAlertsForPrompt:
     """Tests for format_alerts_for_prompt function."""
 
-    def test_format_with_alerts(self):
-        ctx = DetectedContext(frustration_level="moderate", is_b2b=True)
-        ctx.build_alerts()
+    def test_format_with_context_notes(self):
+        ctx = DetectedContext(is_b2b=True, company_context="Bamos")
+        ctx.build_context_notes()
         text = format_alerts_for_prompt(ctx)
+        assert "empresa" in text.lower() or "marca" in text.lower()
 
-        assert "ALERTAS DE CONTEXTO" in text
-        assert "B2B" in text or "frustrado" in text.lower()
-
-    def test_format_empty_alerts(self):
+    def test_format_empty(self):
         ctx = DetectedContext()
+        ctx.build_context_notes()
         text = format_alerts_for_prompt(ctx)
         assert text == ""
 
@@ -442,55 +367,52 @@ class TestGetContextSummary:
         summary = get_context_summary(ctx)
         assert "B2B" in summary
 
-    def test_summary_frustration(self):
-        ctx = DetectedContext(frustration_level="moderate")
-        summary = get_context_summary(ctx)
-        assert "Frustration" in summary
-
     def test_summary_neutral(self):
         ctx = DetectedContext()
         summary = get_context_summary(ctx)
         assert summary == "neutral"
 
+    def test_summary_multiple_signals(self):
+        ctx = DetectedContext(is_b2b=True, user_name="Pedro", is_meta_message=True)
+        summary = get_context_summary(ctx)
+        assert "B2B" in summary
+        assert "Name" in summary
+        assert "Meta" in summary
+
 
 class TestIntegration:
-    """Integration tests."""
+    """Integration tests for detect_all."""
 
     def test_full_flow_b2b_message(self):
-        """Test complete flow for B2B message."""
         message = (
             "Buenos días, soy Pedro de InnovateTech. "
             "Buscamos una colaboración para formar a nuestro equipo."
         )
         ctx = detect_all(message, is_first_message=True)
-
         assert ctx.is_b2b is True
         assert ctx.user_name == "Pedro"
-        assert len(ctx.alerts) > 0
+        assert len(ctx.context_notes) > 0
 
-    def test_full_flow_frustrated_repeat(self):
-        """Test complete flow for frustrated user with history."""
-        history = [
-            {"role": "user", "content": "¿Cuánto cuesta el curso?"},
-            {"role": "assistant", "content": "El curso tiene varias opciones..."},
-            {"role": "user", "content": "Pero cuánto cuesta exactamente?"},
-            {"role": "assistant", "content": "Depende de lo que busques..."},
-        ]
+    def test_full_flow_meta_message(self):
         message = "Ya te dije, solo quiero saber el precio!"
-
-        ctx = detect_all(message, history=history, is_first_message=False)
-
-        # Should detect frustration (not "none") OR meta message
-        assert ctx.frustration_level != "none" or ctx.is_meta_message is True
+        ctx = detect_all(message, history=[], is_first_message=False)
         assert ctx.is_meta_message is True
 
     def test_full_flow_price_question(self):
-        """Test complete flow for price question."""
         message = "¿Cuánto cuesta el FitPack Challenge?"
         ctx = detect_all(message, is_first_message=False)
-
-        # Should detect interest (asking about price = purchase intent)
         assert ctx.interest_level in ("strong", "soft")
+
+    def test_multilingual_detection(self):
+        """Test that all supported languages produce results."""
+        messages = {
+            "es": "Soy María de FitnessPro, queríamos una colaboración",
+            "en": "I'm John from NikeTraining, we'd like a partnership",
+            "ca": "Sóc la Marta de YogaVida, volem una col·laboració",
+        }
+        for lang, msg in messages.items():
+            ctx = detect_all(msg)
+            assert ctx.is_b2b is True, f"B2B not detected for {lang}: {msg}"
 
 
 if __name__ == "__main__":

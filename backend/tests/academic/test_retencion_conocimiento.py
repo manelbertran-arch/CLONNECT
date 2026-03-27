@@ -56,8 +56,10 @@ class TestRetencionConocimiento:
         restored = FollowerMemory.from_dict(data)
         assert restored.name == "Maria"
 
-        # 5. Alerts include the user name
-        assert any("Maria" in a for a in ctx.alerts), f"Expected name alert, got: {ctx.alerts}"
+        # 5. context_notes include the user name (build_context_notes populates them)
+        assert any("Maria" in n for n in ctx.context_notes), (
+            f"Expected name in context_notes, got: {ctx.context_notes}"
+        )
 
     # ─── test_recuerda_producto_mencionado ──────────────────────────────
 
@@ -195,10 +197,11 @@ class TestRetencionConocimiento:
         assert restored.purchase_intent_score == 0.6
         assert restored.is_lead is True
 
-        # 4. Alerts include interest signal
-        assert any(
-            "intenci" in a.lower() or "inter" in a.lower() for a in ctx.alerts
-        ), f"Expected interest alert, got: {ctx.alerts}"
+        # 4. Interest level is detected on the DetectedContext field directly
+        # (interest is no longer in alerts/context_notes — it's on ctx.interest_level)
+        assert ctx.interest_level in ("soft", "strong"), (
+            f"Expected interest_level 'soft' or 'strong', got: {ctx.interest_level}"
+        )
 
     # ─── test_no_repite_info_ya_dada ────────────────────────────────────
 
