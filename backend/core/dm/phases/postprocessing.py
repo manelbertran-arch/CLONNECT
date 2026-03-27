@@ -378,7 +378,12 @@ async def phase_postprocessing(
     )
 
     # Memory extraction (extract facts from conversation — fire-and-forget)
-    if os.getenv("ENABLE_MEMORY_ENGINE", "false").lower() == "true":
+    # Skip for PERSONAL relationships (family/friends — no commercial facts needed)
+    _rel_category = cognitive_metadata.get("relationship_category", "TRANSACTIONAL")
+    _skip_memory = _rel_category == "PERSONAL"
+    if _skip_memory:
+        logger.debug("[MEMORY] Skipping fact extraction for PERSONAL lead (%s)", sender_id[:20])
+    if os.getenv("ENABLE_MEMORY_ENGINE", "false").lower() == "true" and not _skip_memory:
         try:
             from services.memory_engine import get_memory_engine
             mem_engine = get_memory_engine()

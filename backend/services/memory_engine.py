@@ -23,6 +23,7 @@ import json
 import logging
 import math
 import os
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -151,6 +152,25 @@ Escribe el resumen narrativo en 2-4 frases. NO uses formato de lista. NO invente
 # Threshold: compress when a lead has more than this many facts
 MEMO_COMPRESSION_THRESHOLD = int(os.getenv("MEMO_COMPRESSION_THRESHOLD", "8"))
 
+# TTL for temporal facts (days)
+TEMPORAL_FACT_TTL_DAYS = int(os.getenv("MEMORY_TEMPORAL_TTL_DAYS", "7"))
+
+# Temporal markers (multilingual: ES/CA/EN) — facts containing these expire
+_TEMPORAL_MARKERS = re.compile(
+    r'\b(mañana|hoy|esta semana|próximo|siguiente|'
+    r'demà|avui|aquesta setmana|proper|següent|'
+    r'tomorrow|today|this week|next week|'
+    r'lunes|martes|miércoles|jueves|viernes|sábado|domingo|'
+    r'dilluns|dimarts|dimecres|dijous|divendres|dissabte|diumenge|'
+    r'monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b',
+    re.IGNORECASE,
+)
+
+
+def _is_temporal_fact(fact_text: str) -> bool:
+    """Check if a fact contains temporal markers that make it ephemeral."""
+    return bool(_TEMPORAL_MARKERS.search(fact_text))
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MEMORY ENGINE
@@ -276,7 +296,12 @@ class MemoryEngine:
             for i, fact in enumerate(extraction.facts):
                 embedding = embeddings[i] if i < len(embeddings) else None
 
-                resolution = await self.resolve_conflict(fact, existing_facts)
+                resolution = await self.resolve_conflict(
+                    fact, existing_facts,
+                    new_embedding=embedding,
+                    creator_id=creator_id,
+                    lead_id=lead_id,
+                )
                 if resolution == "skip":
                     logger.debug("[MemoryEngine] Skipping duplicate fact: %s", fact["text"][:50])
                     continue
@@ -571,9 +596,16 @@ class MemoryEngine:
         self,
         new_fact: Dict[str, Any],
         existing_facts: List[LeadMemory],
+        new_embedding: Optional[List[float]] = None,
+        creator_id: Optional[str] = None,
+        lead_id: Optional[str] = None,
     ) -> str:
         """
         Resolve conflict between a new fact and existing facts.
+
+        Uses two-pass dedup:
+          1. Jaccard text similarity (fast, no DB) — catches exact/near-exact
+          2. Embedding cosine similarity via pgvector — catches semantic dupes
 
         Returns: "skip" | "supersede" | "store"
         """
@@ -583,10 +615,13 @@ class MemoryEngine:
         new_text = new_fact.get("text", "").lower().strip()
         new_type = new_fact.get("type", "")
 
+        # Pass 1: Jaccard text similarity (fast)
         for existing in existing_facts:
             existing_text = existing.fact_text.lower().strip()
 
             if self._text_similarity(new_text, existing_text) > 0.85:
+                # Refresh timestamp on the existing fact instead of inserting
+                await self._refresh_fact_timestamp(existing.id)
                 return "skip"
 
             if (
@@ -596,6 +631,19 @@ class MemoryEngine:
             ):
                 await self._supersede_fact(existing.id, None)
                 return "store"
+
+        # Pass 2: Embedding cosine similarity via pgvector (semantic dedup)
+        if new_embedding and creator_id and lead_id:
+            similar = await self._find_similar_fact_by_embedding(
+                creator_id, lead_id, new_type, new_embedding, threshold=0.15,
+            )
+            if similar:
+                await self._refresh_fact_timestamp(similar["id"])
+                logger.debug(
+                    "[MemoryEngine] Semantic dedup: '%s' ≈ '%s' (dist=%.3f)",
+                    new_text[:40], similar["text"][:40], similar["distance"],
+                )
+                return "skip"
 
         return "store"
 
@@ -669,12 +717,15 @@ class MemoryEngine:
         if not ENABLE_MEMORY_DECAY:
             return 0
 
+        # Expire temporal facts first (independent of Ebbinghaus)
+        temporal_expired = await self._expire_temporal_facts()
+
         try:
             from api.database import SessionLocal
             from sqlalchemy import text
 
             session = SessionLocal()
-            deactivated = 0
+            deactivated = temporal_expired
 
             try:
                 rows = session.execute(
@@ -1195,6 +1246,112 @@ class MemoryEngine:
 
         except Exception as e:
             logger.debug("[MemoryEngine] _supersede_fact() failed: %s", e)
+
+    async def _find_similar_fact_by_embedding(
+        self,
+        creator_id: str,
+        lead_id: str,
+        fact_type: str,
+        embedding: List[float],
+        threshold: float = 0.15,
+    ) -> Optional[Dict[str, Any]]:
+        """Find a semantically similar active fact via pgvector cosine distance.
+
+        Returns dict with id, text, distance if found within threshold, else None.
+        Threshold 0.15 cosine distance ≈ 0.85 cosine similarity.
+        """
+        try:
+            from api.database import SessionLocal
+            from sqlalchemy import text
+
+            validated = [float(v) for v in embedding]
+            emb_str = "[" + ",".join(str(x) for x in validated) + "]"
+
+            session = SessionLocal()
+            try:
+                row = session.execute(
+                    text(
+                        "SELECT id, fact_text, "
+                        "fact_embedding <=> CAST(:emb AS vector) AS distance "
+                        "FROM lead_memories "
+                        "WHERE creator_id = CAST(:cid AS uuid) "
+                        "AND lead_id = CAST(:lid AS uuid) "
+                        "AND fact_type = :ftype "
+                        "AND is_active = true "
+                        "AND fact_embedding IS NOT NULL "
+                        "ORDER BY fact_embedding <=> CAST(:emb AS vector) "
+                        "LIMIT 1"
+                    ),
+                    {"emb": emb_str, "cid": creator_id, "lid": lead_id, "ftype": fact_type},
+                ).fetchone()
+
+                if row and row[2] < threshold:
+                    return {"id": str(row[0]), "text": row[1], "distance": row[2]}
+                return None
+            finally:
+                session.close()
+        except Exception as e:
+            logger.debug("[MemoryEngine] _find_similar_fact_by_embedding() failed: %s", e)
+            return None
+
+    async def _refresh_fact_timestamp(self, fact_id: str) -> None:
+        """Refresh updated_at on an existing fact (dedup touch)."""
+        try:
+            from api.database import SessionLocal
+            from sqlalchemy import text
+
+            session = SessionLocal()
+            try:
+                session.execute(
+                    text(
+                        "UPDATE lead_memories "
+                        "SET updated_at = NOW(), "
+                        "times_accessed = times_accessed + 1 "
+                        "WHERE id = CAST(:fid AS uuid)"
+                    ),
+                    {"fid": fact_id},
+                )
+                session.commit()
+            finally:
+                session.close()
+        except Exception as e:
+            logger.debug("[MemoryEngine] _refresh_fact_timestamp() failed: %s", e)
+
+    async def _expire_temporal_facts(self) -> int:
+        """Deactivate temporal facts older than TTL. Called from decay_memories()."""
+        try:
+            from api.database import SessionLocal
+            from sqlalchemy import text
+
+            session = SessionLocal()
+            try:
+                result = session.execute(
+                    text(
+                        "UPDATE lead_memories "
+                        "SET is_active = false, updated_at = NOW() "
+                        "WHERE is_active = true "
+                        "AND created_at < NOW() - CAST(:ttl || ' days' AS INTERVAL) "
+                        "AND ("
+                        "  fact_text ~* '(mañana|hoy|esta semana|próximo|siguiente"
+                        "|demà|avui|aquesta setmana|proper|següent"
+                        "|tomorrow|today|this week|next week"
+                        "|lunes|martes|miércoles|jueves|viernes|sábado|domingo"
+                        "|dilluns|dimarts|dimecres|dijous|divendres|dissabte|diumenge"
+                        "|monday|tuesday|wednesday|thursday|friday|saturday|sunday)'"
+                        ")"
+                    ),
+                    {"ttl": str(TEMPORAL_FACT_TTL_DAYS)},
+                )
+                expired = result.rowcount
+                session.commit()
+                if expired > 0:
+                    logger.info("[MemoryEngine] Expired %d temporal facts (TTL=%dd)", expired, TEMPORAL_FACT_TTL_DAYS)
+                return expired
+            finally:
+                session.close()
+        except Exception as e:
+            logger.error("[MemoryEngine] _expire_temporal_facts() failed: %s", e)
+            return 0
 
     async def _store_summary(
         self,
