@@ -75,6 +75,21 @@ class QueryExpander:
             "alumno": ["estudiante", "participante", "miembro"],
             "cliente": ["comprador", "usuario"],
             "experto": ["profesional", "especialista", "crack"],
+
+            # Fitness / Wellness (universal for fitness creators)
+            "clase": ["sessió", "class", "lección", "entrenament", "entreno"],
+            "horario": ["horari", "schedule", "hora", "disponibilidad"],
+            "barre": ["barra", "barre fitness"],
+            "pilates": ["pilates mat", "suelo", "colchoneta"],
+            "reformer": ["pilates reformer", "máquina pilates", "aparato"],
+            "zumba": ["baile", "cardio dance", "ball"],
+            "yoga": ["estiramientos", "stretching", "flexibilidad"],
+            "hipopresivos": ["hipopressius", "abdominals", "core"],
+            "gimnasio": ["gym", "gim", "centro deportivo", "sala"],
+            "entrenamiento": ["entreno", "training", "workout", "sessió"],
+            "reservar": ["apuntar", "booking", "inscribir", "reserva"],
+            "pack": ["bono", "abono", "bundle", "paquete"],
+            "sesión": ["sessió", "session", "cita"],
         }
 
         # Acrónimos comunes

@@ -44,7 +44,27 @@ STOPWORDS_EN = {
     'own', 'same', 'so', 'than', 'too', 'very', 'just', 'also'
 }
 
-STOPWORDS = STOPWORDS_ES | STOPWORDS_EN
+# Catalan stopwords
+STOPWORDS_CA = {
+    'de', 'la', 'el', 'en', 'i', 'que', 'un', 'una', 'els', 'les',
+    'del', 'al', 'per', 'amb', 'se', 'no', 'més', 'però', 'com',
+    'tot', 'dels', 'als', 'són', 'ha', 'hem', 'heu', 'han', 'ser',
+    'és', 'era', 'jo', 'tu', 'ell', 'ella', 'nosaltres', 'ells', 'elles',
+    'seu', 'seva', 'seus', 'seves', 'molt', 'poc', 'ja', 'si', 'quan',
+    'on', 'qui', 'què', 'com', 'perquè', 'doncs', 'també', 'encara',
+    'ara', 'aquí', 'allà', 'aquest', 'aquesta', 'aquests', 'aquestes',
+    'hi', 'ho', 'em', 'et', 'es', 'ens', 'us',
+}
+
+# Italian stopwords (for Stefano and future Italian creators)
+STOPWORDS_IT = {
+    'di', 'il', 'la', 'le', 'lo', 'un', 'una', 'e', 'è', 'che',
+    'in', 'per', 'con', 'non', 'da', 'del', 'della', 'dei', 'delle',
+    'al', 'alla', 'sono', 'ha', 'più', 'ma', 'come', 'anche', 'io',
+    'tu', 'lui', 'lei', 'noi', 'loro', 'questo', 'quello', 'suo', 'sua',
+}
+
+STOPWORDS = STOPWORDS_ES | STOPWORDS_EN | STOPWORDS_CA | STOPWORDS_IT
 
 
 @dataclass

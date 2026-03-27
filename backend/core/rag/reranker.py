@@ -36,15 +36,23 @@ COHERE_API_KEY = os.getenv("COHERE_API_KEY", "")
 _reranker = None
 
 
+# Reranker model: multilingual by default for CA/ES/EN/IT support.
+# Override via RERANKER_MODEL env var if needed.
+RERANKER_MODEL = os.getenv(
+    "RERANKER_MODEL",
+    "cross-encoder/mmarco-mMiniLM-L12-v2",  # multilingual (was: ms-marco-MiniLM-L6-v2, English-only)
+)
+
+
 def get_reranker():
-    """Lazy load del modelo Cross-Encoder"""
+    """Lazy load del modelo Cross-Encoder (multilingual by default)."""
     global _reranker
     if _reranker is None:
         try:
             from sentence_transformers import CrossEncoder
-            logger.info("Loading Cross-Encoder model (ms-marco-MiniLM-L6-v2)...")
-            _reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L6-v2')
-            logger.info("Cross-Encoder loaded (FREE, runs locally)")
+            logger.info("Loading Cross-Encoder model (%s)...", RERANKER_MODEL)
+            _reranker = CrossEncoder(RERANKER_MODEL)
+            logger.info("Cross-Encoder loaded: %s (FREE, runs locally)", RERANKER_MODEL)
         except ImportError:
             logger.error("sentence-transformers not installed: pip install sentence-transformers")
             _reranker = None
