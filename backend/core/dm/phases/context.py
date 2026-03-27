@@ -438,6 +438,7 @@ async def phase_memory_and_context(
                 relationship_type=_rel_type,
                 lead_name=follower.username if hasattr(follower, 'username') else None,
                 message_count=follower.total_messages if hasattr(follower, 'total_messages') else 0,
+                has_doc_d=bool(agent.style_prompt),
             )
             relational_block = _echo_rel_ctx.prompt_instructions
             if relational_block:

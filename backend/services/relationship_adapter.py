@@ -179,6 +179,29 @@ RELATIONAL_PROFILES = {
         ],
         "llm_params": {"temperature": 0.65, "max_tokens": 150},
     },
+    "amigo": {
+        "display_name": "Amigo/a",
+        "tone": "ultra-informal, familiar",
+        "objective": "conversar como amigo, cero ventas",
+        "warmth": 0.95,
+        "formality": 0.1,
+        "sales_push": 0.0,
+        "humor": 0.7,
+        "emoji_multiplier": 1.2,
+        "max_questions_per_msg": 2,
+        "prompt_instructions": (
+            "Esta persona es AMIGO/A del creador. "
+            "Habla con total confianza e informalidad. "
+            "CERO ventas, CERO productos, CERO preguntas de cualificación. "
+            "Solo calidez y naturalidad."
+        ),
+        "prohibited": [
+            "no intentes vender nada",
+            "no menciones productos ni servicios",
+            "no hagas preguntas de cualificación",
+        ],
+        "llm_params": {"temperature": 0.8, "max_tokens": 150},
+    },
 }
 
 # Fallback for unknown lead_status
@@ -225,6 +248,7 @@ class RelationshipAdapter:
         relationship_type: str = "DESCONOCIDO",
         lead_name: Optional[str] = None,
         message_count: int = 0,
+        has_doc_d: bool = False,
     ) -> RelationalContext:
         """Generate relational context for prompt injection.
 
@@ -236,6 +260,9 @@ class RelationshipAdapter:
             relationship_type: DNA relationship type (FAMILIA|INTIMA|AMISTAD|DESCONOCIDO).
             lead_name: Lead name (for personalization).
             message_count: Total messages with this lead.
+            has_doc_d: True if creator has a Doc D style prompt. When True,
+                       ECHO skips tone/style instructions (Doc D already covers them)
+                       and only injects data: lead name, memory, commitments.
 
         Returns:
             RelationalContext with instructions, parameters and restrictions.
@@ -254,28 +281,34 @@ class RelationshipAdapter:
         # 3. Build instruction block
         instructions_parts = []
 
-        # 3a. Base relational instruction
-        instructions_parts.append(
-            f"[RELACIÓN CON ESTE LEAD: {profile['display_name'].upper()}]\n"
-            f"Objetivo: {profile['objective']}.\n"
-            f"{profile['prompt_instructions']}"
-        )
-
-        # 3b. Override by relationship_type (family/friends don't get sales)
-        if relationship_type in ("FAMILIA", "INTIMA", "AMISTAD"):
+        if has_doc_d:
+            # Doc D already defines tone, style, prohibitions, sales behavior.
+            # ECHO only injects per-lead DATA — no tone/style instructions.
+            logger.debug("[ECHO] Doc D present — data-only mode (no tone instructions)")
+        else:
+            # Legacy: no Doc D — ECHO provides full tone/style guidance.
+            # 3a. Base relational instruction
             instructions_parts.append(
-                f"\nNOTA: Este lead es {relationship_type.lower()}. "
-                "NO hagas NINGÚN intento de venta. Habla como lo harías "
-                "con alguien cercano."
+                f"[RELACIÓN CON ESTE LEAD: {profile['display_name'].upper()}]\n"
+                f"Objetivo: {profile['objective']}.\n"
+                f"{profile['prompt_instructions']}"
             )
 
-        # 3c. Lead memory context (if available)
+            # 3b. Override by relationship_type (family/friends don't get sales)
+            if relationship_type in ("FAMILIA", "INTIMA", "AMISTAD"):
+                instructions_parts.append(
+                    f"\nNOTA: Este lead es {relationship_type.lower()}. "
+                    "NO hagas NINGÚN intento de venta. Habla como lo harías "
+                    "con alguien cercano."
+                )
+
+        # 3c. Lead memory context (always injected — this is data, not style)
         if lead_memory_summary:
             instructions_parts.append(
                 f"\n[MEMORIA DEL LEAD]\n{lead_memory_summary}"
             )
 
-        # 3d. Pending commitments (if any)
+        # 3d. Pending commitments (always injected — this is data)
         if commitment_text:
             instructions_parts.append(
                 f"\n[COMPROMISOS PENDIENTES]\n{commitment_text}\n"
@@ -283,15 +316,15 @@ class RelationshipAdapter:
                 "o cúmplelos en esta respuesta."
             )
 
-        # 3e. Name personalization
+        # 3e. Name personalization (always injected — this is data)
         if lead_name and message_count > 3:
             instructions_parts.append(
                 f"\nEl lead se llama {lead_name}. Puedes usar su nombre "
                 "de vez en cuando de forma natural."
             )
 
-        # 3f. Prohibitions
-        prohibitions = profile["prohibited"]
+        # 3f. Prohibitions (only when no Doc D — Doc D has its own blacklist)
+        prohibitions = profile["prohibited"] if not has_doc_d else []
         if prohibitions:
             instructions_parts.append(
                 "\n[PROHIBIDO EN ESTA CONVERSACIÓN]\n"
