@@ -1,33 +1,28 @@
 """
-Lead Categorization Service - Sistema de Embudo Estándar
+Lead Categorization Service v2 — Intent-based, universal, bidirectional.
 
-Categorías:
-- NUEVO: Lead que acaba de llegar, sin señales de intención
-- INTERESADO: Muestra curiosidad, hace preguntas, quiere saber más
-- CALIENTE: Listo para comprar, pregunta precio o cómo pagar
-- CLIENTE: Ya compró
-- FANTASMA: Sin respuesta hace +7 días
+Replaces v1's 40 hardcoded regex patterns with intent-based classification.
+Works for any language because it reads the intent from the detection phase
+(which is already multilingual via the intent classifier).
 
-Prioridad de evaluación (orden importa):
-1. Cliente (estado final)
-2. Caliente (máxima prioridad comercial)
-3. Fantasma (inactivo)
-4. Interesado
-5. Nuevo (por defecto)
+Categories:
+- NUEVO: Lead that just arrived, no intent signals
+- INTERESADO: Shows curiosity, asks general questions
+- CALIENTE: Ready to buy, asks about pricing/booking
+- CLIENTE: Already purchased
+- FANTASMA: No response in 7+ days (bidirectional: re-categorized on new message)
 """
 
-import re
 import logging
-from enum import Enum
-from typing import List, Dict, Optional, Tuple
-from datetime import datetime, timezone
 from dataclasses import dataclass
+from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 
 class LeadCategory(Enum):
-    """Categorías del embudo de ventas estándar"""
+    """Sales funnel categories."""
     NUEVO = "nuevo"
     INTERESADO = "interesado"
     CALIENTE = "caliente"
@@ -37,7 +32,7 @@ class LeadCategory(Enum):
 
 @dataclass
 class CategoryInfo:
-    """Información de una categoría para UI"""
+    """Category info for UI."""
     value: str
     label: str
     icon: str
@@ -46,234 +41,179 @@ class CategoryInfo:
     action_required: bool
 
 
-# Configuración de categorías para frontend
+# Frontend category config (unchanged from v1)
 CATEGORY_CONFIG: Dict[str, CategoryInfo] = {
-    "nuevo": CategoryInfo(
-        value="nuevo",
-        label="Nuevo",
-        icon="⚪",
-        color="#9CA3AF",  # gris
-        description="Acaba de llegar, el bot está saludando",
-        action_required=False
-    ),
-    "interesado": CategoryInfo(
-        value="interesado",
-        label="Interesado",
-        icon="🟡",
-        color="#F59E0B",  # amarillo
-        description="Hace preguntas, quiere saber más",
-        action_required=False
-    ),
-    "caliente": CategoryInfo(
-        value="caliente",
-        label="Caliente",
-        icon="🔴",
-        color="#EF4444",  # rojo
-        description="¡Quiere comprar! Contacta personalmente",
-        action_required=True
-    ),
-    "cliente": CategoryInfo(
-        value="cliente",
-        label="Cliente",
-        icon="🟢",
-        color="#10B981",  # verde
-        description="Ya compró",
-        action_required=False
-    ),
-    "fantasma": CategoryInfo(
-        value="fantasma",
-        label="Fantasma",
-        icon="👻",
-        color="#6B7280",  # gris oscuro
-        description="No responde hace +7 días",
-        action_required=False
-    ),
+    "nuevo": CategoryInfo("nuevo", "Nuevo", "⚪", "#9CA3AF", "Acaba de llegar, el bot está saludando", False),
+    "interesado": CategoryInfo("interesado", "Interesado", "🟡", "#F59E0B", "Hace preguntas, quiere saber más", False),
+    "caliente": CategoryInfo("caliente", "Caliente", "🔴", "#EF4444", "¡Quiere comprar! Contacta personalmente", True),
+    "cliente": CategoryInfo("cliente", "Cliente", "🟢", "#10B981", "Ya compró", False),
+    "fantasma": CategoryInfo("fantasma", "Fantasma", "👻", "#6B7280", "No responde hace +7 días", False),
 }
 
-# Keywords para detección de interés
-KEYWORDS_INTERESADO = [
-    r"\binfo\b", r"\binformación\b", r"\bdetalles\b", r"\bcómo funciona\b",
-    r"\bqué incluye\b", r"\bcuéntame\b", r"\bexplícame\b", r"\bme interesa\b",
-    r"\bquiero saber\b", r"\btienes\b", r"\bofreces\b", r"\bhaces\b",
-    r"\bqué es\b", r"\bpara qué sirve\b", r"\bcómo es\b",
-]
+# Intents that indicate strong purchase intent → CALIENTE
+_HOT_INTENTS = frozenset({
+    "interest_strong", "purchase_intent", "purchase", "want_to_buy",
+    "question_price", "objection_price",  # asking about price = hot
+})
 
-# Keywords para detección de lead caliente
-KEYWORDS_CALIENTE = [
-    # Precio
-    r"\bprecio\b", r"\bcuesta\b", r"\bcuánto\b", r"\bvale\b", r"\bcost\b",
-    r"\btarifa\b", r"\bpagar\b", r"\bforma de pago\b", r"\btarjeta\b",
-    r"\btransferencia\b", r"\bcuotas\b",
-    # Compra — "comprar" removed: too generic (triggers on "comprar placas", "comprar comida")
-    r"\breservar\b", r"\bcontratar\b", r"\bapúntate\b",
-    r"\bempezar\b", r"\binscribirme\b", r"\bquiero el\b", r"\blo quiero\b",
-    r"\bme apunto\b",
-    # Booking
-    r"\blink\b", r"\bcalendario\b", r"\bdisponibilidad\b", r"\bagendar\b",
-    r"\bcita\b", r"\bsesión\b", r"\breunión\b",
-]
+# Intents that indicate soft interest → INTERESADO
+_WARM_INTENTS = frozenset({
+    "interest_soft", "question_product", "question_general",
+    "objection_time", "objection_later", "objection_doubt",
+    "objection_works", "objection_not_for_me", "objection_complicated",
+    "objection_already_have", "support", "feedback_negative",
+})
 
+# Casual intents → no category signal (stays at current level or NUEVO)
+_NEUTRAL_INTENTS = frozenset({
+    "greeting", "farewell", "thanks", "humor", "continuation",
+    "media_share", "pool_response", "other",
+})
+
+DAYS_UNTIL_GHOST = 7
+
+
+def categorize_from_intent(
+    intent: str,
+    is_customer: bool = False,
+    days_since_last_msg: int = 0,
+    history_count: int = 0,
+) -> Tuple[LeadCategory, float, str]:
+    """Categorize a lead based on the detected intent of their current message.
+
+    Universal — works for any language because the intent classifier is
+    already multilingual. No regex keyword matching needed.
+
+    Bidirectional: a FANTASMA that sends a new message gets re-categorized
+    based on the intent of that message (not stuck in ghost state).
+
+    Args:
+        intent: Intent string from detection phase (e.g. "interest_strong")
+        is_customer: Whether the lead has already purchased
+        days_since_last_msg: Days since last user message (for ghost detection)
+        history_count: Total messages in conversation history
+
+    Returns:
+        (LeadCategory, score 0-1, reason)
+    """
+    # 1. CLIENTE — terminal state
+    if is_customer:
+        return LeadCategory.CLIENTE, 1.0, "Es cliente confirmado"
+
+    # 2. FANTASMA — only if no new message (days > threshold)
+    # If the lead IS sending a message right now, they're NOT a ghost anymore
+    # (bidirectional: ghost → re-categorize by intent)
+    if days_since_last_msg >= DAYS_UNTIL_GHOST:
+        return LeadCategory.FANTASMA, 0.1, f"Sin respuesta hace {days_since_last_msg} días"
+
+    # 3. CALIENTE — strong purchase intent
+    intent_lower = intent.lower() if intent else ""
+    if intent_lower in _HOT_INTENTS:
+        score = 0.7 + min(0.3, history_count * 0.02)
+        return LeadCategory.CALIENTE, min(1.0, score), f"Intent: {intent}"
+
+    # 4. INTERESADO — soft interest or enough conversation
+    if intent_lower in _WARM_INTENTS:
+        score = 0.3 + min(0.2, history_count * 0.02)
+        return LeadCategory.INTERESADO, score, f"Intent: {intent}"
+
+    # 5. INTERESADO by message volume (3+ messages = active conversation)
+    if history_count >= 3:
+        return LeadCategory.INTERESADO, 0.25, f"Conversación activa ({history_count} msgs)"
+
+    # 6. NUEVO — default
+    return LeadCategory.NUEVO, 0.1, "Sin señales de intención"
+
+
+def calculate_lead_score(
+    intent_history: List[str],
+    days_since_last_msg: int = 0,
+    is_customer: bool = False,
+) -> int:
+    """Calculate numeric lead score (0-100) for dashboard and analytics.
+
+    NOT injected in the LLM prompt — this is for the UI only.
+    Universal — signals come from intent classifier, not from keywords.
+
+    Args:
+        intent_history: List of intent strings from past messages
+        days_since_last_msg: Days since last user message
+        is_customer: Whether already purchased
+
+    Returns:
+        Score 0-100
+    """
+    if is_customer:
+        return 100
+
+    score = 0
+    for intent in intent_history:
+        il = intent.lower() if intent else ""
+        if il in _HOT_INTENTS:
+            score += 30
+        elif il in _WARM_INTENTS:
+            score += 15
+        elif il not in _NEUTRAL_INTENTS:
+            score += 5
+
+    # Message volume bonus (capped)
+    score += min(20, len(intent_history) * 2)
+
+    # Decay for inactivity
+    if days_since_last_msg > 0:
+        score -= min(score, days_since_last_msg * 3)
+
+    return max(0, min(100, score))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Legacy compatibility (v1 API — consumed by mega_test_w2.py, helpers.py)
+# ─────────────────────────────────────────────────────────────────────
 
 class LeadCategorizer:
-    """Categorizador de leads usando sistema de embudo estándar"""
+    """Legacy wrapper — delegates to categorize_from_intent internally.
 
-    DAYS_UNTIL_GHOST = 7  # Días sin respuesta para ser fantasma
+    Kept for backward compatibility with get_lead_stage() in helpers.py
+    and tests that call categorize(messages, is_customer, ...).
+    """
+
+    DAYS_UNTIL_GHOST = DAYS_UNTIL_GHOST
 
     def categorize(
         self,
         messages: List[Dict],
         is_customer: bool = False,
-        last_user_message_time: Optional[datetime] = None,
-        last_bot_message_time: Optional[datetime] = None,
+        last_user_message_time=None,
+        last_bot_message_time=None,
     ) -> Tuple[LeadCategory, float, str]:
-        """
-        Categoriza un lead basándose en sus mensajes y estado.
+        from datetime import datetime, timezone
 
-        Args:
-            messages: Lista de mensajes [{role: "user"|"assistant", content: str, timestamp: datetime}]
-            is_customer: Si ya es cliente (desde pago confirmado o manual)
-            last_user_message_time: Timestamp del último mensaje del usuario
-            last_bot_message_time: Timestamp del último mensaje del bot
+        # Calculate days since last user message
+        days = 0
+        if last_user_message_time:
+            if last_user_message_time.tzinfo is None:
+                last_user_message_time = last_user_message_time.replace(tzinfo=timezone.utc)
+            days = (datetime.now(timezone.utc) - last_user_message_time).days
+            # Only ghost if last message was from bot (user went silent)
+            if last_bot_message_time and last_bot_message_time <= last_user_message_time:
+                days = 0  # User responded more recently than bot
 
-        Returns:
-            Tuple de (categoría, score 0-1, razón)
-        """
-        # 1. CLIENTE - Estado final
-        if is_customer:
-            return LeadCategory.CLIENTE, 1.0, "Es cliente confirmado"
+        # Extract last intent from user messages
+        user_msgs = [m for m in messages if m.get("role") == "user"]
+        last_intent = ""
+        if user_msgs:
+            last_intent = user_msgs[-1].get("intent", "") or ""
 
-        # Extraer mensajes del usuario
-        user_messages = [
-            m for m in messages
-            if m.get("role") == "user" and m.get("content")
-        ]
-
-        # Concatenar todo el texto del usuario para análisis
-        all_user_text = " ".join(m.get("content", "") for m in user_messages).lower()
-        total_user_messages = len(user_messages)
-
-        # 2. CALIENTE - Máxima prioridad comercial
-        is_hot, hot_reason = self._is_caliente(all_user_text, user_messages)
-        if is_hot:
-            score = self._calculate_hot_score(all_user_text, user_messages)
-            return LeadCategory.CALIENTE, score, hot_reason
-
-        # 3. FANTASMA - Inactivo
-        is_ghost, ghost_reason = self._is_fantasma(
-            last_user_message_time, last_bot_message_time
+        return categorize_from_intent(
+            intent=last_intent,
+            is_customer=is_customer,
+            days_since_last_msg=days,
+            history_count=len(user_msgs),
         )
-        if is_ghost:
-            return LeadCategory.FANTASMA, 0.1, ghost_reason
-
-        # 4. INTERESADO - Muestra curiosidad
-        is_interested, interest_reason = self._is_interesado(all_user_text, total_user_messages)
-        if is_interested:
-            score = self._calculate_interest_score(all_user_text, total_user_messages)
-            return LeadCategory.INTERESADO, score, interest_reason
-
-        # 5. NUEVO - Por defecto
-        return LeadCategory.NUEVO, 0.1, "Sin señales de intención detectadas"
-
-    def _is_caliente(self, text: str, messages: List[Dict]) -> Tuple[bool, str]:
-        """Detecta si el lead está caliente (listo para comprar)"""
-        matches = []
-
-        for pattern in KEYWORDS_CALIENTE:
-            if re.search(pattern, text, re.IGNORECASE):
-                matches.append(pattern.replace(r"\b", "").replace("\\", ""))
-
-        if matches:
-            return True, f"Keywords de compra: {', '.join(matches[:3])}"
-
-        # También verificar intents clasificados en mensajes
-        for msg in messages:
-            intent = msg.get("intent", "")
-            if intent in ["interest_strong", "purchase", "question_product"]:
-                return True, f"Intent clasificado: {intent}"
-
-        return False, ""
-
-    def _is_fantasma(
-        self,
-        last_user_time: Optional[datetime],
-        last_bot_time: Optional[datetime]
-    ) -> Tuple[bool, str]:
-        """Detecta si el lead es un fantasma (sin respuesta hace +7 días)"""
-        if not last_user_time:
-            return False, ""
-
-        now = datetime.now(timezone.utc)
-
-        # Normalizar timezone
-        if last_user_time.tzinfo is None:
-            last_user_time = last_user_time.replace(tzinfo=timezone.utc)
-
-        days_since_response = (now - last_user_time).days
-
-        # Es fantasma si no responde hace +7 días Y el último mensaje fue del bot
-        if days_since_response >= self.DAYS_UNTIL_GHOST:
-            if last_bot_time and last_bot_time > last_user_time:
-                return True, f"Sin respuesta hace {days_since_response} días"
-
-        return False, ""
-
-    def _is_interesado(self, text: str, total_messages: int) -> Tuple[bool, str]:
-        """Detecta si el lead está interesado"""
-        matches = []
-
-        for pattern in KEYWORDS_INTERESADO:
-            if re.search(pattern, text, re.IGNORECASE):
-                matches.append(pattern.replace(r"\b", "").replace("\\", ""))
-
-        if matches:
-            return True, f"Keywords de interés: {', '.join(matches[:3])}"
-
-        # También considerar interesado si tiene 3+ mensajes (conversación activa)
-        if total_messages >= 3:
-            return True, f"Conversación activa ({total_messages} mensajes)"
-
-        return False, ""
-
-    def _calculate_hot_score(self, text: str, messages: List[Dict]) -> float:
-        """Calcula score de lead caliente (0.5-1.0)"""
-        base_score = 0.5
-        matches = 0
-
-        for pattern in KEYWORDS_CALIENTE:
-            if re.search(pattern, text, re.IGNORECASE):
-                matches += 1
-
-        # Más keywords = más caliente
-        score = base_score + min(0.5, matches * 0.1)
-        return min(1.0, score)
-
-    def _calculate_interest_score(self, text: str, total_messages: int) -> float:
-        """Calcula score de interés (0.2-0.5)"""
-        base_score = 0.2
-        matches = 0
-
-        for pattern in KEYWORDS_INTERESADO:
-            if re.search(pattern, text, re.IGNORECASE):
-                matches += 1
-
-        # Más keywords o más mensajes = más interés
-        keyword_bonus = min(0.15, matches * 0.05)
-        message_bonus = min(0.15, (total_messages - 2) * 0.05) if total_messages > 2 else 0
-
-        return min(0.5, base_score + keyword_bonus + message_bonus)
 
 
 def get_category_from_intent_score(intent_score: float, is_customer: bool = False) -> str:
-    """
-    Mapea un intent_score legacy al nuevo sistema de categorías.
-
-    Args:
-        intent_score: Score 0-1 del sistema anterior
-        is_customer: Si es cliente
-
-    Returns:
-        Categoría string: "nuevo", "interesado", "caliente", "cliente"
-    """
+    """Map legacy intent_score to category string."""
     if is_customer:
         return "cliente"
     if intent_score >= 0.5:
@@ -284,72 +224,25 @@ def get_category_from_intent_score(intent_score: float, is_customer: bool = Fals
 
 
 def get_intent_score_from_category(category: str) -> float:
-    """
-    Mapea una categoría a un intent_score para compatibilidad legacy.
-
-    Args:
-        category: "nuevo", "interesado", "caliente", "cliente", "fantasma"
-
-    Returns:
-        Score 0-1
-    """
-    scores = {
-        "nuevo": 0.1,
-        "interesado": 0.35,
-        "caliente": 0.7,
-        "cliente": 1.0,
-        "fantasma": 0.05,
-    }
-    return scores.get(category, 0.1)
+    """Map category to legacy intent_score."""
+    return {"nuevo": 0.1, "interesado": 0.35, "caliente": 0.7, "cliente": 1.0, "fantasma": 0.05}.get(category, 0.1)
 
 
 def map_legacy_status_to_category(status: str) -> str:
-    """
-    Mapea status legacy (new, active, hot) a nuevas categorías.
-
-    Args:
-        status: "new", "active", "hot", "customer", "cold", "warm"
-
-    Returns:
-        Nueva categoría: "nuevo", "interesado", "caliente", "cliente"
-    """
-    mapping = {
-        "new": "nuevo",
-        "cold": "nuevo",
-        "active": "interesado",
-        "warm": "interesado",
-        "hot": "caliente",
-        "customer": "cliente",
-    }
-    return mapping.get(status.lower(), "nuevo")
+    """Map legacy status to new category."""
+    return {"new": "nuevo", "cold": "nuevo", "active": "interesado", "warm": "interesado", "hot": "caliente", "customer": "cliente"}.get(status.lower(), "nuevo")
 
 
 def map_category_to_legacy_status(category: str) -> str:
-    """
-    Mapea nueva categoría a status legacy para compatibilidad.
-
-    Args:
-        category: "nuevo", "interesado", "caliente", "cliente", "fantasma"
-
-    Returns:
-        Status legacy: "new", "active", "hot", "customer"
-    """
-    mapping = {
-        "nuevo": "new",
-        "interesado": "active",
-        "caliente": "hot",
-        "cliente": "customer",
-        "fantasma": "new",  # Fantasma vuelve a new para nurturing
-    }
-    return mapping.get(category.lower(), "new")
+    """Map new category to legacy status."""
+    return {"nuevo": "new", "interesado": "active", "caliente": "hot", "cliente": "customer", "fantasma": "new"}.get(category.lower(), "new")
 
 
-# Singleton
 _lead_categorizer: Optional[LeadCategorizer] = None
 
 
 def get_lead_categorizer() -> LeadCategorizer:
-    """Obtener instancia singleton del categorizador"""
+    """Get singleton LeadCategorizer instance."""
     global _lead_categorizer
     if _lead_categorizer is None:
         _lead_categorizer = LeadCategorizer()
