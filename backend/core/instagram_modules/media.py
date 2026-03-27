@@ -382,22 +382,35 @@ async def _transcribe_audio(
             transcribed_text = transcript.full_text.strip()
 
             try:
-                from services.audio_intelligence import get_audio_intelligence
+                from services.audio_intelligence import (
+                    AUDIO_INTELLIGENCE_MODE,
+                    clean_transcription_regex,
+                    get_audio_intelligence,
+                )
 
-                intel = get_audio_intelligence()
                 detected_lang = getattr(transcript, "language", None) or "es"
                 if detected_lang == "auto":
                     detected_lang = "es"
-                ai_result = await intel.process(
-                    raw_text=transcribed_text,
-                    duration_seconds=int(media_info.get("duration", 0)),
-                    language=detected_lang,
-                    role="user",
-                )
-                legacy = ai_result.to_legacy_fields()
-                media_info.update(legacy)
-                media_info["audio_intel"] = ai_result.to_metadata()
-                message_text = f"[\U0001f3a4 Audio]: {ai_result.clean_text or transcribed_text}"
+
+                if AUDIO_INTELLIGENCE_MODE == "simple":
+                    # Regex-only clean: 0 LLM calls. Text flows as normal message (no prefix).
+                    clean_text = clean_transcription_regex(transcribed_text)
+                    message_text = clean_text
+                    media_info["transcription"] = transcribed_text
+                    media_info["audio_clean"] = clean_text
+                else:
+                    # Full 4-layer pipeline (legacy — set AUDIO_INTELLIGENCE_MODE=full)
+                    intel = get_audio_intelligence()
+                    ai_result = await intel.process(
+                        raw_text=transcribed_text,
+                        duration_seconds=int(media_info.get("duration", 0)),
+                        language=detected_lang,
+                        role="user",
+                    )
+                    legacy = ai_result.to_legacy_fields()
+                    media_info.update(legacy)
+                    media_info["audio_intel"] = ai_result.to_metadata()
+                    message_text = f"[\U0001f3a4 Audio]: {ai_result.clean_text or transcribed_text}"
             except Exception as pp_err:
                 logger.warning(f"[IG] Audio intelligence failed: {pp_err}")
                 message_text = f"[\U0001f3a4 Audio]: {transcribed_text}"

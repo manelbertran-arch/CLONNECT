@@ -325,10 +325,15 @@ async def evolution_webhook(request: Request):
         # If no text yet, set a descriptive placeholder so the message isn't dropped
         if not text.strip():
             if detected_media_type == "audio":
-                # Prefer clean_text from audio intelligence over raw transcription
                 ai = media_result.get("audio_intel", {}) if media_result else {}
-                display_text = ai.get("clean_text") or ai.get("summary") or audio_transcription
-                text = f"[\U0001f3a4 Audio]: {display_text}" if display_text else "[\U0001f3a4 Audio message]"
+                if ai:
+                    # Full mode: use enriched clean_text/summary with [🎤 Audio]: prefix
+                    display_text = ai.get("clean_text") or ai.get("summary") or audio_transcription
+                    text = f"[\U0001f3a4 Audio]: {display_text}" if display_text else "[\U0001f3a4 Audio message]"
+                else:
+                    # Simple mode: use regex-cleaned text directly, no prefix
+                    clean = (media_result or {}).get("audio_clean") or audio_transcription
+                    text = clean if clean else "[\U0001f3a4 Audio message]"
             else:
                 placeholder_map = {
                     "image": "[\U0001f4f7 Photo]",
@@ -683,19 +688,28 @@ async def _download_evolution_media(instance: str, data: dict, media_type: str) 
                             if detected_lang == "auto":
                                 detected_lang = "es"
                             result["detected_language"] = detected_lang
-                            # Audio Intelligence Pipeline (4-layer) — same as Instagram
+                            # Audio Intelligence Pipeline — same as Instagram
                             try:
-                                from services.audio_intelligence import get_audio_intelligence
-
-                                intel = get_audio_intelligence()
-                                ai_result = await intel.process(
-                                    raw_text=raw_text,
-                                    language=detected_lang,
-                                    role="user",
+                                from services.audio_intelligence import (
+                                    AUDIO_INTELLIGENCE_MODE,
+                                    clean_transcription_regex,
+                                    get_audio_intelligence,
                                 )
-                                result["audio_intel"] = ai_result.to_metadata()
-                                legacy = ai_result.to_legacy_fields()
-                                result.update(legacy)
+
+                                if AUDIO_INTELLIGENCE_MODE == "simple":
+                                    # Regex-only: 0 LLM calls, text flows without prefix
+                                    result["audio_clean"] = clean_transcription_regex(raw_text)
+                                else:
+                                    # Full 4-layer pipeline (legacy)
+                                    intel = get_audio_intelligence()
+                                    ai_result = await intel.process(
+                                        raw_text=raw_text,
+                                        language=detected_lang,
+                                        role="user",
+                                    )
+                                    result["audio_intel"] = ai_result.to_metadata()
+                                    legacy = ai_result.to_legacy_fields()
+                                    result.update(legacy)
                             except Exception as intel_err:
                                 logger.warning(f"[EVO:{instance}] Audio intelligence failed: {intel_err}")
                     except Exception as whisper_err:
@@ -912,25 +926,35 @@ async def _save_evolution_outgoing_message(
                 and msg_metadata.get("transcription")
             ):
                 try:
-                    from services.audio_intelligence import get_audio_intelligence
+                    from services.audio_intelligence import (
+                        AUDIO_INTELLIGENCE_MODE,
+                        clean_transcription_regex,
+                        get_audio_intelligence,
+                    )
 
                     raw_text = msg_metadata["transcription"]
-                    intel = get_audio_intelligence()
-                    lang = msg_metadata.get("detected_language") or "es"
-                    ai_result = await intel.process(
-                        raw_text=raw_text,
-                        duration_seconds=msg_metadata.get("duration", 0),
-                        language=lang,
-                        role="assistant",
-                    )
-                    legacy = ai_result.to_legacy_fields()
-                    msg_metadata.update(legacy)
-                    msg_metadata["audio_intel"] = ai_result.to_metadata()
-                    text = f"[\U0001f3a4 Audio]: {ai_result.clean_text or raw_text}"
-                    logger.info(
-                        f"[EVO:{instance}] Outgoing AudioIntel: "
-                        f"{ai_result.summary[:60]}..."
-                    )
+
+                    if AUDIO_INTELLIGENCE_MODE == "simple":
+                        # Regex-only: 0 LLM calls. text already set upstream (no prefix).
+                        msg_metadata["audio_clean"] = clean_transcription_regex(raw_text)
+                    else:
+                        # Full 4-layer pipeline (legacy)
+                        intel = get_audio_intelligence()
+                        lang = msg_metadata.get("detected_language") or "es"
+                        ai_result = await intel.process(
+                            raw_text=raw_text,
+                            duration_seconds=msg_metadata.get("duration", 0),
+                            language=lang,
+                            role="assistant",
+                        )
+                        legacy = ai_result.to_legacy_fields()
+                        msg_metadata.update(legacy)
+                        msg_metadata["audio_intel"] = ai_result.to_metadata()
+                        text = f"[\U0001f3a4 Audio]: {ai_result.clean_text or raw_text}"
+                        logger.info(
+                            f"[EVO:{instance}] Outgoing AudioIntel: "
+                            f"{ai_result.summary[:60]}..."
+                        )
                 except Exception as e:
                     logger.warning(f"[EVO:{instance}] Outgoing audio intelligence failed: {e}")
 

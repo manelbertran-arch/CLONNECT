@@ -29,6 +29,41 @@ MIN_WORDS_FOR_PROCESSING = 30
 LAYER_TIMEOUT_SECONDS = 12  # per-layer LLM timeout
 GLOBAL_PIPELINE_TIMEOUT = 10  # total pipeline timeout (circuit breaker)
 
+# Processing mode: "simple" (regex-only, 0 extra LLM calls) or "full" (4-layer pipeline).
+# Default "simple" — text flows as a normal message, no [🎤 Audio]: prefix.
+AUDIO_INTELLIGENCE_MODE = os.getenv("AUDIO_INTELLIGENCE_MODE", "simple")
+
+# Filler patterns for multilingual regex cleaning (replaces Layer 2 LLM call in simple mode)
+_FILLER_PATTERNS = [
+    # Español — solo como muletillas, no cuando tienen significado
+    r'\b(eh+|em+|mm+|o sea|a ver|vale vale|mira mira)\b',
+    # Catalán
+    r'\b(doncs|o sigui|a veure|bé bé)\b',
+    # English
+    r'\b(uh+|um+|you know|I mean)\b',
+    # Italiano
+    r'\b(cioè|dunque|insomma|praticamente)\b',
+    # Français
+    r'\b(euh+|ben(?=[\s,])|alors(?=[\s,])|genre(?=[\s,]))\b',
+    # Português
+    r'\b(então(?=[\s,])|né(?=[\s,!?])|quer dizer)\b',
+]
+
+
+def clean_transcription_regex(text: str) -> str:
+    """Remove filler words via regex. No LLM call — replaces Layer 2 in simple mode."""
+    if not text:
+        return text
+    cleaned = text
+    for pattern in _FILLER_PATTERNS:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+    # Collapse multiple spaces left by removals
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+    # Safety: if over-cleaned (>80% removed), return original
+    if len(cleaned) < len(text) * 0.2:
+        return text
+    return cleaned
+
 # Human-readable language names for prompt injection
 _LANGUAGE_NAMES = {
     "ca": "català",
