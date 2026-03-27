@@ -27,7 +27,6 @@ _INTENT_SCORES = {
     "booking": 0.65,
     "follow_up": 0.70,
     "sensitive_content": 0.30,
-    "edge_case_escalation": 0.25,
     "pool_response": 0.85,
     "other": 0.50,
     "error": 0.0,

@@ -59,7 +59,6 @@ from services import (
 
 # Import DNA context integration
 
-from services.edge_case_handler import get_edge_case_handler
 
 # Re-export Intent for backward compatibility
 from services.intent_service import Intent
@@ -347,9 +346,6 @@ class DMResponderAgentV2:
         if ENABLE_FRUSTRATION_DETECTION:
             self.frustration_detector = get_frustration_detector()
 
-        # Edge case handler
-        self.edge_case_handler = get_edge_case_handler()
-
         # Response variator (pools)
         self.response_variator = get_response_variator_v2()
 
@@ -402,8 +398,6 @@ class DMResponderAgentV2:
 
             if detection.pool_response and not _skip_early_return:
                 return detection.pool_response
-            if detection.edge_case_response:
-                return detection.edge_case_response
 
             _t1 = time.monotonic()
             logger.info(f"[TIMING] Phase 1 (detection): {int((_t1 - _t0) * 1000)}ms")

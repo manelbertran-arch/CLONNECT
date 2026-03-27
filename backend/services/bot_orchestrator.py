@@ -3,13 +3,12 @@ BotOrchestrator - Orchestrates all bot autopilot services.
 
 Complete flow:
 1. Timing Service → Check active hours
-2. Edge Case Handler → Detect special cases
-3. Response Variator → Try quick pool response
-4. Conversation Memory → Load context
-5. LLM Generation → If no quick response
-6. Memory Update → Save facts
-7. Message Splitter → Split if too long
-8. Calculate Delays → Natural timing
+2. Response Variator → Try quick pool response
+3. Conversation Memory → Load context
+4. LLM Generation → If no quick response
+5. Memory Update → Save facts
+6. Message Splitter → Split if too long
+7. Calculate Delays → Natural timing
 
 Part of Bot Autopilot Integration.
 """
@@ -19,10 +18,6 @@ import logging
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional
 
-from services.edge_case_handler import (
-    EdgeCaseHandler,
-    get_edge_case_handler,
-)
 from services.memory_service import (
     ConversationMemory,
     ConversationMemoryService,
@@ -45,7 +40,6 @@ class BotResponse:
     messages: List[str] = field(default_factory=list)
     delays: List[float] = field(default_factory=list)
     used_pool: bool = False
-    edge_case: Optional[str] = None
     should_escalate: bool = False
     total_delay: float = 0.0
     memory_updated: bool = False
@@ -71,13 +65,11 @@ class BotOrchestrator:
 
     def __init__(
         self,
-        edge_handler: EdgeCaseHandler = None,
         variator: ResponseVariator = None,
         memory_service: ConversationMemoryService = None,
         splitter: MessageSplitter = None,
         timing: TimingService = None,
     ):
-        self.edge_handler = edge_handler or get_edge_case_handler()
         self.variator = variator or get_response_variator()
         self.memory_service = memory_service or get_conversation_memory_service()
         self.splitter = splitter or get_message_splitter()
@@ -116,44 +108,12 @@ class BotOrchestrator:
                     messages=[],
                     delays=[],
                     used_pool=False,
-                    edge_case="off_hours",
                     should_escalate=False,
                     total_delay=0,
                 )
 
         # ═══════════════════════════════════════════════════════════════════
-        # STEP 2: Detect edge cases
-        # ═══════════════════════════════════════════════════════════════════
-        edge_result = self.edge_handler.detect(message, context)
-
-        if edge_result.should_escalate:
-            logger.info(
-                f"Edge case {edge_result.edge_type.value} for {lead_id}, escalating"
-            )
-            return BotResponse(
-                messages=[],
-                delays=[],
-                used_pool=False,
-                edge_case=edge_result.edge_type.value,
-                should_escalate=True,
-                total_delay=0,
-            )
-
-        # If edge handler has suggested response, use it
-        if edge_result.suggested_response:
-            response_text = edge_result.suggested_response
-            delay = self.timing.calculate_delay(len(response_text), len(message))
-            return BotResponse(
-                messages=[response_text],
-                delays=[delay],
-                used_pool=False,
-                edge_case=edge_result.edge_type.value,
-                should_escalate=False,
-                total_delay=delay,
-            )
-
-        # ═══════════════════════════════════════════════════════════════════
-        # STEP 3: Try quick pool response
+        # STEP 2: Try quick pool response
         # ═══════════════════════════════════════════════════════════════════
         pool_response, msg_type = self.variator.process(message)
 
@@ -164,7 +124,6 @@ class BotOrchestrator:
                 messages=[pool_response],
                 delays=[delay],
                 used_pool=True,
-                edge_case=None,
                 should_escalate=False,
                 total_delay=delay,
             )
@@ -229,7 +188,6 @@ class BotOrchestrator:
             messages=messages,
             delays=delays,
             used_pool=False,
-            edge_case=None,
             should_escalate=False,
             total_delay=sum(delays),
             memory_updated=memory_updated,

@@ -15,7 +15,6 @@ from core.context_detector import DetectedContext, detect_all
 from core.frustration_detector import FrustrationDetector
 from core.intent_classifier import Intent, IntentClassifier, classify_intent_simple
 from core.sensitive_detector import SensitiveType, detect_sensitive_content
-from services.edge_case_handler import EdgeCaseHandler
 
 
 class TestErroresInput:
@@ -41,12 +40,6 @@ class TestErroresInput:
         # Sensitive detector must not crash
         sensitive = detect_sensitive_content(message)
         assert sensitive.type == SensitiveType.NONE
-
-        # Edge case handler must not crash
-        handler = EdgeCaseHandler()
-        result = handler.detect(message)
-        assert result is not None
-        assert result.edge_type is not None
 
         # classify_intent_simple must return a string, even if "other"
         intent = classify_intent_simple(message)
@@ -128,11 +121,6 @@ class TestErroresInput:
         assert isinstance(ctx, DetectedContext)
         assert isinstance(ctx.alerts, list)
 
-        # Edge case handler must not crash
-        handler = EdgeCaseHandler()
-        result = handler.detect(message)
-        assert result is not None
-
         # Intent classifier must not crash
         intent = classify_intent_simple(message)
         assert isinstance(intent, str)
@@ -174,9 +162,3 @@ class TestErroresInput:
         # None is acceptable (no pattern matched) -- must not raise
         assert result is None or isinstance(result, object)
 
-        # Edge case handler: must not crash on empty
-        handler = EdgeCaseHandler()
-        # EdgeCaseHandler.detect calls .lower().strip() on message
-        # Empty string is fine
-        edge_result = handler.detect(message)
-        assert edge_result is not None

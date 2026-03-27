@@ -16,7 +16,6 @@ from core.context_detector import detect_all
 from core.guardrails import ResponseGuardrail
 from core.intent_classifier import Intent, classify_intent_simple
 from core.sensitive_detector import SensitiveType, detect_sensitive_content
-from services.edge_case_handler import EdgeCaseHandler
 
 
 class TestAdversarial:
@@ -42,11 +41,6 @@ class TestAdversarial:
         ctx = detect_all(query, is_first_message=False)
         assert ctx.interest_level == "none"
         assert ctx.intent == Intent.OTHER
-
-        # Edge case handler should not crash
-        handler = EdgeCaseHandler()
-        result = handler.detect(query)
-        assert result is not None
 
         # Guardrail off-topic check: if the LLM responds about bitcoin/crypto
         # or other off-topic subjects it would redirect; prompt leak requests
@@ -150,13 +144,6 @@ class TestAdversarial:
         # The intent should be 'other' (not a valid purchase intent)
         intent = classify_intent_simple(query)
         assert intent == "other"
-
-        # Edge case handler should detect this as off-topic
-        handler = EdgeCaseHandler()
-        result = handler.detect(query)
-        # The message itself might not match off-topic patterns exactly,
-        # but the system should not crash
-        assert result is not None
 
     # ---- test_mantiene_limites -------------------------------------------
 

@@ -165,32 +165,6 @@ if _frustration_imported:
 
 
 # ──────────────────────────────────────────────
-# BLOQUE D — EDGE CASE HANDLER
-# ──────────────────────────────────────────────
-print("\n📦 BLOQUE D — EDGE CASE HANDLER")
-
-try:
-    from services.edge_case_handler import EdgeCaseHandler, get_edge_case_handler, EdgeCaseType, EdgeCaseResult
-    _edge_imported = True
-except Exception as e:
-    _edge_imported = False
-    print(f"  ⏭️ Import edge_case_handler: {e}")
-
-if _edge_imported:
-    _ech = EdgeCaseHandler()
-
-    test("D1: Factory returns EdgeCaseHandler", lambda: assert_true(isinstance(get_edge_case_handler(), EdgeCaseHandler)))
-    test("D2: Normal message → NONE", lambda: assert_eq(_ech.detect("hola cómo estás").edge_type, EdgeCaseType.NONE))
-    test("D3: Aggressive language → AGGRESSIVE", lambda: assert_eq(_ech.detect("eres un idiota estúpido").edge_type, EdgeCaseType.AGGRESSIVE))
-    test("D4: Aggressive → should_escalate=True", lambda: assert_true(_ech.detect("vete a la mierda").should_escalate))
-    test("D5: Complaint detected", lambda: assert_eq(_ech.detect("no me sirve, perdí mi tiempo").edge_type, EdgeCaseType.COMPLAINT))
-    test("D6: Personal question detected", lambda: assert_eq(_ech.detect("tienes novia?").edge_type, EdgeCaseType.PERSONAL_QUESTION))
-    test("D7: Off-topic detected", lambda: assert_eq(_ech.detect("qué opinas de política?").edge_type, EdgeCaseType.OFF_TOPIC))
-    test("D8: Result has confidence float", lambda: assert_true(isinstance(_ech.detect("hola").confidence, float)))
-    test("D9: Returns EdgeCaseResult", lambda: assert_true(isinstance(_ech.detect("hola"), EdgeCaseResult)))
-    test("D10: NONE → should_escalate=False", lambda: assert_false(_ech.detect("hola").should_escalate))
-
-
 # ──────────────────────────────────────────────
 # BLOQUE E — BOT QUESTION ANALYZER
 # ──────────────────────────────────────────────

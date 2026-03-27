@@ -32,17 +32,6 @@ class TestCalculateConfidence:
         # 0.30*0.0 + 0.20*0.05 + 0.30*0.70 + 0.10*1.0 + 0.10*1.0 = 0.42
         assert score < 0.5
 
-    def test_edge_escalation_low(self):
-        """Edge case escalation has below-average confidence."""
-        score = calculate_confidence(
-            intent="edge_case_escalation",
-            response_text="Déjame consultarlo y te respondo.",
-            response_type="edge_escalation",
-        )
-        # intent=0.25, type=0.30, hist=0.70, length=1.0, blacklist=1.0
-        # = 0.075 + 0.06 + 0.21 + 0.10 + 0.10 = 0.545
-        assert score < 0.6
-
     def test_empty_response_zero(self):
         """Empty response returns 0.0."""
         assert calculate_confidence("greeting", "", "pool_match") == 0.0

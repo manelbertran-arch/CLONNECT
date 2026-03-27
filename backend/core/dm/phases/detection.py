@@ -36,7 +36,6 @@ MEDIA_PLACEHOLDERS = {
 ENABLE_SENSITIVE_DETECTION = os.getenv("ENABLE_SENSITIVE_DETECTION", "true").lower() == "true"
 ENABLE_FRUSTRATION_DETECTION = os.getenv("ENABLE_FRUSTRATION_DETECTION", "true").lower() == "true"
 ENABLE_CONTEXT_DETECTION = os.getenv("ENABLE_CONTEXT_DETECTION", "true").lower() == "true"
-ENABLE_EDGE_CASE_DETECTION = os.getenv("ENABLE_EDGE_CASE_DETECTION", "true").lower() == "true"
 
 
 async def phase_detection(
@@ -173,26 +172,5 @@ async def phase_detection(
                     metadata={"pool_category": pool_result.category, "used_pool": True},
                 )
                 return result
-
-    # Step 1d: Edge case detection
-    if ENABLE_EDGE_CASE_DETECTION and hasattr(agent, "edge_case_handler"):
-        try:
-            edge_result = agent.edge_case_handler.detect(message)
-            if edge_result.should_escalate:
-                logger.info(f"Edge case escalation: {edge_result.edge_type}")
-                result.edge_case_response = DMResponse(
-                    content=edge_result.suggested_response
-                    or "Entiendo, déjame consultarlo y te respondo.",
-                    intent="edge_case_escalation",
-                    lead_stage="unknown",
-                    confidence=edge_result.confidence,
-                    metadata={
-                        "edge_type": str(edge_result.edge_type),
-                        "escalated": True,
-                    },
-                )
-                return result
-        except Exception as e:
-            logger.debug(f"Edge case detection failed: {e}")
 
     return result

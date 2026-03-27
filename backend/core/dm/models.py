@@ -59,7 +59,6 @@ class DetectionResult:
     frustration_signals: Any = None
     context_signals: Any = None
     pool_response: Optional["DMResponse"] = None  # Set if fast path hit
-    edge_case_response: Optional["DMResponse"] = None  # Set if edge case escalation
     cognitive_metadata: Dict[str, Any] = field(default_factory=dict)
 
 

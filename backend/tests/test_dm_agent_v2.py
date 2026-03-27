@@ -468,7 +468,6 @@ class TestDataclasses:
         assert result.frustration_signals is None
         assert result.context_signals is None
         assert result.pool_response is None
-        assert result.edge_case_response is None
         assert isinstance(result.cognitive_metadata, dict)
 
     def test_detection_result_custom(self):

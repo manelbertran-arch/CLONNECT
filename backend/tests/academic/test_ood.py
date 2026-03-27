@@ -16,7 +16,6 @@ from core.context_detector import detect_all
 from core.guardrails import ResponseGuardrail
 from core.intent_classifier import Intent, IntentClassifier, classify_intent_simple
 from core.output_validator import validate_products
-from services.edge_case_handler import EdgeCaseConfig, EdgeCaseHandler, EdgeCaseType
 
 
 class TestOutOfDomain:
@@ -28,8 +27,6 @@ class TestOutOfDomain:
         """
         A weather question like 'Que tiempo hace hoy?' should be classified
         as 'other' by the intent classifier (not a product or purchase intent).
-        The EdgeCaseHandler should detect it as off-topic or at minimum not
-        assign any business intent.
         """
         message = "Que tiempo hace hoy?"
 
@@ -112,74 +109,3 @@ class TestOutOfDomain:
         has_redirect = any(ind in safe.lower() for ind in redirect_indicators)
         assert has_redirect, f"Response should contain a redirect phrase. Got: '{safe}'"
 
-    # ---- test_escala_si_necesario ----------------------------------------
-
-    def test_escala_si_necesario(self):
-        """
-        When the user has a complex complaint about a topic the bot cannot
-        handle, the EdgeCaseHandler should suggest escalation to a human.
-        """
-        # Complaint that requires human intervention
-        message = "me siento estafado, quiero mi devolucion"
-
-        handler = EdgeCaseHandler()
-        result = handler.detect(message)
-
-        assert (
-            result.edge_type == EdgeCaseType.COMPLAINT
-        ), f"Refund complaint should be COMPLAINT, got {result.edge_type.value}"
-        assert result.should_escalate is True, "Complaint about refund should trigger escalation"
-        # Suggested response should show empathy
-        assert result.suggested_response is not None
-        empathy_indicators = [
-            "entiendo",
-            "lamento",
-            "perfectamente",
-            "normal",
-        ]
-        has_empathy = any(ind in result.suggested_response.lower() for ind in empathy_indicators)
-        assert (
-            has_empathy
-        ), f"Escalation response should show empathy. Got: '{result.suggested_response}'"
-
-    # ---- test_honesto_sobre_limites --------------------------------------
-
-    def test_honesto_sobre_limites(self):
-        """
-        When asked a personal or philosophical question the bot cannot
-        answer, the EdgeCaseHandler should be able to honestly admit its
-        limitations rather than fabricating an answer.
-        """
-        # Questions the bot should not pretend to know
-        limitation_messages = [
-            "como te sientes hoy",
-            "cual es tu opinion personal",
-            "que harias tu en mi lugar",
-        ]
-
-        # Force admit_unknown to always trigger
-        config = EdgeCaseConfig(admit_unknown_chance=1.0)
-        handler = EdgeCaseHandler(config=config)
-
-        for message in limitation_messages:
-            result = handler.detect(message)
-
-            # These should be detected as unknown or personal questions
-            assert result.edge_type in (
-                EdgeCaseType.UNKNOWN_QUESTION,
-                EdgeCaseType.PERSONAL_QUESTION,
-                EdgeCaseType.NONE,
-            ), (
-                f"Message '{message}' should be unknown/personal, " f"got {result.edge_type.value}"
-            )
-
-            # If a suggested response is provided, it should be honest
-            if result.suggested_response:
-                assert len(result.suggested_response) > 0
-
-        # Verify should_admit_unknown works at low confidence
-        should_admit, response = handler.should_admit_unknown(confidence=0.3)
-        assert should_admit is True
-        assert response is not None
-        # The response should be from the NO_SE_RESPONSES list
-        assert response in EdgeCaseHandler.NO_SE_RESPONSES

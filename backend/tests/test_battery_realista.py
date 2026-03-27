@@ -241,33 +241,6 @@ BATTERY_MESSAGES = [
         "Sí, todos los programas de Stefano están completamente en español.",
     ),
 
-    # ── CATEGORÍA F: EDGE CASES ───────────────────────────────────────────────
-    (
-        "edge_case",
-        "",
-        "Estoy aquí para ayudarte. ¿En qué puedo echarte una mano?",
-    ),
-    (
-        "edge_case",
-        "?",
-        "Dime en qué puedo ayudarte!",
-    ),
-    (
-        "edge_case",
-        "HOLA QUÉ TAL TODO BIEN?",
-        "Hola! Todo bien por aquí. ¿En qué puedo ayudarte?",
-    ),
-    (
-        "edge_case",
-        ".",
-        "Estoy aquí si necesitás algo.",
-    ),
-    (
-        "edge_case",
-        "jajajaja",
-        "Ja! ¿Hay algo en lo que pueda ayudarte?",
-    ),
-
     # ── CATEGORÍA G: MULTILINGÜE / OFF-TOPIC ─────────────────────────────────
     (
         "off_topic",

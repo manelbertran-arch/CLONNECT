@@ -69,58 +69,6 @@ class TestBasicFlow:
         assert "150" in response.single_message
 
 
-class TestEdgeCases:
-    """Tests for edge case handling."""
-
-    @pytest.mark.asyncio
-    async def test_aggressive_escalates(self, orchestrator):
-        """Aggressive messages should escalate."""
-        response = await orchestrator.process_message(
-            message="Eres un idiota!",
-            lead_id="test_lead",
-            creator_id="test_creator",
-        )
-
-        assert response.should_escalate
-        assert len(response.messages) == 0
-
-    @pytest.mark.asyncio
-    async def test_complaint_detected(self, orchestrator):
-        """Complaints should be detected."""
-        response = await orchestrator.process_message(
-            message="Quiero mi devolución, esto no funciona",
-            lead_id="test_lead",
-            creator_id="test_creator",
-        )
-
-        assert response.edge_case == "complaint"
-        assert response.should_escalate
-
-    @pytest.mark.asyncio
-    async def test_sarcasm_handled(self, orchestrator):
-        """Sarcasm should be handled with appropriate response."""
-        response = await orchestrator.process_message(
-            message="Claro que sí, como no",
-            lead_id="test_lead",
-            creator_id="test_creator",
-        )
-
-        assert response.edge_case == "sarcasm"
-        assert response.has_response
-
-    @pytest.mark.asyncio
-    async def test_personal_question_deflected(self, orchestrator):
-        """Personal questions should be deflected."""
-        response = await orchestrator.process_message(
-            message="Tienes novia?",
-            lead_id="test_lead",
-            creator_id="test_creator",
-        )
-
-        assert response.edge_case == "personal_question"
-        assert response.has_response
-
-
 class TestMultiMessage:
     """Tests for multi-message splitting."""
 

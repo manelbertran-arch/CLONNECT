@@ -199,20 +199,20 @@ SCENARIOS: List[ConversationScenario] = [
         {"role": "user", "content": "Hay certificación al terminar?"},
     ]),
 
-    # --- Category 8: EDGE CASES (5) ---
-    ConversationScenario("EC1", "edge_case", "Empty-ish message", [
+    # --- Category 8: UNUSUAL INPUTS (5) ---
+    ConversationScenario("EC1", "unusual_input", "Empty-ish message", [
         {"role": "user", "content": "..."},
     ]),
-    ConversationScenario("EC2", "edge_case", "Only emoji", [
+    ConversationScenario("EC2", "unusual_input", "Only emoji", [
         {"role": "user", "content": "🔥🔥🔥"},
     ]),
-    ConversationScenario("EC3", "edge_case", "Bot detection attempt", [
+    ConversationScenario("EC3", "unusual_input", "Bot detection attempt", [
         {"role": "user", "content": "Eres un bot?"},
     ]),
-    ConversationScenario("EC4", "edge_case", "Spam message", [
+    ConversationScenario("EC4", "unusual_input", "Spam message", [
         {"role": "user", "content": "COMPRA AHORA EN MITIENDA.COM DESCUENTO 80% OFERTA LIMITADA!!!"},
     ]),
-    ConversationScenario("EC5", "edge_case", "Very long message", [
+    ConversationScenario("EC5", "unusual_input", "Very long message", [
         {"role": "user", "content": (
             "Hola, te escribo porque llevo mucho tiempo siguiéndote en Instagram y la verdad es que "
             "tu contenido me ha ayudado muchísimo. Quería preguntarte sobre tu programa de mentoría "

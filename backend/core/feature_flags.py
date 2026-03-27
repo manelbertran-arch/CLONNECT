@@ -44,7 +44,6 @@ class FeatureFlags:
     dna_triggers: bool = field(default_factory=lambda: _flag("ENABLE_DNA_TRIGGERS", True))
     dna_auto_create: bool = field(default_factory=lambda: _flag("ENABLE_DNA_AUTO_CREATE", True))
     relationship_detection: bool = field(default_factory=lambda: _flag("ENABLE_RELATIONSHIP_DETECTION", True))
-    edge_case_detection: bool = field(default_factory=lambda: _flag("ENABLE_EDGE_CASE_DETECTION", True))
     citations: bool = field(default_factory=lambda: _flag("ENABLE_CITATIONS", True))
     message_splitting: bool = field(default_factory=lambda: _flag("ENABLE_MESSAGE_SPLITTING", True))
     question_removal: bool = field(default_factory=lambda: _flag("ENABLE_QUESTION_REMOVAL", True))
