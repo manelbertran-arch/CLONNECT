@@ -40,7 +40,7 @@ _reranker = None
 # Override via RERANKER_MODEL env var if needed.
 RERANKER_MODEL = os.getenv(
     "RERANKER_MODEL",
-    "cross-encoder/mmarco-mMiniLM-L12-v2",  # multilingual (was: ms-marco-MiniLM-L6-v2, English-only)
+    "nreimers/mmarco-mMiniLMv2-L12-H384-v1",  # multilingual CA/ES/EN/IT (was: cross-encoder/ms-marco-MiniLM-L6-v2)
 )
 
 
