@@ -299,9 +299,11 @@ async def phase_memory_and_context(
         except Exception as e:
             logger.debug(f"Relationship scoring failed: {e}")
 
-    # Gradated product suppression (replaces binary is_friend)
-    is_friend = _rel_score.is_friend if _rel_score else False
-    _rel_type = _rel_score.category if _rel_score else ""
+    # Silent product suppression only — ZERO prompt injection.
+    # Only PERSONAL (score > 0.8) suppresses products; CLOSE/CASUAL/TRANSACTIONAL = normal.
+    # _rel_type kept empty so strategy.py receives no relationship signal.
+    is_friend = _rel_score.suppress_products if _rel_score else False
+    _rel_type = ""
 
     # Lead stage (depends on follower)
     current_stage = agent._get_lead_stage(follower, metadata)

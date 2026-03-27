@@ -57,9 +57,9 @@ async def phase_llm_generation(
     strategy_hint = _determine_response_strategy(
         message=message,
         intent_value=intent_value,
-        relationship_type=_rel_type,
+        relationship_type="",  # Relationship scorer: zero injection into strategy
         is_first_message=(follower.total_messages <= 1),
-        is_friend=is_friend,
+        is_friend=False,  # Product suppression only — never affects strategy text
         follower_interests=follower.interests,
         lead_stage=current_stage,
     )
