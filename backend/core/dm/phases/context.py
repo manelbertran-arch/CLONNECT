@@ -13,7 +13,6 @@ from core.conversation_state import get_state_manager
 from core.dm.models import ContextBundle, DetectionResult
 from core.query_expansion import get_query_expander
 from core.rag.reranker import ENABLE_RERANKING
-from services.relationship_type_detector import RelationshipTypeDetector
 
 logger = logging.getLogger(__name__)
 
@@ -252,20 +251,57 @@ async def phase_memory_and_context(
 
     rag_context = agent._format_rag_context(rag_results)
 
-    # Relationship type detection (in-memory)
+    # Relationship scoring (multi-signal, USER-only, gradated)
+    _rel_score = None
     if ENABLE_RELATIONSHIP_DETECTION:
         try:
-            hist = metadata.get("history", [])
-            if len(hist) >= 2:
-                rel_result = RelationshipTypeDetector().detect(hist)
-                if rel_result.get("confidence", 0) > 0.5:
-                    cognitive_metadata["relationship_type"] = rel_result["type"]
-        except Exception as e:
-            logger.debug(f"Relationship detection failed: {e}")
+            from services.relationship_scorer import get_relationship_scorer
 
-    # A1 FIX: Detect friend/family relationship to suppress acquisition behavior
-    _rel_type = cognitive_metadata.get("relationship_type", "")
-    is_friend = _rel_type in ("amigo", "FAMILIA", "AMISTAD_CERCANA", "INTIMA")
+            # Extract USER-only messages for scoring (never assistant messages)
+            hist = metadata.get("history", [])
+            user_msgs = [m for m in hist if m.get("role") == "user"]
+
+            # Get lead facts if memory engine loaded them
+            lead_facts = []
+            if memory_context:
+                # Memory context is a text string; pass raw facts if available
+                # For now, pass empty — the scorer also uses lead_status from DB
+                pass
+
+            # Calculate days span from follower data
+            days_span = 0
+            if hasattr(follower, "first_contact_at") and hasattr(follower, "last_contact_at"):
+                if follower.first_contact_at and follower.last_contact_at:
+                    days_span = max(0, (follower.last_contact_at - follower.first_contact_at).days)
+
+            # Get lead status from DB (set by lead scoring system)
+            lead_db_status = ""
+            if hasattr(follower, "status"):
+                lead_db_status = follower.status or ""
+            elif hasattr(follower, "relationship_type"):
+                lead_db_status = follower.relationship_type or ""
+
+            scorer = get_relationship_scorer()
+            _rel_score = scorer.score_sync(
+                user_messages=user_msgs,
+                lead_facts=lead_facts,
+                days_span=days_span,
+                lead_status=lead_db_status,
+            )
+            cognitive_metadata["relationship_score"] = _rel_score.score
+            cognitive_metadata["relationship_category"] = _rel_score.category
+            cognitive_metadata["relationship_signals"] = _rel_score.signals
+            if _rel_score.category != "TRANSACTIONAL":
+                logger.info(
+                    "[REL] %s: score=%.2f category=%s signals=%s",
+                    sender_id[:20], _rel_score.score, _rel_score.category, _rel_score.signals,
+                )
+        except Exception as e:
+            logger.debug(f"Relationship scoring failed: {e}")
+
+    # Gradated product suppression (replaces binary is_friend)
+    is_friend = _rel_score.is_friend if _rel_score else False
+    _rel_type = _rel_score.category if _rel_score else ""
 
     # Lead stage (depends on follower)
     current_stage = agent._get_lead_stage(follower, metadata)
@@ -304,25 +340,11 @@ async def phase_memory_and_context(
         except Exception as e:
             logger.debug(f"Citation loading failed: {e}")
 
-    # A1 FIX: Suppress acquisition/sales for friends/family
+    # Product suppression is handled by gradated scoring:
+    # is_friend=True (score >= 0.6) → products stripped from prompt
+    # Doc D already defines tone for personal conversations — no extra
+    # friend_context instructions needed (they contradict Doc D).
     friend_context = ""
-    if is_friend:
-        if _rel_type == "FAMILIA":
-            friend_context = (
-                "IMPORTANTE: Esta persona es FAMILIAR del creador (padre, madre, hijo, etc.). "
-                "NO intentes vender, ofrecer productos, ni hacer preguntas de cualificación. "
-                "Habla con cariño y naturalidad. Si pide ayuda, ayúdale directamente. "
-                "NO uses frases como 'contame qué te trae por acá' ni similares."
-            )
-            logger.info("[A1] Family member detected — suppressing acquisition behavior")
-        else:
-            friend_context = (
-                "IMPORTANTE: Esta persona es un AMIGO/A del creador, NO un lead. "
-                "NO intentes vender, ofrecer productos, ni hacer preguntas de cualificación. "
-                "Habla de forma natural, personal y relajada como con un amigo cercano. "
-                "NO uses frases como 'contame qué te trae por acá' ni similares."
-            )
-            logger.info("[A1] Friend detected — suppressing acquisition behavior")
 
     # Load few-shot examples from calibration (intent-stratified + semantic hybrid)
     few_shot_section = ""
@@ -398,10 +420,11 @@ async def phase_memory_and_context(
         dna: str,
         state: str,
         frustration_note: str = "",
+        context_notes: str = "",
     ) -> str:
         """Consolidate per-lead context into a single 'Sobre @username' block
         with a Recalling trigger that instructs the LLM to use it naturally."""
-        parts = [p for p in [relational, memory, dna, state, frustration_note] if p]
+        parts = [p for p in [relational, memory, dna, state, frustration_note, context_notes] if p]
         if not parts:
             return ""
         header = f"Sobre @{username}:"
@@ -428,6 +451,15 @@ async def phase_memory_and_context(
                     "Nota: el lead está muy frustrado. "
                     f"Prioriza resolver su problema o escalar a {agent.creator_id}."
                 )
+
+    # Context detection notes — factual observations for Recalling block
+    _context_notes_str = ""
+    if detection is not None:
+        _csig = getattr(detection, "context_signals", None)
+        if _csig is not None:
+            _cnotes = getattr(_csig, "context_notes", [])
+            if _cnotes:
+                _context_notes_str = "\n".join(_cnotes)
 
     # ECHO Engine: Generate relational context (Sprint 4)
     relational_block = ""
@@ -497,6 +529,7 @@ async def phase_memory_and_context(
                     dna=dna_context,
                     state=state_context,
                     frustration_note=_frustration_note,
+                    context_notes=_context_notes_str,
                 ),
                 rag_context,             # RAG chunks relevant to message
                 kb_context,              # Factual knowledge base lookup
