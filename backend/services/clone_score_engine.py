@@ -160,11 +160,35 @@ class CloneScoreEngine:
 
         Samples up to `sample_size` bot responses from the last 7 days,
         evaluates all 6 dimensions, stores the result in DB.
+
+        Dedup: skips if already evaluated today for this creator.
         """
         import time
 
         from api.database import SessionLocal
         from api.models import Lead, Message
+
+        # Dedup: check if already evaluated today
+        _dedup_session = SessionLocal()
+        try:
+            from api.models.learning import CloneScoreEvaluation
+            from sqlalchemy import func, cast, Date
+
+            today_count = (
+                _dedup_session.query(func.count(CloneScoreEvaluation.id))
+                .filter(
+                    CloneScoreEvaluation.creator_id == creator_db_id,
+                    cast(CloneScoreEvaluation.created_at, Date) == datetime.now(timezone.utc).date(),
+                )
+                .scalar()
+            )
+            if today_count and today_count > 0:
+                logger.info(f"[CLONE_SCORE] Dedup: already evaluated {creator_id} today ({today_count}x), skipping")
+                return {"skipped": True, "reason": "already_evaluated_today"}
+        except Exception as e:
+            logger.debug(f"[CLONE_SCORE] Dedup check failed: {e}")
+        finally:
+            _dedup_session.close()
 
         start_time = time.monotonic()
         session = SessionLocal()

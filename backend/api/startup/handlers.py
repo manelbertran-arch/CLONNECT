@@ -594,7 +594,7 @@ def register_startup_handlers(app: "FastAPI"):
                     )
                 await asyncio.sleep(30)
 
-        scheduler.register("clone_score_daily", _clone_score_daily_job, interval_seconds=86400, initial_delay_seconds=600)
+        scheduler.register("clone_score_daily", _clone_score_daily_job, interval_seconds=86400, initial_delay_seconds=3600)
 
         # JOB 22: Memory decay — Ebbinghaus eviction of stale lead memories (24h, 630s delay)
         async def _memory_decay_job():
