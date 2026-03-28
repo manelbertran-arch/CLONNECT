@@ -288,7 +288,8 @@ async def phase_memory_and_context(
 
     # Fast in-memory operations (no parallelization needed)
     # RAG retrieval — Conversational Adaptive RAG:
-    # Three signal types activate retrieval; casual messages get ZERO retrieval.
+    # Product signals activate retrieval; casual messages get ZERO retrieval.
+    # Content reference markers also trigger retrieval for "tu post/reel" queries.
     _PRODUCT_KEYWORDS = {
         "precio", "preu", "cuanto", "cuánto", "horario", "horari", "clase",
         "classe", "reserv", "apunt", "pack", "bono", "barre", "pilates",
@@ -301,12 +302,6 @@ async def phase_memory_and_context(
         "el teu post", "el teu reel", "el teu vídeo", "el que vas dir",
         "your post", "your reel", "your video", "what you said",
         "tu story", "tu storie", "tu historia", "tu publicación",
-    }
-    _EXPERTISE_KEYWORDS = {
-        "consejo", "opinión", "opinio", "recomiend", "sugier",
-        "experiencia", "conseil", "recoman", "advice", "recommend",
-        "espalda", "lesion", "lesió", "dolor", "postura", "nutrici",
-        "dieta", "alimentaci", "entrenamiento", "rutina", "routine",
     }
     _PRODUCT_INTENTS = {
         "question_product", "question_price", "interest_strong",
@@ -325,12 +320,6 @@ async def phase_memory_and_context(
     elif any(marker in msg_lower for marker in _CONTENT_REF_MARKERS):
         _rag_signal = "content_ref"
         _preferred_types = {"instagram_post", "video", "carousel", "website"}
-    elif any(kw in msg_lower for kw in _EXPERTISE_KEYWORDS):
-        _rag_signal = "expertise"
-        _preferred_types = {"faq", "knowledge_base", "product_catalog"}
-    elif intent_value in {"objection", "objection_price"}:
-        _rag_signal = "objection"
-        _preferred_types = {"faq", "product_catalog"}
 
     _needs_retrieval = _rag_signal is not None
 
@@ -374,9 +363,9 @@ async def phase_memory_and_context(
                 # High confidence — inject top 3
                 rag_results = rag_results[:3]
                 cognitive_metadata["rag_confidence"] = "high"
-            elif top_score >= 0.35:
-                # Medium confidence — inject top 2
-                rag_results = rag_results[:2]
+            elif top_score >= 0.40:
+                # Medium confidence — inject top 1 (only the best match)
+                rag_results = rag_results[:1]
                 cognitive_metadata["rag_confidence"] = "medium"
             else:
                 # Low confidence — LLM knows enough, skip injection
