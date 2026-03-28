@@ -44,7 +44,10 @@ def _classify_user_message(message: str) -> str:
     msg = message.strip()
     msg_len = len(msg)
 
-    if msg_len <= 5 or _GREETING_RE.match(msg):
+    # Short affirmations first — "Si", "Ok", "Vale" etc. before greeting fallback
+    if msg_len <= 15 and _SHORT_AFFIRM_RE.match(msg):
+        return "short_affirmation"
+    if _GREETING_RE.match(msg) or (msg_len <= 5 and not _BOOKING_PRICE_RE.search(msg)):
         return "greeting"
     if _BOOKING_PRICE_RE.search(msg):
         return "booking_price"
@@ -52,8 +55,6 @@ def _classify_user_message(message: str) -> str:
         return "cancel"
     if _QUESTION_RE.search(msg):
         return "question"
-    if msg_len <= 15 and _SHORT_AFFIRM_RE.match(msg):
-        return "short_affirmation"
     if msg_len <= 20:
         return "short_casual"
     return "long_message"
@@ -62,30 +63,40 @@ def _classify_user_message(message: str) -> str:
 def get_adaptive_max_tokens(
     message: str,
     calibration: Optional[dict] = None,
-    fallback: int = 100,
+    fallback: int = 150,
 ) -> int:
-    """Return max_tokens calibrated to the user message category.
+    """Return max_tokens as a safety-net ceiling (not a guide).
 
-    Reads from calibration["adaptive_max_tokens"] (mined from real data).
-    Falls back to calibration["baseline"]["max_tokens"] or hardcoded default.
-
-    Args:
-        message: The user's incoming message text
-        calibration: Creator calibration dict (from calibrations/{slug}.json)
-        fallback: Fallback max_tokens if no calibration available
-
-    Returns:
-        int max_tokens value
+    Always returns 150 — the model is guided by prompt-level length hints
+    instead. This prevents mid-sentence truncation while still capping
+    runaway generation.
     """
-    if not calibration:
-        return fallback
+    return 150
 
-    adaptive = calibration.get("adaptive_max_tokens")
-    if not adaptive:
-        return int(calibration.get("baseline", {}).get("max_tokens", fallback))
 
+# Length hints — natural language instructions injected into the prompt
+# so the model generates the right length NATURALLY instead of being truncated.
+_LENGTH_HINTS = {
+    "short_affirmation": "Responde ultra-breve (1-3 palabras o emoji).",
+    "greeting": "Saludo breve y cálido, 1 frase.",
+    "cancel": "Respuesta empática muy breve.",
+    "short_casual": "Respuesta corta y natural, 1 frase.",
+    "booking_price": "Da el precio/info de reserva necesaria, sin rodeos.",
+    "question": "Responde la pregunta de forma directa.",
+    "long_message": "Responde proporcionalmente al mensaje del lead.",
+}
+
+
+def get_length_hint(message: str) -> str:
+    """Return a natural-language length hint for the given user message.
+
+    The hint is injected into the system prompt so the model self-regulates
+    output length instead of relying on max_tokens truncation.
+
+    Returns empty string for categories that don't need guidance.
+    """
     category = _classify_user_message(message)
-    return int(adaptive.get(category, adaptive.get("default", fallback)))
+    return _LENGTH_HINTS.get(category, "")
 
 # =============================================================================
 # PRODUCT NAME MATCHING (fuzzy, accent-insensitive)

@@ -739,6 +739,17 @@ async def phase_memory_and_context(
                 )
                 logger.info("[QUESTION_CONTEXT] Injected: %s (conf=%.2f)", _q_ctx, _q_conf)
 
+    # Length hint — guide the model to generate the right length naturally
+    # instead of relying on max_tokens truncation (which cuts mid-sentence).
+    from core.dm.text_utils import get_length_hint
+    _length_hint = get_length_hint(message)
+    if _length_hint:
+        _context_notes_str = (
+            (_context_notes_str + "\n" + _length_hint)
+            if _context_notes_str else _length_hint
+        )
+        cognitive_metadata["length_hint_injected"] = _length_hint
+
     # ECHO Engine: Generate relational context (Sprint 4)
     relational_block = ""
     _echo_rel_ctx = None

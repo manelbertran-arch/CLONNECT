@@ -4,7 +4,35 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
-## 2026-03-28 — Adaptive max_tokens por categoría de mensaje
+## 2026-03-28 — Adaptive length: prompt hints instead of max_tokens truncation
+
+**Problema:** `max_tokens=40-80` (adaptive) truncaba respuestas mid-sentence → "Holaaaa nena! Mira, el bar—". El judge penaliza respuestas incompletas. Score bajó de 8.20 a 8.00 con truncación.
+
+**Fix:** Reemplazar truncación por guía natural en el prompt. `max_tokens=150` como safety net (nunca trunca). Length hints inyectados en el Recalling block del system prompt para que el modelo genere la longitud correcta por sí mismo.
+
+**Implementación:**
+- `text_utils.py`: `get_length_hint(message)` → hint natural por categoría ("Responde ultra-breve", "Saludo breve y cálido", etc.)
+- `text_utils.py`: Fix classifier — `short_affirmation` ahora se detecta antes que `greeting` (Si/Vale/Ok ya no caen en greeting)
+- `text_utils.py`: `get_adaptive_max_tokens()` simplificado → siempre retorna 150
+- `context.py`: Hint inyectado en `_context_notes_str` → entra al Recalling block
+- `generation.py`: `max_tokens=150` fijo, hint logueado en `cognitive_metadata`
+
+**Categorías y hints:**
+| Categoría | Hint |
+|---|---|
+| short_affirmation | "Responde ultra-breve (1-3 palabras o emoji)." |
+| greeting | "Saludo breve y cálido, 1 frase." |
+| cancel | "Respuesta empática muy breve." |
+| short_casual | "Respuesta corta y natural, 1 frase." |
+| booking_price | "Da el precio/info de reserva necesaria, sin rodeos." |
+| question | "Responde la pregunta de forma directa." |
+| long_message | "Responde proporcionalmente al mensaje del lead." |
+
+**Blast radius:** `text_utils.py`, `generation.py`, `context.py`. Sin cambios en schema, prompts base, o providers.
+
+---
+
+## 2026-03-28 — ~~Adaptive max_tokens por categoría de mensaje~~ (SUPERSEDED by prompt hints above)
 
 **Problema:** max_tokens=100 fijo para todos los mensajes. Iris responde con 18 chars de mediana (p50) pero el techo fijo permite respuestas largas innecesarias que rompen su estilo ultra-breve.
 

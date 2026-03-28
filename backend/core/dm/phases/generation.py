@@ -13,6 +13,7 @@ from core.dm.text_utils import (
     _classify_user_message,
     _smart_truncate_context,
     get_adaptive_max_tokens,
+    get_length_hint,
 )
 from core.reasoning.self_consistency import get_self_consistency_validator
 from services import LLMResponse
@@ -297,11 +298,13 @@ async def phase_llm_generation(
         _cal_baseline = (agent.calibration or {}).get("baseline", {}) if agent.calibration else {}
         if _cal_baseline.get("temperature") is not None:
             _llm_temperature = float(_cal_baseline["temperature"])
-        # Adaptive max_tokens: category-aware ceiling from mined production data
-        _llm_max_tokens = get_adaptive_max_tokens(message, agent.calibration, fallback=100)
-        _msg_category = _classify_user_message(message) if agent.calibration and agent.calibration.get("adaptive_max_tokens") else "static"
+        # max_tokens=150 as safety net only — model is guided by prompt-level
+        # length hints instead. Prevents mid-sentence truncation.
+        _llm_max_tokens = 150
+        _msg_category = _classify_user_message(message)
         cognitive_metadata["max_tokens_category"] = _msg_category
-        logger.info(f"[ADAPTIVE-TOKENS] category={_msg_category} max_tokens={_llm_max_tokens}")
+        cognitive_metadata["length_hint"] = get_length_hint(message)
+        logger.info(f"[LENGTH-HINT] category={_msg_category} hint='{cognitive_metadata['length_hint']}'")
         if _echo_rel_ctx:
             _llm_max_tokens = _echo_rel_ctx.llm_max_tokens
             _llm_temperature = _echo_rel_ctx.llm_temperature
