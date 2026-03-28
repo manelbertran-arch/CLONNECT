@@ -20,6 +20,34 @@ from services import LLMResponse
 
 logger = logging.getLogger(__name__)
 
+
+def _truncate_if_looping(text: str) -> tuple[bool, str]:
+    """Detect and truncate character-level repetition loops.
+
+    Scans for any substring of 10+ chars that appears more than once.
+    When found, truncates the response at the start of the second occurrence,
+    keeping the first phrase intact. Only fires when text >= 20 chars.
+
+    Returns (was_degenerate, cleaned_text).
+    """
+    if len(text) < 20:
+        return False, text
+
+    MIN_SUB = 10
+    lower = text.lower()
+    n = len(lower)
+
+    for start in range(n - MIN_SUB):
+        sub = lower[start:start + MIN_SUB]
+        pos = lower.find(sub, start + MIN_SUB)
+        if pos != -1:
+            trunc = text[:pos].rstrip(" ,!?¡¿")
+            if len(trunc) >= 3:
+                return True, trunc
+
+    return False, text
+
+
 # Feature flags for generation phase
 ENABLE_LEARNING_RULES = os.getenv("ENABLE_LEARNING_RULES", "false").lower() == "true"
 ENABLE_PREFERENCE_PROFILE = os.getenv("ENABLE_PREFERENCE_PROFILE", "false").lower() == "true"
@@ -348,6 +376,17 @@ async def phase_llm_generation(
         llm_response = await agent.llm_service.generate(
             prompt=full_prompt, system_prompt=system_prompt
         )
+
+    # Layer 2: Post-processing repetition loop detector.
+    # Catches degenerate outputs that slip through max_tokens truncation.
+    _loop_found, _clean_content = _truncate_if_looping(llm_response.content)
+    if _loop_found:
+        logger.warning(
+            "[LOOP-DETECTOR] Repetition truncated: %r -> %r",
+            llm_response.content[:80], _clean_content[:80],
+        )
+        llm_response.content = _clean_content
+        cognitive_metadata["loop_truncated"] = True
 
     # Phase 4b: Self-consistency validation (expensive, default OFF)
     if ENABLE_SELF_CONSISTENCY:
