@@ -287,27 +287,52 @@ async def phase_memory_and_context(
     logger.info(f"[TIMING] Phase 2 sub: intent={int((_t1a - _t1) * 1000)}ms parallel_io={int((_t1b - _t1a) * 1000)}ms")
 
     # Fast in-memory operations (no parallelization needed)
-    # RAG retrieval — Self-RAG simplified: only activate for product-related queries.
-    # Casual/social messages get ZERO retrieval (prevents IG caption noise injection).
+    # RAG retrieval — Conversational Adaptive RAG:
+    # Three signal types activate retrieval; casual messages get ZERO retrieval.
     _PRODUCT_KEYWORDS = {
         "precio", "preu", "cuanto", "cuánto", "horario", "horari", "clase",
         "classe", "reserv", "apunt", "pack", "bono", "barre", "pilates",
         "reformer", "zumba", "flow", "entreno", "entrenament", "sesion",
         "sessió", "cuesta", "costa", "taller", "hipopresivos", "heels",
-        "hiit", "masterclass", "workshop", "precio", "price", "cost",
+        "hiit", "masterclass", "workshop", "price", "cost",
+    }
+    _CONTENT_REF_MARKERS = {
+        "tu post", "tu reel", "tu video", "tu vídeo", "lo que dijiste",
+        "el teu post", "el teu reel", "el teu vídeo", "el que vas dir",
+        "your post", "your reel", "your video", "what you said",
+        "tu story", "tu storie", "tu historia", "tu publicación",
+    }
+    _EXPERTISE_KEYWORDS = {
+        "consejo", "opinión", "opinio", "recomiend", "sugier",
+        "experiencia", "conseil", "recoman", "advice", "recommend",
+        "espalda", "lesion", "lesió", "dolor", "postura", "nutrici",
+        "dieta", "alimentaci", "entrenamiento", "rutina", "routine",
     }
     _PRODUCT_INTENTS = {
         "question_product", "question_price", "interest_strong",
         "purchase_intent", "objection_price",
     }
     msg_lower = message.lower()
-    _needs_retrieval = (
-        ENABLE_RAG
-        and (
-            intent_value in _PRODUCT_INTENTS
-            or any(kw in msg_lower for kw in _PRODUCT_KEYWORDS)
-        )
-    )
+
+    # Determine retrieval signal and preferred source routing
+    _rag_signal = None
+    _preferred_types = None
+    if not ENABLE_RAG:
+        pass
+    elif intent_value in _PRODUCT_INTENTS or any(kw in msg_lower for kw in _PRODUCT_KEYWORDS):
+        _rag_signal = "product"
+        _preferred_types = {"product_catalog", "faq", "knowledge_base"}
+    elif any(marker in msg_lower for marker in _CONTENT_REF_MARKERS):
+        _rag_signal = "content_ref"
+        _preferred_types = {"instagram_post", "video", "carousel", "website"}
+    elif any(kw in msg_lower for kw in _EXPERTISE_KEYWORDS):
+        _rag_signal = "expertise"
+        _preferred_types = {"faq", "knowledge_base", "product_catalog"}
+    elif intent_value in {"objection", "objection_price"}:
+        _rag_signal = "objection"
+        _preferred_types = {"faq", "product_catalog"}
+
+    _needs_retrieval = _rag_signal is not None
 
     rag_query = message
     rag_results = []
@@ -316,6 +341,7 @@ async def phase_memory_and_context(
     elif not _needs_retrieval:
         cognitive_metadata["rag_skipped"] = "no_product_signal"
     else:
+        cognitive_metadata["rag_signal"] = _rag_signal
         if ENABLE_QUERY_EXPANSION:
             try:
                 expanded = get_query_expander().expand(message, max_expansions=2)
@@ -327,22 +353,42 @@ async def phase_memory_and_context(
         rag_results = agent.semantic_rag.search(
             rag_query, top_k=agent.config.rag_top_k, creator_id=agent.creator_id
         )
-        # Filter out IG captions — only keep product_catalog and faq sources
-        if rag_results:
-            _useful_types = {"product_catalog", "faq", "knowledge_base"}
-            filtered = [
+        # Source-type routing: prefer results matching the signal type
+        if rag_results and _preferred_types:
+            preferred = [
                 r for r in rag_results
-                if r.get("metadata", {}).get("type", "") in _useful_types
+                if r.get("metadata", {}).get("type", "") in _preferred_types
             ]
-            if filtered:
-                rag_results = filtered
-                cognitive_metadata["rag_filtered"] = True
-            # If no product chunks match, keep original results but log warning
-            elif rag_results:
-                logger.debug("[RAG] No product/faq results — using IG captions as fallback")
+            if preferred:
+                rag_results = preferred
+                cognitive_metadata["rag_routed"] = _rag_signal
+            elif _rag_signal == "product":
+                # For product queries with no product chunks, drop IG noise
+                logger.debug("[RAG] No product/faq results — dropping IG captions")
+                rag_results = []
+
+        # Adaptive threshold: filter by top score quality
+        if rag_results:
+            top_score = max(r.get("score", 0) for r in rag_results)
+            if top_score >= 0.5:
+                # High confidence — inject top 3
+                rag_results = rag_results[:3]
+                cognitive_metadata["rag_confidence"] = "high"
+            elif top_score >= 0.35:
+                # Medium confidence — inject top 2
+                rag_results = rag_results[:2]
+                cognitive_metadata["rag_confidence"] = "medium"
+            else:
+                # Low confidence — LLM knows enough, skip injection
+                logger.debug("[RAG] Low confidence (top=%.3f) — skipping injection", top_score)
+                rag_results = []
+                cognitive_metadata["rag_confidence"] = "low"
 
     if rag_results:
-        logger.info(f"[RAG] query='{rag_query[:50]}' results={len(rag_results)}")
+        logger.info(
+            "[RAG] signal=%s query='%s' results=%d",
+            _rag_signal, rag_query[:50], len(rag_results),
+        )
         if ENABLE_RERANKING:
             cognitive_metadata["rag_reranked"] = True
     else:

@@ -23,10 +23,11 @@ _embedding_cache = BoundedTTLCache(max_size=200, ttl_seconds=600)
 EMBEDDING_CACHE_TTL = 600  # 10 minutes
 
 # Similarity threshold for semantic search
-# Raised from 0.3 to 0.5 to reduce noise in RAG results
-# Lower values = more results but less relevant
-# Higher values = fewer results but more precise
-DEFAULT_MIN_SIMILARITY = float(os.getenv("RAG_MIN_SIMILARITY", "0.5"))
+# Lowered to 0.30 — context.py adaptive threshold handles final cutoff:
+#   top_score >= 0.5 → high confidence (top 3)
+#   top_score 0.35-0.5 → medium confidence (top 2)
+#   top_score < 0.35 → skip injection entirely
+DEFAULT_MIN_SIMILARITY = float(os.getenv("RAG_MIN_SIMILARITY", "0.30"))
 
 
 def get_openai_client():

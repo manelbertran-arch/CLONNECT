@@ -16,19 +16,23 @@ logger = logging.getLogger(__name__)
 def format_rag_context(agent, rag_results: List[Dict]) -> str:
     """Format RAG results as context for the prompt.
 
-    Source-aware truncation: product_catalog gets 500 chars (contains prices
-    and schedules), other sources get 200 chars. Score hidden from LLM.
+    Source-aware truncation: product_catalog/faq get 500 chars (prices,
+    schedules), other sources get 300 chars. Score hidden from LLM.
     """
     if not rag_results:
         return ""
 
-    context_parts = ["Informacion relevante:"]
-    for result in rag_results[:5]:
+    creator_name = getattr(agent, "creator_name", None) or "el creador"
+    context_parts = [f"Informacion relevante de {creator_name}:"]
+    for result in rag_results[:3]:
         source_type = result.get("metadata", {}).get("type", "")
-        # Product catalog and FAQ chunks need more space for prices/schedules
-        max_len = 500 if source_type in ("product_catalog", "faq") else 200
+        title = result.get("metadata", {}).get("title", "")
+        max_len = 500 if source_type in ("product_catalog", "faq") else 300
         content = result.get("content", "")[:max_len]
-        context_parts.append(f"- {content}")
+        if title and title not in content[:50]:
+            context_parts.append(f"- [{title}] {content}")
+        else:
+            context_parts.append(f"- {content}")
 
     return "\n".join(context_parts)
 
