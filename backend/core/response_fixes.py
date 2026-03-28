@@ -453,6 +453,8 @@ def apply_all_response_fixes(
     if not response:
         return response
 
+    original = response  # preserve for empty-result fallback
+
     # Apply fixes in order
     response = fix_price_typo(response)
     response = fix_broken_links(response)
@@ -469,11 +471,18 @@ def apply_all_response_fixes(
     # FIX 8: Emoji limit — MOVED to postprocessing.py
     # FIX 9: Catchphrase removal — MERGED into question_remover.py
 
-    # BUG-10 fix: if all fixes stripped the response to empty, use a safe fallback
-    # C2 fix (2026-03-26): replaced call-center tone fallback with neutral reaction
+    # FIX 10: Strip markdown formatting — DMs don't render markdown, it looks broken.
+    # **bold** → bold, *italic* → italic, `code` → code, ## headers stripped.
+    response = re.sub(r'\*\*(.+?)\*\*', r'\1', response)
+    response = re.sub(r'\*([^*\n]+?)\*', r'\1', response)
+    response = re.sub(r'`([^`\n]+?)`', r'\1', response)
+    response = re.sub(r'^#{1,3}\s+', '', response, flags=re.MULTILINE)
+
+    # BUG-10 fix: if all fixes stripped the response to empty, return the
+    # original pre-fix response (better than a hardcoded fallback).
     if not response.strip():
-        logger.warning("[FIXES] All fixes resulted in empty response — using fallback")
-        return "Jajaja 😊"
+        logger.warning("[FIXES] All fixes resulted in empty response — using original")
+        return original
 
     return response
 

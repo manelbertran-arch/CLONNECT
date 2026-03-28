@@ -735,67 +735,6 @@
       "msg_count": 196
     },
     {
-      "id": "real_017",
-      "lead_id": "5ddefc2c-073e-40bf-92f4-fdb9b0d54bca",
-      "test_input": "Estan apuntats al campus i els haig de recollir a les 2",
-      "ground_truth": "Diumenge quan faci agenda et dic🩷",
-      "type": "schedule_conflict",
-      "language": "ca",
-      "username": "wa_34619709161",
-      "platform": "whatsapp",
-      "turns": [
-        {
-          "role": "user",
-          "content": "encantada de venir dues vegades a la setmana que ve"
-        },
-        {
-          "role": "user",
-          "content": "Cuida’t molt carinyo si et puc ajudar amb algú diguem-ho"
-        },
-        {
-          "role": "user",
-          "content": "Gràcies per pensar amb mi i poder-ne donat dos dies la setmana que ve"
-        },
-        {
-          "role": "user",
-          "content": "Ja em diràs quins dies"
-        },
-        {
-          "role": "user",
-          "content": "Suposo que el dimarts i l’altre ja em diràs quin"
-        },
-        {
-          "role": "user",
-          "content": "L’únic que tindria que ser a primera hora tant el dimarts com el dia que em donguis perquè a 2.00 haig d’estar a Barcelona a recollir els nens de la Maria"
-        },
-        {
-          "role": "user",
-          "content": "Estan apuntats al campus i els haig de recollir a 2.00"
-        },
-        {
-          "role": "user",
-          "content": "Quan els acabi de treballar es recolliran i ja vindré cap a castellolí"
-        },
-        {
-          "role": "user",
-          "content": "Digam si em pots adelantar l’hora del dimarts i quin altre dia em pots agafar dora. Gràcies"
-        },
-        {
-          "role": "assistant",
-          "content": "Diumenge quan faci agenda et dic🩷"
-        },
-        {
-          "role": "assistant",
-          "content": "Diumenge quan faci agenda et dic🩷"
-        },
-        {
-          "role": "user",
-          "content": "Genial carinyo"
-        }
-      ],
-      "msg_count": 237
-    },
-    {
       "id": "real_018",
       "lead_id": "2ac6d87a-4544-433b-b280-e798c3071b62",
       "test_input": "Bon dia guapa!! Avui no podré venir a barre",

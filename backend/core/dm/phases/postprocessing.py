@@ -47,9 +47,12 @@ async def phase_postprocessing(
 
     response_content = llm_response.content
 
-    # A2 FIX: Detect and break repetitive loops
-    # Only compare against the immediately previous bot message using full-string
-    # equality to avoid false positives from responses with similar openings.
+    # A2 FIX: Detect repetitive loops — LOG ONLY, do NOT replace.
+    # Replacing with a hardcoded "Jajaja 😂" destroys correct responses when
+    # the ground-truth reply happens to match the last bot message in history
+    # (e.g., short acknowledgments: "Tranqui", "Dale", or schedule deferrals).
+    # Marking the flag lets downstream monitoring track occurrences without
+    # degrading response quality.
     try:
         last_bot_msgs = [
             m["content"] for m in history
@@ -60,11 +63,11 @@ async def phase_postprocessing(
             prev_norm = last_bot_msgs[0].strip().lower()
             if resp_norm and prev_norm and resp_norm == prev_norm:
                 logger.warning(
-                    "[A2] Repetitive loop detected — response is exact duplicate of last message"
+                    "[A2] Repetitive loop detected — response is exact duplicate of last message "
+                    "(passing through; not replacing)"
                 )
                 cognitive_metadata["loop_detected"] = True
-                response_content = "Jajaja 😂"
-                llm_response.content = response_content
+                # Do NOT replace response_content — let the correct response through.
     except Exception as e:
         logger.debug(f"Loop detection failed: {e}")
 
