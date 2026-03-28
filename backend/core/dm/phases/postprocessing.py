@@ -176,9 +176,12 @@ async def phase_postprocessing(
         logger.debug(f"Blacklist replacement failed: {e}")
 
     # Step 7a2c: Question removal
+    # Uses creator's real question_frequency_pct from calibration (default 10%).
+    # If rate > 15%, natural questions are preserved (only banned generics removed).
     if ENABLE_QUESTION_REMOVAL:
         try:
-            response_content = process_questions(response_content, message)
+            _q_rate = (agent.calibration or {}).get("baseline", {}).get("question_frequency_pct", 10) / 100
+            response_content = process_questions(response_content, message, question_rate=_q_rate)
         except Exception as e:
             logger.debug(f"Question removal failed: {e}")
 
