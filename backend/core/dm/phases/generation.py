@@ -295,9 +295,10 @@ async def phase_llm_generation(
         _cal_baseline = (agent.calibration or {}).get("baseline", {}) if agent.calibration else {}
         if _cal_baseline.get("temperature") is not None:
             _llm_temperature = float(_cal_baseline["temperature"])
-        # max_tokens=150 as safety net only — model is guided by prompt-level
-        # length hints instead. Prevents mid-sentence truncation.
-        _llm_max_tokens = 150
+        # max_tokens: read from calibration (per-creator optimal), fallback 100.
+        # Calibration-derived limit (e.g. iris_bertran=100) prevents Gemini
+        # repetition loops from running long before truncation.
+        _llm_max_tokens = int(_cal_baseline["max_tokens"]) if _cal_baseline.get("max_tokens") else 100
         _msg_category = _classify_user_message(message)
         cognitive_metadata["max_tokens_category"] = _msg_category
         cognitive_metadata["length_hint"] = get_length_hint(message)
