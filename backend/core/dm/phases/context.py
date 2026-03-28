@@ -316,7 +316,10 @@ async def phase_memory_and_context(
         pass
     elif intent_value in _PRODUCT_INTENTS or any(kw in msg_lower for kw in _PRODUCT_KEYWORDS):
         _rag_signal = "product"
-        _preferred_types = {"product_catalog", "faq", "knowledge_base"}
+        _preferred_types = {
+            "product_catalog", "faq", "knowledge_base",
+            "expertise", "objection_handling", "policies",
+        }
     elif any(marker in msg_lower for marker in _CONTENT_REF_MARKERS):
         _rag_signal = "content_ref"
         _preferred_types = {"instagram_post", "video", "carousel", "website"}
@@ -374,10 +377,22 @@ async def phase_memory_and_context(
                 cognitive_metadata["rag_confidence"] = "low"
 
     if rag_results:
+        _rag_scores = [r.get("score", 0) for r in rag_results]
+        _rag_types = [r.get("metadata", {}).get("type", "?") for r in rag_results]
         logger.info(
-            "[RAG] signal=%s query='%s' results=%d",
+            "[RAG] signal=%s query='%s' results=%d top=%.3f types=%s",
             _rag_signal, rag_query[:50], len(rag_results),
+            max(_rag_scores) if _rag_scores else 0, _rag_types,
         )
+        # Store retrieval details for analysis and debugging
+        cognitive_metadata["rag_details"] = [
+            {
+                "type": r.get("metadata", {}).get("type", ""),
+                "score": round(r.get("score", 0), 3),
+                "preview": r.get("text", r.get("content", ""))[:60],
+            }
+            for r in rag_results[:5]
+        ]
         if ENABLE_RERANKING:
             cognitive_metadata["rag_reranked"] = True
     else:
@@ -686,7 +701,8 @@ async def phase_memory_and_context(
             logger.debug(f"[ECHO] Relationship Adapter failed: {e}")
 
     # Ordering: STATIC sections first (cacheable prefix for Gemini 90% discount),
-    # then VARIABLE sections that change per lead/message.
+    # then VARIABLE sections. RAG facts placed LAST before generation — LLMs
+    # attend most to beginning and end of context (papers: "lost in the middle").
     combined_context = "\n\n".join(
         filter(
             None,
@@ -710,10 +726,11 @@ async def phase_memory_and_context(
                     context_notes=_context_notes_str,
                     episodic=episodic_context,
                 ),
-                rag_context,             # RAG chunks relevant to message
-                kb_context,              # Factual knowledge base lookup
                 audio_context,           # Audio message context
-                prompt_override,         # Manual override (lowest)
+                prompt_override,         # Manual override
+                # --- FACTUAL (end of context — highest LLM attention) ---
+                rag_context,             # RAG chunks: prices, schedules, product facts
+                kb_context,              # Factual knowledge base lookup
             ],
         )
     )

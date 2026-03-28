@@ -177,7 +177,14 @@ class SemanticRAG:
         # Step 4: Source-type boost — structured data outranks social captions.
         # product_catalog and faq chunks contain verified facts (prices, schedules);
         # IG captions are motivational/promotional with less factual value.
-        _SOURCE_BOOSTS = {"product_catalog": 0.15, "faq": 0.10}
+        _SOURCE_BOOSTS = {
+            "product_catalog": 0.15,
+            "faq": 0.10,
+            "objection_handling": 0.10,
+            "expertise": 0.08,
+            "policies": 0.08,
+            "values": 0.05,
+        }
         for result in semantic_results:
             source_type = result.get("metadata", {}).get("type", "")
             boost = _SOURCE_BOOSTS.get(source_type, 0)

@@ -24,7 +24,7 @@ class AgentConfig:
     temperature: float = AGENT_THRESHOLDS.temperature
     max_tokens: int = AGENT_THRESHOLDS.max_tokens
     rag_similarity_threshold: float = AGENT_THRESHOLDS.rag_similarity_threshold
-    rag_top_k: int = 3
+    rag_top_k: int = 10  # Retrieve 10, adaptive threshold filters to top 1-3
 
 
 @dataclass

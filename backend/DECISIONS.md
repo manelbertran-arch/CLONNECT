@@ -4,6 +4,24 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-03-28 — RAG pipeline optimizations (5 fixes, papers-backed)
+
+**Problema:** RAG inyectaba facts pero el LLM los ignoraba (temp 0.7 demasiado alta para factualidad). Top-K=3 limitaba recall. Chunks cortos y sin logging dificultaban iteración.
+
+**Fix 1 — Temperature dual (CRÍTICO):** Cuando RAG inyecta facts, temp se reduce a min(calibrated, 0.4). Papers: "0.0-0.2 for high factuality". Elegimos 0.4 como balance entre factualidad y personalidad. Sin RAG: temp normal (0.7 calibrada). Archivo: `core/dm/phases/generation.py`.
+
+**Fix 2 — Top-K 10 → adaptive filter:** `rag_top_k` de 3→10 para ampliar recall. El adaptive threshold existente filtra: ≥0.5 → top 3, ≥0.40 → top 1, <0.40 → skip. El reranker (cross-encoder) ya maneja la re-ordenación. Archivo: `core/dm/models.py`.
+
+**Fix 3 — RAG context position:** RAG y KB movidos al FINAL del system prompt (antes estaban antes de audio_context). Papers: "LLMs attend most to beginning and end of context window". Facts al final = última info antes de generar. Archivo: `core/dm/phases/context.py`.
+
+**Fix 4 — Chunk size cleanup:** 6 old UUID-keyed FAQ chunks (<100 chars) eliminados de DB. Supersedidos por 15 nuevos FAQ chunks con respuestas completas (88-267 chars). 5 chunks restantes <100 chars son IG captions (no impactan RAG por source-type routing).
+
+**Fix 5 — Retrieval logging:** RAG ahora logea: signal, query, num results, top score, source types. `cognitive_metadata["rag_details"]` almacena top 5 chunks con type/score/preview para análisis posterior. Archivo: `core/dm/phases/context.py`.
+
+**Adicional:** `_preferred_types` ampliado para incluir proposition chunk types (`expertise`, `objection_handling`, `policies`). Source-type boosts en `semantic.py` actualizados.
+
+---
+
 ## 2026-03-21 — Desactivar sistemas dañinos + ampliar memory budget
 
 **Problema:** El pipeline conversacional tenía 7-8 LLM calls por mensaje (Best-of-N, Self-consistency, Reflexion, Learning Rules, Autolearning) generando respuestas más genéricas y latencia alta. Memory budget de 1200 chars era insuficiente para dar contexto real del lead.

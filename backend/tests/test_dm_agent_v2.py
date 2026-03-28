@@ -399,7 +399,7 @@ class TestDataclasses:
         from core.dm_agent_v2 import AgentConfig
 
         config = AgentConfig()
-        assert config.rag_top_k == 3
+        assert config.rag_top_k == 10
         assert isinstance(config.temperature, float)
         assert isinstance(config.max_tokens, int)
 

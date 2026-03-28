@@ -299,6 +299,23 @@ async def phase_llm_generation(
         if _echo_rel_ctx:
             _llm_max_tokens = _echo_rel_ctx.llm_max_tokens
             _llm_temperature = _echo_rel_ctx.llm_temperature
+
+        # Temperature dual: low for factual RAG responses, normal for personality.
+        # Papers: "set to 0.0-0.2 for high factuality" — we cap at 0.4 to keep
+        # some personality while respecting retrieved facts (prices, schedules).
+        _has_rag = bool(rag_context and len(rag_context) > 50)
+        if _has_rag:
+            _original_temp = _llm_temperature
+            _llm_temperature = min(_llm_temperature, 0.4)
+            if _llm_temperature < _original_temp:
+                logger.info(
+                    "[TEMP-DUAL] RAG active → temp %.2f → %.2f",
+                    _original_temp, _llm_temperature,
+                )
+                cognitive_metadata["temperature_reduced"] = True
+                cognitive_metadata["temperature_original"] = _original_temp
+        cognitive_metadata["temperature_used"] = _llm_temperature
+
         llm_result = await generate_dm_response(
             llm_messages,
             max_tokens=_llm_max_tokens,
