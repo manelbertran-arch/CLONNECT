@@ -44,6 +44,13 @@ def _classify_user_message(message: str) -> str:
     msg = message.strip()
     msg_len = len(msg)
 
+    # Audio transcripts — treated separately regardless of content.
+    # Audio messages often embed questions as part of conversational sharing;
+    # classifying them as "question" triggers "Responde directamente" which
+    # overrides the empathetic tone the style guide calls for.
+    if msg.startswith("[🎤") or msg.startswith("[📹") or msg.startswith("[🎤 Audio]"):
+        return "audio"
+
     # Short affirmations first — "Si", "Ok", "Vale" etc. before greeting fallback
     if msg_len <= 15 and _SHORT_AFFIRM_RE.match(msg):
         return "short_affirmation"
@@ -84,6 +91,7 @@ _LENGTH_HINTS = {
     "booking_price": "Da el precio/info de reserva necesaria, sin rodeos.",
     "question": "Responde la pregunta de forma directa.",
     "long_message": "Responde proporcionalmente al mensaje del lead.",
+    "audio": "",  # No hint for audio — style guide handles empathetic response naturally
 }
 
 
