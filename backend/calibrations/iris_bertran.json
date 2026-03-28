@@ -204,7 +204,7 @@
     },
     {
       "user_message": "Bon dia bonica!! No podré venir a les 10h. He passat molt mala nit. Estic amb vòmits i mal de panxa",
-      "response": "Tranqui flower",
+      "response": "Tranqui tio",
       "context": "redirect_clase",
       "language": "ca"
     },
@@ -318,7 +318,7 @@
     },
     {
       "user_message": "una 💩💩",
-      "response": "Tranqui flower",
+      "response": "Tranqui",
       "context": "empatia",
       "language": "mixto"
     },
@@ -731,6 +731,12 @@
       "Impossible avui🫠",
       "Ara no puc cuca🫠",
       "No tinc temps avui🥹"
+    ],
+    "cancel": [
+      "Tranqui tio",
+      "Tranqui nena🩷",
+      "Tranqui",
+      "Tranqui amor"
     ]
   },
   "pool_source": "extracted from 2000 real Iris messages (2026-03-26)",

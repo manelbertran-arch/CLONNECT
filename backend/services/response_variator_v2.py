@@ -437,6 +437,16 @@ class ResponseVariatorV2:
         if any(r in msg for r in re_engagement):
             return None, 0.0
 
+        # Class cancellation — user notifying they can't attend
+        cancel_triggers = [
+            "no podré venir", "no puedo venir", "no puc venir",
+            "no podré ir", "no puedo ir", "avui no puc", "avui no podré",
+            "no vendré", "no vinc avui", "no puc anar",
+        ]
+        if any(t in msg for t in cancel_triggers):
+            if "cancel" in self.pools:
+                return "cancel", 0.90
+
         # Farewell — only short, genuine farewells (not "hace mucho que no hablamos")
         farewells = ["abrazo", "chao", "bye", "cuídate", "hablamos", "hasta"]
         if any(f in msg for f in farewells) and len(msg) < 40:
