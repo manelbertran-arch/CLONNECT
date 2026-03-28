@@ -1,0 +1,259 @@
+{
+  "test_set": "tests/test_set_real_leads.json",
+  "creator": "iris_bertran",
+  "rag_eligible": 6,
+  "total_conversations": 15,
+  "overall_rag_score": 6.3,
+  "aggregated_metrics": {
+    "context_precision": {
+      "mean": 4.8,
+      "min": 2,
+      "max": 7,
+      "n": 6
+    },
+    "context_recall": {
+      "mean": 2.8,
+      "min": 2,
+      "max": 3,
+      "n": 6
+    },
+    "faithfulness": {
+      "mean": 7.8,
+      "min": 5,
+      "max": 10,
+      "n": 5
+    },
+    "answer_relevancy": {
+      "mean": 9.7,
+      "min": 8,
+      "max": 10,
+      "n": 6
+    }
+  },
+  "per_conversation": [
+    {
+      "id": "real_011",
+      "query": "[🎤 Audio]: ¡Hustia! Me ha sorprendido, no me lo esperaba. Pensaba que era un rollo de estar todo el día en el gimnasio, desconectando y sin pensar. Pero bueno, por los vídeos que hagas, tampoco pasa nada.\n\n¿Ya notabas que te quedaba clavada la cervical? Joder, tío, qué putada. Si no vas a descansar, olvídate.\n\nHoy duerme, descansa, desconecta. Si has hecho la clase, ya te han ido bien, seguro. Y cuando quieras venir a verme a Pibonacos de Barcelona, me parece perfecto. Es un planazo estupendo. Cuando queráis, vigilar la carretera, ¿vale?\n\nY mañana, en principio, si todo va bien, creo que sí, vengo a Hipopilates y Barre. Tengo ganas porque hace mucho que no vengo a Barre.",
+      "ground_truth": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+      "bot_response": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+      "chunks_retrieved": 5,
+      "chunks_text": "[1] (score=0.622, type=instagram_post) Hoy os dejamos con algunas respuestas más que necesitas para dar el paso 👀✨\n\nSi llevas tiempo pensando en probar… este es tu empujoncito 💥\nClases pensadas para todos los niveles, donde vas a trabajar \n[2] (score=0.602, type=video) 🤭\nLa cara de las alumnas cuando escucharon @camelaoficial_ por primera vez en clase fué lo más.\nMe encanta no dejar de sorprenderlas, y eso que saben que pueden esperar de todo conmigo ❤️‍🔥\nFinalizamo\n[3] (score=0.581, type=instag",
+      "metrics": {
+        "context_precision": 2,
+        "context_recall": 3,
+        "faithfulness": 8,
+        "answer_relevancy": 8
+      },
+      "details": {
+        "precision": {
+          "score": 2,
+          "relevant_chunks": 1,
+          "total_chunks": 5,
+          "reason": "Only one chunk (chunk 4) mentions a class related to Barre, which is relevant to the query's context about attending a Barre class. The other chunks do not directly relate to the specific experiences or plans mentioned in the query."
+        },
+        "recall": {
+          "score": 3,
+          "missing_info": "specific details about resting and disconnecting, personal connection to the speaker's situation",
+          "reason": "The retrieved chunks do not contain any information about the importance of resting and disconnecting, nor do they address the personal sentiments expressed in the correct answer."
+        },
+        "faithfulness": {
+          "score": 8,
+          "hallucinations": [],
+          "reason": "The response reflects the sentiment of the retrieved context, emphasizing the importance of rest and disconnecting, which aligns with the original message. However, it does not directly reference specific details from the context, such as the classes mentioned or the location, which could enhance its faithfulness."
+        },
+        "relevancy": {
+          "score": 8,
+          "addresses_question": true,
+          "reason": "The bot's response acknowledges the user's concerns about rest and disconnecting, which aligns with the user's message. However, it does not directly address the user's mention of specific activities or plans, which could enhance the relevance of the response."
+        }
+      }
+    },
+    {
+      "id": "real_012",
+      "query": "Pujo súper justa a barre",
+      "ground_truth": "Jajaja, ¡siempre igual! 😂 ¿Vienes corriendo?",
+      "bot_response": "Jajaja, ¡siempre igual! 😂 ¿Vienes corriendo?",
+      "chunks_retrieved": 5,
+      "chunks_text": "[1] (score=0.523, type=product_catalog) SERVICIO: Barre\nCategoria: clase_grupal\nDescripcion: Clase de barre fitness en Dinamic Sport Gym. Combina ballet, pilates y fuerza. Trabajo de fuerza, control y elegancia con coreografia. Iris prepara\n[2] (score=0.378, type=instagram_post) 🙊\nAnota estas 10 correcciones para tu próxima clase de barre.\nAunque siempre trato de corregir cada fallo que veo en clase, con estas 10 diferencias verás claramente porque algunas series no te estan \n[3] (score=0.378, t",
+      "metrics": {
+        "context_precision": 6,
+        "context_recall": 3,
+        "faithfulness": 0,
+        "answer_relevancy": 10
+      },
+      "details": {
+        "precision": {
+          "score": 6,
+          "relevant_chunks": 4,
+          "total_chunks": 5,
+          "reason": "The retrieved chunks are mostly relevant to the query about barre, with chunks discussing barre fitness classes, corrections for barre classes, and video content related to barre sessions. However, some chunks are less relevant or repetitive."
+        },
+        "recall": {
+          "score": 3,
+          "missing_info": "context for the conversation, specific response to the query",
+          "reason": "The retrieved chunks provide information about barre classes and corrections but do not contain the conversational context or a humorous response needed to match the correct answer."
+        },
+        "faithfulness": {
+          "score": 0,
+          "hallucinations": [],
+          "reason": "The response does not state any facts from the context and instead is a casual, humorous reply that does not relate to the retrieved information about barre classes."
+        },
+        "relevancy": {
+          "score": 10,
+          "addresses_question": true,
+          "reason": "The bot's response is appropriate and engages with the user's comment in a light-hearted manner, maintaining the conversational tone."
+        }
+      }
+    },
+    {
+      "id": "real_016",
+      "query": "Reinaaaa, passam número de la teva secretaría millor😘😅 i em reservo un parell de reformer",
+      "ground_truth": "Amorrr, ja te'n passo el número 😘 Ja et reservo!",
+      "bot_response": "Amorrr, ja te'n passo el número 😘 Ja et reservo!",
+      "chunks_retrieved": 5,
+      "chunks_text": "[1] (score=0.636, type=product_catalog) SERVICIO: Pilates Reformer (Entrenamiento Personal)\nCategoria: entrenamiento_personal\nDescripcion: Entrenamiento personal 1:1 con maquina reformer en el estudio propio de Iris. Trabajo completamente s\n[2] (score=0.606, type=product_catalog) HORARIO SEMANAL - Iris Bertran (@iris_bertran)\n  lunes: Zumba (Dinamic Sport)\n  martes: Barre (Dinamic Sport) + Reformer personal (cita)\n  miercoles: Formacion Heels (17:30-19:30)\n  jueves: Barre (Din\n[3] (score=0.538, ",
+      "metrics": {
+        "context_precision": 7,
+        "context_recall": 3,
+        "faithfulness": 8,
+        "answer_relevancy": 10
+      },
+      "details": {
+        "precision": {
+          "score": 7,
+          "relevant_chunks": 4,
+          "total_chunks": 5,
+          "reason": "The retrieved chunks provide relevant information about Pilates Reformer sessions, including personal training options and scheduling, which aligns with the user's request for a reservation. However, none of the chunks directly provide a contact number for the secretary."
+        },
+        "recall": {
+          "score": 3,
+          "missing_info": "the phone number of the secretaria",
+          "reason": "The retrieved chunks provide information about the Pilates Reformer service and the schedule but do not include the phone number requested in the query."
+        },
+        "faithfulness": {
+          "score": 8,
+          "hallucinations": [],
+          "reason": "The response is consistent with the context, as it acknowledges the request for a phone number and confirms the reservation without introducing any invented details."
+        },
+        "relevancy": {
+          "score": 10,
+          "addresses_question": true,
+          "reason": "The bot's response correctly acknowledges the user's request for a phone number and confirms the reservation of the reformers."
+        }
+      }
+    },
+    {
+      "id": "real_018",
+      "query": "Bon dia guapa!! Avui no podré venir a barre",
+      "ground_truth": "Tranqui tio",
+      "bot_response": "Tranqui tio",
+      "chunks_retrieved": 5,
+      "chunks_text": "[1] (score=0.515, type=video) 🩰✨🙊\nAvui elles son les protagonistes.\nLes que van fer d’aquest projecte, una classe plena sempre que la fem.\nFins i tot un diumenge, que hem acabat obrint un segon torn.\nFeliç de poder compartir aques\n[2] (score=0.508, type=video) 💗🩰🌿🌞\n¿Quién más está deseando que llegue el buen tiempo? Ya queda menos para volver a hacer nuestros talleres al sol, en lugares maravillosos como @canllaure ✨\nPero hasta entonces… recordad que tenemo\n[3] (score=0.508, type=video) BARRE 🩰\n",
+      "metrics": {
+        "context_precision": 6,
+        "context_recall": 2,
+        "faithfulness": 8,
+        "answer_relevancy": 10
+      },
+      "details": {
+        "precision": {
+          "score": 6,
+          "relevant_chunks": 3,
+          "total_chunks": 5,
+          "reason": "The retrieved chunks contain information related to barre classes, which is relevant to the query about not being able to attend a barre session. However, the relevance varies, with some chunks being more focused on general announcements or unrelated content."
+        },
+        "recall": {
+          "score": 2,
+          "missing_info": "The response 'Tranqui tio' is not addressed in the retrieved chunks, and there is no acknowledgment of the inability to attend barre today.",
+          "reason": "The retrieved chunks do not contain any information related to the user's message about not being able to attend barre, nor do they provide a casual or reassuring response like 'Tranqui tio'."
+        },
+        "faithfulness": {
+          "score": 8,
+          "hallucinations": [],
+          "reason": "The response 'Tranqui tio' is a casual acknowledgment and does not introduce any new facts or details that are not present in the retrieved context. It reflects a relaxed attitude in response to the message about not being able to attend barre, which aligns with the informal tone of the context."
+        },
+        "relevancy": {
+          "score": 10,
+          "addresses_question": true,
+          "reason": "The bot's response is appropriate and acknowledges the user's message in a casual manner, which fits the context of the conversation."
+        }
+      }
+    },
+    {
+      "id": "real_019",
+      "query": "Pues yo te pago clase privada mamasita",
+      "ground_truth": "Claro",
+      "bot_response": "Claro",
+      "chunks_retrieved": 5,
+      "chunks_text": "[1] (score=0.628, type=product_catalog) RESUMEN DE PRECIOS - Iris Bertran (@iris_bertran)\n  barre socio: 3 EUR / clase\n  barre no socio: 5 EUR / clase\n  flow4u no socio: 9 EUR / clase\n  reformer sesion: 40 EUR / hora\n  reformer bono 6: 220 \n[2] (score=0.600, type=product_catalog) SERVICIO: Pilates Reformer (Entrenamiento Personal)\nCategoria: entrenamiento_personal\nDescripcion: Entrenamiento personal 1:1 con maquina reformer en el estudio propio de Iris. Trabajo completamente s\n[3] (score=0.533, ",
+      "metrics": {
+        "context_precision": 5,
+        "context_recall": 3,
+        "faithfulness": 10,
+        "answer_relevancy": 10
+      },
+      "details": {
+        "precision": {
+          "score": 5,
+          "relevant_chunks": 3,
+          "total_chunks": 5,
+          "reason": "The retrieved chunks provide information about class prices and payment methods, which are somewhat relevant to the query about paying for private classes. However, they do not directly address the specific request for a private class or the informal tone of the query."
+        },
+        "recall": {
+          "score": 3,
+          "missing_info": "context about the private class payment agreement",
+          "reason": "The retrieved chunks provide information about class prices and payment methods but do not address the specific context of a private class payment agreement or the response 'Claro'."
+        },
+        "faithfulness": {
+          "score": 10,
+          "hallucinations": [],
+          "reason": "The response 'Claro' is a simple acknowledgment and does not introduce any new facts or details that are not present in the retrieved context."
+        },
+        "relevancy": {
+          "score": 10,
+          "addresses_question": true,
+          "reason": "The bot's response 'Claro' directly acknowledges the user's offer for private classes, indicating agreement or willingness."
+        }
+      }
+    },
+    {
+      "id": "real_020",
+      "query": "Siiii me apuntaste a la clase de mañana?",
+      "ground_truth": "Te apunte en la mañana🤣🤣🤣",
+      "bot_response": "Te apunte en la mañana🤣🤣🤣",
+      "chunks_retrieved": 5,
+      "chunks_text": "[1] (score=0.439, type=instagram_post) Hoy os dejamos con algunas respuestas más que necesitas para dar el paso 👀✨\n\nSi llevas tiempo pensando en probar… este es tu empujoncito 💥\nClases pensadas para todos los niveles, donde vas a trabajar \n[2] (score=0.434, type=video) 🩰🙊\nDéjame en comentarios cual es tu mood o frase favorita 🤪\nLa penúltima es mi fav 🙄\nY dime si mañana vienes a escucharla a las 9:30 o a las 19:15h 😏\n#barre #barrefitness #barreclass #barreinstructor \n[3] (score=0.427, type=video)",
+      "metrics": {
+        "context_precision": 3,
+        "context_recall": 3,
+        "faithfulness": 5,
+        "answer_relevancy": 10
+      },
+      "details": {
+        "precision": {
+          "score": 3,
+          "relevant_chunks": 1,
+          "total_chunks": 5,
+          "reason": "Only one chunk (chunk 2) directly mentions a class happening tomorrow, which is relevant to the query about being signed up for a class."
+        },
+        "recall": {
+          "score": 3,
+          "missing_info": "specific confirmation of attendance for the class",
+          "reason": "The retrieved chunks do not contain a direct response to the query about whether the person was signed up for the class. They discuss classes and schedules but do not confirm attendance."
+        },
+        "faithfulness": {
+          "score": 5,
+          "hallucinations": [
+            "Te apunte en la mañana"
+          ],
+          "reason": "The response suggests that the user was signed up for a class in the morning, which is not supported by the retrieved context. The context mentions classes at specific times (9:30 and 19:15) but does not confirm any sign-up or specific time for the user."
+        },
+        "relevancy": {
+          "score": 10,
+          "addresses_question": true,
+          "reason": "The bot's response confirms that it did indeed sign the user up for the class, directly addressing the user's question."
+        }
+      }
+    }
+  ]
+}
