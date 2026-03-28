@@ -43,6 +43,11 @@ CLIENTE_INDICATORS = {
 }
 
 
+_MEDIA_PLACEHOLDERS = frozenset(
+    ["[audio]", "[video]", "[image]", "[sticker]", "[📷 Photo]"]
+)
+
+
 class RelationshipAnalyzer:
     """Analyzes conversations to extract relationship DNA."""
 
@@ -570,8 +575,13 @@ class RelationshipAnalyzer:
                     user_content = msg.get("content", "")
                     creator_content = next_msg.get("content", "")
 
-                    # Only include short, representative exchanges
-                    if len(user_content) < 100 and len(creator_content) < 150:
+                    # Only include short, representative exchanges with actual text
+                    if (
+                        len(user_content) < 100
+                        and len(creator_content) < 150
+                        and user_content not in _MEDIA_PLACEHOLDERS
+                        and creator_content not in _MEDIA_PLACEHOLDERS
+                    ):
                         examples.append(
                             {
                                 "lead": user_content,

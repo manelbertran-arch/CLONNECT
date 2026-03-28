@@ -184,8 +184,6 @@ async def phase_llm_generation(
     # User context (username, stage, interests) is already in system_prompt via
     # relational_block + dna_context + state_context. No need to repeat here.
     prompt_parts = []
-    if _bot_instructions:
-        prompt_parts.append(_bot_instructions)
     if learning_rules_section:
         prompt_parts.append(learning_rules_section)
     if preference_profile_section:
