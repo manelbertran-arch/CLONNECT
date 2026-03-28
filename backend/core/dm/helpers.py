@@ -16,8 +16,12 @@ logger = logging.getLogger(__name__)
 def format_rag_context(agent, rag_results: List[Dict]) -> str:
     """Format RAG results as context for the prompt.
 
-    Source-aware truncation: product_catalog/faq get 500 chars (prices,
-    schedules), other sources get 300 chars. Score hidden from LLM.
+    Source-aware formatting:
+    - product_catalog/faq: full content (500 chars), no source prefix
+    - creator content (reel/post): includes source tag with date/URL
+      so the LLM can reference "en mi reel del martes" naturally.
+
+    Score hidden from LLM (internal ranking only).
     """
     if not rag_results:
         return ""
@@ -25,14 +29,26 @@ def format_rag_context(agent, rag_results: List[Dict]) -> str:
     creator_name = getattr(agent, "creator_name", None) or "el creador"
     context_parts = [f"Informacion relevante de {creator_name}:"]
     for result in rag_results[:3]:
-        source_type = result.get("metadata", {}).get("type", "")
-        title = result.get("metadata", {}).get("title", "")
+        meta = result.get("metadata", {})
+        source_type = meta.get("type", "")
+        title = meta.get("title", "")
+        source_url = meta.get("source_url", "")
         max_len = 500 if source_type in ("product_catalog", "faq") else 300
         content = result.get("content", "")[:max_len]
-        if title and title not in content[:50]:
-            context_parts.append(f"- [{title}] {content}")
-        else:
-            context_parts.append(f"- {content}")
+
+        # Build source tag for creator content (reels, posts, videos)
+        source_tag = ""
+        if source_type in ("video", "instagram_post", "carousel", "reel"):
+            if title:
+                source_tag = f"[De tu contenido: {title}] "
+            elif source_url:
+                source_tag = f"[De tu contenido: {source_url}] "
+        elif source_type == "faq":
+            source_tag = ""  # FAQ is self-contained
+        elif title and title not in content[:50]:
+            source_tag = f"[{title}] "
+
+        context_parts.append(f"- {source_tag}{content}")
 
     return "\n".join(context_parts)
 
