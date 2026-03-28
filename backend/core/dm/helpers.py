@@ -26,8 +26,9 @@ def format_rag_context(agent, rag_results: List[Dict]) -> str:
     if not rag_results:
         return ""
 
-    creator_name = getattr(agent, "creator_name", None) or "el creador"
-    context_parts = [f"Informacion relevante de {creator_name}:"]
+    # Subtle header — hints "use if relevant", never forces a sales pitch.
+    # The model decides if the info fits the conversation naturally.
+    context_parts = ["(Info disponible — usa solo si el lead pregunta o es relevante):"]
     for result in rag_results[:3]:
         meta = result.get("metadata", {})
         source_type = meta.get("type", "")
