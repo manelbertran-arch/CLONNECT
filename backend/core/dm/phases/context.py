@@ -3,8 +3,9 @@
 import asyncio
 import logging
 import os
+import re
 import time
-from typing import Dict, List
+from typing import Dict, List, Set
 
 from core.agent_config import AGENT_THRESHOLDS
 from core.bot_question_analyzer import QuestionType, get_bot_question_analyzer, is_short_affirmation
@@ -29,6 +30,95 @@ ENABLE_ADVANCED_PROMPTS = os.getenv("ENABLE_ADVANCED_PROMPTS", "false").lower() 
 ENABLE_CITATIONS = os.getenv("ENABLE_CITATIONS", "true").lower() == "true"
 ENABLE_HIERARCHICAL_MEMORY = os.getenv("ENABLE_HIERARCHICAL_MEMORY", "false").lower() == "true"
 ENABLE_EPISODIC_MEMORY = os.getenv("ENABLE_EPISODIC_MEMORY", "false").lower() == "true"
+
+# ── Universal RAG gate: dynamic keywords from creator's content_chunks ──
+
+# Universal keywords — work for ANY creator (price, schedule, booking)
+_UNIVERSAL_PRODUCT_KEYWORDS = {
+    "precio", "preu", "cuanto", "cuánto", "cuesta", "costa",
+    "horario", "horari", "reserv", "apunt", "cancel",
+    "pagar", "price", "cost", "booking", "schedule",
+    "hora", "pack", "bono", "taller", "workshop", "masterclass",
+    "clase", "classe", "sesion", "sessió",
+}
+
+# Stopwords to exclude from dynamic keyword extraction (ES/CA/EN)
+_KW_STOPWORDS = {
+    "para", "como", "esto", "esta", "estos", "estas", "tiene", "hacer",
+    "puede", "donde", "cuando", "porque", "también", "después", "antes",
+    "sobre", "entre", "desde", "hasta", "cada", "todo", "toda", "todos",
+    "todas", "otro", "otra", "otros", "otras", "mismo", "misma", "mucho",
+    "mucha", "muchos", "muchas", "poco", "poca", "pocos", "pocas",
+    "mejor", "peor", "bueno", "buena", "malo", "mala",
+    "grande", "nuevo", "nueva", "solo", "pero", "sino",
+    "aunque", "mientras", "según", "hacia", "contra", "durante",
+    "però", "també", "només", "encara", "perquè", "sempre", "sense",
+    "molt", "molta", "molts", "moltes", "altre", "altra", "altres",
+    "that", "this", "with", "from", "have", "been", "were", "they",
+    "their", "will", "would", "could", "should", "about", "which",
+    "there", "other", "more", "some", "than", "then", "into",
+    "very", "just", "also", "what", "when", "where",
+    "hola", "buenas", "gracias", "vale", "okay", "bien",
+    "quiero", "puedo", "tengo", "estoy", "vamos", "necesito",
+    "información", "informació", "pregunta", "consulta",
+}
+
+# Cache: creator_id → set of keywords (lives for process lifetime)
+_creator_kw_cache: Dict[str, Set[str]] = {}
+
+
+def _get_creator_product_keywords(creator_id: str) -> Set[str]:
+    """Extract product keywords from creator's content_chunks in DB.
+
+    Cached per creator — only runs once per deploy/process restart.
+    Returns empty set on failure (falls back to universal keywords only).
+    """
+    if creator_id in _creator_kw_cache:
+        return _creator_kw_cache[creator_id]
+
+    try:
+        from api.database import SessionLocal
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        try:
+            rows = session.execute(
+                text(
+                    "SELECT content FROM content_chunks "
+                    "WHERE creator_id = :cid "
+                    "AND source_type IN ("
+                    "  'product_catalog', 'faq', 'expertise',"
+                    "  'objection_handling', 'policies', 'knowledge_base'"
+                    ") "
+                    "AND content IS NOT NULL AND LENGTH(content) > 20"
+                ),
+                {"cid": creator_id},
+            ).fetchall()
+
+            words: Set[str] = set()
+            for row in rows:
+                for word in re.findall(r"\w+", row[0].lower()):
+                    if (
+                        len(word) >= 4
+                        and word not in _KW_STOPWORDS
+                        and not word.isdigit()
+                    ):
+                        words.add(word)
+
+            _creator_kw_cache[creator_id] = words
+            logger.info(
+                "[RAG-GATE] Loaded %d dynamic keywords for %s from %d chunks",
+                len(words),
+                creator_id,
+                len(rows),
+            )
+            return words
+        finally:
+            session.close()
+    except Exception as e:
+        logger.warning("[RAG-GATE] Failed to load keywords for %s: %s", creator_id, e)
+        _creator_kw_cache[creator_id] = set()
+        return set()
 
 
 def _episodic_search(creator_slug: str, sender_id: str, message: str) -> str:
@@ -290,13 +380,9 @@ async def phase_memory_and_context(
     # RAG retrieval — Conversational Adaptive RAG:
     # Product signals activate retrieval; casual messages get ZERO retrieval.
     # Content reference markers also trigger retrieval for "tu post/reel" queries.
-    _PRODUCT_KEYWORDS = {
-        "precio", "preu", "cuanto", "cuánto", "horario", "horari", "clase",
-        "classe", "reserv", "apunt", "pack", "bono", "barre", "pilates",
-        "reformer", "zumba", "flow", "entreno", "entrenament", "sesion",
-        "sessió", "cuesta", "costa", "taller", "hipopresivos", "heels",
-        "hiit", "masterclass", "workshop", "price", "cost",
-    }
+    # Dynamic product keywords: universal + creator-specific from DB
+    _dynamic_kw = _get_creator_product_keywords(agent.creator_id)
+    _all_product_kw = _UNIVERSAL_PRODUCT_KEYWORDS | _dynamic_kw
     _CONTENT_REF_MARKERS = {
         "tu post", "tu reel", "tu video", "tu vídeo", "lo que dijiste",
         "el teu post", "el teu reel", "el teu vídeo", "el que vas dir",
@@ -314,7 +400,7 @@ async def phase_memory_and_context(
     _preferred_types = None
     if not ENABLE_RAG:
         pass
-    elif intent_value in _PRODUCT_INTENTS or any(kw in msg_lower for kw in _PRODUCT_KEYWORDS):
+    elif intent_value in _PRODUCT_INTENTS or any(kw in msg_lower for kw in _all_product_kw):
         _rag_signal = "product"
         _preferred_types = {
             "product_catalog", "faq", "knowledge_base",
