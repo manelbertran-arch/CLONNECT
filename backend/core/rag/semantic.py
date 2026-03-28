@@ -399,8 +399,8 @@ class SemanticRAG:
         query_words = set(query_lower.split())
 
         for doc_id, doc in self._documents.items():
-            # Filter by creator_id
-            if doc.metadata and doc.metadata.get("creator_id") != creator_id:
+            # Filter by creator_id — skip if metadata missing OR creator_id mismatch
+            if not doc.metadata or doc.metadata.get("creator_id") != creator_id:
                 continue
 
             # Simple word overlap scoring

@@ -34,7 +34,7 @@ def format_rag_context(agent, rag_results: List[Dict]) -> str:
         title = meta.get("title", "")
         source_url = meta.get("source_url", "")
         max_len = 500 if source_type in ("product_catalog", "faq") else 300
-        content = result.get("content", "")[:max_len]
+        content = result.get("content", result.get("text", ""))[:max_len]
 
         # Build source tag for creator content (reels, posts, videos)
         source_tag = ""
