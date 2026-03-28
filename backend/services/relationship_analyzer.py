@@ -44,8 +44,14 @@ CLIENTE_INDICATORS = {
 
 
 _MEDIA_PLACEHOLDERS = frozenset(
-    ["[audio]", "[video]", "[image]", "[sticker]", "[📷 Photo]"]
+    ["[audio]", "[video]", "[image]", "[sticker]",
+     "[📷 Photo]", "[🎤 Audio]", "[🎤 Audio message]",
+     "[📹 Video]", "[🎤 Audio]:"]
 )
+
+# Prefixes that indicate media content (for startswith matching)
+_MEDIA_PREFIXES = ("[audio]", "[video]", "[image]", "[sticker]",
+                   "[📷", "[🎤", "[📹")
 
 
 class RelationshipAnalyzer:
@@ -576,11 +582,20 @@ class RelationshipAnalyzer:
                     creator_content = next_msg.get("content", "")
 
                     # Only include short, representative exchanges with actual text
+                    # Filter media placeholders by exact match AND prefix match
+                    _u_is_media = (
+                        user_content in _MEDIA_PLACEHOLDERS
+                        or user_content.startswith(_MEDIA_PREFIXES)
+                    )
+                    _c_is_media = (
+                        creator_content in _MEDIA_PLACEHOLDERS
+                        or creator_content.startswith(_MEDIA_PREFIXES)
+                    )
                     if (
                         len(user_content) < 100
                         and len(creator_content) < 150
-                        and user_content not in _MEDIA_PLACEHOLDERS
-                        and creator_content not in _MEDIA_PLACEHOLDERS
+                        and not _u_is_media
+                        and not _c_is_media
                     ):
                         examples.append(
                             {

@@ -234,17 +234,19 @@ async def phase_memory_and_context(
             logger.debug(f"Conversation state failed: {e}")
             return "", {}
 
-    # Parallel: memory (file I/O) + DNA+PostCtx (2 DB queries) + conv_state (1 DB query) + raw DNA
-    follower, dna_context, (state_context, state_meta), raw_dna = await asyncio.gather(
+    # Parallel phase 1: memory + raw_dna + conv_state (all independent)
+    # raw_dna is loaded ONCE here and passed to build_context_prompt to avoid double DB query.
+    follower, raw_dna, (state_context, state_meta) = await asyncio.gather(
         agent.memory_store.get_or_create(
             creator_id=agent.creator_id,
             follower_id=sender_id,
             username=metadata.get("username", sender_id),
         ),
-        _build_ctx(agent.creator_id, sender_id),
-        _load_conv_state(),
         asyncio.to_thread(_get_raw_dna, agent.creator_id, sender_id),
+        _load_conv_state(),
     )
+    # Phase 2: build_context_prompt uses pre-loaded DNA (saves 1 DB query)
+    dna_context = await _build_ctx(agent.creator_id, sender_id, preloaded_dna=raw_dna)
     cognitive_metadata.update(state_meta)
 
     # Memory recall (per-lead context from past conversations)
@@ -325,11 +327,9 @@ async def phase_memory_and_context(
         except Exception as e:
             logger.debug(f"[COMMITMENT] load failed: {e}")
 
-    _bot_instructions = ""
     if dna_context:
         logger.debug(f"DNA context loaded for {sender_id}")
     if raw_dna:
-        _bot_instructions = raw_dna.get("bot_instructions", "") or ""
         metadata["dna_data"] = raw_dna  # Store for trigger check later
 
     # Auto-create seed DNA if none exists and lead has some history
@@ -921,7 +921,6 @@ async def phase_memory_and_context(
     ctx.raw_dna = raw_dna
     ctx.memory_context = memory_context
     ctx.commitment_text = commitment_text
-    ctx.bot_instructions = _bot_instructions
     ctx.rag_results = rag_results
     ctx.rag_context = rag_context
     ctx.is_friend = is_friend

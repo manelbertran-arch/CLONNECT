@@ -42,7 +42,6 @@ async def phase_llm_generation(
     follower = context.follower
     is_friend = context.is_friend
     current_stage = context.current_stage
-    _bot_instructions = context.bot_instructions
     user_context = context.user_context
     relational_block = context.relational_block
     rag_context = context.rag_context

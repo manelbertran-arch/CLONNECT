@@ -4,6 +4,18 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-03-28 — DNA Auto Create: 3 fixes (double injection, media filter, double DB query)
+
+**Fix A — Remove bot_instructions double injection:** `bot_instructions` was extracted from `raw_dna` in context.py AND included inside `dna_context` via `build_context_prompt()`. The LLM saw the same instructions twice. Removed the separate extraction; `dna_context` already contains it.
+
+**Fix B — Filter media placeholders from golden examples:** `_extract_golden_examples()` in `relationship_analyzer.py` checked exact match only (`[audio]`, `[video]`). Missed prefix patterns like `[🎤 Audio]: transcribed text`. Added `_MEDIA_PREFIXES` tuple for `startswith` matching. Prevents media messages from becoming few-shot examples.
+
+**Fix C — Eliminate double DB query for RelationshipDNA:** `context.py` ran `build_context_prompt()` AND `get_relationship_dna()` in parallel — both hit the same DB row. Restructured: load `raw_dna` first in parallel with other ops, then pass `preloaded_dna=raw_dna` to `build_context_prompt()`. Saves 1 DB query per DM.
+
+**Files:** `context.py`, `generation.py`, `relationship_analyzer.py`, `dm_agent_context_integration.py`.
+
+---
+
 ## 2026-03-28 — Adaptive length: prompt hints instead of max_tokens truncation
 
 **Problema:** `max_tokens=40-80` (adaptive) truncaba respuestas mid-sentence → "Holaaaa nena! Mira, el bar—". El judge penaliza respuestas incompletas. Score bajó de 8.20 a 8.00 con truncación.

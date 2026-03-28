@@ -70,6 +70,7 @@ async def get_full_context(
 async def build_context_prompt(
     creator_id: str,
     lead_id: str,
+    preloaded_dna: dict = None,
 ) -> str:
     """Build context section for bot prompt.
 
@@ -81,6 +82,7 @@ async def build_context_prompt(
     Args:
         creator_id: Creator identifier
         lead_id: Lead identifier
+        preloaded_dna: If provided, skip DB query for RelationshipDNA (avoids double fetch)
 
     Returns:
         Context string for prompt
@@ -105,16 +107,20 @@ async def build_context_prompt(
     except Exception as e:
         logger.error(f"Error getting writing patterns: {e}")
 
-    # 2+3. Parallel DB calls for RelationshipDNA + PostContext (non-blocking)
+    # 2+3. DNA (use preloaded if available) + PostContext
     import asyncio
 
-    dna = None
+    dna = preloaded_dna
     post_ctx = None
     try:
-        dna, post_ctx = await asyncio.gather(
-            asyncio.to_thread(get_relationship_dna, creator_id, lead_id),
-            asyncio.to_thread(get_post_context, creator_id),
-        )
+        if dna is not None:
+            # DNA already loaded — only fetch PostContext
+            post_ctx = await asyncio.to_thread(get_post_context, creator_id)
+        else:
+            dna, post_ctx = await asyncio.gather(
+                asyncio.to_thread(get_relationship_dna, creator_id, lead_id),
+                asyncio.to_thread(get_post_context, creator_id),
+            )
     except Exception as e:
         logger.error(f"Error in parallel DB lookups: {e}")
 
