@@ -24,9 +24,10 @@ logger = logging.getLogger(__name__)
 def _truncate_if_looping(text: str) -> tuple[bool, str]:
     """Detect and truncate character-level repetition loops.
 
-    Scans for any substring of 10+ chars that appears more than once.
-    When found, truncates the response at the start of the second occurrence,
-    keeping the first phrase intact. Only fires when text >= 20 chars.
+    Only scans substrings starting within the first 30 chars of the response.
+    Doom loops always start from the beginning (e.g. "JAJAJAJAJAJAJA...",
+    "Dale rey! Dale rey! Dale rey!..."). Mid-sentence phrase repetitions
+    at position > 30 are legitimate and should not be truncated.
 
     Returns (was_degenerate, cleaned_text).
     """
@@ -37,7 +38,9 @@ def _truncate_if_looping(text: str) -> tuple[bool, str]:
     lower = text.lower()
     n = len(lower)
 
-    for start in range(n - MIN_SUB):
+    # Cap scan start at 30 to avoid false positives on mid-sentence repetitions
+    scan_limit = min(30, n - MIN_SUB)
+    for start in range(scan_limit):
         sub = lower[start:start + MIN_SUB]
         pos = lower.find(sub, start + MIN_SUB)
         if pos != -1:
