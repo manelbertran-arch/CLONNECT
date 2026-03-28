@@ -131,11 +131,11 @@ async def _call_gemini(
         "generationConfig": {
             "maxOutputTokens": max_tokens,
             "temperature": temperature,
-            # Anti-loop penalties: presence discourages repeating any seen token,
-            # frequency discourages verbatim repetition proportionally.
-            # Configurable via env vars (set to 0.0 to disable).
-            "presencePenalty": float(os.getenv("GEMINI_PRESENCE_PENALTY", "0.6")),
-            "frequencyPenalty": float(os.getenv("GEMINI_FREQUENCY_PENALTY", "0.15")),
+            # Anti-loop penalties: disabled by default (0.0) because presence_penalty
+            # penalizes legitimate repetition in Iris's style ("ja ja ja", "amor amor").
+            # Enable carefully via env vars only after style-specific calibration.
+            "presencePenalty": float(os.getenv("GEMINI_PRESENCE_PENALTY", "0.0")),
+            "frequencyPenalty": float(os.getenv("GEMINI_FREQUENCY_PENALTY", "0.0")),
         },
         # Relax safety filters: fitness/dance coaching uses emotional/physical language
         # that can trigger Gemini's default thresholds. BLOCK_ONLY_HIGH still prevents
