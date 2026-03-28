@@ -698,7 +698,7 @@ def print_summary(agg: Dict, output_path: str):
     print(f"  Judge (GPT-4o-mini):     {judge}/10")
     print(f"  SequenceMatcher:         {sm}%")
     print(f"  Judge StdDev:            {agg.get('judge_std_dev', 0)}")
-    print(f"  Judged/Total:            {agg['n_judged']}/{agg['n_conversations']}")
+    print(f"  Judged/Total:            {agg.get('n_judged', agg.get('n', '?'))}/{agg.get('n_conversations', agg.get('n', '?'))}")
     print()
     print("  DIMENSIONS:")
     dim_labels = {
