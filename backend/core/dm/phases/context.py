@@ -700,40 +700,70 @@ async def phase_memory_and_context(
         except Exception as e:
             logger.debug(f"[ECHO] Relationship Adapter failed: {e}")
 
-    # Ordering: STATIC sections first (cacheable prefix for Gemini 90% discount),
-    # then VARIABLE sections. RAG facts placed LAST before generation — LLMs
-    # attend most to beginning and end of context (papers: "lost in the middle").
-    combined_context = "\n\n".join(
-        filter(
-            None,
-            [
-                # --- STATIC per creator (cacheable prefix) ---
-                agent.style_prompt,       # HOW to write (Doc D distilled)
-                few_shot_section,        # Calibration examples (10 selected)
-                advanced_section,        # Anti-hallucination rules
-                citation_context,        # Source attribution rules
-                # --- SEMI-STATIC (creator-level, refreshed periodically) ---
-                hier_memory_context,     # IMPersona: L3 abstract + L2 patterns + L1 episodic
-                # --- VARIABLE per lead/message ---
-                friend_context,          # Friend/family override (critical)
-                _build_recalling_block(  # Consolidated lead data + Recalling trigger
-                    username=follower.username or sender_id,
-                    relational=relational_block,
-                    memory=memory_context,
-                    dna=dna_context,
-                    state=state_context,
-                    frustration_note=_frustration_note,
-                    context_notes=_context_notes_str,
-                    episodic=episodic_context,
-                ),
-                audio_context,           # Audio message context
-                prompt_override,         # Manual override
-                # --- FACTUAL (end of context — highest LLM attention) ---
-                rag_context,             # RAG chunks: prices, schedules, product facts
-                kb_context,              # Factual knowledge base lookup
-            ],
-        )
+    # ═══════════════════════════════════════════════════════════════════════
+    # CONTEXT ORCHESTRATION — assemble sections with priority-based budget
+    # ═══════════════════════════════════════════════════════════════════════
+    # Ordering: STATIC first (cacheable prefix for Gemini 90% discount),
+    # then VARIABLE. RAG facts placed LAST (highest LLM attention — papers:
+    # "lost in the middle"). Total budget prevents prompt bloat.
+    MAX_CONTEXT_CHARS = int(os.getenv("MAX_CONTEXT_CHARS", "8000"))
+
+    # Build the Recalling block (consolidated per-lead context)
+    _recalling = _build_recalling_block(
+        username=follower.username or sender_id,
+        relational=relational_block,
+        memory=memory_context,
+        dna=dna_context,
+        state=state_context,
+        frustration_note=_frustration_note,
+        context_notes=_context_notes_str,
+        episodic=episodic_context,
     )
+
+    # Sections in priority order (first sections are kept first if over budget)
+    _sections = [
+        # --- STATIC per creator (cacheable prefix) --- [PRIORITY: CRITICAL]
+        ("style", agent.style_prompt),
+        ("fewshot", few_shot_section),
+        # --- VARIABLE per lead/message --- [PRIORITY: HIGH]
+        ("friend", friend_context),
+        ("recalling", _recalling),
+        ("audio", audio_context),
+        # --- FACTUAL (end) --- [PRIORITY: HIGH for product queries]
+        ("rag", rag_context),
+        ("kb", kb_context),
+        # --- NICE TO HAVE --- [PRIORITY: MEDIUM]
+        ("hier_memory", hier_memory_context),
+        ("advanced", advanced_section),
+        ("citation", citation_context),
+        ("override", prompt_override),
+    ]
+
+    # Assemble with budget enforcement
+    assembled = []
+    total_chars = 0
+    for label, section in _sections:
+        if not section:
+            continue
+        section_len = len(section)
+        if total_chars + section_len > MAX_CONTEXT_CHARS:
+            # Over budget — truncate or skip lower-priority sections
+            remaining = MAX_CONTEXT_CHARS - total_chars
+            if remaining > 200 and label in ("style", "recalling", "rag"):
+                # Critical sections: truncate rather than skip
+                assembled.append(section[:remaining])
+                total_chars += remaining
+                logger.debug("[CONTEXT] Truncated %s: %d→%d chars", label, section_len, remaining)
+            else:
+                logger.debug("[CONTEXT] Skipped %s (%d chars) — over budget", label, section_len)
+                cognitive_metadata[f"context_skipped_{label}"] = section_len
+            continue
+        assembled.append(section)
+        total_chars += section_len
+
+    combined_context = "\n\n".join(assembled)
+    cognitive_metadata["context_total_chars"] = total_chars
+    cognitive_metadata["context_sections"] = len(assembled)
     # A1: Skip products for friends to avoid LLM injecting sales language
     prompt_products = [] if is_friend else agent.products
     system_prompt = agent.prompt_builder.build_system_prompt(
