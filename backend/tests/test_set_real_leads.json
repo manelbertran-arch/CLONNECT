@@ -672,6 +672,311 @@
         }
       ],
       "msg_count": 407
+    },
+    {
+      "id": "real_016",
+      "lead_id": "3fc6ed83-5f1e-42a7-bac7-ec56b1ce0f33",
+      "test_input": "Reinaaaa, passam número de la teva secretaría millor😘😅 i em reservo un parell de reformer",
+      "ground_truth": "Amorrr, ja te'n passo el número 😘 Ja et reservo!",
+      "type": "booking_reformer",
+      "language": "ca",
+      "username": "wa_34689479599",
+      "platform": "whatsapp",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Wowww"
+        },
+        {
+          "role": "assistant",
+          "content": "Wowww"
+        },
+        {
+          "role": "user",
+          "content": "Reinaaa com estás??encara espero la nota de veu🤣😘😍😘😍"
+        },
+        {
+          "role": "user",
+          "content": "Quins dies estarás per Segur??mmhh"
+        },
+        {
+          "role": "user",
+          "content": "[🎤 Audio]: Hola, reina! Encara no has fet la nota de veu, eh? Ostres, t'he abandonat. Has acabat millor aquesta setmana o què? Jo estic de camí de Zurich a Múnic, una altra vegada. Ha sigut divertit avui, m'han posat el fill del Federer, l'he entrenat una horeta. Digue'm cosetes, si no et truco en 5"
+        },
+        {
+          "role": "assistant",
+          "content": "Amor, perdona que no he podido mandarte la nota de voz. 😘 Estoy a mil, pero me encanta que estés entrenando al hijo de Federer, ¡qué crack!"
+        },
+        {
+          "role": "user",
+          "content": "Amorrrr com estás??donam appointment per trucarte 2 min ,1 setmana de marge🤣😘😘😘"
+        },
+        {
+          "role": "assistant",
+          "content": "Hola amor  Estic bé, gràcies! Truca'm dimarts o dimecres, que estaré lliure."
+        },
+        {
+          "role": "user",
+          "content": "Reinaaaa com estás??😘😘q em tens preocupat"
+        },
+        {
+          "role": "user",
+          "content": "Vindre del 30 al 8 solet, quin día et guardes per mi?😍🥰😋"
+        },
+        {
+          "role": "user",
+          "content": "De cami a Zurich de nou😅"
+        },
+        {
+          "role": "user",
+          "content": "[🎤 Audio]: Què fas carinyo? No em tires ni un missatget. Que fort, el teu, eh? Em tens abandonadíssim? No, lo següent. Que fort. Digue'm alguna coseta per Setmana Santa, home. Calafell, igualada, estic totalment disponible. Aquesta vegada sí. Va. Amb una noteta de veu, home. Que les trobo a faltar. "
+        }
+      ],
+      "msg_count": 196
+    },
+    {
+      "id": "real_017",
+      "lead_id": "5ddefc2c-073e-40bf-92f4-fdb9b0d54bca",
+      "test_input": "Estan apuntats al campus i els haig de recollir a les 2",
+      "ground_truth": "Diumenge quan faci agenda et dic🩷",
+      "type": "schedule_conflict",
+      "language": "ca",
+      "username": "wa_34619709161",
+      "platform": "whatsapp",
+      "turns": [
+        {
+          "role": "user",
+          "content": "encantada de venir dues vegades a la setmana que ve"
+        },
+        {
+          "role": "user",
+          "content": "Cuida’t molt carinyo si et puc ajudar amb algú diguem-ho"
+        },
+        {
+          "role": "user",
+          "content": "Gràcies per pensar amb mi i poder-ne donat dos dies la setmana que ve"
+        },
+        {
+          "role": "user",
+          "content": "Ja em diràs quins dies"
+        },
+        {
+          "role": "user",
+          "content": "Suposo que el dimarts i l’altre ja em diràs quin"
+        },
+        {
+          "role": "user",
+          "content": "L’únic que tindria que ser a primera hora tant el dimarts com el dia que em donguis perquè a 2.00 haig d’estar a Barcelona a recollir els nens de la Maria"
+        },
+        {
+          "role": "user",
+          "content": "Estan apuntats al campus i els haig de recollir a 2.00"
+        },
+        {
+          "role": "user",
+          "content": "Quan els acabi de treballar es recolliran i ja vindré cap a castellolí"
+        },
+        {
+          "role": "user",
+          "content": "Digam si em pots adelantar l’hora del dimarts i quin altre dia em pots agafar dora. Gràcies"
+        },
+        {
+          "role": "assistant",
+          "content": "Diumenge quan faci agenda et dic🩷"
+        },
+        {
+          "role": "assistant",
+          "content": "Diumenge quan faci agenda et dic🩷"
+        },
+        {
+          "role": "user",
+          "content": "Genial carinyo"
+        }
+      ],
+      "msg_count": 237
+    },
+    {
+      "id": "real_018",
+      "lead_id": "2ac6d87a-4544-433b-b280-e798c3071b62",
+      "test_input": "Bon dia guapa!! Avui no podré venir a barre",
+      "ground_truth": "Tranqui tio",
+      "type": "class_cancel",
+      "language": "ca",
+      "username": "wa_34660659802",
+      "platform": "whatsapp",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Ok🩷 divendres no podem fer classe😘"
+        },
+        {
+          "role": "assistant",
+          "content": "No hi soc"
+        },
+        {
+          "role": "assistant",
+          "content": "No hi soc"
+        },
+        {
+          "role": "user",
+          "content": "En principi si tot i que em fa mal el turmell🤷🏻‍♀️ a veure com estic demà"
+        },
+        {
+          "role": "assistant",
+          "content": "Pel mati"
+        },
+        {
+          "role": "assistant",
+          "content": "Oka"
+        },
+        {
+          "role": "assistant",
+          "content": "Oka"
+        },
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        },
+        {
+          "role": "assistant",
+          "content": "I mira la targeta flower power i ja em dius"
+        },
+        {
+          "role": "assistant",
+          "content": "O si marxes ja aquest finde que no m’enrecordo que em vas dir🙏🏽"
+        },
+        {
+          "role": "assistant",
+          "content": "Diga’m la setmana que vé si estàs x aqui"
+        },
+        {
+          "role": "assistant",
+          "content": "Dijous conto que vens a barre"
+        }
+      ],
+      "msg_count": 180
+    },
+    {
+      "id": "real_019",
+      "lead_id": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "test_input": "Pues yo te pago clase privada mamasita",
+      "ground_truth": "Claro",
+      "type": "booking_private",
+      "language": "es",
+      "username": "èrica ✨",
+      "platform": "whatsapp",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Hombre, yo creo que sí, tía, va a ser una gastroenteritis. , le he cogido la cagalera porque se intoxicó. Pero ya va a decir que estaba mejor el endemá. Tía, es el último concert de Madrid, . Es que además lo ha hecho tan bien, porque así el viernes tengo fiesta, tía. ¿Sabes? Y no pierdo trabajo. , "
+        },
+        {
+          "role": "user",
+          "content": "QUE GUAYYYYYY MENCANTAAAAA"
+        },
+        {
+          "role": "user",
+          "content": "[🎤 Audio]: Que la Rosalía se ponga buena, que está enferma. No sé si has visto que la de Francia va a haber de salir un concierto, tío. Digo yo que ya estará buena el dijous."
+        },
+        {
+          "role": "user",
+          "content": "Claro q si a xuparla todo viva rosalia"
+        },
+        {
+          "role": "user",
+          "content": "Home llavors haura destar be digo yo"
+        },
+        {
+          "role": "user",
+          "content": "Que be tia"
+        },
+        {
+          "role": "user",
+          "content": "Vas a llorar seguro"
+        },
+        {
+          "role": "user",
+          "content": "Esq es pedazo de gira esta"
+        },
+        {
+          "role": "assistant",
+          "content": "Hombre, yo creo que sí, tía, va a ser una gastroenteritis. , le he cogido la cagalera porque se intoxicó. Pero ya va a decir que estaba mejor el endemá. Tía, es el último concert de Madrid, . Es que además lo ha hecho tan bien, porque así el viernes tengo fiesta, tía. ¿Sabes? Y no pierdo trabajo. , "
+        },
+        {
+          "role": "user",
+          "content": "Esq total es increible el poder q tens"
+        },
+        {
+          "role": "user",
+          "content": "Bueno esq tens un entorn brutal"
+        },
+        {
+          "role": "user",
+          "content": "Men alegro molt q thagi agradat el video"
+        }
+      ],
+      "msg_count": 3928
+    },
+    {
+      "id": "real_020",
+      "lead_id": "0e386e03-79fe-44e7-93da-793239bbc828",
+      "test_input": "Siiii me apuntaste a la clase de mañana?",
+      "ground_truth": "Te apunte en la mañana🤣🤣🤣",
+      "type": "booking_confirm",
+      "language": "es",
+      "username": "+34638287533",
+      "platform": "whatsapp",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Estoy con Edu que me ha dicho que mañana te ibas."
+        },
+        {
+          "role": "assistant",
+          "content": "Ya me dices que sino ensayaré esta noche"
+        },
+        {
+          "role": "assistant",
+          "content": "Ciao pescao"
+        },
+        {
+          "role": "user",
+          "content": "Mañana noooo la semana que viene! Hoy he estado en el cole hasta las 17h que hacían festa familiar 😳"
+        },
+        {
+          "role": "assistant",
+          "content": "Piensa que viernes ya no estaré ok"
+        },
+        {
+          "role": "assistant",
+          "content": "Piensa que viernes ya no estaré ok"
+        },
+        {
+          "role": "assistant",
+          "content": "Y jueves x la tarde no hago clases en el gym"
+        },
+        {
+          "role": "user",
+          "content": "Lunes tienes algún hueco? Martes hay barre miércoles ya entreno y jueves a ver si alguien está de vacaciones y me coges  , con calma ya me dices"
+        },
+        {
+          "role": "assistant",
+          "content": "Es que me voy a madrid"
+        },
+        {
+          "role": "assistant",
+          "content": "Es que me voy a madrid"
+        },
+        {
+          "role": "assistant",
+          "content": "A las 12:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Le hago entreno a Alba y me piro"
+        }
+      ],
+      "msg_count": 599
     }
   ]
 }
