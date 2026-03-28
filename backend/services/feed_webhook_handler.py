@@ -7,7 +7,7 @@ webhook with field="feed". This module processes that event:
   2. Checks for dedup (post already in DB)
   3. Fetches full post details via Graph API
   4. Saves to instagram_posts + content_chunks
-  5. Generates embeddings and hydrates RAG
+  5. Generates contextual embeddings and hydrates RAG
 
 Runs as a background task (asyncio.create_task) so the webhook returns 200
 instantly (<2s) as required by Meta.
@@ -25,6 +25,14 @@ logger = logging.getLogger(__name__)
 
 # Graph API version for media queries
 GRAPH_API_VERSION = "v21.0"
+
+# Map IG media_type → content_chunks source_type
+_MEDIA_TYPE_MAP = {
+    "VIDEO": "video",
+    "CAROUSEL_ALBUM": "carousel",
+    "IMAGE": "instagram_post",
+    "REEL": "video",
+}
 
 
 async def process_feed_webhook(creator_info: Dict[str, Any], entry: dict):
@@ -137,6 +145,7 @@ async def _process_single_post(creator_info: Dict[str, Any], webhook_value: dict
         logger.error(f"[FEED-WEBHOOK] Failed to save post {post_id}: {e}")
 
     # Step 4: Create content chunk + save (only if caption has useful content)
+    source_type = _MEDIA_TYPE_MAP.get(media_type, "instagram_post")
     if caption and len(caption.strip()) > 50:
         try:
             from core.tone_profile_db import save_content_chunks_db
@@ -152,7 +161,7 @@ async def _process_single_post(creator_info: Dict[str, Any], webhook_value: dict
                 "chunk_id": chunk_id,
                 "creator_id": creator_id,
                 "content": caption,
-                "source_type": "instagram_post",
+                "source_type": source_type,
                 "source_id": post_id,
                 "source_url": permalink,
                 "title": first_line,
@@ -167,21 +176,15 @@ async def _process_single_post(creator_info: Dict[str, Any], webhook_value: dict
 
             saved_chunks = await save_content_chunks_db(creator_id, [chunk])
             logger.info(
-                f"[FEED-WEBHOOK] Saved {saved_chunks} content chunk(s) for post {post_id}"
+                f"[FEED-WEBHOOK] Saved {saved_chunks} {source_type} chunk(s) for post {post_id}"
             )
         except Exception as e:
             logger.error(f"[FEED-WEBHOOK] Failed to save chunk for {post_id}: {e}")
 
-    # Step 5: Generate embedding for the new chunk
+    # Step 5: Generate contextual embedding for the new chunk
     if caption and len(caption.strip()) > 50:
         try:
-            from services.content_refresh import _embed_new_chunks
-
-            embedded = await _embed_new_chunks(creator_id)
-            if embedded > 0:
-                logger.info(
-                    f"[FEED-WEBHOOK] Generated {embedded} embedding(s) for {creator_id}"
-                )
+            await _embed_chunk(creator_id, chunk_id, caption)
         except Exception as e:
             logger.warning(f"[FEED-WEBHOOK] Embedding failed for {post_id}: {e}")
 
@@ -262,3 +265,23 @@ async def _fetch_post_details(access_token: str, post_id: str) -> Optional[dict]
     except Exception as e:
         logger.error(f"[FEED-WEBHOOK] HTTP error fetching post {post_id}: {e}")
         return None
+
+
+async def _embed_chunk(creator_id: str, chunk_id: str, content: str):
+    """Generate embedding for a new chunk and store in pgvector."""
+    import asyncio
+
+    from core.embeddings import generate_embedding, store_embedding
+
+    embedding = await asyncio.to_thread(generate_embedding, content)
+    if not embedding:
+        logger.warning(f"[FEED-WEBHOOK] Failed to generate embedding for chunk {chunk_id}")
+        return
+
+    stored = await asyncio.to_thread(
+        store_embedding, chunk_id, creator_id, content, embedding
+    )
+    if stored:
+        logger.info(f"[FEED-WEBHOOK] Embedding stored for chunk {chunk_id}")
+    else:
+        logger.warning(f"[FEED-WEBHOOK] Failed to store embedding for chunk {chunk_id}")
