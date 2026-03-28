@@ -4,6 +4,48 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-03-28 — Adaptive max_tokens por categoría de mensaje
+
+**Problema:** max_tokens=100 fijo para todos los mensajes. Iris responde con 18 chars de mediana (p50) pero el techo fijo permite respuestas largas innecesarias que rompen su estilo ultra-breve.
+
+**Data minada:** 800 pares reales user→assistant de producción, categorizados por tipo de mensaje del lead.
+
+| Categoría | n | p50 chars | p75 chars | → max_tokens |
+|---|---|---|---|---|
+| short_affirmation | 18 | 21 | 54 | 40 |
+| greeting | 35 | 37 | 141 | 60 |
+| question | 256 | 46 | 133 | 60 |
+| booking_price | 90 | 35 | 146 | 70 |
+| short_casual | 197 | 66 | 145 | 60 |
+| long_message | 198 | 59 | 188 | 80 |
+| cancel | 6 | 20 | 56 | 50 |
+
+**Implementación:**
+- `text_utils.py`: `_classify_user_message()` + `get_adaptive_max_tokens()` — clasificador regex + lookup en calibration
+- `generation.py`: Reemplaza `max_tokens` estático con adaptive, logea categoría en `cognitive_metadata["max_tokens_category"]`
+- `calibrations/iris_bertran.json`: Añadido `adaptive_max_tokens` dict con valores p75/4 por categoría
+- Fallback: si no hay calibración, usa 100 (como antes)
+
+**Riesgo:** Bajo — solo reduce techo, no cambia temperatura ni prompt. ECHO adapter sigue overrideando si activo.
+
+---
+
+## 2026-03-28 — Universal RAG gate (dynamic keywords from content_chunks)
+
+**Problema:** El RAG gate tenía keywords hardcodeados de Iris (barre, pilates, reformer, zumba, heels, hipopresivos). Si se conecta un abogado, coach, o e-commerce, esos keywords no matchean sus productos.
+
+**Fix:** Keywords ahora se extraen dinámicamente de los `content_chunks` del creator en DB (source_types: product_catalog, faq, expertise, objection_handling, policies, knowledge_base). Se mantiene un set universal de keywords transaccionales (precio, horario, reserva, etc.) que funciona para cualquier vertical.
+
+**Implementación:**
+- `_get_creator_product_keywords(creator_id)` — query DB, extrae palabras significativas (≥4 chars, no stopwords), cachea per process lifetime
+- `_UNIVERSAL_PRODUCT_KEYWORDS` — 24 keywords transaccionales (ES/CA/EN)
+- Gate: `_all_product_kw = _UNIVERSAL_PRODUCT_KEYWORDS | _dynamic_kw`
+- Cache module-level `_creator_kw_cache` — sin TTL (reinicia con cada deploy)
+
+**Blast radius:** Solo `core/dm/phases/context.py`. Sin cambios en schema, RAG search, o embeddings.
+
+---
+
 ## 2026-03-28 — RAG pipeline optimizations (5 fixes, papers-backed)
 
 **Problema:** RAG inyectaba facts pero el LLM los ignoraba (temp 0.7 demasiado alta para factualidad). Top-K=3 limitaba recall. Chunks cortos y sin logging dificultaban iteración.

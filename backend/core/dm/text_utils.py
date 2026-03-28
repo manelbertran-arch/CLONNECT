@@ -6,12 +6,86 @@ Text utility functions for DM Agent V2.
 - Sentence-aware text truncation
 - Smart context truncation preserving recent conversation
 - Argentine voseo conversion
+- Adaptive max_tokens based on message category
 """
 
 import re
 import unicodedata
+from typing import Optional
 
 from services.intent_service import Intent
+
+
+# =============================================================================
+# ADAPTIVE MAX TOKENS — calibrated from real creator response patterns
+# =============================================================================
+
+# Regex classifiers mirror the SQL categories used in mining
+_GREETING_RE = re.compile(r"^(hola|hey|hi|bon dia|buenas|ey|ei|holi|holaa?)$", re.IGNORECASE)
+_BOOKING_PRICE_RE = re.compile(
+    r"(precio|cost[ao]?s?\b|cuesta|tarifa|preu|quant costa|cuanto vale|cuanto cuesta|reserv|book|cita\b|horari|dispo)",
+    re.IGNORECASE,
+)
+_CANCEL_RE = re.compile(
+    r"(cancel|anul|devoluc|reembols|no puedo|no puc)", re.IGNORECASE
+)
+_QUESTION_RE = re.compile(
+    r"(\?|que |qué |como |cómo |cuando |cuándo |donde |dónde |quien |quién |cual |cuál |per que|com )",
+    re.IGNORECASE,
+)
+_SHORT_AFFIRM_RE = re.compile(
+    r"^(si+|ok+|vale|bien|genial|perfecto|gracias|gràcies|d acord|sí+|claro|ya|jaja)",
+    re.IGNORECASE,
+)
+
+
+def _classify_user_message(message: str) -> str:
+    """Classify a user message into a response-length category."""
+    msg = message.strip()
+    msg_len = len(msg)
+
+    if msg_len <= 5 or _GREETING_RE.match(msg):
+        return "greeting"
+    if _BOOKING_PRICE_RE.search(msg):
+        return "booking_price"
+    if _CANCEL_RE.search(msg):
+        return "cancel"
+    if _QUESTION_RE.search(msg):
+        return "question"
+    if msg_len <= 15 and _SHORT_AFFIRM_RE.match(msg):
+        return "short_affirmation"
+    if msg_len <= 20:
+        return "short_casual"
+    return "long_message"
+
+
+def get_adaptive_max_tokens(
+    message: str,
+    calibration: Optional[dict] = None,
+    fallback: int = 100,
+) -> int:
+    """Return max_tokens calibrated to the user message category.
+
+    Reads from calibration["adaptive_max_tokens"] (mined from real data).
+    Falls back to calibration["baseline"]["max_tokens"] or hardcoded default.
+
+    Args:
+        message: The user's incoming message text
+        calibration: Creator calibration dict (from calibrations/{slug}.json)
+        fallback: Fallback max_tokens if no calibration available
+
+    Returns:
+        int max_tokens value
+    """
+    if not calibration:
+        return fallback
+
+    adaptive = calibration.get("adaptive_max_tokens")
+    if not adaptive:
+        return int(calibration.get("baseline", {}).get("max_tokens", fallback))
+
+    category = _classify_user_message(message)
+    return int(adaptive.get(category, adaptive.get("default", fallback)))
 
 # =============================================================================
 # PRODUCT NAME MATCHING (fuzzy, accent-insensitive)

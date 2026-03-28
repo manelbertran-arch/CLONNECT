@@ -11,6 +11,17 @@
     "temperature": 0.8,
     "max_tokens": 100
   },
+  "adaptive_max_tokens": {
+    "_source": "Mined from 800 real response pairs (2026-03-28). Values = p75 in chars / 4 rounded up.",
+    "short_affirmation": 40,
+    "greeting": 60,
+    "question": 60,
+    "booking_price": 70,
+    "short_casual": 60,
+    "long_message": 80,
+    "cancel": 50,
+    "default": 60
+  },
   "inject_emojis": [
     "😂",
     "🫠",

@@ -9,7 +9,11 @@ from typing import Dict
 from core.agent_config import AGENT_THRESHOLDS
 from core.dm.models import ContextBundle
 from core.dm.strategy import _determine_response_strategy
-from core.dm.text_utils import _smart_truncate_context
+from core.dm.text_utils import (
+    _classify_user_message,
+    _smart_truncate_context,
+    get_adaptive_max_tokens,
+)
 from core.reasoning.self_consistency import get_self_consistency_validator
 from services import LLMResponse
 
@@ -288,14 +292,16 @@ async def phase_llm_generation(
         cognitive_metadata["best_of_n"] = serialize_candidates(best_of_n_result)
     else:
         # A4/A5: generate_dm_response returns dict with model/provider/latency
-        # Priority: ECHO adapter (highest) > calibration baseline > hardcoded default
-        _llm_max_tokens = 100   # conservative default (was 150 — too permissive)
+        # Priority: ECHO adapter (highest) > adaptive calibration > calibration baseline > hardcoded default
         _llm_temperature = 0.7  # universal default
         _cal_baseline = (agent.calibration or {}).get("baseline", {}) if agent.calibration else {}
         if _cal_baseline.get("temperature") is not None:
             _llm_temperature = float(_cal_baseline["temperature"])
-        if _cal_baseline.get("max_tokens") is not None:
-            _llm_max_tokens = int(_cal_baseline["max_tokens"])
+        # Adaptive max_tokens: category-aware ceiling from mined production data
+        _llm_max_tokens = get_adaptive_max_tokens(message, agent.calibration, fallback=100)
+        _msg_category = _classify_user_message(message) if agent.calibration and agent.calibration.get("adaptive_max_tokens") else "static"
+        cognitive_metadata["max_tokens_category"] = _msg_category
+        logger.info(f"[ADAPTIVE-TOKENS] category={_msg_category} max_tokens={_llm_max_tokens}")
         if _echo_rel_ctx:
             _llm_max_tokens = _echo_rel_ctx.llm_max_tokens
             _llm_temperature = _echo_rel_ctx.llm_temperature
