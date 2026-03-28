@@ -555,12 +555,14 @@ def register_startup_handlers(app: "FastAPI"):
 
         scheduler.register("gold_examples", _gold_examples_job, interval_seconds=43200, initial_delay_seconds=570)
 
-        # JOB 21: CloneScore daily evaluation (24h, 600s delay, ENABLE_CLONE_SCORE_EVAL)
+        # JOB 21: CloneScore daily evaluation (24h, 3600s delay, ENABLE_CLONE_SCORE_EVAL)
         async def _clone_score_daily_job():
             enable = os.getenv("ENABLE_CLONE_SCORE_EVAL", "false").lower() == "true"
             if not enable:
                 logger.debug("[CLONE_SCORE] Disabled via ENABLE_CLONE_SCORE_EVAL, skipping")
                 return
+            from sqlalchemy import text as sa_text
+
             from api.models import Creator
             from services.clone_score_engine import get_clone_score_engine
 
@@ -577,11 +579,30 @@ def register_startup_handlers(app: "FastAPI"):
 
             engine = get_clone_score_engine()
             for creator_db_id, creator_name in creators:
+                # Dedup: skip if already evaluated today (survives redeploys)
+                _cs = SessionLocal()
+                try:
+                    today_count = _cs.execute(
+                        sa_text(
+                            "SELECT COUNT(*) FROM clone_score_evaluations "
+                            "WHERE creator_id = :cid AND DATE(created_at) = CURRENT_DATE"
+                        ),
+                        {"cid": str(creator_db_id)},
+                    ).scalar() or 0
+                except Exception:
+                    today_count = 0
+                finally:
+                    _cs.close()
+
+                if today_count > 0:
+                    logger.debug(f"[CLONE_SCORE] {creator_name} already evaluated today, skipping")
+                    continue
+
                 try:
                     result = await engine.evaluate_batch(
                         creator_id=creator_name,
                         creator_db_id=creator_db_id,
-                        sample_size=50,
+                        sample_size=20,
                     )
                     if result.get("overall_score"):
                         logger.info(

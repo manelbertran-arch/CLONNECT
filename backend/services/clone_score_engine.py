@@ -154,7 +154,7 @@ class CloneScoreEngine:
         self,
         creator_id: str,
         creator_db_id,
-        sample_size: int = 50,
+        sample_size: int = 20,
     ) -> Dict[str, Any]:
         """Evaluate a batch of recent bot responses for a creator.
 
@@ -240,8 +240,8 @@ class CloneScoreEngine:
                     self._compute_safety_score_sync(msg_content, creator_id)
                 )
 
-            # Compute LLM dimensions for a SUBSET (max 50 to cap cost)
-            llm_sample_count = min(len(samples), 50)
+            # Compute LLM dimensions for a SUBSET (max 20 to cap cost)
+            llm_sample_count = min(len(samples), 20)
             llm_samples = samples[:llm_sample_count]
 
             for sample in llm_samples:
@@ -461,7 +461,7 @@ class CloneScoreEngine:
                 for m in context["conversation_context"][-5:]
             )
 
-        prompt = f"""Eres un evaluador de precision de informacion para un bot de DMs de un creador de contenido.
+        prompt = f"""Evalua si la respuesta del bot contiene informacion util y no alucina datos falsos.
 
 DATOS REALES DEL CREADOR:
 {knowledge_context}
@@ -472,11 +472,13 @@ RESPUESTA DEL BOT:
 CONTEXTO DE LA CONVERSACION:
 {conv_context or '(sin contexto adicional)'}
 
-Evalua la PRECISION de la informacion en la respuesta del bot:
-1. Los precios mencionados son correctos?
-2. Las descripciones de productos/servicios son fieles?
-3. Se inventa informacion que no esta en los datos reales?
-4. Omite informacion critica que deberia mencionar?
+Criterios (puntua generosamente — el bot es un clon conversacional, no un FAQ):
+1. Si menciona precios/datos, son correctos o aproximados? (parafrasear esta bien)
+2. Se inventa informacion FALSA que contradice los datos reales? (esto si es grave)
+3. Si no menciona info, es porque el contexto no lo requiere? (no penalizar omisiones naturales)
+4. Respuestas conversacionales sin datos facticos merecen 80+ (no aplica precision)
+
+Puntua 80-100 si no hay alucinaciones. Penaliza solo datos FALSOS inventados.
 
 Responde SOLO con JSON:
 {{

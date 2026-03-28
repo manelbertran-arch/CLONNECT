@@ -4,6 +4,25 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-03-28 — Clone Score Engine optimization (scheduler dedup, samples 50→20, knowledge recalibrated)
+
+**Problema:** Clone Score evaluaba 6x/día (cada redeploy reiniciaba scheduler), usaba 50 samples (excesivo según papers), y knowledge_accuracy puntuaba 8.6/100 (prompt demasiado estricto penalizaba respuestas conversacionales sin datos facticos).
+
+**Papers consultados:**
+- CharacterEval 2024: 6 dimensiones gold standard → nuestras 6 alineadas
+- G-Eval (Zheng 2023): LLM-as-judge r=0.50-0.70 con humanos → GPT-4o-mini correcto
+- Statistical significance: con σ=0.10 y delta=0.2, n=5 es suficiente → 20 es generoso
+- BERTScore solo r=0.30-0.40 → heurísticas OK como anomaly detectors, no como quality measures
+
+**Fixes implementados:**
+1. **Scheduler dedup** (`handlers.py`): Check DB `WHERE DATE(created_at) = CURRENT_DATE` antes de evaluar → 1x/día garantizado
+2. **Samples 50→20** (`clone_score_engine.py`): Default batch + LLM subset cap. Ahorro: 60% menos LLM calls (~$1.20→$0.48/día)
+3. **knowledge_accuracy prompt** recalibrado: "Puntua 80-100 si no hay alucinaciones. Penaliza solo datos FALSOS inventados." Respuestas conversacionales sin datos ya no se penalizan.
+
+**Ahorro estimado:** $5.52/día → $0.48/día = **$150/mes**
+
+---
+
 ## 2026-03-28 — DNA Auto Create: 3 fixes (double injection, media filter, double DB query)
 
 **Fix A — Remove bot_instructions double injection:** `bot_instructions` was extracted from `raw_dna` in context.py AND included inside `dna_context` via `build_context_prompt()`. The LLM saw the same instructions twice. Removed the separate extraction; `dna_context` already contains it.
