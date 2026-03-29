@@ -1,0 +1,65 @@
+{
+  "creator": "iris_bertran",
+  "model": "gpt-4o-mini",
+  "messages_analyzed": 200,
+  "n_batches": 10,
+  "batch_size": 20,
+  "scores": {
+    "O": 3.55,
+    "C": 3.1,
+    "E": 4.4,
+    "A": 4.0,
+    "N": 2.8
+  },
+  "scores_detailed": {
+    "O": {
+      "mean": 3.55,
+      "std": 0.16,
+      "min": 3.5,
+      "max": 4.0,
+      "n_batches": 10
+    },
+    "C": {
+      "mean": 3.1,
+      "std": 0.39,
+      "min": 2.5,
+      "max": 4.0,
+      "n_batches": 10
+    },
+    "E": {
+      "mean": 4.4,
+      "std": 0.21,
+      "min": 4.0,
+      "max": 4.5,
+      "n_batches": 10
+    },
+    "A": {
+      "mean": 4.0,
+      "std": 0.24,
+      "min": 3.5,
+      "max": 4.5,
+      "n_batches": 10
+    },
+    "N": {
+      "mean": 2.8,
+      "std": 0.42,
+      "min": 2.5,
+      "max": 3.5,
+      "n_batches": 10
+    }
+  },
+  "evidence": {
+    "O": "The use of emojis and casual language suggests creativity and a preference for variety.",
+    "C": "Messages show some organization and planning, but also a casual and flexible approach.",
+    "E": "The person is energetic and talkative, using humor and emojis to engage in conversation.",
+    "A": "The tone is friendly and cooperative, often checking in on others and offering help.",
+    "N": "The communication style is generally confident and light-hearted, with minimal signs of anxiety or moodiness."
+  },
+  "dimension_labels": {
+    "O": "Openness to Experience",
+    "C": "Conscientiousness",
+    "E": "Extraversion",
+    "A": "Agreeableness",
+    "N": "Neuroticism"
+  }
+}

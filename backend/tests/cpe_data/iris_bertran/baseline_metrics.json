@@ -1,0 +1,424 @@
+{
+  "creator": "iris_bertran",
+  "generated_at": "2026-03-29 18:45:03.439518+00:00",
+  "messages_analyzed": 500,
+  "metrics": {
+    "total_messages": 500,
+    "length": {
+      "char_mean": 95.2,
+      "char_median": 26.0,
+      "char_p25": 13,
+      "char_p50": 26,
+      "char_p75": 53,
+      "char_p90": 193,
+      "char_min": 3,
+      "char_max": 2092,
+      "word_mean": 18.9,
+      "word_median": 5.0
+    },
+    "emoji": {
+      "emoji_rate_pct": 22.6,
+      "avg_emoji_count": 0.71,
+      "top_20_emojis": [
+        [
+          "😂",
+          140
+        ],
+        [
+          "🤣",
+          43
+        ],
+        [
+          "😘",
+          37
+        ],
+        [
+          "💪",
+          19
+        ],
+        [
+          "🏾",
+          19
+        ],
+        [
+          "😮",
+          18
+        ],
+        [
+          "💨",
+          18
+        ],
+        [
+          "🙂",
+          15
+        ],
+        [
+          "🌈",
+          9
+        ],
+        [
+          "🥹",
+          8
+        ],
+        [
+          "😬",
+          6
+        ],
+        [
+          "🎬",
+          5
+        ],
+        [
+          "🙏",
+          4
+        ],
+        [
+          "🏽",
+          4
+        ],
+        [
+          "😪",
+          3
+        ],
+        [
+          "🤩",
+          3
+        ],
+        [
+          "🙄",
+          1
+        ],
+        [
+          "🌷",
+          1
+        ],
+        [
+          "🕊",
+          1
+        ],
+        [
+          "❤",
+          1
+        ]
+      ]
+    },
+    "punctuation": {
+      "question_rate_pct": 14.2,
+      "exclamation_rate_pct": 1.8,
+      "laugh_rate_pct": 2.0,
+      "ellipsis_rate_pct": 3.8,
+      "all_caps_rate_pct": 3.0
+    },
+    "languages": {
+      "detected": [
+        {
+          "lang": "ca",
+          "count": 177,
+          "pct": 43.5
+        },
+        {
+          "lang": "es",
+          "count": 114,
+          "pct": 28.0
+        },
+        {
+          "lang": "pt",
+          "count": 36,
+          "pct": 8.8
+        },
+        {
+          "lang": "fr",
+          "count": 17,
+          "pct": 4.2
+        },
+        {
+          "lang": "it",
+          "count": 11,
+          "pct": 2.7
+        }
+      ],
+      "total_detected": 407
+    },
+    "vocabulary": {
+      "top_50": [
+        [
+          "ja",
+          83
+        ],
+        [
+          "perquè",
+          64
+        ],
+        [
+          "sé",
+          64
+        ],
+        [
+          "bueno",
+          58
+        ],
+        [
+          "va",
+          51
+        ],
+        [
+          "però",
+          51
+        ],
+        [
+          "amb",
+          49
+        ],
+        [
+          "porque",
+          47
+        ],
+        [
+          "vale",
+          44
+        ],
+        [
+          "fer",
+          43
+        ],
+        [
+          "és",
+          43
+        ],
+        [
+          "jo",
+          42
+        ],
+        [
+          "ok",
+          38
+        ],
+        [
+          "demà",
+          36
+        ],
+        [
+          "els",
+          33
+        ],
+        [
+          "bé",
+          32
+        ],
+        [
+          "pero",
+          32
+        ],
+        [
+          "dijous",
+          32
+        ],
+        [
+          "per",
+          32
+        ],
+        [
+          "com",
+          30
+        ],
+        [
+          "tot",
+          30
+        ],
+        [
+          "albert",
+          30
+        ],
+        [
+          "què",
+          30
+        ],
+        [
+          "saps",
+          29
+        ],
+        [
+          "ara",
+          28
+        ],
+        [
+          "yo",
+          28
+        ],
+        [
+          "estic",
+          27
+        ],
+        [
+          "tia",
+          26
+        ],
+        [
+          "voy",
+          26
+        ],
+        [
+          "cuca",
+          26
+        ],
+        [
+          "vols",
+          24
+        ],
+        [
+          "res",
+          24
+        ],
+        [
+          "has",
+          24
+        ],
+        [
+          "como",
+          23
+        ],
+        [
+          "carinyo",
+          23
+        ],
+        [
+          "ni",
+          23
+        ],
+        [
+          "dia",
+          23
+        ],
+        [
+          "casa",
+          23
+        ],
+        [
+          "xk",
+          22
+        ],
+        [
+          "bien",
+          22
+        ],
+        [
+          "manel",
+          22
+        ],
+        [
+          "tio",
+          21
+        ],
+        [
+          "final",
+          21
+        ],
+        [
+          "està",
+          21
+        ],
+        [
+          "això",
+          21
+        ],
+        [
+          "vaig",
+          20
+        ],
+        [
+          "estoy",
+          20
+        ],
+        [
+          "tía",
+          20
+        ],
+        [
+          "així",
+          19
+        ],
+        [
+          "mama",
+          19
+        ]
+      ],
+      "unique_words": 1475,
+      "total_words": 5988
+    },
+    "greeting_patterns": {
+      "top_15_openers": [
+        [
+          "que",
+          18
+        ],
+        [
+          "si",
+          14
+        ],
+        [
+          "no",
+          13
+        ],
+        [
+          "a",
+          13
+        ],
+        [
+          "cuca",
+          12
+        ],
+        [
+          "i",
+          10
+        ],
+        [
+          "o",
+          10
+        ],
+        [
+          "es",
+          10
+        ],
+        [
+          "va",
+          8
+        ],
+        [
+          "pero",
+          7
+        ],
+        [
+          "xk",
+          7
+        ],
+        [
+          "vale",
+          7
+        ],
+        [
+          "ok",
+          7
+        ],
+        [
+          "tu",
+          6
+        ],
+        [
+          "clar",
+          6
+        ]
+      ]
+    },
+    "diversity": {
+      "type_token_ratio": 0.16,
+      "unique_types": 1525,
+      "total_tokens": 9519
+    },
+    "formality": {
+      "usted_pct": 0.0,
+      "tuteo_pct": 9.0,
+      "voseo_pct": 0.0,
+      "dominant": "tuteo"
+    }
+  }
+}
