@@ -116,17 +116,13 @@ async def phase_detection(
             logger.debug(f"Context detection failed: {e}")
 
     # Step 1c: Try pool response for simple messages (fast path)
+    # NOTE: product mentions are intentionally NOT used to block pool responses.
+    # All pool categories (cancel, confirmation, thanks, etc.) are social/conversational —
+    # none are purchase-related. Class names like "Barre" or "Zumba" are also product
+    # names in the DB, so the product guard incorrectly blocked class-cancel pool responses
+    # (e.g. "Avui no podré venir a barre" → pool should fire "Tranqui flor❤️").
     if hasattr(agent, "response_variator"):
-        msg_lower = message.lower()
-        mentions_product = False
-        if agent.products:
-            for p in agent.products:
-                pname = p.get("name") or ""
-                if pname and _message_mentions_product(pname, msg_lower):
-                    mentions_product = True
-                    break
-
-        if not mentions_product and len(message.strip()) <= 80:
+        if len(message.strip()) <= 80:
             from services.length_controller import classify_lead_context
             pool_context = classify_lead_context(message)
             conv_id = metadata.get("conversation_id", sender_id)

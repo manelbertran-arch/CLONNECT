@@ -18,6 +18,7 @@ def _determine_response_strategy(
     is_friend: bool,
     follower_interests: list,
     lead_stage: str,
+    history_len: int = 0,
 ) -> str:
     """Determine response strategy to inject as LLM guidance.
 
@@ -72,6 +73,21 @@ def _determine_response_strategy(
             "ESTRATEGIA: BIENVENIDA. Primer mensaje del usuario. "
             "Saluda brevemente y pregunta en qué puedes ayudar. "
             "NO hagas un saludo genérico largo."
+        )
+
+    # Priority 2b: Returning user with conversation history — prevent new-lead openers
+    # This fires when history is substantial enough to confirm a prior relationship.
+    # Prohibits "¿Que te llamó la atención?" / "Que t'ha cridat l'atenció?" patterns
+    # that the model uses by default for leads tagged as "nuevo" in the prompt.
+    if history_len >= 4 and not is_first_message:
+        return (
+            "ESTRATEGIA: RECURRENTE. Esta persona ya te conoce y tiene historial contigo. "
+            "REGLAS CRÍTICAS: "
+            "1) NO preguntes '¿Que te llamó la atención?' ni '¿Que t'ha cridat l'atenció?' ni variantes — NUNCA. "
+            "2) NO saludes como si fuera la primera vez. "
+            "3) Responde con naturalidad y espontaneidad usando el contexto de la conversación. "
+            "4) Muestra energía y personalidad de Iris: reacciona con entusiasmo o curiosidad según el contexto, "
+            "usa apelativos (nena, tia, flor, cuca, reina) — NUNCA la palabra 'flower'."
         )
 
     # Priority 3: Detect concrete help requests (returning users)
