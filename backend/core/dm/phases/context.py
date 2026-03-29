@@ -739,17 +739,18 @@ async def phase_memory_and_context(
                 )
                 logger.info("[QUESTION_CONTEXT] Injected: %s (conf=%.2f)", _q_ctx, _q_conf)
 
-    # Length hint — DISABLED (suspect in 8.30→7.23 regression).
-    # Was injecting "Responde ultra-breve" into Recalling block.
-    # TODO: re-enable after bisect confirms it's not the culprit.
-    # from core.dm.text_utils import get_length_hint
-    # _length_hint = get_length_hint(message)
-    # if _length_hint:
-    #     _context_notes_str = (
-    #         (_context_notes_str + "\n" + _length_hint)
-    #         if _context_notes_str else _length_hint
-    #     )
-    #     cognitive_metadata["length_hint_injected"] = _length_hint
+    # Length hint — data-driven from mined length_by_intent.json
+    try:
+        from core.dm.text_utils import get_data_driven_length_hint
+        _length_hint = get_data_driven_length_hint(message, agent.creator_id)
+        if _length_hint:
+            _context_notes_str = (
+                (_context_notes_str + "\n" + _length_hint)
+                if _context_notes_str else _length_hint
+            )
+            cognitive_metadata["length_hint_injected"] = _length_hint
+    except Exception as e:
+        logger.debug("Length hint failed: %s", e)
 
     # ECHO Engine: Generate relational context (Sprint 4)
     relational_block = ""

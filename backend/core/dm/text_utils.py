@@ -9,8 +9,10 @@ Text utility functions for DM Agent V2.
 - Adaptive max_tokens based on message category
 """
 
+import json
 import re
 import unicodedata
+from pathlib import Path
 from typing import Optional
 
 from services.intent_service import Intent
@@ -105,6 +107,60 @@ def get_length_hint(message: str) -> str:
     """
     category = _classify_user_message(message)
     return _LENGTH_HINTS.get(category, "")
+
+
+# =============================================================================
+# DATA-DRIVEN LENGTH HINTS — per-intent stats from mined DB data
+# =============================================================================
+
+_length_profile_cache: dict = {}
+
+
+def _load_length_profile(creator_id: str) -> dict:
+    """Load length_by_intent.json for creator, cached.
+    Falls back to baseline_metrics.json global stats."""
+    if creator_id in _length_profile_cache:
+        return _length_profile_cache[creator_id]
+    # Try length_by_intent.json first
+    path = Path("tests/cpe_data") / creator_id / "length_by_intent.json"
+    if path.exists():
+        with open(path) as f:
+            data = json.load(f)
+        _length_profile_cache[creator_id] = data
+        return data
+    # Fallback to baseline_metrics.json
+    baseline_path = Path("tests/cpe_data") / creator_id / "baseline_metrics.json"
+    if baseline_path.exists():
+        with open(baseline_path) as f:
+            bl = json.load(f)
+        length = bl.get("metrics", {}).get("length", {})
+        fallback = {"default": {
+            "p25": length.get("char_p25", 10),
+            "median": length.get("char_median", 26),
+            "p75": length.get("char_p75", 53),
+            "p90": length.get("char_p90", 100),
+            "count": 0,
+        }}
+        _length_profile_cache[creator_id] = fallback
+        return fallback
+    _length_profile_cache[creator_id] = {}
+    return {}
+
+
+def get_data_driven_length_hint(message: str, creator_id: str) -> str:
+    """Generate length hint from mined per-intent data.
+    Returns empty string if no data available."""
+    from services.length_controller import classify_lead_context
+    context = classify_lead_context(message)
+    profile = _load_length_profile(creator_id)
+    stats = profile.get(context, profile.get("default", {}))
+    if not stats or not stats.get("median"):
+        return ""
+    return (
+        f"LONGITUD para este mensaje: {stats['p25']}-{stats['p75']} caracteres "
+        f"(mediana {stats['median']}). Sé breve."
+    )
+
 
 # =============================================================================
 # PRODUCT NAME MATCHING (fuzzy, accent-insensitive)
