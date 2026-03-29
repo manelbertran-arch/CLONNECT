@@ -739,16 +739,17 @@ async def phase_memory_and_context(
                 )
                 logger.info("[QUESTION_CONTEXT] Injected: %s (conf=%.2f)", _q_ctx, _q_conf)
 
-    # Length hint — guide the model to generate the right length naturally
-    # instead of relying on max_tokens truncation (which cuts mid-sentence).
-    from core.dm.text_utils import get_length_hint
-    _length_hint = get_length_hint(message)
-    if _length_hint:
-        _context_notes_str = (
-            (_context_notes_str + "\n" + _length_hint)
-            if _context_notes_str else _length_hint
-        )
-        cognitive_metadata["length_hint_injected"] = _length_hint
+    # Length hint — DISABLED (suspect in 8.30→7.23 regression).
+    # Was injecting "Responde ultra-breve" into Recalling block.
+    # TODO: re-enable after bisect confirms it's not the culprit.
+    # from core.dm.text_utils import get_length_hint
+    # _length_hint = get_length_hint(message)
+    # if _length_hint:
+    #     _context_notes_str = (
+    #         (_context_notes_str + "\n" + _length_hint)
+    #         if _context_notes_str else _length_hint
+    #     )
+    #     cognitive_metadata["length_hint_injected"] = _length_hint
 
     # ECHO Engine: Generate relational context (Sprint 4)
     relational_block = ""
@@ -882,6 +883,13 @@ async def phase_memory_and_context(
             # Backfill metadata so earlier code (question context, relationship
             # detection, DNA seed) can use it on next invocation
             metadata["history"] = history
+
+    # Metadata fallback: use history passed by caller (e.g. test harness or
+    # webhook enriched context) when neither follower memory nor DB have it.
+    if not history:
+        history = metadata.get("history", [])
+        if history:
+            logger.debug(f"[HISTORY-META] Using {len(history)} messages from metadata for {sender_id}")
 
     _t1c = time.monotonic()
     logger.info(f"[TIMING] Phase 3 sub: fast_ops={int((_t1c - _t1b) * 1000)}ms")

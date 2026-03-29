@@ -24,11 +24,6 @@ logger = logging.getLogger(__name__)
 def _truncate_if_looping(text: str) -> tuple[bool, str]:
     """Detect and truncate character-level repetition loops.
 
-    Only scans substrings starting within the first 30 chars of the response.
-    Doom loops always start from the beginning (e.g. "JAJAJAJAJAJAJA...",
-    "Dale rey! Dale rey! Dale rey!..."). Mid-sentence phrase repetitions
-    at position > 30 are legitimate and should not be truncated.
-
     Returns (was_degenerate, cleaned_text).
     """
     if len(text) < 20:
@@ -93,10 +88,11 @@ async def phase_llm_generation(
         message=message,
         intent_value=intent_value,
         relationship_type="",  # Relationship scorer: zero injection into strategy
-        is_first_message=(follower.total_messages <= 1),
+        is_first_message=(follower.total_messages <= 1 and not history),
         is_friend=False,  # Product suppression only — never affects strategy text
         follower_interests=follower.interests,
         lead_stage=current_stage,
+        history_len=len(history),
     )
     if strategy_hint:
         cognitive_metadata["response_strategy"] = strategy_hint.split(".")[0]
@@ -287,14 +283,25 @@ async def phase_llm_generation(
         history_slice = history[-10:]
         while history_slice and history_slice[0].get("role") != "user":
             history_slice = history_slice[1:]
+        # Merge consecutive same-role messages (Gemini requires strict alternating turns)
+        deduped: list = []
         for msg in history_slice:
             role = msg.get("role", "user")
             content = msg.get("content", "")
-            if role in ("user", "assistant") and content:
-                # Truncate very long individual messages to control token spend
-                if len(content) > 600:
-                    content = content[:597] + "..."
-                llm_messages.append({"role": role, "content": content})
+            if role not in ("user", "assistant") or not content:
+                continue
+            if deduped and deduped[-1]["role"] == role:
+                # Append to previous turn; skip exact duplicates
+                if content != deduped[-1]["content"]:
+                    deduped[-1]["content"] += "\n" + content
+            else:
+                deduped.append({"role": role, "content": content})
+        for msg in deduped:
+            content = msg["content"]
+            # Truncate very long individual messages to control token spend
+            if len(content) > 600:
+                content = content[:597] + "..."
+            llm_messages.append({"role": msg["role"], "content": content})
     llm_messages.append({"role": "user", "content": full_prompt})
 
     # Best-of-N: generate 3 candidates at different temperatures (copilot only)
@@ -338,20 +345,9 @@ async def phase_llm_generation(
             _llm_max_tokens = _echo_rel_ctx.llm_max_tokens
             _llm_temperature = _echo_rel_ctx.llm_temperature
 
-        # Temperature dual: low for factual RAG responses, normal for personality.
-        # Papers: "set to 0.0-0.2 for high factuality" — we cap at 0.4 to keep
-        # some personality while respecting retrieved facts (prices, schedules).
-        _has_rag = bool(rag_context and len(rag_context) > 50)
-        if _has_rag:
-            _original_temp = _llm_temperature
-            _llm_temperature = min(_llm_temperature, 0.4)
-            if _llm_temperature < _original_temp:
-                logger.info(
-                    "[TEMP-DUAL] RAG active → temp %.2f → %.2f",
-                    _original_temp, _llm_temperature,
-                )
-                cognitive_metadata["temperature_reduced"] = True
-                cognitive_metadata["temperature_original"] = _original_temp
+        # Temperature dual — DISABLED (suspect in 8.30→7.23 regression).
+        # Was reducing temp to 0.4 when RAG active, killing personality.
+        # TODO: re-enable after bisect confirms it's not the culprit.
         cognitive_metadata["temperature_used"] = _llm_temperature
 
         llm_result = await generate_dm_response(
@@ -380,16 +376,18 @@ async def phase_llm_generation(
             prompt=full_prompt, system_prompt=system_prompt
         )
 
-    # Layer 2: Post-processing repetition loop detector.
-    # Catches degenerate outputs that slip through max_tokens truncation.
-    _loop_found, _clean_content = _truncate_if_looping(llm_response.content)
-    if _loop_found:
-        logger.warning(
-            "[LOOP-DETECTOR] Repetition truncated: %r -> %r",
-            llm_response.content[:80], _clean_content[:80],
-        )
-        llm_response.content = _clean_content
-        cognitive_metadata["loop_truncated"] = True
+    # Layer 2: Post-processing repetition loop detector — DISABLED.
+    # Suspect in 8.30→7.23 regression: MIN_SUB=10 too aggressive,
+    # catches normal phrases like "Buaaaaa tiaaaa" repeated naturally.
+    # TODO: re-enable with higher MIN_SUB after bisect.
+    # _loop_found, _clean_content = _truncate_if_looping(llm_response.content)
+    # if _loop_found:
+    #     logger.warning(
+    #         "[LOOP-DETECTOR] Repetition truncated: %r -> %r",
+    #         llm_response.content[:80], _clean_content[:80],
+    #     )
+    #     llm_response.content = _clean_content
+    #     cognitive_metadata["loop_truncated"] = True
 
     # Phase 4b: Self-consistency validation (expensive, default OFF)
     if ENABLE_SELF_CONSISTENCY:
