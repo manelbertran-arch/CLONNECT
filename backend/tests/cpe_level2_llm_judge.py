@@ -45,6 +45,9 @@ logger.setLevel(logging.INFO)
 
 DEFAULT_JUDGE_MODEL = "gpt-4o-mini"
 
+# Prometheus-compatible rubric templates (1-5 scale with score descriptions)
+_PROMETHEUS_RUBRICS = {}  # populated lazily
+
 
 # =========================================================================
 # RUBRICS (adapted from CharacterEval + PersonaGym, Prometheus 2 format)
@@ -254,6 +257,82 @@ def judge_single(client, model: str, dimension: str, rubric_info: dict,
         return {"dimension": dimension, "score": 0, "feedback": f"Error: {e}"}
 
 
+def _get_prometheus_judge(model_name: str = "gpt-4o-mini"):
+    """Initialize prometheus-eval PrometheusEval with LiteLLM backend.
+
+    Supports: 'gpt-4o-mini', 'gpt-4o', 'huggingface/prometheus-eval/prometheus-7b-v2.0',
+    or any LiteLLM-compatible model string.
+    """
+    from prometheus_eval.litellm import LiteLLM
+    from prometheus_eval import PrometheusEval
+    from prometheus_eval.prompts import ABSOLUTE_PROMPT as _PROM_ABS
+
+    model = LiteLLM(model_name)
+    return PrometheusEval(model=model, absolute_grade_template=_PROM_ABS)
+
+
+def _build_prometheus_rubric(dimension: str, rubric_info: dict) -> str:
+    """Convert our rubric dict to Prometheus SCORE_RUBRIC_TEMPLATE format."""
+    from prometheus_eval.prompts import SCORE_RUBRIC_TEMPLATE
+
+    # Parse Score N: descriptions from our rubric text
+    lines = rubric_info["rubric"].strip().split("\n")
+    criteria = lines[0].strip("[]") if lines else rubric_info["name"]
+    scores = {}
+    for line in lines[1:]:
+        m = re.match(r"Score (\d): (.+)", line.strip())
+        if m:
+            scores[int(m.group(1))] = m.group(2)
+
+    return SCORE_RUBRIC_TEMPLATE.format(
+        criteria=criteria,
+        score1_description=scores.get(1, "Poor"),
+        score2_description=scores.get(2, "Below average"),
+        score3_description=scores.get(3, "Average"),
+        score4_description=scores.get(4, "Good"),
+        score5_description=scores.get(5, "Excellent"),
+    )
+
+
+def judge_single_prometheus(prom_judge, dimension: str, rubric_info: dict,
+                            creator_name: str, creator_profile: str,
+                            conv: dict) -> dict:
+    """Evaluate one dimension using prometheus-eval library."""
+    turns = conv.get("turns", [])
+    history_str = ""
+    for t in turns[-6:]:
+        role = "Creator" if t.get("role") in ("iris", "assistant") else "Follower"
+        history_str += f"{role}: {t.get('content', '')}\n"
+
+    instruction = (
+        f"You are {creator_name}, a real person. A follower sent you: "
+        f"\"{conv.get('test_input', conv.get('lead_message', ''))}\"\n"
+        f"Context: {creator_profile[:800]}\n"
+        f"History: {history_str or '(none)'}"
+    )
+
+    rubric = _build_prometheus_rubric(dimension, rubric_info)
+
+    try:
+        feedbacks, scores = prom_judge.single_absolute_grade(
+            instruction=instruction,
+            response=conv.get("bot_response", ""),
+            reference_answer=conv.get("ground_truth", "(no reference)"),
+            rubric=rubric,
+        )
+        score = int(scores) if scores else 0
+        feedback = str(feedbacks)[:300] if feedbacks else ""
+
+        return {
+            "dimension": dimension,
+            "score": min(5, max(1, score)) if score else 0,
+            "feedback": feedback,
+        }
+    except Exception as e:
+        logger.warning(f"Prometheus judge error ({dimension}): {e}")
+        return {"dimension": dimension, "score": 0, "feedback": f"Error: {e}"}
+
+
 # =========================================================================
 # PIPELINE RUNNER (reuse from level 1)
 # =========================================================================
@@ -358,9 +437,28 @@ async def main():
     creator_name = creator.replace("_", " ").title()
     logger.info(f"Creator profile loaded: {len(creator_profile)} chars")
 
-    # Initialize judge
-    from openai import OpenAI
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    # Initialize judge — supports both OpenAI direct and prometheus-eval library
+    use_prometheus = args.judge_model.startswith("prometheus") or args.judge_model == "prometheus"
+    prom_judge = None
+    client = None
+
+    if use_prometheus:
+        # Map "prometheus" to the prometheus-eval library with GPT-4o-mini backend
+        # (Prometheus 7B not available on any API; library provides the rubric framework)
+        backend = "gpt-4o-mini"
+        if "/" in args.judge_model:
+            backend = args.judge_model
+        try:
+            prom_judge = _get_prometheus_judge(backend)
+            logger.info(f"Using prometheus-eval library with backend: {backend}")
+        except (ImportError, Exception) as e:
+            logger.warning(f"prometheus-eval unavailable ({e}), falling back to GPT-4o-mini")
+            use_prometheus = False
+            args.judge_model = "gpt-4o-mini"  # Override model for fallback
+
+    if not use_prometheus:
+        from openai import OpenAI
+        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
     # Evaluate each conversation across all 5 dimensions
     all_results = []
@@ -373,10 +471,16 @@ async def main():
 
         conv_scores = {}
         for dim_key, rubric_info in RUBRICS.items():
-            result = judge_single(
-                client, args.judge_model, dim_key, rubric_info,
-                creator_name, creator_profile, conv,
-            )
+            if use_prometheus and prom_judge:
+                result = judge_single_prometheus(
+                    prom_judge, dim_key, rubric_info,
+                    creator_name, creator_profile, conv,
+                )
+            else:
+                result = judge_single(
+                    client, args.judge_model, dim_key, rubric_info,
+                    creator_name, creator_profile, conv,
+                )
             conv_scores[dim_key] = result
             if result["score"] > 0:
                 dimension_scores[dim_key].append(result["score"])
