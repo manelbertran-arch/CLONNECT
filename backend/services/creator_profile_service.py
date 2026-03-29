@@ -121,6 +121,33 @@ def get_length_profile(creator_id: str) -> Optional[dict]:
     return get_profile(creator_id, "length_by_intent")
 
 
+def get_existing_types(creator_id: str) -> dict[str, str]:
+    """Return {profile_type: updated_at_iso} for all profiles of this creator."""
+    try:
+        from api.database import SessionLocal
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        try:
+            creator_uuid = _resolve_creator_uuid(session, creator_id)
+            if not creator_uuid:
+                return {}
+            rows = session.execute(
+                text("""
+                    SELECT profile_type, updated_at
+                    FROM creator_profiles
+                    WHERE creator_id = :cid
+                """),
+                {"cid": str(creator_uuid)},
+            ).fetchall()
+            return {r[0]: r[1].isoformat() if r[1] else "" for r in rows}
+        finally:
+            session.close()
+    except Exception as e:
+        logger.debug("get_existing_types(%s) failed: %s", creator_id, e)
+        return {}
+
+
 def clear_cache():
     """Clear the in-memory profile cache."""
     _profile_cache.clear()

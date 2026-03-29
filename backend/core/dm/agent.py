@@ -176,6 +176,15 @@ class DMResponderAgentV2:
         loaded_products = products or []
         style_prompt = ""
 
+        # Auto-provision profiles if missing (background, non-blocking)
+        try:
+            from services.creator_auto_provisioner import ensure_profiles
+            profiles_ready = ensure_profiles(creator_id)
+            if not profiles_ready:
+                logger.info("Profiles not ready for %s — using defaults, generating in background", creator_id)
+        except Exception as e:
+            logger.debug("Auto-provisioner unavailable: %s", e)
+
         # Load style prompt (writing patterns, DM style, tone profile)
         try:
             from services.creator_style_loader import get_creator_style_prompt
