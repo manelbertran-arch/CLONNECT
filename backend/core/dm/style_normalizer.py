@@ -114,9 +114,8 @@ def normalize_style(
         # Probability of KEEPING '!' = creator rate / 100
         keep_prob = excl_rate / 100.0
         if "!" in result and random.random() > keep_prob:
-            # Replace '!' but keep '?!' and '!!' (emphatic, rare)
-            # Only replace single trailing '!' at end of sentences
-            result = re.sub(r"(?<![!?])!(?![!])", ".", result)
+            # Replace ALL runs of '!' (!, !!, !!! etc.) — LLMs over-generate these
+            result = re.sub(r"!+", ".", result)
             # Clean up patterns like ".." from "word!." becoming "word.."
             result = re.sub(r"\.\.+", ".", result)
             # Remove ". " before emoji at end
