@@ -304,6 +304,18 @@ async def phase_postprocessing(
     except Exception as e:
         logger.debug(f"Length control failed: {e}")
 
+    # Step 7b2: Style normalization (emoji/exclamation matching from baseline)
+    try:
+        from core.dm.style_normalizer import normalize_style, ENABLE_STYLE_NORMALIZER
+        if ENABLE_STYLE_NORMALIZER:
+            _pre_norm = response_content
+            response_content = normalize_style(response_content, agent.creator_id)
+            if response_content != _pre_norm:
+                cognitive_metadata["style_normalized"] = True
+                logger.debug("Style normalized: '%s' → '%s'", _pre_norm[:40], response_content[:40])
+    except Exception as e:
+        logger.debug(f"Style normalization failed: {e}")
+
     # Step 7c: Format response for Instagram
     formatted_content = agent.instagram_service.format_message(response_content)
 

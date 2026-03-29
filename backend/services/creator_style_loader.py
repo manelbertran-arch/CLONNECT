@@ -13,17 +13,27 @@ Scalable for N creators - each can have their own patterns stored in DB.
 """
 
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+
+# When true, use compressed Doc D (~1.3K chars) from CPE baseline metrics
+# instead of the 38K personality extraction. Optimized for Qwen3-14B.
+USE_COMPRESSED_DOC_D = os.getenv("USE_COMPRESSED_DOC_D", "false").lower() in (
+    "true", "1", "yes",
+)
 
 
 def get_creator_style_prompt(creator_id: str) -> str:
     """
     Get the complete style prompt for a creator.
 
-    Priority: If a personality extraction (Doc D) exists, its system prompt
-    replaces all legacy sources (WritingPatterns, DMStyle, ToneProfile).
-    Otherwise falls back to the 3 legacy sources.
+    Priority:
+    0. Compressed Doc D (if USE_COMPRESSED_DOC_D=true) — ~1.3K chars,
+       built from CPE baseline metrics + BFI profile. For Qwen3-14B.
+    1. If a personality extraction (Doc D) exists, its system prompt
+       replaces all legacy sources (WritingPatterns, DMStyle, ToneProfile).
+    2. Otherwise falls back to the 3 legacy sources.
 
     Args:
         creator_id: Creator ID (e.g., 'stefano_bonanno')
@@ -31,6 +41,21 @@ def get_creator_style_prompt(creator_id: str) -> str:
     Returns:
         Formatted style prompt string, or empty string if no data
     """
+    # Priority 0: Compressed Doc D (CPE-optimized, ~1.3K chars)
+    if USE_COMPRESSED_DOC_D:
+        try:
+            from core.dm.compressed_doc_d import build_compressed_doc_d
+
+            compressed = build_compressed_doc_d(creator_id)
+            if compressed:
+                logger.info(
+                    "Using COMPRESSED Doc D for %s: %d chars",
+                    creator_id, len(compressed),
+                )
+                return compressed
+        except Exception as e:
+            logger.warning("Compressed Doc D failed for %s: %s", creator_id, e)
+
     # Priority 1: Personality extraction (Doc D §4.1) — replaces all legacy sources
     try:
         from core.personality_loader import load_extraction

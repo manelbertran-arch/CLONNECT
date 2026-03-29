@@ -1,0 +1,452 @@
+[
+  {
+    "id": "cpe_iris_b_001",
+    "input": "Con las ganas que tenia de hacer el nuevo combo😭",
+    "bot_response": "Ja, per què no? 😂",
+    "raw_response": "Ja, per què no? 😂",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_002",
+    "input": "Potser podria fer una classe d’hipopressius/estiraments?",
+    "bot_response": "Ja, és una bona idea. 🤣",
+    "raw_response": "Ja, és una bona idea! 🤣",
+    "ground_truth": "",
+    "category": "question",
+    "language": "ca"
+  },
+  {
+    "id": "cpe_iris_b_003",
+    "input": "[🎤 Audio]: Vas comprar alguna cosa o què? Jo ja m’he gastat el diner, he comprat uns shots i crec que m’agafaré un bikini, però bé, encara tinc que pensar. Todia gastada, todia gastant, mare mia. Que no et preocupis, reina, que jo era més que res que vaig pensar, joder, vaig anar a saludar a tothom i després a la que vol vi, que no estuve tant. Diu, ja no està, i jo ja està preguntant. I em van dir, no, si no l’he vist, de fet vaig preguntar a la gent i tot. I em va dir, no, si no, no ho sé. I jo, pues anar. I vaig pensar que si us anava a sopar, m’enganxava amb vosaltres, saps? Perquè m’estava morint de gana i no volia estar picutejant hamburgers i patates. Que jo quan fui no hi havia nada. Després va donar-hi tot. Llavors va ser quan m’ho vaig menjar allà encullent, sense el pan, perquè hi va gruten, sí, però me’l comí. I clar, la nena, quan va arribar a casa va tornar a menjar. Perquè, obviament, jo solo amb la burger i les patates, la veritat, m’he dava mit de passar gana. I jo, que no tenia que haver sopat perquè no he dormit tres.",
+    "bot_response": "Ja, jo també em gasto el diner sense pensar. El bikini sí que és bo, però no tinc cap pressa. Va, que et va anar bé?",
+    "raw_response": "Ja, jo també em gasto el diner sense pensar. El bikini sí que és bo, però no tinc cap pressa. Va, que et va anar bé?",
+    "ground_truth": "",
+    "category": "audio",
+    "language": "ca"
+  },
+  {
+    "id": "cpe_iris_b_004",
+    "input": "Sábado nada",
+    "bot_response": "Sábado nada? Ja, no és bo. Va, fes alguna cosa.",
+    "raw_response": "Sábado nada? Ja, no és bo. Va, fes alguna cosa.",
+    "ground_truth": "",
+    "category": "short_response",
+    "language": "pt"
+  },
+  {
+    "id": "cpe_iris_b_005",
+    "input": "Per la regla",
+    "bot_response": "Va, t’ho explico breument. La regla /no_think és perquè no vull que t’ho pensis massa. Vols que et digui res més?",
+    "raw_response": "Va, t’ho explico breument. La regla /no_think és perquè no vull que t’ho pensis massa. Vols que et digui res més?",
+    "ground_truth": "",
+    "category": "short_response",
+    "language": "ca"
+  },
+  {
+    "id": "cpe_iris_b_006",
+    "input": "😅😅 qué lindas",
+    "bot_response": "Gràcies. 😘",
+    "raw_response": "Gràcies! 😘",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "fr"
+  },
+  {
+    "id": "cpe_iris_b_007",
+    "input": "Me río de esto",
+    "bot_response": "Ja, és divertit",
+    "raw_response": "Ja, és divertit!",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_008",
+    "input": "🫵🏻🫵🏻🫵🏻🚀🚀🚀",
+    "bot_response": "Vale, ja t'entenc 😂",
+    "raw_response": "Vale, ja t'entenc 😂",
+    "ground_truth": "",
+    "category": "emoji_reaction",
+    "language": "unknown"
+  },
+  {
+    "id": "cpe_iris_b_009",
+    "input": "[Media/Attachment]",
+    "bot_response": "Ja veig. 😂",
+    "raw_response": "Ja veig! 😂",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "it"
+  },
+  {
+    "id": "cpe_iris_b_010",
+    "input": "Sent a voice message",
+    "bot_response": "Ja vaig a respondre. 😂",
+    "raw_response": "Ja vaig a respondre! 😂",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "fr"
+  },
+  {
+    "id": "cpe_iris_b_011",
+    "input": "Mentioned you in their story",
+    "bot_response": "Hola. 😂 Que bonito, gràcies",
+    "raw_response": "Hola! 😂 Que bonito, gràcies!",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "en"
+  },
+  {
+    "id": "cpe_iris_b_012",
+    "input": "[Media/Attachment]",
+    "bot_response": "A veure què tens ahí?",
+    "raw_response": "A veure què tens ahí?",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "it"
+  },
+  {
+    "id": "cpe_iris_b_013",
+    "input": "que ganas tengo de la clase hoy! \npara mí el baile siempre ha sido una vía de escape y de conectar conmigo, y tus clases son perfectas pa eso♥️",
+    "bot_response": "Ja, t'entenc. El baile és un bon escape, sí. Aprofitem-ho al màxim",
+    "raw_response": "Ja, t'entenc! El baile és un bon escape, sí. Aprofitem-ho al màxim!",
+    "ground_truth": "",
+    "category": "long_personal",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_014",
+    "input": "perfect!",
+    "bot_response": "Perfect. 😂",
+    "raw_response": "Perfect! 😂",
+    "ground_truth": "",
+    "category": "short_response",
+    "language": "ro"
+  },
+  {
+    "id": "cpe_iris_b_015",
+    "input": "yo me voy a dormir nenaaaa q nos adelantan una hora esta noche",
+    "bot_response": "Vale, descansa. 🛌",
+    "raw_response": "Vale, descansa! 🛌",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_016",
+    "input": "no me puedes dejar los domingos mami, tiene que estar mi booty a tope",
+    "bot_response": "Ja, ja, que no te vaya a pillar el booty en plan baja 😂",
+    "raw_response": "Ja, ja, que no te vaya a pillar el booty en plan baja 😂",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_017",
+    "input": "Sin azucar😂",
+    "bot_response": "Ja, entesos.",
+    "raw_response": "Ja, entesos.",
+    "ground_truth": "",
+    "category": "humor",
+    "language": "ro"
+  },
+  {
+    "id": "cpe_iris_b_018",
+    "input": "Ya me has comprado el mio? 🥰",
+    "bot_response": "Ja vaig a fer-ho avui. 😂",
+    "raw_response": "Ja vaig a fer-ho avui! 😂",
+    "ground_truth": "",
+    "category": "question",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_019",
+    "input": "Os dejo aquí el drive de “ralphie choo”, tenéis aquí todo lo relacionado con el módulo, vídeos de después de clase en buena calidad, tutoriales etc.\n\nhttps://drive.google.com/drive/folders/1XBnD1D5IhAA3uIRFWgDx3pyV7EEc2aV0?usp=sharing",
+    "bot_response": "Gràcies, el tinc. 😂",
+    "raw_response": "Gràcies, el tinc! 😂",
+    "ground_truth": "",
+    "category": "question",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_020",
+    "input": "Lo disfrutará igual",
+    "bot_response": "Ja, segur.",
+    "raw_response": "Ja, segur.",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_021",
+    "input": "[🏷️ Sticker]",
+    "bot_response": "Ja, que guai. 😂",
+    "raw_response": "Ja, que guai! 😂",
+    "ground_truth": "",
+    "category": "short_response",
+    "language": "de"
+  },
+  {
+    "id": "cpe_iris_b_022",
+    "input": "Reinaaaa,Passam número de la teva secretaría millor😘😅😘😅 i em reservo un parell de clases+dinaret o soparet 🎊🍾🤩",
+    "bot_response": "Ja vaig a fer-ho, t’ho digui avui mateix. 😘",
+    "raw_response": "Ja vaig a fer-ho, t’ho digui avui mateix. 😘",
+    "ground_truth": "",
+    "category": "booking",
+    "language": "ca"
+  },
+  {
+    "id": "cpe_iris_b_023",
+    "input": "Ok no pasa nada tu dime si puedes el lunes",
+    "bot_response": "Dime què dia i a quina hora.",
+    "raw_response": "Dime què dia i a quina hora.",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_024",
+    "input": "[audio]",
+    "bot_response": "No t'entens? 😂",
+    "raw_response": "No t'entens? 😂",
+    "ground_truth": "",
+    "category": "audio",
+    "language": "lt"
+  },
+  {
+    "id": "cpe_iris_b_025",
+    "input": "[reaction: ❤️]",
+    "bot_response": "Gràcies. 😘",
+    "raw_response": "Gràcies! 😘",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "en"
+  },
+  {
+    "id": "cpe_iris_b_026",
+    "input": "yes mami són molt maques totes",
+    "bot_response": "Gràcies. 😘",
+    "raw_response": "Gràcies! 😘",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "ca"
+  },
+  {
+    "id": "cpe_iris_b_027",
+    "input": "Mentioned you in their story",
+    "bot_response": "Hola. 😊 ¿Què passa?",
+    "raw_response": "Hola! 😊 ¿Què passa?",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "en"
+  },
+  {
+    "id": "cpe_iris_b_028",
+    "input": "tia al lado d mi cada literal o sea flipo",
+    "bot_response": "Ja, és massa. 😂",
+    "raw_response": "Ja, és massa! 😂",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_029",
+    "input": "espero que t’agradi",
+    "bot_response": "Gràcies, ja veuràs",
+    "raw_response": "Gràcies, ja veuràs!",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_030",
+    "input": "Mentioned you in their story",
+    "bot_response": "Vale, ja veig el story. 😘",
+    "raw_response": "Vale, ja veig el story. 😘",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "en"
+  },
+  {
+    "id": "cpe_iris_b_031",
+    "input": "Acuérdate que la puerta es la que está atrás de la cafetería. Plaza de Charlie Ribble 1. Piso 4A.",
+    "bot_response": "D’acord, tinc nota. Gràcies",
+    "raw_response": "D’acord, tinc nota. Gràcies!",
+    "ground_truth": "",
+    "category": "long_personal",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_032",
+    "input": "Verdades como templos",
+    "bot_response": "Ja, amb això t'has guanyat un lloc al meu top 5.",
+    "raw_response": "Ja, amb això t'has guanyat un lloc al meu top 5.",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "pt"
+  },
+  {
+    "id": "cpe_iris_b_033",
+    "input": "Tia llamammé luego eh!!!!",
+    "bot_response": "Tia, ja vaig a trucar. 😂",
+    "raw_response": "Tia, ja vaig a trucar! 😂",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_034",
+    "input": "Dijous no, marxo a Ullastret",
+    "bot_response": "Dijous no, marxo a Ullastret.",
+    "raw_response": "Dijous no, marxo a Ullastret.",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "pt"
+  },
+  {
+    "id": "cpe_iris_b_035",
+    "input": "[🎬 Video]",
+    "bot_response": "Vale, que video és?",
+    "raw_response": "Vale, que video és?",
+    "ground_truth": "",
+    "category": "short_response",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_036",
+    "input": "Shared a post",
+    "bot_response": "Ja veig el post. Què et sembla?",
+    "raw_response": "Ja veig el post! Què et sembla?",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "en"
+  },
+  {
+    "id": "cpe_iris_b_037",
+    "input": "Estimada Iris,\nle invitamos a descubrir los beneficios de la limpieza facial con HYDROFACIAL, un tratamiento avanzado que limpia, hidrata y revitaliza la piel en profundidad, aportando luminosidad y frescura desde la primera sesión.\n\nPromoción especial: 70€\n📅 Válida hasta el martes 31\n\nReserve su cita y disfrute de una piel más saludable y radiante.",
+    "bot_response": "Gràcies per la proposta, però no em sembla el meu tipus de tractament.",
+    "raw_response": "Gràcies per la proposta, però no em sembla el meu tipus de tractament.",
+    "ground_truth": "",
+    "category": "product_inquiry",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_038",
+    "input": "Okkkkki",
+    "bot_response": "Holas. 😂",
+    "raw_response": "Holas! 😂",
+    "ground_truth": "",
+    "category": "short_response",
+    "language": "fi"
+  },
+  {
+    "id": "cpe_iris_b_039",
+    "input": "Espero que no ho faci per nivell, que no. Perque tu estas molt per sobre de nivell, energia, tècnica…",
+    "bot_response": "Ja, però no em vull creure massa.",
+    "raw_response": "Ja, però no em vull creure massa.",
+    "ground_truth": "",
+    "category": "long_personal",
+    "language": "ca"
+  },
+  {
+    "id": "cpe_iris_b_040",
+    "input": "[Media/Attachment]",
+    "bot_response": "Bueno, que bonito. 😘",
+    "raw_response": "Bueno, que bonito! 😘",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "it"
+  },
+  {
+    "id": "cpe_iris_b_041",
+    "input": "Como natanja amarilla",
+    "bot_response": "Ja, natanja amarilla. Però, què vols saber?",
+    "raw_response": "Ja, natanja amarilla. Però, què vols saber?",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "sw"
+  },
+  {
+    "id": "cpe_iris_b_042",
+    "input": "Holaaaa",
+    "bot_response": "Hola. 😄",
+    "raw_response": "Hola! 😄",
+    "ground_truth": "",
+    "category": "greeting",
+    "language": "so"
+  },
+  {
+    "id": "cpe_iris_b_043",
+    "input": "[🎤 Audio]: Home, si fa bo, vés-te'n a la platja. Jo podré aniré a córrer a la muntanya i pararé de comptar, perquè després tenim una calçotada i així vaig preparada. Vinga, bona nit, descansa.",
+    "bot_response": "Ja, home, que t'ho passis bé. A la platja, ja veuràs. Bona nit.",
+    "raw_response": "Ja, home, que t'ho passis bé. A la platja, ja veuràs. Bona nit.",
+    "ground_truth": "",
+    "category": "audio",
+    "language": "ca"
+  },
+  {
+    "id": "cpe_iris_b_044",
+    "input": "Perfecte!!",
+    "bot_response": "Ja, molt bé! 😂",
+    "raw_response": "Ja, molt bé! 😂",
+    "ground_truth": "",
+    "category": "short_response",
+    "language": "ro"
+  },
+  {
+    "id": "cpe_iris_b_045",
+    "input": "Ooooo mi niña verdad ufffff todo el fin de semana fue  muy interesante ye todo como muy intenso \nLa sección es top  me gustó mucho ahora me falta la ultima etapa que es mandar mi vídeo para mí certificación \nMe tienes que echar una mano tengo que coger clases contigo 😛 \n\nYo hice online las de presencial estaban muertas ajajaja \n\n Ahora a practicar duro y parejo",
+    "bot_response": "Ja, ja, ja, qué fuerte.  \nTéngo que veure el vídeo.  \nPerò primer has de enviarlo.  \nVale, has de preparar-te.  \nNo t'espantis, ho fem pas a pas. 😘",
+    "raw_response": "Ja, ja, ja, qué fuerte!  \nTéngo que veure el vídeo.  \nPerò primer has de enviarlo.  \nVale, has de preparar-te.  \nNo t'espantis, ho fem pas a pas. 😘",
+    "ground_truth": "",
+    "category": "objection",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_046",
+    "input": "[sticker]",
+    "bot_response": "Ja. 😂",
+    "raw_response": "Ja! 😂",
+    "ground_truth": "",
+    "category": "short_response",
+    "language": "sv"
+  },
+  {
+    "id": "cpe_iris_b_047",
+    "input": "Perfecte, fins demà! 😘💖",
+    "bot_response": "Fins demà. 😘",
+    "raw_response": "Fins demà! 😘",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "ca"
+  },
+  {
+    "id": "cpe_iris_b_048",
+    "input": "[📷 Photo]",
+    "bot_response": "Que bonita foto. 😘",
+    "raw_response": "Que bonita foto! 😘",
+    "ground_truth": "",
+    "category": "short_response",
+    "language": "vi"
+  },
+  {
+    "id": "cpe_iris_b_049",
+    "input": "Esq es pedazo de gira esta",
+    "bot_response": "Ja, molt intensa.",
+    "raw_response": "Ja, molt intensa.",
+    "ground_truth": "",
+    "category": "casual",
+    "language": "es"
+  },
+  {
+    "id": "cpe_iris_b_050",
+    "input": "Val gràcies!",
+    "bot_response": "De res. 😘",
+    "raw_response": "De res! 😘",
+    "ground_truth": "",
+    "category": "thanks",
+    "language": "ca"
+  }
+]
