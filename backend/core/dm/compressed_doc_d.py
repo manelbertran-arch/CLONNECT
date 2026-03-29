@@ -56,6 +56,21 @@ def _load_json(path: str) -> Optional[dict]:
         return None
 
 
+def _load_profile_with_db_fallback(creator_id: str, profile_type: str, file_name: str) -> Optional[dict]:
+    """Load profile from DB first, then fall back to local file."""
+    # 1. Try DB
+    try:
+        from services.creator_profile_service import get_profile
+        db_data = get_profile(creator_id, profile_type)
+        if db_data:
+            return db_data
+    except Exception:
+        pass
+    # 2. Fallback: local file
+    path = Path("tests/cpe_data") / creator_id / file_name
+    return _load_json(str(path))
+
+
 def _get_creator_products(creator_id: str) -> str:
     """Get product list from DB."""
     try:
@@ -116,11 +131,9 @@ def build_compressed_doc_d(creator_id: str) -> str:
     Returns:
         Compressed Doc D string (~2-3K chars)
     """
-    cpe_dir = Path("tests/cpe_data") / creator_id
-
-    # Load data sources
-    baseline = _load_json(str(cpe_dir / "baseline_metrics.json"))
-    bfi = _load_json(str(cpe_dir / "bfi_profile.json"))
+    # Load data sources (DB first, then local file fallback)
+    baseline = _load_profile_with_db_fallback(creator_id, "baseline_metrics", "baseline_metrics.json")
+    bfi = _load_profile_with_db_fallback(creator_id, "bfi_profile", "bfi_profile.json")
 
     creator_name = _get_creator_display_name(creator_id)
     products_str = _get_creator_products(creator_id)

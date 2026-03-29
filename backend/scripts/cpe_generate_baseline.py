@@ -295,6 +295,16 @@ def main():
 
     print(f"\nSaved to {out_path}")
 
+    # Also save to DB for production access
+    try:
+        from services.creator_profile_service import save_profile
+        if save_profile(args.creator, "baseline_metrics", output):
+            print(f"✅ Saved to DB: {args.creator}/baseline_metrics")
+        else:
+            print(f"⚠️ DB save failed (creator not found?)")
+    except Exception as e:
+        print(f"⚠️ DB save skipped: {e}")
+
     # Summary
     m = metrics
     print(f"\n{'='*50}")

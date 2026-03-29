@@ -31,10 +31,22 @@ _baseline_cache: dict = {}
 
 
 def _load_baseline(creator_id: str) -> Optional[dict]:
-    """Load baseline metrics for creator, cached."""
+    """Load baseline metrics for creator, cached.
+    Priority: DB → local file → None."""
     if creator_id in _baseline_cache:
         return _baseline_cache[creator_id]
 
+    # 1. Try DB
+    try:
+        from services.creator_profile_service import get_baseline
+        db_data = get_baseline(creator_id)
+        if db_data:
+            _baseline_cache[creator_id] = db_data.get("metrics", db_data)
+            return _baseline_cache[creator_id]
+    except Exception:
+        pass
+
+    # 2. Fallback: local file
     path = Path("tests/cpe_data") / creator_id / "baseline_metrics.json"
     try:
         import json

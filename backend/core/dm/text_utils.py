@@ -117,22 +117,39 @@ _length_profile_cache: dict = {}
 
 
 def _load_length_profile(creator_id: str) -> dict:
-    """Load length_by_intent.json for creator, cached.
-    Falls back to baseline_metrics.json global stats."""
+    """Load length_by_intent for creator, cached.
+    Priority: DB → local file → baseline fallback → empty."""
     if creator_id in _length_profile_cache:
         return _length_profile_cache[creator_id]
-    # Try length_by_intent.json first
+    # 1. Try DB
+    try:
+        from services.creator_profile_service import get_length_profile
+        db_data = get_length_profile(creator_id)
+        if db_data:
+            _length_profile_cache[creator_id] = db_data
+            return db_data
+    except Exception:
+        pass
+    # 2. Fallback: local file
     path = Path("tests/cpe_data") / creator_id / "length_by_intent.json"
     if path.exists():
         with open(path) as f:
             data = json.load(f)
         _length_profile_cache[creator_id] = data
         return data
-    # Fallback to baseline_metrics.json
-    baseline_path = Path("tests/cpe_data") / creator_id / "baseline_metrics.json"
-    if baseline_path.exists():
-        with open(baseline_path) as f:
-            bl = json.load(f)
+    # 3. Fallback: baseline_metrics (DB then file)
+    bl = None
+    try:
+        from services.creator_profile_service import get_baseline
+        bl = get_baseline(creator_id)
+    except Exception:
+        pass
+    if not bl:
+        baseline_path = Path("tests/cpe_data") / creator_id / "baseline_metrics.json"
+        if baseline_path.exists():
+            with open(baseline_path) as f:
+                bl = json.load(f)
+    if bl:
         length = bl.get("metrics", {}).get("length", {})
         fallback = {"default": {
             "p25": length.get("char_p25", 10),

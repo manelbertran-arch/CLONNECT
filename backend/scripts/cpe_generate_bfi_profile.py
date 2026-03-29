@@ -230,6 +230,16 @@ def main():
 
     print(f"\nSaved to {out_path}")
 
+    # Also save to DB for production access
+    try:
+        from services.creator_profile_service import save_profile
+        if save_profile(args.creator, "bfi_profile", output):
+            print(f"✅ Saved to DB: {args.creator}/bfi_profile")
+        else:
+            print(f"⚠️ DB save failed (creator not found?)")
+    except Exception as e:
+        print(f"⚠️ DB save skipped: {e}")
+
     # Summary
     print(f"\n{'='*50}")
     print(f"BFI PROFILE: {args.creator}")

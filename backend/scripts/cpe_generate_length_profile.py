@@ -108,6 +108,16 @@ def main():
 
     print(f"\nSaved → {out_path}")
 
+    # Also save to DB for production access
+    try:
+        from services.creator_profile_service import save_profile
+        if save_profile(args.creator, "length_by_intent", profile):
+            print(f"✅ Saved to DB: {args.creator}/length_by_intent")
+        else:
+            print(f"⚠️ DB save failed (creator not found?)")
+    except Exception as e:
+        print(f"⚠️ DB save skipped: {e}")
+
 
 if __name__ == "__main__":
     main()
