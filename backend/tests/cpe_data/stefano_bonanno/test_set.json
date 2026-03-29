@@ -1,0 +1,2177 @@
+{
+  "metadata": {
+    "creator": "stefano_bonanno",
+    "generated_at": "2026-03-29T18:50:59.797108+00:00",
+    "n_cases": 50,
+    "period": "last 3 months",
+    "category_distribution": {
+      "casual": 23,
+      "short_response": 5,
+      "greeting": 1,
+      "audio": 7,
+      "long_personal": 5,
+      "question": 4,
+      "humor": 1,
+      "thanks": 2,
+      "objection": 1,
+      "booking": 1
+    },
+    "language_distribution": {
+      "it": 5,
+      "de": 1,
+      "en": 11,
+      "so": 1,
+      "es": 19,
+      "lt": 6,
+      "fi": 1,
+      "cy": 1,
+      "cs": 1,
+      "fr": 1,
+      "sv": 1,
+      "pt": 1,
+      "unknown": 1
+    },
+    "generator": "cpe_generate_test_set.py"
+  },
+  "conversations": [
+    {
+      "id": "cpe_stefan_001",
+      "test_input": "Dale un beso de mi parte",
+      "ground_truth": "Daleee! Un beso grande para vos también Nadia! 💙",
+      "category": "casual",
+      "language": "it",
+      "platform": "instagram",
+      "lead_username": "Nadia ✨",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "“Mi inconsciente quiere verte”, eso me llego hoy (lo pude poner en palabras jaja)"
+        },
+        {
+          "role": "user",
+          "content": "Lo más lindo que verás hoy. Ps: me babeo"
+        },
+        {
+          "role": "assistant",
+          "content": "Que lindo 🐘☺️"
+        },
+        {
+          "role": "assistant",
+          "content": "Cosas q no pasan en la city jaja 😂"
+        },
+        {
+          "role": "user",
+          "content": "Chi jaja"
+        },
+        {
+          "role": "assistant",
+          "content": "Hoy cumple 7 años"
+        },
+        {
+          "role": "user",
+          "content": "Jajaja que lindo pepito"
+        },
+        {
+          "role": "user",
+          "content": "Lindos!"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "e6babaf0-7df0-4e9e-8400-f6f5fb5d87cd",
+      "timestamp": "2026-02-19T11:45:34.019119+00:00"
+    },
+    {
+      "id": "cpe_stefan_002",
+      "test_input": "[image]",
+      "ground_truth": "Buen día!",
+      "category": "short_response",
+      "language": "de",
+      "platform": "instagram",
+      "lead_username": "+34613789118",
+      "turns": [
+        {
+          "role": "user",
+          "content": "hola!! sorry te he tenido en la cabeza pero no logre hablarte ayer! si manana en mi manana me queda bien! entre 9-12 como te va a ti ?"
+        },
+        {
+          "role": "assistant",
+          "content": "a las 11 me tengo que ir"
+        },
+        {
+          "role": "assistant",
+          "content": "asi que si puedes a las 10am perfecto"
+        },
+        {
+          "role": "user",
+          "content": "perfect te llamo manana!"
+        },
+        {
+          "role": "assistant",
+          "content": "Perfecto!!"
+        },
+        {
+          "role": "assistant",
+          "content": "Hasta mañana!!"
+        },
+        {
+          "role": "user",
+          "content": "[reaction: ❤️]"
+        },
+        {
+          "role": "user",
+          "content": "Hola hola! Me hago mi cacaito y te llamo"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "04ecc876-b250-4b32-9bef-335e46f62955",
+      "timestamp": "2026-02-19T09:00:32+00:00"
+    },
+    {
+      "id": "cpe_stefan_003",
+      "test_input": "Mentioned you in their story",
+      "ground_truth": "Poniéndolo en práctica 🧘🏽",
+      "category": "casual",
+      "language": "en",
+      "platform": "instagram",
+      "lead_username": "merchesg",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Muchas gracias 🙏🏽"
+        },
+        {
+          "role": "assistant",
+          "content": "Muchas gracias 🙏🏽"
+        },
+        {
+          "role": "user",
+          "content": "Mentioned you in their story"
+        },
+        {
+          "role": "user",
+          "content": "Mentioned you in their story"
+        },
+        {
+          "role": "assistant",
+          "content": "Muchas gracias 🙏🏽☺️"
+        },
+        {
+          "role": "assistant",
+          "content": "Muchas gracias 🙏🏽☺️"
+        },
+        {
+          "role": "user",
+          "content": "Mentioned you in their story"
+        },
+        {
+          "role": "assistant",
+          "content": "Daleeee ☺️"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "d1c33274-d103-4a8c-817d-e91fc0536e5f",
+      "timestamp": "2026-03-15T16:44:59+00:00"
+    },
+    {
+      "id": "cpe_stefan_004",
+      "test_input": "Holaaaa",
+      "ground_truth": "Hola!!!",
+      "category": "greeting",
+      "language": "so",
+      "platform": "instagram",
+      "lead_username": "Cristina | Consultora Digital",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Dale"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenos días para ti!!"
+        },
+        {
+          "role": "assistant",
+          "content": "Ya agende nuestra cita del miercoles a la tarde 🙂"
+        },
+        {
+          "role": "assistant",
+          "content": "Con ganas de verte!!!"
+        },
+        {
+          "role": "user",
+          "content": "Hola mi amor"
+        },
+        {
+          "role": "user",
+          "content": "Yo tambien la agenda ayer"
+        },
+        {
+          "role": "user",
+          "content": "La tengo echa fuego desde hace 2 semanas y así no se me pasaba"
+        },
+        {
+          "role": "assistant",
+          "content": "Perfectoooo ☺️☺️"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "79d2714c-7266-4614-b5c0-d29008591eb1",
+      "timestamp": "2026-02-18T16:19:07+00:00"
+    },
+    {
+      "id": "cpe_stefan_005",
+      "test_input": "Hola Stefano!! Me escribí a las 16:30 yo 😅",
+      "ground_truth": "no te llego un mail con la notificación?",
+      "category": "casual",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "+393319053254",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Hola Alex!"
+        },
+        {
+          "role": "assistant",
+          "content": "Cómo estás?"
+        },
+        {
+          "role": "assistant",
+          "content": "Teníamos sesión hoy a las 16!"
+        },
+        {
+          "role": "assistant",
+          "content": "Te acordabas?"
+        }
+      ],
+      "msg_count": 4,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "25682f1e-c832-4415-ad27-6fb2bc71a551",
+      "timestamp": "2026-02-19T15:13:21.224595+00:00"
+    },
+    {
+      "id": "cpe_stefan_006",
+      "test_input": "[audio]",
+      "ground_truth": "[audio]",
+      "category": "audio",
+      "language": "lt",
+      "platform": "instagram",
+      "lead_username": "Manel",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Test webhook Clonnect - si recibes esto, funciona correctamente"
+        },
+        {
+          "role": "assistant",
+          "content": "Hola!! Jajaja, 😊 ¿Qué te trajo por aquí? 😊"
+        },
+        {
+          "role": "user",
+          "content": "[video]"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        },
+        {
+          "role": "assistant",
+          "content": "hay productoooo??"
+        },
+        {
+          "role": "assistant",
+          "content": "vamoooo jajaja"
+        },
+        {
+          "role": "assistant",
+          "content": "listo para el ski trip jaja"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "e0a6ad5c-c5ac-4a69-b3e5-b6d3ef55e3e7",
+      "timestamp": "2026-02-19T14:24:14+00:00"
+    },
+    {
+      "id": "cpe_stefan_007",
+      "test_input": "Es por acá 👈🏼",
+      "ground_truth": "Mentioned you in their story",
+      "category": "casual",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "romfreire",
+      "turns": [
+        {
+          "role": "user",
+          "content": "✌🏻"
+        },
+        {
+          "role": "assistant",
+          "content": "[Media/Attachment]"
+        },
+        {
+          "role": "assistant",
+          "content": "Shared content"
+        },
+        {
+          "role": "user",
+          "content": "Shared content"
+        },
+        {
+          "role": "assistant",
+          "content": "¡Hola! ¿Cómo andás? 😀 Qué te llamó la atención de mi perfil o de lo que comparto?"
+        },
+        {
+          "role": "assistant",
+          "content": "[Media/Attachment]"
+        },
+        {
+          "role": "user",
+          "content": "100x1000"
+        },
+        {
+          "role": "assistant",
+          "content": "Shared content"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "d7d8dea2-2e6d-4ace-877b-677cf44c21f2",
+      "timestamp": "2026-03-09T19:57:48+00:00"
+    },
+    {
+      "id": "cpe_stefan_008",
+      "test_input": "Buenos días! Si no he empezado 🥹 estaba con el chico y no sabía gestionar el despertarme así temprano. Hoy busco otro momento y intento de solucionarlo con el 🤗",
+      "ground_truth": "Hola Alessandra! 😊 Que te llamo la atencion?",
+      "category": "long_personal",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "+34625627585",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Siempre un placer contigo!!!"
+        },
+        {
+          "role": "assistant",
+          "content": "Que termines bien tu día!! 🙂"
+        },
+        {
+          "role": "user",
+          "content": "Contigo también 😍"
+        },
+        {
+          "role": "user",
+          "content": "Estoy de camino para Madrid 🙃"
+        },
+        {
+          "role": "user",
+          "content": "Con la compañía, no tengo gana pero ya que estoy intento de disfrutarlo 😎"
+        },
+        {
+          "role": "assistant",
+          "content": "A transmutar esas NO ganas con una gran sonrisa, estas ahi por algoooo, y ya te enteraras el porque!"
+        },
+        {
+          "role": "assistant",
+          "content": "🧘🏽✅"
+        },
+        {
+          "role": "assistant",
+          "content": "🧘🏽‍♀️??"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "f5e95300-6f89-4254-9e49-b60e1f91cd19",
+      "timestamp": "2026-02-19T08:45:29.525961+00:00"
+    },
+    {
+      "id": "cpe_stefan_009",
+      "test_input": "[🎤 Audio]: Hola Estefano, buenos días.\n\n¿Qué tal el trícolo de ayer? ¿Cuántos hombres había?\n\nMe apunto al próximo, supongo que es cada mes. Seguro que me apunto con antelación.\n\nVi tu catálogo de servicios en WhatsApp y estaba curioso de saber qué ofrece y cómo está estructurado. Me estoy intentando meter en este mundo. Antes era informático, biólogo, científico, pero este año quiero dedicarme más a las cosas de wellness.\n\nQuería ver cómo funciona para los que tienen éxito. Me gustaría escuchar más de lo que haces.\n\nEspero que un día pueda pasar por Barcelona, tomamos un café y nos conocemos mejor.\n\nQue tengáis un día muy lindo. Estamos en contacto. Hasta luego.",
+      "ground_truth": "[🎤 Audio]: Hola Grant, ¿cómo estás? Buen día. Bueno, gracias por tu mensaje. Sí, mi idea es mantener los círculos online cada 15 días. Es un poco la idea, pero bueno, no hay nada confirmado. Estoy ahora haciendo el branding porque vamos a lanzar una marca relacionada a esto. O sea, círculos como una base, pero luego hay un proyecto de masculinidad que bueno, cuando nos encontremos te contaré más. Y bueno, mi servicio, yo soy coach y terapeuta. Hago sesiones de hipnosis, de reprogramación y acompaño procesos de transformación. Así que bueno, es un poco mi servicio. Tengo clientes en todo el mundo, en Latinoamérica, en España, en Italia. Así que bueno, eso es lo que hago como mi trabajo principal. Pero bueno, cuando estés en Barcelona avísame cuándo venís y si querés tomamos un café, nos conocemos y charlamos más. Y te aviso cuando haya el próximo círculo, en principios de 15 días, que lo vamos a avisar por el grupo. Así que nada, te mando un abrazo grande. Que estés bien.",
+      "category": "audio",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "+34603834206",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Hola Grant!!"
+        },
+        {
+          "role": "assistant",
+          "content": "Gracias por escribir!!"
+        },
+        {
+          "role": "assistant",
+          "content": "Hoy ya estamos completos! Nos vemos en el proximo"
+        },
+        {
+          "role": "assistant",
+          "content": "Hola Grant! Cómo estás??"
+        }
+      ],
+      "msg_count": 4,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "67c897fe-eceb-49eb-9585-53a80aa09307",
+      "timestamp": "2026-02-20T13:02:26.756593+00:00"
+    },
+    {
+      "id": "cpe_stefan_010",
+      "test_input": "Ciao Stefano 😊\nHai eventi in programma per il 4 e 5 Aprile a Barcellona? Sarò in Spagna e mi piacerebbe partecipare ad un tuo evento..\nGrazie!",
+      "ground_truth": "Ciao Arianna! Cómo estás?",
+      "category": "question",
+      "language": "it",
+      "platform": "instagram",
+      "lead_username": "arianna_attianese",
+      "turns": [],
+      "msg_count": 0,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "183a6455-2d85-4fe2-b7ba-ec78e83e4008",
+      "timestamp": "2026-03-16T15:08:53+00:00"
+    },
+    {
+      "id": "cpe_stefan_011",
+      "test_input": "Claro!, hablamos para la próxima semana si quieres",
+      "ground_truth": "Si dale!",
+      "category": "casual",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "unknown",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Total!⛷️"
+        },
+        {
+          "role": "user",
+          "content": "❤️"
+        },
+        {
+          "role": "user",
+          "content": "Espero que pases un bonito fin de semana"
+        },
+        {
+          "role": "assistant",
+          "content": "Total!⛷️"
+        },
+        {
+          "role": "assistant",
+          "content": "Es una planazo la nieve! Estuve hace poquito tmb"
+        },
+        {
+          "role": "assistant",
+          "content": "Vos tmb! ☺️"
+        },
+        {
+          "role": "assistant",
+          "content": "A ver si alguien día nos vemos!"
+        },
+        {
+          "role": "user",
+          "content": "❤️"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "a3cddd26-f3b1-46ac-85f0-49ed03e252f4",
+      "timestamp": "2026-03-27T09:25:48.268967+00:00"
+    },
+    {
+      "id": "cpe_stefan_012",
+      "test_input": "toallas",
+      "ground_truth": "Buenooo",
+      "category": "short_response",
+      "language": "fi",
+      "platform": "instagram",
+      "lead_username": "+34601522889",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Puerta 1"
+        },
+        {
+          "role": "user",
+          "content": "Entonces vos estás para manejar amigo?"
+        },
+        {
+          "role": "assistant",
+          "content": "Buen día amigo"
+        },
+        {
+          "role": "assistant",
+          "content": "Si sin problemas ☺️"
+        },
+        {
+          "role": "user",
+          "content": "No queda otra amigo"
+        },
+        {
+          "role": "user",
+          "content": "Voy a tener que pasar esta noche a bucar las tablas"
+        },
+        {
+          "role": "user",
+          "content": "funda tienen?"
+        },
+        {
+          "role": "user",
+          "content": "o las podes envolver con toalals?"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "4174eb3c-2416-4c15-942c-062ac3f00758",
+      "timestamp": "2026-02-19T09:04:20+00:00"
+    },
+    {
+      "id": "cpe_stefan_013",
+      "test_input": "Hola Stefano buenos días mañana martes si puedo venir  tengo libre 15;30",
+      "ground_truth": "Hola Dora!",
+      "category": "casual",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "+15011028148229",
+      "turns": [],
+      "msg_count": 0,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "003c379f-2ee0-4bd9-8a72-5e8f1a84de3a",
+      "timestamp": "2026-02-23T07:16:55+00:00"
+    },
+    {
+      "id": "cpe_stefan_014",
+      "test_input": "No quiero decir Londres ! Por si el fisco lo mira haha",
+      "ground_truth": "Está perfecto",
+      "category": "casual",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "Josh",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Haha me alegro"
+        },
+        {
+          "role": "user",
+          "content": "Hooolla"
+        },
+        {
+          "role": "user",
+          "content": "Como?"
+        },
+        {
+          "role": "user",
+          "content": "Mira hahahaua"
+        },
+        {
+          "role": "assistant",
+          "content": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo."
+        },
+        {
+          "role": "assistant",
+          "content": "Felicidades amigo 🙌🏾"
+        },
+        {
+          "role": "assistant",
+          "content": "Me encant q dice q vivía en Londres jaa"
+        },
+        {
+          "role": "user",
+          "content": "[reaction: 😂]"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "263db41f-0beb-40f6-9c63-94fddfc2cb45",
+      "timestamp": "2026-02-20T12:03:47+00:00"
+    },
+    {
+      "id": "cpe_stefan_015",
+      "test_input": "🔥 my god",
+      "ground_truth": "Jajaja qué grande!! Contame,",
+      "category": "short_response",
+      "language": "cy",
+      "platform": "instagram",
+      "lead_username": "+5491134359937",
+      "turns": [
+        {
+          "role": "user",
+          "content": "[audio]"
+        },
+        {
+          "role": "assistant",
+          "content": "Buen día Hermano!!"
+        },
+        {
+          "role": "assistant",
+          "content": "Como estas??"
+        },
+        {
+          "role": "assistant",
+          "content": "Cuestionario previo — Trabajo de desbloqueo inconsciente (Emprendedores)\n1️⃣ Relación inconsciente con el dinero\n\n¿Qué emoción aparece primero cuando pensás en ganar mucho más dinero del que ganás hoy?\n\nCompletá espontáneamente la frase: “Tener mucho dinero significa…”\n\n¿Sentís que hoy existe un lím"
+        },
+        {
+          "role": "user",
+          "content": "Muy bien y vos????"
+        },
+        {
+          "role": "user",
+          "content": "Gracias amigo! Perfecto!"
+        },
+        {
+          "role": "user",
+          "content": "A tope full sesiones y discoverys"
+        },
+        {
+          "role": "user",
+          "content": "Tuve a Lu hoy"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "9975a8b7-0431-404c-a649-42d757bdd608",
+      "timestamp": "2026-02-19T15:24:00.783152+00:00"
+    },
+    {
+      "id": "cpe_stefan_016",
+      "test_input": "Mentioned you in their story",
+      "ground_truth": "Hola hermano!! 👋 Qué onda?? Contame, qué te trae por acá??",
+      "category": "casual",
+      "language": "en",
+      "platform": "instagram",
+      "lead_username": "unknown",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Hola, qué bueno que te conectás! 😀 Contame, qué te trae por acá??"
+        },
+        {
+          "role": "user",
+          "content": "Mentioned you in their story"
+        }
+      ],
+      "msg_count": 2,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "9da6e835-40a7-4cc1-b761-118c1bf77f62",
+      "timestamp": "2026-03-22T20:48:33.937885+00:00"
+    },
+    {
+      "id": "cpe_stefan_017",
+      "test_input": "Besito 😚",
+      "ground_truth": "[audio]",
+      "category": "short_response",
+      "language": "it",
+      "platform": "instagram",
+      "lead_username": "Hasha",
+      "turns": [
+        {
+          "role": "user",
+          "content": "😘😘"
+        },
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        },
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        },
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        },
+        {
+          "role": "user",
+          "content": "Eso es lo primero que me vino…. Y así lo siento…"
+        },
+        {
+          "role": "user",
+          "content": "Yupi dice😂🫶🏽"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "3a15491f-b768-4d4a-ac37-655a12517488",
+      "timestamp": "2026-02-18T17:34:32+00:00"
+    },
+    {
+      "id": "cpe_stefan_018",
+      "test_input": "Sent an attachment",
+      "ground_truth": "Hola Joshua! Que te llamo la atencion?",
+      "category": "casual",
+      "language": "en",
+      "platform": "instagram",
+      "lead_username": "joshfeldberg",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Gracias amigo"
+        },
+        {
+          "role": "assistant",
+          "content": "Gracias amigo"
+        },
+        {
+          "role": "assistant",
+          "content": "Se la voy a pedir a Andrea"
+        },
+        {
+          "role": "assistant",
+          "content": "Se la voy a pedir a Andrea"
+        },
+        {
+          "role": "user",
+          "content": "Reacción ❤"
+        },
+        {
+          "role": "user",
+          "content": "[Media/Attachment]"
+        },
+        {
+          "role": "assistant",
+          "content": "Grande"
+        },
+        {
+          "role": "assistant",
+          "content": "Grande"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "7418f2ed-863d-43c5-9035-8b5ff1d72c53",
+      "timestamp": "2026-02-19T07:41:38.388875+00:00"
+    },
+    {
+      "id": "cpe_stefan_019",
+      "test_input": "Perfecto, me lo miro todo esta noche o mañana",
+      "ground_truth": "Genial!! 👍",
+      "category": "casual",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "+34628178377",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Buen día Núria!"
+        },
+        {
+          "role": "assistant",
+          "content": "Espero que hayas comenzado muy bien tu día!!"
+        },
+        {
+          "role": "assistant",
+          "content": "Te acabo de mandar un mail con un resumen de todo lo que hablamos ayer, leo con calma y sn apuro.\nContento de que avancemos con tu proceso."
+        },
+        {
+          "role": "assistant",
+          "content": "Nos vemos el viernes que viene!"
+        },
+        {
+          "role": "assistant",
+          "content": "Si podes avanzar con algo de tu Árbol Genealógico, genial.\nCualquier cosa escribime!"
+        },
+        {
+          "role": "assistant",
+          "content": "Un beso!!"
+        },
+        {
+          "role": "user",
+          "content": "Buenos días!"
+        },
+        {
+          "role": "user",
+          "content": "Muchas gracias!"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "31bc7c3b-3e89-4b1a-99ec-e218563a46ee",
+      "timestamp": "2026-02-19T08:45:05.012442+00:00"
+    },
+    {
+      "id": "cpe_stefan_020",
+      "test_input": "Ciao Stefano, \nFor March 1st\n\nTantra temple finishes at 6 pm and we will head to Stefania's Awaken anniversary evening around 8 pm, maybe after a dinner with Henk & Cindy (creators of wildflow sober rave events - I actually wanted to introduce you guys)\n\nStefania told me that she would love to see you there as a guest if u like. Would you join us?\n\nI hope you enjoy the snow fully! 🏂🏂",
+      "ground_truth": "Hello Inci!",
+      "category": "question",
+      "language": "en",
+      "platform": "whatsapp",
+      "lead_username": "wa_219391341916164",
+      "turns": [
+        {
+          "role": "user",
+          "content": "and how would you be comfortable regarding the finances? I am very open, and fair; so I want to ask you transparently.\n\ni.e. \npercentages / you wanna sell to your own tickets \nor stress-free this time just as a trial and we collaborate fully in the next workshop (In that case, I am still happy to gi"
+        },
+        {
+          "role": "assistant",
+          "content": "Perfect! Yes, we can see each other next week"
+        },
+        {
+          "role": "assistant",
+          "content": "Thanks for asking and open this conversation, cause it’s my first time and my part is only the breathwork I will be happy to take the second option (Stress-free and 4 tickets for my friends)"
+        },
+        {
+          "role": "user",
+          "content": "I like your classy take it easy approach.\nAnd thanks for expressing whatever suits you.\n\nI can meet anytime between 23-27 feb (including)"
+        },
+        {
+          "role": "assistant",
+          "content": "Your welcome!"
+        },
+        {
+          "role": "assistant",
+          "content": "Ok, let me organise my agenda for next week and I will let you know"
+        },
+        {
+          "role": "user",
+          "content": "no worries. You are in the mountain feb 22 - feb X?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, from the 20th until 22th"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "0637729b-4447-4ab6-8ab7-1fd6633fed86",
+      "timestamp": "2026-02-20T14:35:22+00:00"
+    },
+    {
+      "id": "cpe_stefan_021",
+      "test_input": "Hecho está ❤️",
+      "ground_truth": "Jajaja\nQué grande Mariana!!\nMe encanta tu energía! 😊",
+      "category": "casual",
+      "language": "cs",
+      "platform": "instagram",
+      "lead_username": "Mariana",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        },
+        {
+          "role": "user",
+          "content": "Buuuu"
+        },
+        {
+          "role": "user",
+          "content": "Regañada jajjaa"
+        },
+        {
+          "role": "assistant",
+          "content": "eso eso jaa"
+        },
+        {
+          "role": "user",
+          "content": "La verdad es que yo no tengo ganas de seguir siendo espectadora.\n\nQuizás la muerte de Gonza hizo retroceder o confundir un poco las cosas. De igual modo, te agradezco la compañía en ese momento que fue muy triste para mí.\n\nPero respecto a vos, tengo claro lo que quiero y cómo lo quiero. Y también ne"
+        },
+        {
+          "role": "user",
+          "content": "Le sampo  lo de México como p q entienda"
+        },
+        {
+          "role": "user",
+          "content": "Enviado"
+        },
+        {
+          "role": "user",
+          "content": "Respuesta q no responderé."
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "4c54a100-1558-4b63-bbae-fe507b6d990e",
+      "timestamp": "2026-02-18T20:49:53.145434+00:00"
+    },
+    {
+      "id": "cpe_stefan_022",
+      "test_input": "[audio]",
+      "ground_truth": "estoy en call",
+      "category": "audio",
+      "language": "lt",
+      "platform": "instagram",
+      "lead_username": "+34601522889",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Está bien?"
+        },
+        {
+          "role": "assistant",
+          "content": "Amigo"
+        },
+        {
+          "role": "assistant",
+          "content": "Me libero antes"
+        },
+        {
+          "role": "assistant",
+          "content": "Así q cuando quieras venir estoy!"
+        },
+        {
+          "role": "user",
+          "content": "Dale !!!"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        },
+        {
+          "role": "assistant",
+          "content": "Perfectoooo"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "5cd49716-35d1-417b-a1d1-04f97365ac73",
+      "timestamp": "2026-02-19T18:48:33+00:00"
+    },
+    {
+      "id": "cpe_stefan_023",
+      "test_input": "Mentioned you in their story",
+      "ground_truth": "Hola, qué bueno que te conectás! 😀 Contame, qué te trae por acá??",
+      "category": "casual",
+      "language": "en",
+      "platform": "instagram",
+      "lead_username": "unknown",
+      "turns": [],
+      "msg_count": 0,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "91047bf0-59e3-4364-a556-9bc92594d9d6",
+      "timestamp": "2026-03-21T01:29:02.849565+00:00"
+    },
+    {
+      "id": "cpe_stefan_024",
+      "test_input": "Pero resulta que le escribí al señor con este que no quería laburar más, para decirle que estaba de vuelta y me pidió que lo llame.. la cosa es que lo llame y me dijo que se había encontrado muy bien con la chica que me cubrió cuando no estuve y que va a seguir con ella. Así que tema cerrado",
+      "ground_truth": "Ufffff! Qué situación Manue! 😬 Pero bueno, a veces las cosas se cierran así. Lo importante es que vos seguís moviendo y buscando lo que querés!",
+      "category": "long_personal",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "Manue 🧚🏻‍♀️",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Joya Manue! 👍"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenisimo!!"
+        },
+        {
+          "role": "assistant",
+          "content": "Con ganas de ver esos avances!!"
+        },
+        {
+          "role": "assistant",
+          "content": "como un nene pequeño"
+        },
+        {
+          "role": "assistant",
+          "content": "[video]"
+        },
+        {
+          "role": "user",
+          "content": "Hola stefff"
+        },
+        {
+          "role": "user",
+          "content": "Como estas?"
+        },
+        {
+          "role": "user",
+          "content": "Perdon ayer te colgué porque desconéctate del celu un rato, te quería contar lo que me pasó hoy, que no sé si será consecuencia de algo de lo que vengo moviendo"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "fb33ac13-2315-49b8-b1e8-bfefcdf516f9",
+      "timestamp": "2026-02-19T16:58:24.967310+00:00"
+    },
+    {
+      "id": "cpe_stefan_025",
+      "test_input": "Prestame atención a este punto de vista de Jung",
+      "ground_truth": "Hola hijo! Cómo andás? Dale, te escucho. Contame de Jung. 😊",
+      "category": "casual",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "Richard",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Hola Richard! Todo bien por acá, vos??"
+        },
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        },
+        {
+          "role": "user",
+          "content": "[🎤 Audio]: hola hijito mío bueno descansa tranquilo si yo no pude ni creo que sea para mí tan sencillo me parece que no es una trapa giles pero pegan el poste me parece porque está para pasar al pro hay que pagar si o si estefano una membresía anual de 49 euros o una mensual de 49 euros euros o una "
+        },
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        },
+        {
+          "role": "user",
+          "content": "descansá tranquilo y hablamos cuando estés libre. Claude aparetentemente superó a CHATGPT. Entiendo lo que me decis. Besos"
+        },
+        {
+          "role": "user",
+          "content": "https://www.instagram.com/reel/DTt_jTxjTSg/?igsh=ZDdkb2R0eWcxejlp"
+        },
+        {
+          "role": "user",
+          "content": "Buen día hijo"
+        },
+        {
+          "role": "user",
+          "content": "Cómo estás?"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "9d2cb3a2-86c4-418a-92f9-e136249f714c",
+      "timestamp": "2026-02-22T10:08:11.406527+00:00"
+    },
+    {
+      "id": "cpe_stefan_026",
+      "test_input": "[reaction: 😂]",
+      "ground_truth": "[video]",
+      "category": "humor",
+      "language": "en",
+      "platform": "instagram",
+      "lead_username": "Manel",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Oki"
+        },
+        {
+          "role": "user",
+          "content": "[image]"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        },
+        {
+          "role": "user",
+          "content": "Stefano: Voy a ir haciendo pruebas utilizando nuestro chat no hagas caso para diferenciar-lo de tu y yo escribiré TEST: todo lo que haha después del test ni te lo mires ya que no es necesario Voy a empezar"
+        },
+        {
+          "role": "user",
+          "content": "TEST"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        },
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "6babedee-39f6-48b7-afdf-2cfb21054797",
+      "timestamp": "2026-02-19T19:02:30+00:00"
+    },
+    {
+      "id": "cpe_stefan_027",
+      "test_input": "Hola Stefano. Gracias por avisar. Genial que el grupo funcione!",
+      "ground_truth": "[reaction: ❤️]",
+      "category": "thanks",
+      "language": "es",
+      "platform": "whatsapp",
+      "lead_username": "wa_247536296173753",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Ricard!! Espero que estés bien, te aviso que ya estamos completos hoy!\nEspero que haya ido bien ese viajeee"
+        },
+        {
+          "role": "assistant",
+          "content": "Un abrazo grande y nos vemos la proxima!"
+        }
+      ],
+      "msg_count": 2,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "6f8374d2-5948-4305-82a0-d0deeb38b469",
+      "timestamp": "2026-02-19T17:22:34+00:00"
+    },
+    {
+      "id": "cpe_stefan_028",
+      "test_input": "Qué bella! Bon appetite 🙌🏼",
+      "ground_truth": "Sent an attachment",
+      "category": "casual",
+      "language": "fr",
+      "platform": "instagram",
+      "lead_username": "j0keee",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "El lugar perfecto para escaparse del invierno"
+        },
+        {
+          "role": "assistant",
+          "content": "El lugar perfecto para escaparse del invierno"
+        },
+        {
+          "role": "user",
+          "content": "Totalmente!"
+        },
+        {
+          "role": "user",
+          "content": "Totalmente!"
+        },
+        {
+          "role": "assistant",
+          "content": "Sent an attachment"
+        },
+        {
+          "role": "user",
+          "content": "Mentioned you in their story"
+        },
+        {
+          "role": "assistant",
+          "content": "Es hermoso, super cariñoso!!"
+        },
+        {
+          "role": "assistant",
+          "content": "[Media/Attachment]"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "b70680ea-6bdd-4a0f-9b0f-86e71f2db09d",
+      "timestamp": "2026-03-13T17:23:54.895113+00:00"
+    },
+    {
+      "id": "cpe_stefan_029",
+      "test_input": "[audio]",
+      "ground_truth": "Buen día Hermano!!",
+      "category": "audio",
+      "language": "lt",
+      "platform": "instagram",
+      "lead_username": "+5491134359937",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Te veo mañana jajaja"
+        },
+        {
+          "role": "assistant",
+          "content": "Eso eeso jajaja"
+        },
+        {
+          "role": "user",
+          "content": "[document: Mentoría & Life Coaching l Gonzalo Camprecios Gari .pdf]"
+        },
+        {
+          "role": "assistant",
+          "content": "luego te cuento la que acabo de hacer con un proceso que estaba terminando!"
+        },
+        {
+          "role": "assistant",
+          "content": "un gran idea para que implementemos en el cierre de los procesos"
+        },
+        {
+          "role": "assistant",
+          "content": "MIrando esto!"
+        },
+        {
+          "role": "assistant",
+          "content": "pero no me deja entrar a los links"
+        },
+        {
+          "role": "assistant",
+          "content": "luego pasame la radiografia que la miro"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "55737eb5-8322-4e69-ae98-4d84e38c6ae5",
+      "timestamp": "2026-02-19T08:56:37+00:00"
+    },
+    {
+      "id": "cpe_stefan_030",
+      "test_input": "Asi que bueno lo que queria saber es como mas o menos es tu abordaje para un caso de esta indole y pues podemos hacer una session en una de estas siguientes semanas ☺️",
+      "ground_truth": "Muchas gracias por compartirte y por transmitirme todo eso.",
+      "category": "long_personal",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "more.madeleine",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "si con todo gusto lo hacemos, me interesa saber que has probado."
+        },
+        {
+          "role": "assistant",
+          "content": "Lo mio no es nada tradicional, es una corriente que nacio en argentina y utiliza la hipnosis de reprogramación en conjunto con la liberación emocional, trabajando desde la información del síntoma"
+        },
+        {
+          "role": "user",
+          "content": "Exacto 🤍 por eso contacte contigo ☺️\n\nBasicamente entre bastantes cosas.. solo para darte un poco de background. Durante mi vida he pasado por periodos de  depresion severa, de ansiedad y estres desde bastante joven pero en este momento particular de mi vida estoy lo mas estable que he estado en mi "
+        },
+        {
+          "role": "assistant",
+          "content": "Muchas gracias por compartirte y por transmitirme todo eso."
+        },
+        {
+          "role": "user",
+          "content": "Todos tienen algo en comun, si que me dan sueño pero ninguno de ellos mejora la calidad de mi sueño"
+        },
+        {
+          "role": "user",
+          "content": "Todas las noches tengo pesadillas. Absolutamente todas.. tendre un sieño bueno o decente una vez cada 5 meses o algo asi la verdad es bastante raro"
+        },
+        {
+          "role": "user",
+          "content": "Y bueno ha sido constante desde mi adolescencia.. estamos hablando de unos 14 años mas o menos 😅 teniendo pesadillas todas las noches\n\nAsi que bueno. Evidentemente que ganas voy a tener de comenzar el dia si he pasado una noche de mierda todas las noches haha"
+        },
+        {
+          "role": "user",
+          "content": "Asi que bueno de ahi la idea de hacer hipnosis o regresiones. Tambien he pensado en terapias con ketamina. (Ninguna de estas he hecho aun)\n\nPorque evidentemente el problema no es tan superficial como para tratarlo con ninguna terapia que ya haya hecho antes"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "cb3135c6-d1df-44f8-9016-64659f5bc1ab",
+      "timestamp": "2026-03-13T13:51:55.651570+00:00"
+    },
+    {
+      "id": "cpe_stefan_031",
+      "test_input": "Hopefully in a good way for you. It seems like this is a time of deep transformation for everyone right now. Interesting times.",
+      "ground_truth": "Good afternoon Elina!!",
+      "category": "long_personal",
+      "language": "en",
+      "platform": "instagram",
+      "lead_username": "elina.shi.art",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Interesting processes are unfolding.\nI can’t clearly separate anything right now, because overall the planetary energetic situation feels very powerful. But yes, Sunday was a very strong day - that’s true. It’s like a tsunami coming from all sides, you know. )) I received a lot of information about "
+        },
+        {
+          "role": "user",
+          "content": "I’d really love to hear your thoughts on this."
+        },
+        {
+          "role": "user",
+          "content": "can imagine, I hope I won’t miss the next one."
+        }
+      ],
+      "msg_count": 3,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "82fec0e3-f996-4eeb-93c4-87c53acbf2e6",
+      "timestamp": "2026-03-04T16:54:29.705157+00:00"
+    },
+    {
+      "id": "cpe_stefan_032",
+      "test_input": "[audio]",
+      "ground_truth": "[audio]",
+      "category": "audio",
+      "language": "lt",
+      "platform": "instagram",
+      "lead_username": "Manel",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "[image]"
+        },
+        {
+          "role": "assistant",
+          "content": "Ojo"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        },
+        {
+          "role": "assistant",
+          "content": "Oki"
+        },
+        {
+          "role": "user",
+          "content": "[image]"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        },
+        {
+          "role": "user",
+          "content": "Stefano: Voy a ir haciendo pruebas utilizando nuestro chat no hagas caso para diferenciar-lo de tu y yo escribiré TEST: todo lo que haha después del test ni te lo mires ya que no es necesario Voy a empezar"
+        },
+        {
+          "role": "user",
+          "content": "TEST"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "7426bd63-cf68-4358-8c80-9b9503a280ba",
+      "timestamp": "2026-02-19T19:00:30+00:00"
+    },
+    {
+      "id": "cpe_stefan_033",
+      "test_input": "Entonces si ☺️",
+      "ground_truth": "Que hermoso gatito!! 💙",
+      "category": "casual",
+      "language": "it",
+      "platform": "instagram",
+      "lead_username": "elina.shi.art",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Enjoy your vacation!!"
+        },
+        {
+          "role": "assistant",
+          "content": "Trueeee! Super chill and quiet"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes! Then We can delve deeper into this."
+        },
+        {
+          "role": "assistant",
+          "content": "Muchas gracias!!"
+        },
+        {
+          "role": "assistant",
+          "content": "Nos vemos a mi vuelta entonces ☺️"
+        },
+        {
+          "role": "user",
+          "content": "So good.  Barcelona is blessing us again with rain and wind. ))"
+        },
+        {
+          "role": "assistant",
+          "content": "¡Holaa compa! 😄 Me da risa porque a veces parece que el clima tiene su propio sentido del humor, ¿no? Pero bueno, siempre podemos encontrar belleza en un buen día de lluvia. Quería saber, ¿qué es lo que más te gusta hacer cuando hace este tiempito? 🤔🏙️"
+        },
+        {
+          "role": "user",
+          "content": "☺️"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "db34503f-a0f0-4103-8d59-1dd85d62312a",
+      "timestamp": "2026-03-27T14:57:12.588494+00:00"
+    },
+    {
+      "id": "cpe_stefan_034",
+      "test_input": "Gracias hermano",
+      "ground_truth": "Jajaja, qué genio! Me alegra que te guste mi contenido, amigo! 😄 Contame, qué te resonó de todo? ❤️",
+      "category": "thanks",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "jcruzcarrasco",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Y buen mensaje tiene"
+        },
+        {
+          "role": "user",
+          "content": "Mi reel está en vuelo"
+        },
+        {
+          "role": "user",
+          "content": "No hay nada más engagementero que la mismísima autenticidad. Es mejor estrategia no me cabe dudas"
+        },
+        {
+          "role": "user",
+          "content": "Posta amigo"
+        },
+        {
+          "role": "user",
+          "content": "Me completaron formularios de postulación al programa, ya va 100 seguidores nuevos. Na lokura"
+        },
+        {
+          "role": "user",
+          "content": "Hermoso hermano"
+        },
+        {
+          "role": "user",
+          "content": "Abrazo esa autenticidad tan pura"
+        },
+        {
+          "role": "user",
+          "content": "🔥🔥🔥🔥"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "3b57d7f8-6a43-4f8d-877e-8623de990f40",
+      "timestamp": "2026-03-06T00:23:19.339046+00:00"
+    },
+    {
+      "id": "cpe_stefan_035",
+      "test_input": "Mentioned you in their story",
+      "ground_truth": "Mentioned you in their story",
+      "category": "casual",
+      "language": "en",
+      "platform": "instagram",
+      "lead_username": "tinchob",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "90 min"
+        },
+        {
+          "role": "assistant",
+          "content": "Mentioned you in their story"
+        },
+        {
+          "role": "user",
+          "content": "Mentioned you in their story"
+        },
+        {
+          "role": "assistant",
+          "content": "Mentioned you in their story"
+        },
+        {
+          "role": "assistant",
+          "content": "Mentioned you in their story"
+        },
+        {
+          "role": "user",
+          "content": "Mentioned you in their story"
+        },
+        {
+          "role": "user",
+          "content": "Mentioned you in their story"
+        },
+        {
+          "role": "assistant",
+          "content": "Che, qué onda?? 😀 Qué te llamo la atención?"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "0d0176b3-1fd3-42b8-a553-f1a9929f1d22",
+      "timestamp": "2026-02-19T10:13:53+00:00"
+    },
+    {
+      "id": "cpe_stefan_036",
+      "test_input": "Ok… this is guapo 😉 \nbut imagine a shot of you in the middle of facilitation\nwould elevate it even more\n\nThe ones like red-circled.",
+      "ground_truth": "Give a second!!",
+      "category": "long_personal",
+      "language": "en",
+      "platform": "instagram",
+      "lead_username": "X Senses Lab",
+      "turns": [
+        {
+          "role": "user",
+          "content": "This s the free link for your 4 guests for the temple\n\nhttps://luma.com/artoftouch?coupon=STEF.GUEST"
+        },
+        {
+          "role": "assistant",
+          "content": "Hello Inci!!"
+        },
+        {
+          "role": "user",
+          "content": "Lovely, would you mind sending me a picture of yours?\n\nI want to make an IG post to make you a collaborator and announce that you ll be a guest facilitator in the next tantra temple. How does it sound to you?"
+        },
+        {
+          "role": "assistant",
+          "content": "Hello Inci!!"
+        },
+        {
+          "role": "assistant",
+          "content": "How are you?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, I will send it now!"
+        },
+        {
+          "role": "assistant",
+          "content": "Perfect, thanks!"
+        },
+        {
+          "role": "assistant",
+          "content": "[📷 Photo]"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "d85786d6-0d54-462a-a62a-026e7479168e",
+      "timestamp": "2026-02-23T08:22:26.512774+00:00"
+    },
+    {
+      "id": "cpe_stefan_037",
+      "test_input": "[sticker]",
+      "ground_truth": "Hola Mi hermano!!",
+      "category": "short_response",
+      "language": "sv",
+      "platform": "whatsapp",
+      "lead_username": "wa_87479927488738",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        },
+        {
+          "role": "user",
+          "content": "Estoy subiendooo"
+        },
+        {
+          "role": "user",
+          "content": "Nos vemo arribaaaa"
+        },
+        {
+          "role": "user",
+          "content": "wachiiiin"
+        },
+        {
+          "role": "user",
+          "content": "como fue? llegaste bien? :)"
+        }
+      ],
+      "msg_count": 5,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "09c833d1-eaf4-41d4-b092-f098d0e92592",
+      "timestamp": "2026-02-23T09:32:06+00:00"
+    },
+    {
+      "id": "cpe_stefan_038",
+      "test_input": "Enjoy your vacation!!",
+      "ground_truth": "Trueeee! Super chill and quiet",
+      "category": "casual",
+      "language": "en",
+      "platform": "instagram",
+      "lead_username": "elina.shi.art",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Are you planning to stay in Barcelona for some time?"
+        },
+        {
+          "role": "user",
+          "content": "Ah, thank you, that’s wonderful 🙏✨☺️\nIt’s the best time of year for Lanzarote. Almost no people 🙊 I love that kind of in-between season. It feels like another planet there."
+        },
+        {
+          "role": "assistant",
+          "content": "Trueeee! Super chill and quiet"
+        },
+        {
+          "role": "user",
+          "content": "❤️"
+        },
+        {
+          "role": "user",
+          "content": "❤️"
+        },
+        {
+          "role": "user",
+          "content": "Then we speak the same language. 😅"
+        },
+        {
+          "role": "user",
+          "content": "Beautifuly ☺️"
+        },
+        {
+          "role": "user",
+          "content": "Yes, I don’t have any trips planned for now. ☺️"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "9fed7c93-a35b-427e-988f-7b9996af86c6",
+      "timestamp": "2026-03-06T12:01:12.520335+00:00"
+    },
+    {
+      "id": "cpe_stefan_039",
+      "test_input": "Es donde Iba siempre cuando tenia la oficina",
+      "ground_truth": "Perfecto!!",
+      "category": "casual",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "Cristina | Consultora Digital",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Perfectoooo ☺️☺️"
+        },
+        {
+          "role": "user",
+          "content": "Holaaaa"
+        },
+        {
+          "role": "assistant",
+          "content": "Hola!!!"
+        },
+        {
+          "role": "assistant",
+          "content": "como estas?"
+        },
+        {
+          "role": "assistant",
+          "content": "donde nos vemos???"
+        },
+        {
+          "role": "user",
+          "content": "https://maps.app.goo.gl/RnaKEnnoMeYES5yM8?g_st=iwb"
+        },
+        {
+          "role": "user",
+          "content": "Aquí Cariño"
+        },
+        {
+          "role": "user",
+          "content": "Luego estas a 10’ caminando del sitio"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "5149d6bd-39bb-4e80-b3a1-78c5297d7f1b",
+      "timestamp": "2026-02-18T16:21:54+00:00"
+    },
+    {
+      "id": "cpe_stefan_040",
+      "test_input": "Shit perdon… es cierto….",
+      "ground_truth": "tendria q llegarte cuando creo el invite",
+      "category": "casual",
+      "language": "es",
+      "platform": "whatsapp",
+      "lead_username": "wa_54215405781073",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Si!"
+        },
+        {
+          "role": "assistant",
+          "content": "Ahi lo tienes igual"
+        },
+        {
+          "role": "assistant",
+          "content": "Hola Alex!"
+        },
+        {
+          "role": "assistant",
+          "content": "Cómo estás?"
+        },
+        {
+          "role": "assistant",
+          "content": "Teníamos sesión hoy a las 16!"
+        },
+        {
+          "role": "assistant",
+          "content": "Te acordabas?"
+        },
+        {
+          "role": "user",
+          "content": "Hola Stefano!! Me escribí a las 16:30 yo 😅"
+        },
+        {
+          "role": "assistant",
+          "content": "no te llego un mail con la notificación?"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "26674689-3919-4c0a-8db8-62fbb2a5af7a",
+      "timestamp": "2026-02-19T15:13:23+00:00"
+    },
+    {
+      "id": "cpe_stefan_041",
+      "test_input": "Contenido compartido",
+      "ground_truth": "espectacular!!",
+      "category": "casual",
+      "language": "pt",
+      "platform": "instagram",
+      "lead_username": "jcruzcarrasco",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Hermoso hermano"
+        },
+        {
+          "role": "user",
+          "content": "Abrazo esa autenticidad tan pura"
+        },
+        {
+          "role": "user",
+          "content": "🔥🔥🔥🔥"
+        },
+        {
+          "role": "user",
+          "content": "Gracias hermano"
+        },
+        {
+          "role": "assistant",
+          "content": "Jajaja, qué genio! Me alegra que te guste mi contenido, amigo! 😄 Contame, qué te resonó de todo? ❤️"
+        },
+        {
+          "role": "user",
+          "content": "Esoooooooo"
+        },
+        {
+          "role": "user",
+          "content": "Mención en story"
+        },
+        {
+          "role": "user",
+          "content": "Mención en story"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "b6a12ce8-d6f4-4074-9918-a6c4223e4c1d",
+      "timestamp": "2026-03-13T15:23:04.559850+00:00"
+    },
+    {
+      "id": "cpe_stefan_042",
+      "test_input": "te aviso se vengo antes",
+      "ground_truth": "¡Ey Guido! Dale, avisame cualquier cosa, ¡va a ser genial que podamos charlar! Che, de lo que subí el otro día en Instagram, ¡Me re intriga saber! 😊",
+      "category": "casual",
+      "language": "it",
+      "platform": "instagram",
+      "lead_username": "Guido Gastaldi",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Que haces hoy"
+        },
+        {
+          "role": "user",
+          "content": "Trabajas desde algún lugar online"
+        },
+        {
+          "role": "user",
+          "content": "[🎤 Audio message]"
+        },
+        {
+          "role": "user",
+          "content": "que genial"
+        },
+        {
+          "role": "user",
+          "content": "Uy, la molina esta a dos horas de barcelona"
+        },
+        {
+          "role": "user",
+          "content": "voy a averiguar a ver si me voy unos dias"
+        },
+        {
+          "role": "user",
+          "content": "aunq estoy seco de $"
+        },
+        {
+          "role": "user",
+          "content": "supuestamente vuelvo el 5"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "39966a9d-033b-4728-9c33-cf5b5da4e6ca",
+      "timestamp": "2026-02-23T11:46:06.765830+00:00"
+    },
+    {
+      "id": "cpe_stefan_043",
+      "test_input": "Yes, I saw the caravan in your stories, it’s a dream. And places just incredible.\nNice to have you back. That means that we can talk soon ☺️",
+      "ground_truth": "Hello! Good morning",
+      "category": "objection",
+      "language": "en",
+      "platform": "instagram",
+      "lead_username": "elina.shi.art",
+      "turns": [
+        {
+          "role": "user",
+          "content": "How are you? How’s your trip? Are you full of energy? ☺️"
+        },
+        {
+          "role": "assistant",
+          "content": "Nooo, what happened with her?"
+        },
+        {
+          "role": "assistant",
+          "content": "👂🏽"
+        },
+        {
+          "role": "assistant",
+          "content": "I am fine, I am back in the town, my trip was beautiful, full of peace and nature. It was lovely to travel with the caravan"
+        },
+        {
+          "role": "assistant",
+          "content": "Mucha intriga"
+        },
+        {
+          "role": "user",
+          "content": "She lost her loved one. Last Sunday, right after we left the workshop, she received a call that Antonio had passed away. It was a very emotionally heavy moment. I tried to be there for her as much as I could, just holding space for her."
+        },
+        {
+          "role": "assistant",
+          "content": "Hello! Good morning"
+        },
+        {
+          "role": "user",
+          "content": "I was just with her now at a cacao ceremony, she’s trying to get out and be around people.\nSo… that’s the kind of week it’s been here in Barcelona."
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "46069cd5-50c4-422c-a627-14d03b60aaa8",
+      "timestamp": "2026-03-28T08:52:57.660025+00:00"
+    },
+    {
+      "id": "cpe_stefan_044",
+      "test_input": "[audio]",
+      "ground_truth": "Amigooo",
+      "category": "audio",
+      "language": "lt",
+      "platform": "instagram",
+      "lead_username": "+5491134359937",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "[video]"
+        },
+        {
+          "role": "user",
+          "content": "Hola amigo!"
+        },
+        {
+          "role": "user",
+          "content": "Tas por ahí?"
+        },
+        {
+          "role": "user",
+          "content": "Acabo de terminar una discovery tengo q hablar con vos"
+        },
+        {
+          "role": "assistant",
+          "content": "En 5 estoy libre"
+        },
+        {
+          "role": "assistant",
+          "content": "Queres q nos llamemos o me contas por acá?"
+        },
+        {
+          "role": "user",
+          "content": "Llama directo"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "2dbea2b9-cdf9-433f-93a6-22c9e35d0ed3",
+      "timestamp": "2026-02-23T18:52:33+00:00"
+    },
+    {
+      "id": "cpe_stefan_045",
+      "test_input": "Un abrazo grande!!! Exitooo",
+      "ground_truth": "Éxitos con esa propuesta!!! ☺️",
+      "category": "casual",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "antominichetti",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Gracis por este compartir"
+        },
+        {
+          "role": "user",
+          "content": "Siiii el saber venderlooo"
+        },
+        {
+          "role": "user",
+          "content": "Ofrecerlo"
+        },
+        {
+          "role": "user",
+          "content": "Sistematizar . Amo!!!!! Más de esto en este camino"
+        },
+        {
+          "role": "user",
+          "content": "Vos apuntas a la membresias!?"
+        },
+        {
+          "role": "user",
+          "content": "Que bien🌈🌈🌈 me sirve me sirveeeeeee"
+        },
+        {
+          "role": "user",
+          "content": "Voy a indagar más la\nVerdad es q no se por donde empezar pero bueno va a ir …."
+        },
+        {
+          "role": "user",
+          "content": "Que se multipliquen las propuestas!"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "ba2b2cdd-0307-4f7b-85f8-ac9c03dd653f",
+      "timestamp": "2026-03-06T11:58:56.085308+00:00"
+    },
+    {
+      "id": "cpe_stefan_046",
+      "test_input": "Amigo! Me canceló entreno hasta las 5. Por viento. Ven mañana a la que quieras a casa. Podemos hacer running aquí a Montjuic si quieres ?",
+      "ground_truth": "Me cambio y salgo para tu casa ☺️",
+      "category": "question",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "Josh",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "dime la hora que tengo q estar en tu casa asi me lo agendo!"
+        },
+        {
+          "role": "user",
+          "content": "genial, nos vemos mañana amigo"
+        },
+        {
+          "role": "assistant",
+          "content": "Dale perfecto!"
+        },
+        {
+          "role": "assistant",
+          "content": "a q hora en tu casa?"
+        },
+        {
+          "role": "user",
+          "content": "11:30 como tarde diria"
+        },
+        {
+          "role": "assistant",
+          "content": "Agendado !"
+        },
+        {
+          "role": "assistant",
+          "content": "hasta mañana amigo"
+        },
+        {
+          "role": "assistant",
+          "content": "con ganas de verte!!"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "720fca34-7668-4c68-b83f-614b6f8f4d97",
+      "timestamp": "2026-02-19T10:12:31+00:00"
+    },
+    {
+      "id": "cpe_stefan_047",
+      "test_input": "Me encantaria 🤍 igual pretendia contactarte era en un par de semanas porque estoy un poco liada este mes, tambien acabo de tener una cirugía y estoy como lidiando con todo\n\nPero cuentame seria online o en persona ? Para mirar como bookear contigo",
+      "ground_truth": "Normalmente suelo atender online, excepto que ambos estemos en la misma ciudad.",
+      "category": "booking",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "more.madeleine",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Asi que bueno lo que queria saber es como mas o menos es tu abordaje para un caso de esta indole y pues podemos hacer una session en una de estas siguientes semanas ☺️"
+        },
+        {
+          "role": "assistant",
+          "content": "Muchas gracias por compartirte y por transmitirme todo eso."
+        },
+        {
+          "role": "assistant",
+          "content": "Puedo empatizar con tu dolor y tu incomodidad de no poder descansar y entiendo que un nuevo día puede ser visto como una carga si no has podido descansar."
+        },
+        {
+          "role": "assistant",
+          "content": "Totalmente, hay una razón inconsciente que todavia no conoces que esta generando ese síntoma de no poder dormir."
+        },
+        {
+          "role": "assistant",
+          "content": "Y mi abordaje va directamente a liberar la causa de ese síntoma, no solo para sanarlo sino para comprenderlo, porque hay una causa biologica que está sosteniendote sin dormir y habría que profundizar de que se trata"
+        },
+        {
+          "role": "assistant",
+          "content": "Te recomiendo que empecemos con una sesión de arranque y luego de ahi vemos si avanzamos con el proceso completo de seguimiento mensual"
+        },
+        {
+          "role": "assistant",
+          "content": "Que te parece lunes o martes?"
+        },
+        {
+          "role": "user",
+          "content": "❤️"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "53a56e67-6f7d-4141-9d36-97d0596d4e3a",
+      "timestamp": "2026-03-13T17:20:08.060312+00:00"
+    },
+    {
+      "id": "cpe_stefan_048",
+      "test_input": "[audio]",
+      "ground_truth": "Excelente",
+      "category": "audio",
+      "language": "lt",
+      "platform": "instagram",
+      "lead_username": "+34601522889",
+      "turns": [
+        {
+          "role": "user",
+          "content": "o las podes envolver con toalals?"
+        },
+        {
+          "role": "user",
+          "content": "toallas"
+        },
+        {
+          "role": "assistant",
+          "content": "Buenooo"
+        },
+        {
+          "role": "assistant",
+          "content": "una si, la otra le armo una"
+        },
+        {
+          "role": "assistant",
+          "content": "lo preparooo"
+        },
+        {
+          "role": "user",
+          "content": "dale!!"
+        },
+        {
+          "role": "user",
+          "content": "a la noche estarás?"
+        },
+        {
+          "role": "assistant",
+          "content": "Jajaja sí, a la noche seguro!!"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "142e3833-0c57-4e14-ab31-5aa22b8335f6",
+      "timestamp": "2026-02-19T10:10:37+00:00"
+    },
+    {
+      "id": "cpe_stefan_049",
+      "test_input": "Acabo de terminar una discovery tengo q hablar con vos",
+      "ground_truth": "En 5 estoy libre",
+      "category": "casual",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "+5491134359937",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Alquilado y senado el piso"
+        },
+        {
+          "role": "user",
+          "content": "Mañana defino cuando viajo y saco pasaje"
+        },
+        {
+          "role": "user",
+          "content": "Primera aventura de muchas juntos amigo!"
+        },
+        {
+          "role": "user",
+          "content": "🤍🫶🏻"
+        },
+        {
+          "role": "assistant",
+          "content": "[🎬 Video]"
+        },
+        {
+          "role": "assistant",
+          "content": "[video]"
+        },
+        {
+          "role": "user",
+          "content": "Hola amigo!"
+        },
+        {
+          "role": "user",
+          "content": "Tas por ahí?"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "297ed0dd-f8a0-4f54-888f-09039a23aa76",
+      "timestamp": "2026-02-23T16:55:56+00:00"
+    },
+    {
+      "id": "cpe_stefan_050",
+      "test_input": "https://maps.app.goo.gl/sLKmBaoSYLWfRbAp8?g_st=ic",
+      "ground_truth": "15 min",
+      "category": "question",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "+34601522889",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "O me quedo abajo?"
+        },
+        {
+          "role": "user",
+          "content": "Estoy acá al lado"
+        },
+        {
+          "role": "user",
+          "content": "La otra entrada"
+        },
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        },
+        {
+          "role": "assistant",
+          "content": "Ya estoy en lo de Juan cruz"
+        },
+        {
+          "role": "assistant",
+          "content": "Salgo para tu casa!"
+        },
+        {
+          "role": "assistant",
+          "content": "Ya llegaste?"
+        },
+        {
+          "role": "user",
+          "content": "Yesss"
+        }
+      ],
+      "msg_count": 8,
+      "creator_id": "stefano_bonanno",
+      "source_msg_id": "6e5c0f78-1b22-4a7c-a02b-f212b49fddfb",
+      "timestamp": "2026-02-22T19:37:51+00:00"
+    }
+  ]
+}
