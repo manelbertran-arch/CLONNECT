@@ -1,0 +1,225 @@
+{
+  "creator": "iris_bertran",
+  "timestamp": "2026-03-29T21:36:41.298591+00:00",
+  "judge_model": "gpt-4o-mini",
+  "n_evaluated": 5,
+  "overall": {
+    "mean": 3.24,
+    "std": 0.64,
+    "scale": "1-5"
+  },
+  "dimensions": {
+    "conversational_ability": {
+      "name": "Conversational Ability",
+      "mean": 3.6,
+      "median": 4,
+      "std": 0.55,
+      "n": 5
+    },
+    "persona_fidelity": {
+      "name": "Persona Fidelity",
+      "mean": 3,
+      "median": 3,
+      "std": 0.71,
+      "n": 5
+    },
+    "knowledge_accuracy": {
+      "name": "Knowledge Accuracy",
+      "mean": 3.6,
+      "median": 4,
+      "std": 0.89,
+      "n": 5
+    },
+    "emotional_intelligence": {
+      "name": "Emotional Intelligence",
+      "mean": 2.8,
+      "median": 3,
+      "std": 0.84,
+      "n": 5
+    },
+    "engagement": {
+      "name": "Engagement",
+      "mean": 3.2,
+      "median": 3,
+      "std": 0.84,
+      "n": 5
+    }
+  },
+  "conversations": [
+    {
+      "id": "real_003",
+      "test_input": "On estas?",
+      "bot_response": "A la cuina, per què?",
+      "ground_truth": "Aiiii Eli\nCom va tot?\nTe paso info per privat ara que ja he colgat.",
+      "overall_score": 2.4,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"A la cuina, per què?\" is coherent and contextually relevant, as it continues the conversation by asking a question related to the previous messages. However, it lacks the warmth and personal touch typical of Iris Bertran's style, which often includes affectionate terms and emojis. The "
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 2,
+          "feedback": "La resposta \"A la cuina, per què?\" no reflecteix adequadament l'estil ni la personalitat d'Iris Bertran. La frase és massa directa i manca de l'ús de vocabulari característic com \"cuca\" o \"nena\", que són habituals en les seves interaccions. A més, no inclou cap emoticono, que és un element important"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 2,
+          "feedback": "The response \"A la cuina, per què?\" does not provide any factual information or context that relates to the conversation history or the follower's previous messages. It is vague and does not engage with the follower's comments, which diminishes its relevance. The reference answer includes a greeting"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 2,
+          "feedback": "The response \"A la cuina, per què?\" lacks the emotional engagement and warmth expected from Iris Bertran's style. It does not acknowledge the playful tone of the follower's previous messages, nor does it incorporate any of the affectionate vocabulary typical of Iris, such as \"cuca\" or \"carino.\" The "
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"A la cuina, per què?\" is somewhat conversational but lacks the engaging and personal touch that characterizes a high-quality response. While it does maintain a natural tone, it does not advance the conversation significantly or add any personality. It feels more like a simple question "
+        }
+      },
+      "elapsed_ms": 4335
+    },
+    {
+      "id": "real_004",
+      "test_input": "VINC SÚPER RAPID",
+      "bot_response": "Tranqui, ja t’ho explico.",
+      "ground_truth": "Tranqui",
+      "overall_score": 3.6,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Tranqui, ja t’ho explico.\" is coherent and contextually relevant, as it acknowledges the follower's concern and indicates a willingness to explain further. The phrase is fluent and maintains the informal tone typical of the conversation. However, it is slightly longer than the referenc"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Tranqui, ja t’ho explico.\" demonstrates a good attempt to match the creator's style, particularly in tone and vocabulary. The use of \"tranqui\" aligns with the casual and friendly demeanor typical of Iris Bertran. However, the response lacks the playful and affectionate elements that ar"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 4,
+          "feedback": "The response \"Tranqui, ja t’ho explico.\" is factually correct and does not contain any fabricated information. However, it does not match the brevity of the reference answer, which is simply \"Tranqui.\" The reference answer is concise and to the point, while the evaluated response adds unnecessary wo"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Tranqui, ja t’ho explico.\" demonstrates a basic level of emotional awareness, acknowledging the follower's concern with a casual tone. However, it lacks the warmth and empathy that would elevate it to a higher score. While it does not come off as tone-deaf, it feels somewhat mechanical"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Tranqui, ja t’ho explico.\" demonstrates a natural tone and maintains conversational momentum, as it acknowledges the follower's message and indicates a willingness to explain further. However, it lacks the engaging personality and wit that would elevate it to a score of 5. While it is "
+        }
+      },
+      "elapsed_ms": 5073
+    },
+    {
+      "id": "real_007",
+      "test_input": "A ver si mi suegra se viene conmigo el jueves",
+      "bot_response": "Perfecte si ve amb tu el dia jueves t’has de registrar a idealista",
+      "ground_truth": "Ayyy es veldaaa",
+      "overall_score": 2.8,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Perfecte si ve amb tu el dia jueves t’has de registrar a idealista\" is generally coherent and maintains a connection to the previous messages about the follower's plans with their mother-in-law. However, it lacks the casual and playful tone typical of Iris Bertran's style, which often "
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response demonstrates some alignment with the creator's style, particularly in the use of informal language and a conversational tone. However, it lacks the distinctive vocabulary and affectionate terms that are characteristic of Iris Bertran, such as \"flor,\" \"cari,\" or \"nena.\" The message is al"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 4,
+          "feedback": "The response contains a factual statement about needing to register on Idealista, which is relevant to the context of the follower's inquiry about their mother-in-law coming along. However, it lacks the engaging and personal touch that characterizes the reference answer. The reference answer is more"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 2,
+          "feedback": "The response lacks emotional engagement and warmth, which is essential in this context. While it provides practical information about registering on Idealista, it does not reflect the playful and affectionate tone typical of Iris Bertran's style. The response feels mechanical and does not acknowledg"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 2,
+          "feedback": "The response lacks a conversational tone and feels somewhat robotic. While it does provide information about registering on Idealista, it does not engage with the follower's message in a personal or witty manner. There is no use of the creator's characteristic vocabulary or emojis, which would enhan"
+        }
+      },
+      "elapsed_ms": 5741
+    },
+    {
+      "id": "real_008",
+      "test_input": "Tengo yo alitas",
+      "bot_response": "Jajajaj, que guai.",
+      "ground_truth": "Jajajaja ostia 😂",
+      "overall_score": 3.4,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Jajajaj, que guai.\" is coherent and maintains a casual tone that fits the context of the conversation. However, it lacks the expressiveness and emotional engagement present in the reference answer. The reference answer includes an additional element of surprise or excitement with \"osti"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "La resposta \"Jajajaj, que guai.\" mostra alguns elements del estil de la creadora, com l'ús de \"Jajajaj\" que reflecteix una reacció divertida. No obstant això, manca de la riquesa del vocabulari característic de la creadora, com l'ús de termes afectuosos o emojis, que són presents en les seves respos"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 4,
+          "feedback": "The response \"Jajajaj, que guai.\" is factually correct and conveys a positive reaction, similar to the reference answer. However, it lacks the additional expressive element present in the reference, which includes an emoji that enhances the emotional tone. While the response is appropriate and align"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Jajajaj, que guai.\" demonstrates a light-hearted and playful tone, which aligns well with the context of the conversation. However, it lacks the depth of emotional engagement and expressiveness found in the reference answer. The reference answer includes a more vivid expression of amus"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"Jajajaj, que guai.\" demonstrates a casual and friendly tone, which aligns well with the conversational style expected from Iris Bertran. However, it lacks the additional personality and engagement that would elevate it to a score of 5. The reference answer includes an expressive reacti"
+        }
+      },
+      "elapsed_ms": 4525
+    },
+    {
+      "id": "real_009",
+      "test_input": "Valeeee",
+      "bot_response": "Sí tia ja tens plaça. 😘",
+      "ground_truth": "Dale amor",
+      "overall_score": 4.0,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Sí tia ja tens plaça. 😘\" is coherent and contextually relevant, as it acknowledges the previous conversation about training and confirms the follower's message. The use of \"tia\" aligns with the creator's vocabulary and style, maintaining a friendly tone. However, the phrase lacks the w"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Sí tia ja tens plaça. 😘\" demonstrates a good alignment with Iris Bertran's speech patterns and tone. The use of \"tia\" is consistent with her vocabulary, and the inclusion of the emoji aligns with her style of incorporating emojis into her messages. However, the response lacks the warmt"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 4,
+          "feedback": "The response \"Sí tia ja tens plaça. 😘\" is factually correct as it confirms the follower's previous message about having a spot. However, it lacks the warmth and affectionate tone present in the reference answer \"Dale amor,\" which includes a term of endearment. While the response is accurate, it does"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"Sí tia ja tens plaça. 😘\" demonstrates a friendly and warm tone, which aligns well with the emotional context of the conversation. The use of \"tia\" is consistent with the creator's vocabulary and conveys a sense of familiarity and affection. The emoji adds a playful touch, enhancing the"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Sí tia ja tens plaça. 😘\" demonstrates a friendly and casual tone, which aligns well with the conversational style expected from Iris Bertran. The use of \"tia\" and the emoji adds a personal touch, making it feel more human-like. However, while it acknowledges the follower's message, it "
+        }
+      },
+      "elapsed_ms": 3634
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "creator": "stefano_bonanno",
+  "model": "gpt-4o-mini",
+  "messages_analyzed": 200,
+  "n_batches": 10,
+  "batch_size": 20,
+  "scores": {
+    "O": 4.2,
+    "C": 3.4,
+    "E": 4.15,
+    "A": 4.4,
+    "N": 2.4
+  },
+  "scores_detailed": {
+    "O": {
+      "mean": 4.2,
+      "std": 0.35,
+      "min": 3.5,
+      "max": 4.5,
+      "n_batches": 10
+    },
+    "C": {
+      "mean": 3.4,
+      "std": 0.32,
+      "min": 3.0,
+      "max": 4.0,
+      "n_batches": 10
+    },
+    "E": {
+      "mean": 4.15,
+      "std": 0.24,
+      "min": 4.0,
+      "max": 4.5,
+      "n_batches": 10
+    },
+    "A": {
+      "mean": 4.4,
+      "std": 0.21,
+      "min": 4.0,
+      "max": 4.5,
+      "n_batches": 10
+    },
+    "N": {
+      "mean": 2.4,
+      "std": 0.21,
+      "min": 2.0,
+      "max": 2.5,
+      "n_batches": 10
+    }
+  },
+  "evidence": {
+    "O": "The person expresses a strong interest in travel and nature, indicating curiosity and a desire for variety.",
+    "C": "The messages show some organization but also a casual and flexible approach to planning.",
+    "E": "The tone is energetic and enthusiastic, with frequent use of exclamation marks and laughter, suggesting sociability.",
+    "A": "The person uses friendly language and expresses compassion, often addressing others warmly and cooperatively.",
+    "N": "The communication style is generally positive and confident, with little indication of anxiety or moodiness."
+  },
+  "dimension_labels": {
+    "O": "Openness to Experience",
+    "C": "Conscientiousness",
+    "E": "Extraversion",
+    "A": "Agreeableness",
+    "N": "Neuroticism"
+  }
+}

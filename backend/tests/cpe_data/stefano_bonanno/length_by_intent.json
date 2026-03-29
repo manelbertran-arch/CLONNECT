@@ -1,0 +1,100 @@
+{
+  "casual": {
+    "p25": 13,
+    "median": 20,
+    "p75": 35,
+    "p90": 56,
+    "count": 203
+  },
+  "otro": {
+    "p25": 14,
+    "median": 25,
+    "p75": 44,
+    "p90": 76,
+    "count": 104
+  },
+  "pregunta_general": {
+    "p25": 14,
+    "median": 27,
+    "p75": 48,
+    "p90": 63,
+    "count": 56
+  },
+  "humor": {
+    "p25": 12,
+    "median": 23,
+    "p75": 31,
+    "p90": 45,
+    "count": 31
+  },
+  "agradecimiento": {
+    "p25": 18,
+    "median": 32,
+    "p75": 51,
+    "p90": 79,
+    "count": 30
+  },
+  "pregunta_producto": {
+    "p25": 22,
+    "median": 52,
+    "p75": 85,
+    "p90": 198,
+    "count": 26
+  },
+  "story_mention": {
+    "p25": 14,
+    "median": 28,
+    "p75": 28,
+    "p90": 40,
+    "count": 19
+  },
+  "pregunta_precio": {
+    "p25": 15,
+    "median": 32,
+    "p75": 96,
+    "p90": 205,
+    "count": 9
+  },
+  "reaccion": {
+    "p25": 51,
+    "median": 108,
+    "p75": 139,
+    "p90": 172,
+    "count": 8
+  },
+  "objecion": {
+    "p25": 12,
+    "median": 15,
+    "p75": 15,
+    "p90": 34,
+    "count": 5
+  },
+  "saludo": {
+    "p25": 12,
+    "median": 15,
+    "p75": 19,
+    "p90": 22,
+    "count": 4
+  },
+  "interes": {
+    "p25": 41,
+    "median": 43,
+    "p75": 43,
+    "p90": 43,
+    "count": 3
+  },
+  "continuacion": {
+    "p25": 26,
+    "median": 35,
+    "p75": 44,
+    "p90": 49,
+    "count": 2
+  },
+  "default": {
+    "p25": 14,
+    "median": 24,
+    "p75": 44,
+    "p90": 78,
+    "count": 500
+  }
+}
