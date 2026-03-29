@@ -57,6 +57,7 @@ async def call_deepinfra(
     max_tokens: int = 400,
     temperature: float = 0.7,
     model: Optional[str] = None,
+    frequency_penalty: Optional[float] = None,
 ) -> Optional[dict]:
     """Call DeepInfra via OpenAI-compatible API.
 
@@ -65,6 +66,7 @@ async def call_deepinfra(
         max_tokens: max output tokens
         temperature: sampling temperature
         model: override model (defaults to DEEPINFRA_MODEL env var)
+        frequency_penalty: penalize repeated tokens (0.0-2.0, default from env)
 
     Returns:
         dict with {content, model, provider, latency_ms, tokens_in, tokens_out}
@@ -103,13 +105,22 @@ async def call_deepinfra(
             base_url=DEEPINFRA_BASE_URL,
         )
 
+        # frequency_penalty: from param, env var, or 0.0 (no penalty)
+        _freq_pen = frequency_penalty
+        if _freq_pen is None:
+            _freq_pen = float(os.getenv("DEEPINFRA_FREQUENCY_PENALTY", "0.0"))
+
+        create_kwargs = dict(
+            model=model,
+            messages=send_messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        if _freq_pen > 0:
+            create_kwargs["frequency_penalty"] = _freq_pen
+
         response = await asyncio.wait_for(
-            client.chat.completions.create(
-                model=model,
-                messages=send_messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-            ),
+            client.chat.completions.create(**create_kwargs),
             timeout=timeout,
         )
 
