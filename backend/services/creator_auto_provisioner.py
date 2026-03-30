@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 MIN_MESSAGES_FOR_PROFILE = 50
 PROFILE_TTL_DAYS = 30
-REQUIRED_PROFILES = ["baseline_metrics", "length_by_intent"]
+REQUIRED_PROFILES = ["baseline_metrics", "length_by_intent", "calibration"]
 
 # Track in-flight provisioning to avoid duplicates
 _provisioning_in_progress: set[str] = set()
@@ -39,10 +39,25 @@ def ensure_profiles(creator_id: str) -> bool:
 
     existing = get_existing_types(creator_id)
 
+    # Check calibration file separately (stored on disk, not in DB)
+    import json
+    from pathlib import Path
+    cal_path = Path("calibrations") / f"{creator_id}.json"
+    has_calibration = cal_path.exists()
+    if has_calibration:
+        try:
+            cal_mtime = datetime.fromtimestamp(cal_path.stat().st_mtime, tz=timezone.utc)
+            has_calibration = not _is_stale(cal_mtime.isoformat())
+        except Exception:
+            has_calibration = False
+
     # Check which profiles are missing or stale
     needs_generation = []
     for ptype in REQUIRED_PROFILES:
-        if ptype not in existing:
+        if ptype == "calibration":
+            if not has_calibration:
+                needs_generation.append(ptype)
+        elif ptype not in existing:
             needs_generation.append(ptype)
         elif _is_stale(existing[ptype]):
             needs_generation.append(ptype)
@@ -118,6 +133,10 @@ def _generate_profiles_sync(creator_id: str, profile_types: list[str]):
             if length_profile:
                 save_profile(creator_id, "length_by_intent", length_profile)
                 logger.info("[AUTO-PROVISION] length_by_intent saved for %s", creator_id)
+
+        if "calibration" in profile_types:
+            logger.info("[AUTO-PROVISION] Generating calibration for %s", creator_id)
+            _generate_calibration(creator_id)
 
         # Regenerate compressed_doc_d (depends on baseline)
         logger.info("[AUTO-PROVISION] Generating compressed_doc_d for %s", creator_id)
@@ -447,6 +466,73 @@ def _generate_length_profile(creator_id: str) -> dict | None:
 # =============================================================================
 # COMPRESSED DOC D REGENERATION
 # =============================================================================
+
+def _generate_calibration(creator_id: str):
+    """Generate calibration JSON (few-shot examples, response pools, baseline) and save to file.
+
+    Imports functions from the calibration pipeline script rather than reimplementing.
+    Saves to calibrations/{creator_slug}.json for the calibration_loader to find.
+    """
+    try:
+        import json
+        from pathlib import Path
+        from services.creator_profile_service import _resolve_creator_uuid
+        from api.database import SessionLocal
+
+        session = SessionLocal()
+        try:
+            creator_uuid = _resolve_creator_uuid(session, creator_id)
+            if not creator_uuid:
+                logger.warning("[AUTO-PROVISION] Cannot resolve UUID for %s", creator_id)
+                return
+        finally:
+            session.close()
+
+        from scripts.creator_calibration_pipeline import (
+            load_conversation_pairs, compute_baseline, compute_context_soft_max,
+            extract_response_pools, extract_few_shot, extract_creator_vocabulary,
+        )
+        from scripts.backtest.contamination_filter import filter_turns
+
+        conversations, all_turns = load_conversation_pairs(str(creator_uuid))
+        if len(all_turns) < MIN_MESSAGES_FOR_PROFILE:
+            logger.info("[AUTO-PROVISION] Not enough turns (%d) for calibration", len(all_turns))
+            return
+
+        clean_turns, _, _ = filter_turns(conversations, all_turns)
+        baseline = compute_baseline(clean_turns)
+        context_soft_max = compute_context_soft_max(clean_turns, baseline["soft_max"])
+        pools = extract_response_pools(clean_turns)
+        few_shot = extract_few_shot(clean_turns, n_examples=12)
+        vocab = extract_creator_vocabulary(
+            [t["real_response"] for t in clean_turns]
+        )
+
+        # Filter out [Media/Attachment] entries and cap pool size
+        few_shot = [e for e in few_shot if "[Media" not in e.get("response", "")]
+        MAX_POOL_PER_CONTEXT = 50
+        for k in pools:
+            pools[k] = [r for r in pools[k] if "[Media" not in r and len(r) > 2]
+            if len(pools[k]) > MAX_POOL_PER_CONTEXT:
+                pools[k] = pools[k][:MAX_POOL_PER_CONTEXT]
+
+        calibration = {
+            "baseline": baseline,
+            "context_soft_max": context_soft_max,
+            "response_pools": pools,
+            "few_shot_examples": few_shot,
+            "creator_vocabulary": vocab,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        cal_path = Path("calibrations") / f"{creator_id}.json"
+        cal_path.parent.mkdir(exist_ok=True)
+        cal_path.write_text(json.dumps(calibration, ensure_ascii=False, indent=2))
+        logger.info("[AUTO-PROVISION] Calibration saved to %s (%d examples, %d pool responses)",
+                     cal_path, len(few_shot), sum(len(v) for v in pools.values()))
+    except Exception as e:
+        logger.error("[AUTO-PROVISION] _generate_calibration(%s) failed: %s", creator_id, e, exc_info=True)
+
 
 def _regenerate_compressed_doc_d(creator_id: str):
     """Regenerate and cache compressed_doc_d in DB."""

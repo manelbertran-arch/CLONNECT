@@ -387,8 +387,13 @@ def enforce_length(
     if resp_len <= rule.hard_max:
         return response
 
-    # Allow 1.2x headroom above hard_max (tightened for DeepSeek V3.1)
-    headroom = max(int(rule.hard_max * 1.2), 150)
+    # Allow headroom above hard_max.
+    # Per-creator calibrated rules have lower hard_max → use proportional headroom.
+    # Default (non-calibrated) rules keep the 150-char minimum.
+    if creator_id and rule.hard_max < 100:
+        headroom = int(rule.hard_max * 2.0)
+    else:
+        headroom = max(int(rule.hard_max * 1.2), 150)
     if resp_len <= headroom:
         return response
 

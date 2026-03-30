@@ -316,14 +316,14 @@ async def phase_postprocessing(
         logger.debug(f"Length control failed: {e}")
 
     # Step 7b2: Style normalization (emoji/exclamation matching from baseline)
+    _pre_normalization_response = response_content  # capture for bot_natural_rates measurement
     try:
         from core.dm.style_normalizer import normalize_style, ENABLE_STYLE_NORMALIZER
         if ENABLE_STYLE_NORMALIZER:
-            _pre_norm = response_content
             response_content = normalize_style(response_content, agent.creator_id)
-            if response_content != _pre_norm:
+            if response_content != _pre_normalization_response:
                 cognitive_metadata["style_normalized"] = True
-                logger.debug("Style normalized: '%s' → '%s'", _pre_norm[:40], response_content[:40])
+                logger.debug("Style normalized: '%s' → '%s'", _pre_normalization_response[:40], response_content[:40])
     except Exception as e:
         logger.debug(f"Style normalization failed: {e}")
 
@@ -497,6 +497,7 @@ async def phase_postprocessing(
         "history_length": len(history),
         "follower_id": sender_id,
         "message_parts": message_parts,
+        "pre_normalization_response": _pre_normalization_response,
     }
     if cognitive_metadata.get("best_of_n"):
         _dm_metadata["best_of_n"] = cognitive_metadata["best_of_n"]

@@ -219,9 +219,11 @@ async def run_pipeline(creator_id: str, conversations: List[Dict]) -> List[Dict]
         }
 
         t0 = time.monotonic()
+        pre_norm_response = ""
         try:
             dm_response = await agent.process_dm(message=test_input, sender_id=sender_id, metadata=metadata)
             bot_response = dm_response.content if dm_response else ""
+            pre_norm_response = (dm_response.metadata or {}).get("pre_normalization_response", bot_response) if dm_response else ""
         except Exception as e:
             logger.error(f"[{conv.get('id', i)}] Pipeline error: {e}")
             bot_response = ""
@@ -230,6 +232,7 @@ async def run_pipeline(creator_id: str, conversations: List[Dict]) -> List[Dict]
         results.append({
             **conv,
             "bot_response": bot_response,
+            "bot_response_raw": pre_norm_response,
             "elapsed_ms": elapsed_ms,
         })
         logger.info(f"[{i}/{len(conversations)}] {conv.get('id', '?')}: {elapsed_ms}ms | '{bot_response[:40]}...'")
@@ -421,24 +424,30 @@ async def main():
         json.dump(output, f, indent=2, ensure_ascii=False)
 
     # Auto-save bot natural rates to DB for data-driven normalization.
-    # These are used by style_normalizer and compressed_doc_d at runtime.
+    # IMPORTANT: Use pre-normalization responses (bot_response_raw) to measure
+    # the LLM's natural rates BEFORE style_normalizer adjusts them.
+    # This prevents circular feedback: normalizer strips → rates drop → normalizer
+    # stops stripping → rates rise → infinite oscillation.
     try:
         from services.creator_profile_service import save_profile
-        metrics = comparison["metrics"]
+        raw_has_excl = sum(1 for r in results if "!" in r.get("bot_response_raw", r.get("bot_response", "")))
+        raw_has_question = sum(1 for r in results if "?" in r.get("bot_response_raw", r.get("bot_response", "")))
+        raw_has_emoji = sum(1 for r in results if _EMOJI_RE.search(r.get("bot_response_raw", r.get("bot_response", ""))))
+        raw_lengths = [len(r.get("bot_response_raw", r.get("bot_response", ""))) for r in results]
+        n = max(1, len(results))
+        creator_mean_len = comparison["metrics"].get("length", {}).get("creator_mean", 1)
         bot_natural = {
-            "excl_rate": metrics.get("has_exclamation", {}).get("bot_pct", 0),
-            "question_rate": metrics.get("has_question", {}).get("bot_pct", 0),
-            "emoji_rate": metrics.get("has_emoji", {}).get("bot_pct", 0),
+            "excl_rate": round(raw_has_excl / n * 100, 1),
+            "question_rate": round(raw_has_question / n * 100, 1),
+            "emoji_rate": round(raw_has_emoji / n * 100, 1),
             "length_divergence": round(
-                metrics.get("length", {}).get("bot_mean", 0)
-                / max(1, metrics.get("length", {}).get("creator_mean", 1)),
-                3,
+                (sum(raw_lengths) / n) / max(1, creator_mean_len), 3
             ),
             "measured_at": timestamp,
             "n_samples": len(results),
         }
         if save_profile(creator, "bot_natural_rates", bot_natural):
-            logger.info("Saved bot_natural_rates to DB: %s", bot_natural)
+            logger.info("Saved bot_natural_rates to DB (pre-normalization): %s", bot_natural)
         else:
             logger.warning("Failed to save bot_natural_rates to DB")
     except Exception as e:

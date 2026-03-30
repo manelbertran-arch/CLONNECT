@@ -384,17 +384,10 @@ async def phase_llm_generation(
         _cal_baseline = (agent.calibration or {}).get("baseline", {}) if agent.calibration else {}
         if _cal_baseline.get("temperature") is not None:
             _llm_temperature = float(_cal_baseline["temperature"])
-        # max_tokens: explicit calibration value > data-driven from p90_length > 100.
-        # Data-driven: use p90_length to set a reasonable ceiling. We need enough
-        # headroom so the model finishes sentences cleanly (no mid-word truncation),
-        # but not so much that it ignores length hints entirely.
-        # Formula: p90 chars → tokens with ~3.5 chars/token, add 50% headroom.
-        if _cal_baseline.get("max_tokens"):
-            _llm_max_tokens = int(_cal_baseline["max_tokens"])
-        elif _cal_baseline.get("p90_length"):
-            _llm_max_tokens = max(40, int(_cal_baseline["p90_length"] * 1.5 / 3.5) + 10)
-        else:
-            _llm_max_tokens = 100
+        # max_tokens: read from calibration (per-creator optimal), fallback 100.
+        # Calibration-derived limit (e.g. iris_bertran=100) prevents Gemini
+        # repetition loops from running long before truncation.
+        _llm_max_tokens = int(_cal_baseline["max_tokens"]) if _cal_baseline.get("max_tokens") else 100
         _msg_category = _classify_user_message(message)
         cognitive_metadata["max_tokens_category"] = _msg_category
         cognitive_metadata["length_hint"] = get_length_hint(message)
