@@ -120,6 +120,24 @@ def _get_creator_display_name(creator_id: str) -> str:
         return creator_id.replace("_", " ").title()
 
 
+def _get_length_divergence(creator_id: str) -> Optional[float]:
+    """Read stored length divergence (bot_mean / creator_median) from DB.
+
+    Populated by Level 1 runs: save_profile(creator_id, "bot_natural_rates",
+    {"length_divergence": bot_mean / creator_median, ...}).
+
+    Returns None if no measurement exists.
+    """
+    try:
+        from services.creator_profile_service import get_profile
+        data = get_profile(creator_id, "bot_natural_rates")
+        if data and data.get("length_divergence") is not None:
+            return float(data["length_divergence"])
+    except Exception:
+        pass
+    return None
+
+
 def build_compressed_doc_d(creator_id: str) -> str:
     """Build a compressed ~3K char personality prompt for any creator.
 
@@ -164,14 +182,23 @@ def build_compressed_doc_d(creator_id: str) -> str:
 
         style_lines = ["ESTILO CUANTITATIVO (respeta estas frecuencias):"]
 
-        # Length
+        # Length — adaptive wording based on measured divergence
         median = length.get("char_median", 30)
         p25 = length.get("char_p25", 10)
         p75 = length.get("char_p75", 60)
-        style_lines.append(
-            f"- Longitud típica: {p25}-{p75} caracteres (mediana {median}). "
-            f"Mensajes CORTOS y directos."
-        )
+        length_div = _get_length_divergence(creator_id)
+        if length_div is not None and length_div <= 1.5:
+            # Measured divergence is acceptable — soft wording (validated)
+            style_lines.append(
+                f"- Longitud típica: {p25}-{p75} caracteres (mediana {median}). "
+                f"Mensajes CORTOS y directos."
+            )
+        else:
+            # No data or high divergence — strict wording to overcorrect
+            style_lines.append(
+                f"- Longitud: MÁXIMO {p75} caracteres. Mediana real: {median}. "
+                f"Regla estricta — sé breve."
+            )
 
         # Emoji — strongest constraint (models over-emoji by default)
         emoji_rate = emoji.get("emoji_rate_pct", 20)

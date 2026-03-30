@@ -145,9 +145,10 @@ def build_history_metadata(turns: List[Dict], test_input: str) -> Dict:
         content = turn.get("content", "")
         if not content:
             continue
-        if role == "iris":
+        # Support both old format ("iris"/"lead") and new format ("assistant"/"user")
+        if role in ("iris", "assistant"):
             history.append({"role": "assistant", "content": content})
-        elif role == "lead":
+        elif role in ("lead", "user"):
             history.append({"role": "user", "content": content})
     if history and history[-1].get("role") == "user" and history[-1].get("content") == test_input:
         history = history[:-1]

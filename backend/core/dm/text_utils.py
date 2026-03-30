@@ -173,9 +173,79 @@ def get_data_driven_length_hint(message: str, creator_id: str) -> str:
     stats = profile.get(context, profile.get("default", {}))
     if not stats or not stats.get("median"):
         return ""
+    median = stats["median"]
+    p25 = stats["p25"]
+    p75 = stats["p75"]
+    # Stronger wording for very short targets — Qwen3-14B ignores soft hints
+    # when the target is well below its natural response length (~60 chars).
+    if median < 40:
+        return (
+            f"LONGITUD: MÁXIMO {p75} caracteres. "
+            f"Rango normal: {p25}-{p75} (mediana {median}). "
+            f"Regla estricta — mensajes largos delatan que eres IA."
+        )
     return (
-        f"LONGITUD para este mensaje: {stats['p25']}-{stats['p75']} caracteres "
-        f"(mediana {stats['median']}). Sé breve."
+        f"LONGITUD para este mensaje: {p25}-{p75} caracteres "
+        f"(mediana {median}). Sé breve."
+    )
+
+
+# =============================================================================
+# DATA-DRIVEN QUESTION HINT — per-creator from baseline_metrics
+# =============================================================================
+
+# Cache for loaded baseline question rates
+_question_rate_cache: dict = {}
+
+
+def _load_question_rate(creator_id: str) -> Optional[float]:
+    """Load question_rate_pct from baseline_metrics, cached.
+    Returns the creator's question rate as a percentage (e.g. 17.8), or None."""
+    if creator_id in _question_rate_cache:
+        return _question_rate_cache[creator_id]
+
+    baseline = None
+    # 1. Try DB
+    try:
+        from services.creator_profile_service import get_baseline
+        baseline = get_baseline(creator_id)
+    except Exception:
+        pass
+    # 2. Fallback: local file
+    if not baseline:
+        path = Path("tests/cpe_data") / creator_id / "baseline_metrics.json"
+        if path.exists():
+            with open(path) as f:
+                baseline = json.load(f)
+    if baseline:
+        rate = baseline.get("metrics", {}).get("punctuation", {}).get("question_rate_pct")
+        _question_rate_cache[creator_id] = rate
+        return rate
+    _question_rate_cache[creator_id] = None
+    return None
+
+
+def get_data_driven_question_hint(creator_id: str) -> str:
+    """Generate a question-rate hint based on creator's baseline.
+
+    Uses probabilistic gating: with probability (1 - question_rate/100),
+    returns a 'no question' hint. Otherwise returns empty string (allowing
+    the model to naturally ask a question).
+
+    This mirrors the creator's actual questioning frequency.
+    """
+    import random
+    rate = _load_question_rate(creator_id)
+    if rate is None:
+        return ""
+    # Probabilistic: suppress questions in (100 - rate)% of messages
+    if random.random() < (rate / 100.0):
+        # Allow a question this time
+        return ""
+    return (
+        f"NO hagas ninguna pregunta en este mensaje. "
+        f"Tú solo preguntas en {rate:.0f}% de tus mensajes — "
+        f"este NO es uno de ellos."
     )
 
 

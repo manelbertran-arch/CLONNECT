@@ -107,7 +107,9 @@
       "exclamation_rate_pct": 1.8,
       "laugh_rate_pct": 2.0,
       "ellipsis_rate_pct": 3.8,
-      "all_caps_rate_pct": 3.0
+      "all_caps_rate_pct": 3.0,
+      "has_exclamation_msg_pct": 30.0,
+      "has_question_msg_pct": 26.0
     },
     "languages": {
       "detected": [

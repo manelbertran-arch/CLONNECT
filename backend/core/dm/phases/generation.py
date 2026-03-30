@@ -55,6 +55,48 @@ ENABLE_SELF_CONSISTENCY = os.getenv("ENABLE_SELF_CONSISTENCY", "false").lower() 
 ENABLE_CHAIN_OF_THOUGHT = os.getenv("ENABLE_CHAIN_OF_THOUGHT", "false").lower() == "true"
 
 
+def _maybe_question_hint(creator_id: str) -> str:
+    """Return a question-suppression hint if bot over-questions vs creator baseline.
+
+    Reads creator's question_rate_pct from baseline and the bot's measured natural
+    question rate from creator_profiles(bot_natural_rates). If bot rate > creator rate,
+    returns "NO incluyas pregunta en este mensaje." with probability:
+        suppress_prob = 1 - (creator_rate / bot_natural_rate)
+
+    Returns empty string if no suppression needed or no data available.
+    """
+    import random
+    try:
+        from core.dm.style_normalizer import _load_baseline, _load_bot_natural_rates
+
+        baseline = _load_baseline(creator_id)
+        if not baseline:
+            return ""
+        creator_q_rate = baseline.get("punctuation", {}).get("question_rate_pct")
+        if creator_q_rate is None:
+            return ""
+
+        bot_rates = _load_bot_natural_rates(creator_id)
+        if not bot_rates or bot_rates.get("question_rate") is None:
+            return ""  # No measured data → don't intervene
+
+        bot_q_rate = float(bot_rates["question_rate"])
+        if bot_q_rate <= 0 or creator_q_rate >= bot_q_rate:
+            return ""  # Bot already under-questions or matches → no suppression
+
+        suppress_prob = 1.0 - (creator_q_rate / bot_q_rate)
+        if random.random() < suppress_prob:
+            logger.info(
+                "[Q-HINT] Suppressing question (creator=%.1f%%, bot_natural=%.1f%%, p=%.2f)",
+                creator_q_rate, bot_q_rate, suppress_prob,
+            )
+            return "NO incluyas pregunta en este mensaje."
+        return ""
+    except Exception as e:
+        logger.debug("[Q-HINT] Failed: %s", e)
+        return ""
+
+
 async def phase_llm_generation(
     agent, message: str, full_prompt: str, system_prompt: str,
     context: ContextBundle, cognitive_metadata: Dict,
@@ -218,6 +260,15 @@ async def phase_llm_generation(
         prompt_parts.append(gold_examples_section)
     if strategy_hint:
         prompt_parts.append(strategy_hint)
+
+    # Per-message question suppression hint (data-driven).
+    # If the bot over-questions relative to creator baseline, probabilistically
+    # inject "NO hagas pregunta" to bring question_rate closer to target.
+    _q_hint = _maybe_question_hint(agent.creator_id)
+    if _q_hint:
+        prompt_parts.append(_q_hint)
+        cognitive_metadata["question_hint"] = _q_hint
+
     prompt_parts.append(message)
     full_prompt = "\n\n".join(prompt_parts)
     # Store for SBS retry — allows regenerating with identical prompt at lower temperature
@@ -333,10 +384,17 @@ async def phase_llm_generation(
         _cal_baseline = (agent.calibration or {}).get("baseline", {}) if agent.calibration else {}
         if _cal_baseline.get("temperature") is not None:
             _llm_temperature = float(_cal_baseline["temperature"])
-        # max_tokens: read from calibration (per-creator optimal), fallback 100.
-        # Calibration-derived limit (e.g. iris_bertran=100) prevents Gemini
-        # repetition loops from running long before truncation.
-        _llm_max_tokens = int(_cal_baseline["max_tokens"]) if _cal_baseline.get("max_tokens") else 100
+        # max_tokens: explicit calibration value > data-driven from p90_length > 100.
+        # Data-driven: use p90_length to set a reasonable ceiling. We need enough
+        # headroom so the model finishes sentences cleanly (no mid-word truncation),
+        # but not so much that it ignores length hints entirely.
+        # Formula: p90 chars → tokens with ~3.5 chars/token, add 50% headroom.
+        if _cal_baseline.get("max_tokens"):
+            _llm_max_tokens = int(_cal_baseline["max_tokens"])
+        elif _cal_baseline.get("p90_length"):
+            _llm_max_tokens = max(40, int(_cal_baseline["p90_length"] * 1.5 / 3.5) + 10)
+        else:
+            _llm_max_tokens = 100
         _msg_category = _classify_user_message(message)
         cognitive_metadata["max_tokens_category"] = _msg_category
         cognitive_metadata["length_hint"] = get_length_hint(message)

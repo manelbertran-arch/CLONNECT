@@ -420,6 +420,30 @@ async def main():
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
 
+    # Auto-save bot natural rates to DB for data-driven normalization.
+    # These are used by style_normalizer and compressed_doc_d at runtime.
+    try:
+        from services.creator_profile_service import save_profile
+        metrics = comparison["metrics"]
+        bot_natural = {
+            "excl_rate": metrics.get("has_exclamation", {}).get("bot_pct", 0),
+            "question_rate": metrics.get("has_question", {}).get("bot_pct", 0),
+            "emoji_rate": metrics.get("has_emoji", {}).get("bot_pct", 0),
+            "length_divergence": round(
+                metrics.get("length", {}).get("bot_mean", 0)
+                / max(1, metrics.get("length", {}).get("creator_mean", 1)),
+                3,
+            ),
+            "measured_at": timestamp,
+            "n_samples": len(results),
+        }
+        if save_profile(creator, "bot_natural_rates", bot_natural):
+            logger.info("Saved bot_natural_rates to DB: %s", bot_natural)
+        else:
+            logger.warning("Failed to save bot_natural_rates to DB")
+    except Exception as e:
+        logger.warning("Could not save bot_natural_rates: %s", e)
+
     # Print summary
     print()
     print("=" * 65)

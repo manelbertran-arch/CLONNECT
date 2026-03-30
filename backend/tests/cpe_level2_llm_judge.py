@@ -417,7 +417,7 @@ async def main():
     if args.responses:
         with open(args.responses) as f:
             prev = json.load(f)
-        conversations = prev.get("conversations", prev if isinstance(prev, list) else [])
+        conversations = prev if isinstance(prev, list) else prev.get("conversations", [])
         logger.info(f"Reusing {len(conversations)} responses from {args.responses}")
     else:
         test_path = Path(args.test_set) if args.test_set else REPO_ROOT / "tests" / "test_set_real_leads.json"

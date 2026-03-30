@@ -420,6 +420,17 @@ class ResponseVariatorV2:
                 return "conversational", 0.85
             return "confirmation", 0.95
 
+        # Extended confirmations — elongated affirmatives like "Valeeee", "Daleee", "Siiiii"
+        # Routes to extended_confirmation pool (bilingual) rather than Catalan-heavy conversational pool
+        _ext_bases = ["vale", "dale", "si", "claro"]
+        for _base in _ext_bases:
+            if msg_clean.startswith(_base) and len(msg_clean) <= len(_base) + 5:
+                _tail = msg_clean[len(_base):]
+                if not _tail or all(c == _base[-1] for c in _tail):
+                    if "extended_confirmation" in self.pools:
+                        return "extended_confirmation", 0.90
+                    # Fall through to LLM if no dedicated pool
+
         # Emoji only
         if all(ord(c) > 127000 or c.isspace() for c in msg):
             return "emoji", 0.90

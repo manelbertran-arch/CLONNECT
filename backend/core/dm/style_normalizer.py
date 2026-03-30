@@ -1,14 +1,15 @@
 """Style normalizer — post-processing to match creator quantitative style.
 
 Fixes the gap between what the LLM can achieve via prompting alone
-and the creator's actual style metrics. Two main corrections:
+and the creator's actual style metrics:
 
-1. Exclamation normalization: Replace trailing '!' with '.' or nothing
-   to match creator's exclamation_rate_pct.
-2. Emoji normalization: Strip emojis from responses probabilistically
-   to match creator's emoji_rate_pct.
+1. Exclamation normalization: per-mark probabilistic '!' → '.' replacement.
+   keep_prob derived from creator baseline / measured bot natural rate.
+2. Emoji normalization: probabilistic strip based on creator emoji_rate_pct.
 
-Uses baseline_metrics.json for per-creator targets.
+Bot natural rates (measured from Level 1 runs) are stored in
+creator_profiles(profile_type='bot_natural_rates') and read at runtime.
+When unavailable, env-var fallbacks are used and logged.
 """
 
 import logging
@@ -26,8 +27,9 @@ ENABLE_STYLE_NORMALIZER = os.getenv("ENABLE_STYLE_NORMALIZER", "true").lower() i
     "true", "1", "yes",
 )
 
-# Cache for loaded baselines
+# Cache for loaded baselines and bot natural rates
 _baseline_cache: dict = {}
+_natural_rates_cache: dict = {}
 
 
 def _load_baseline(creator_id: str) -> Optional[dict]:
@@ -57,6 +59,26 @@ def _load_baseline(creator_id: str) -> Optional[dict]:
     except (FileNotFoundError, Exception) as e:
         logger.debug("No baseline for %s: %s", creator_id, e)
         _baseline_cache[creator_id] = None
+        return None
+
+
+def _load_bot_natural_rates(creator_id: str) -> Optional[dict]:
+    """Load measured bot natural rates from DB, cached.
+
+    Populated by Level 1 runs or auto-provisioning.
+    Returns dict with keys like 'excl_rate', 'question_rate', etc.
+    Returns None if no measurements exist yet.
+    """
+    if creator_id in _natural_rates_cache:
+        return _natural_rates_cache[creator_id]
+
+    try:
+        from services.creator_profile_service import get_profile
+        data = get_profile(creator_id, "bot_natural_rates")
+        _natural_rates_cache[creator_id] = data
+        return data
+    except Exception:
+        _natural_rates_cache[creator_id] = None
         return None
 
 
@@ -117,13 +139,38 @@ def normalize_style(
 
     result = response
 
-    # Emoji normalization
-    # If response has emoji, probabilistically strip based on creator rate.
-    # The model generates emoji in ~55% of responses after strong prompting.
-    # We want to bring that down to the creator's rate (e.g. 22.6%).
-    # keep_prob = target / model_rate — keeps the right fraction of emoji msgs.
+    # 1. Exclamation normalization
+    # Per-message decision: keep_prob = creator_rate / bot_natural_rate.
+    # Uses has_exclamation_msg_pct (message-level, WhatsApp-calibrated) when available,
+    # falling back to exclamation_rate_pct. Bot natural rate from DB or env fallback.
+    punct = baseline.get("punctuation", {})
+    excl_rate = punct.get("has_exclamation_msg_pct", punct.get("exclamation_rate_pct", 50))
+    bot_rates = _load_bot_natural_rates(creator_id)
+    if bot_rates and bot_rates.get("excl_rate") is not None:
+        model_excl_rate = float(bot_rates["excl_rate"])
+        logger.debug("[STYLE-NORM] excl natural rate from DB: %.1f%% for %s", model_excl_rate, creator_id)
+    else:
+        model_excl_rate = float(os.getenv("STYLE_NORM_MODEL_EXCL_RATE", "86"))
+        logger.debug("[STYLE-NORM] excl natural rate FALLBACK: %.1f%% for %s", model_excl_rate, creator_id)
+    if "!" in result and model_excl_rate > 0 and excl_rate < model_excl_rate:
+        # Per-message keep probability: creator_rate / bot_natural_rate
+        keep_prob = min(1.0, excl_rate / model_excl_rate)
+        if random.random() > keep_prob:
+            result = re.sub(r"!+", ".", result)
+            # Clean up orphaned '¡' (no matching '!')
+            if "¡" in result:
+                result = result.replace("¡", "")
+            # Remove double periods
+            result = re.sub(r"\.{2,}", ".", result)
+
+    # 2. Emoji normalization
+    # Probabilistically strip emojis to match creator's emoji_rate_pct.
+    # keep_prob = target / bot_natural_emoji_rate.
     emoji_rate = baseline.get("emoji", {}).get("emoji_rate_pct", 20)
-    model_emoji_rate = float(os.getenv("STYLE_NORM_MODEL_EMOJI_RATE", "55"))
+    if bot_rates and bot_rates.get("emoji_rate") is not None:
+        model_emoji_rate = float(bot_rates["emoji_rate"])
+    else:
+        model_emoji_rate = float(os.getenv("STYLE_NORM_MODEL_EMOJI_RATE", "55"))
     if _has_emoji(result) and model_emoji_rate > 0:
         keep_prob = min(1.0, emoji_rate / model_emoji_rate)
         if random.random() > keep_prob:

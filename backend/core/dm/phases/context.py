@@ -752,6 +752,19 @@ async def phase_memory_and_context(
     except Exception as e:
         logger.debug("Length hint failed: %s", e)
 
+    # Question hint — data-driven from baseline_metrics question_rate_pct
+    try:
+        from core.dm.text_utils import get_data_driven_question_hint
+        _question_hint = get_data_driven_question_hint(agent.creator_id)
+        if _question_hint:
+            _context_notes_str = (
+                (_context_notes_str + "\n" + _question_hint)
+                if _context_notes_str else _question_hint
+            )
+            cognitive_metadata["question_hint_injected"] = _question_hint
+    except Exception as e:
+        logger.debug("Question hint failed: %s", e)
+
     # ECHO Engine: Generate relational context (Sprint 4)
     relational_block = ""
     _echo_rel_ctx = None
