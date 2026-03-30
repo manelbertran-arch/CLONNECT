@@ -137,8 +137,8 @@ Prometheus 7B corriendo vía Ollama en `localhost:11434`. Level 2 script actuali
 
 | Nivel | Estado | Detalle |
 |-------|--------|---------|
-| **L1** (quantitative) | ✅ ACTIVO | 0.75 config5, 2 flags menores |
-| **L2** (LLM judge) | ✅ ACTIVO | Prometheus local $0 + GPT-4o para definitivo |
+| **L1** (quantitative) | ✅ ACTIVO | **0.83** Iris (estable, 2 flags: emoji_count, question_count) |
+| **L2** (LLM judge) | 🔄 EN CURSO | Re-midiendo sobre respuestas actuales con Prometheus local |
 | **L3** (human eval) | 🔄 EN CURSO | BFI interview lanzada |
 | **L4** (prod metrics) | ⏳ PENDIENTE | — |
 | **L5** (creator survey) | 🔄 EN CURSO | Formulario enviado a Iris |
@@ -179,8 +179,8 @@ Prometheus 7B corriendo vía Ollama en `localhost:11434`. Level 2 script actuali
 
 ### Importantes
 3. **Config6b excl_rate 0.60 vs GT 0.30**: Los calibrated anchors no reducen exclamaciones. Investigar: ¿vienen de intent-matched examples?
-4. **L2 config6b sin medir**: OpenAI quota agotada durante el run. Pendiente correr con Prometheus local.
-5. **Pipeline gap no cerrado**: 0.75 aislado → 0.42 pipeline. Conversation state inyecta demasiadas preguntas.
+4. **L2 en re-medición**: Re-corriendo L2 sobre respuestas actuales con Prometheus local (no config6b específicamente).
+5. **Pipeline gap no cerrado**: 0.83 aislado → pipeline sin medir con nueva baseline. Conversation state inyecta demasiadas preguntas.
 6. **Question rate bajo** (0.16 bot vs 0.26 GT): El bot hace pocas preguntas. Strategy hints RECURRENTE no ayudan.
 
 ### Nice-to-have
@@ -203,11 +203,11 @@ c80b436b fix: measure bot_natural_rates pre-normalization to prevent circular re
 
 ## 9. Próximos pasos (prioridad)
 
-1. **L2 config6b con Prometheus local** — Run pendiente `--judge-model ollama/vicgalle/prometheus-7b-v2.0`. Comparar Persona Fidelity vs config3b.
-2. **Calibrar Stefano** — CPE Level 0→1→2 para `stefano_bonanno`. Generar Doc D comprimido, medir match score base.
-3. **Cerrar pipeline gap** — Reducir question injection de conversation state (historia ≥4 turns). Objetivo: 0.42→0.65+ en pipeline.
-4. **Integrar GLIDER** — Añadir como tercer backend al Level 2 script para ensemble $0.
-5. **Config7 hypothesis** — Few-shot seleccionados por embedding similarity (cuando OpenAI quota se recupere) + 1 anchor pet-name calibrado.
+1. **L2 sobre respuestas actuales** — Re-medir L2 con Prometheus local sobre las respuestas del sistema en producción. Comparar Persona Fidelity antes/después de fixes.
+2. **L3 BFI interview** — En curso. Completar entrevista BFI con Iris para obtener perfil de personalidad estructurado.
+3. **L5 formulario Iris** — En curso. Recoger respuestas del formulario enviado a Iris.
+4. **Calibrar Stefano** — CPE Level 0→1→2 para `stefano_bonanno`. Generar Doc D comprimido, medir match score base.
+5. **Cerrar pipeline gap** — Reducir question injection de conversation state (historia ≥4 turns). Objetivo: pipeline match → 0.65+.
 
 ---
 
@@ -215,9 +215,9 @@ c80b436b fix: measure bot_natural_rates pre-normalization to prevent circular re
 
 | Métrica | 29-mar | 30-mar | Target |
 |---------|--------|--------|--------|
-| Match L1 (config5, aislado) | 0.75 | **0.75** (estable) | >0.80 |
+| Match L1 (Iris, aislado) | 0.75 | **0.83** (estable, fix circular) | >0.80 |
 | Match L1 (pipeline) | 0.42 | — | >0.70 |
-| Emoji rate (bot) | 0.28 | **0.52** (config6b) | 0.38 |
+| Emoji rate (bot) | 0.28 | **0.38** (estable, fix circular) | 0.38 |
 | Excl rate (bot) | 0.08 | **0.30** (iris, fix) | 0.30 |
 | L2 overall (GPT-4o, config3b) | 3.24 | **2.97** (con GT) | >4.0 |
 | L2 Persona Fidelity | — | **2.76** (config3b) | >4.0 |
