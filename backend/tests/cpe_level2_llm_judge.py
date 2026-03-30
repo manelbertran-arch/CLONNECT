@@ -231,6 +231,8 @@ def judge_single(client, model: str, dimension: str, rubric_info: dict,
     )
 
     try:
+        # Ollama/local models need more tokens for verbose rubric feedback
+        is_local = "localhost" in str(getattr(client, '_base_url', ''))
         response = client.chat.completions.create(
             model=model,
             messages=[
@@ -238,7 +240,7 @@ def judge_single(client, model: str, dimension: str, rubric_info: dict,
                 {"role": "user", "content": prompt},
             ],
             temperature=0.0,
-            max_tokens=300,
+            max_tokens=500 if is_local else 300,
         )
         raw = response.choices[0].message.content.strip()
 
@@ -418,6 +420,47 @@ async def main():
         with open(args.responses) as f:
             prev = json.load(f)
         conversations = prev if isinstance(prev, list) else prev.get("conversations", [])
+        # Normalize field names from CPE config format → level2 format
+        normalized = []
+        for c in conversations:
+            if "input" in c and "test_input" not in c:
+                c = dict(c)
+                c["test_input"] = c.pop("input")
+            if "creator_real_response" in c and "ground_truth" not in c:
+                c = dict(c)
+                c["ground_truth"] = c.pop("creator_real_response")
+            normalized.append(c)
+        conversations = normalized
+
+        # Enrich missing ground_truth from test_set if available
+        missing_gt = sum(1 for c in conversations if not c.get("ground_truth"))
+        if missing_gt > 0:
+            ts_path = REPO_ROOT / "tests" / "cpe_data" / creator / "test_set.json"
+            if ts_path.exists():
+                with open(ts_path) as f:
+                    ts_data = json.load(f)
+                ts_items = ts_data if isinstance(ts_data, list) else ts_data.get("test_cases", ts_data.get("conversations", []))
+                gt_map = {}
+                for t in ts_items:
+                    key = t.get("id", t.get("test_input", ""))
+                    gt = t.get("ground_truth", t.get("creator_real_response", ""))
+                    if key and gt:
+                        gt_map[key] = gt
+                    # Also index by test_input text for fuzzy match
+                    inp = t.get("test_input", "")
+                    if inp and gt:
+                        gt_map[inp] = gt
+
+                filled = 0
+                for c in conversations:
+                    if not c.get("ground_truth"):
+                        gt = gt_map.get(c.get("id", "")) or gt_map.get(c.get("test_input", ""))
+                        if gt:
+                            c["ground_truth"] = gt
+                            filled += 1
+                if filled:
+                    logger.info(f"Enriched {filled}/{missing_gt} missing ground_truths from test_set")
+
         logger.info(f"Reusing {len(conversations)} responses from {args.responses}")
     else:
         test_path = Path(args.test_set) if args.test_set else REPO_ROOT / "tests" / "test_set_real_leads.json"
@@ -437,14 +480,22 @@ async def main():
     creator_name = creator.replace("_", " ").title()
     logger.info(f"Creator profile loaded: {len(creator_profile)} chars")
 
-    # Initialize judge — supports both OpenAI direct and prometheus-eval library
+    # Initialize judge — supports OpenAI, prometheus-eval library, and Ollama local
     use_prometheus = args.judge_model.startswith("prometheus") or args.judge_model == "prometheus"
+    use_ollama = args.judge_model.startswith("ollama/")
     prom_judge = None
     client = None
 
-    if use_prometheus:
+    if use_ollama:
+        # Ollama serves an OpenAI-compatible API at localhost:11434
+        from openai import OpenAI
+        ollama_model = args.judge_model.replace("ollama/", "", 1)
+        client = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
+        logger.info(f"Using Ollama local model: {ollama_model}")
+        # Override judge_model for the actual API call
+        args.judge_model = ollama_model
+    elif use_prometheus:
         # Map "prometheus" to the prometheus-eval library with GPT-4o-mini backend
-        # (Prometheus 7B not available on any API; library provides the rubric framework)
         backend = "gpt-4o-mini"
         if "/" in args.judge_model:
             backend = args.judge_model
@@ -454,9 +505,9 @@ async def main():
         except (ImportError, Exception) as e:
             logger.warning(f"prometheus-eval unavailable ({e}), falling back to GPT-4o-mini")
             use_prometheus = False
-            args.judge_model = "gpt-4o-mini"  # Override model for fallback
+            args.judge_model = "gpt-4o-mini"
 
-    if not use_prometheus:
+    if not use_prometheus and not use_ollama:
         from openai import OpenAI
         client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
@@ -484,7 +535,8 @@ async def main():
             conv_scores[dim_key] = result
             if result["score"] > 0:
                 dimension_scores[dim_key].append(result["score"])
-            time.sleep(0.2)  # Rate limit
+            if not use_ollama:
+                time.sleep(0.2)  # Rate limit (not needed for local Ollama)
 
         # Compute per-conversation aggregate
         valid_scores = [v["score"] for v in conv_scores.values() if v["score"] > 0]
