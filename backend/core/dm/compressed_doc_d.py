@@ -193,13 +193,15 @@ def build_compressed_doc_d(creator_id: str) -> str:
         q_rate = punct.get("question_rate_pct", 15)
         caps_rate = punct.get("all_caps_rate_pct", 3)
         style_lines.append(
-            f"- Exclamaciones (!): SOLO {excl_rate:.0f}% de tus mensajes usan '!'. "
-            f"Casi NUNCA usas signos de exclamación. Termina frases con punto o sin puntuación."
+            f"- Exclamaciones (!): {excl_rate:.0f}% de tus mensajes usan '!'. "
+            f"Úsalas solo cuando el contexto pide énfasis emocional — no como defecto."
         )
         style_lines.append(f"- Preguntas (?): {q_rate:.0f}% de mensajes.")
-        if caps_rate > 0:
+        if caps_rate > 2:
             style_lines.append(
-                f"- Mayúsculas para énfasis: {caps_rate:.0f}% de mensajes."
+                f"- Mayúsculas para énfasis (CAPS): {caps_rate:.0f}% de mensajes. "
+                f"Ejemplo: 'NOOOO', 'AVUI', 'QUE FUEEERT', 'AYYYY'. "
+                f"Úsalas cuando quieras expresar sorpresa, énfasis o emoción fuerte."
             )
 
         # Languages
@@ -226,11 +228,10 @@ def build_compressed_doc_d(creator_id: str) -> str:
     if products_str:
         sections.append(f"PRODUCTOS/SERVICIOS:\n{products_str}")
 
-    # 5. Anti-patterns (universal + emoji/exclamation emphasis)
+    # 5. Anti-patterns (universal + emoji emphasis)
     sections.append(
         "REGLAS CRÍTICAS (si no las cumples, se nota que eres IA):\n"
         "- La MAYORÍA de tus mensajes van SIN emoji. No pongas emoji por defecto.\n"
-        "- Casi NUNCA usas '!' — termina con punto, sin puntuación, o con emoji suelto.\n"
         "- NO respondas como asistente ('¿En qué puedo ayudarte?', 'Estoy aquí para...')\n"
         "- NO inventes precios, horarios o datos que no tengas\n"
         "- Mensajes cortos — la mayoría son 1-2 frases"

@@ -117,23 +117,7 @@ def normalize_style(
 
     result = response
 
-    # 1. Exclamation normalization
-    # Creator's exclamation rate is typically very low (e.g., 1.8%)
-    # LLMs generate ! in 40-60% of responses.
-    # Strategy: replace trailing '!' with '.' or nothing.
-    excl_rate = baseline.get("punctuation", {}).get("exclamation_rate_pct", 10)
-    if excl_rate < 10:  # Only normalize when creator rarely uses '!'
-        # Probability of KEEPING '!' = creator rate / 100
-        keep_prob = excl_rate / 100.0
-        if "!" in result and random.random() > keep_prob:
-            # Replace ALL runs of '!' (!, !!, !!! etc.) — LLMs over-generate these
-            result = re.sub(r"!+", ".", result)
-            # Clean up patterns like ".." from "word!." becoming "word.."
-            result = re.sub(r"\.\.+", ".", result)
-            # Remove ". " before emoji at end
-            result = re.sub(r"\.\s*$", "", result).strip() or result
-
-    # 2. Emoji normalization
+    # Emoji normalization
     # If response has emoji, probabilistically strip based on creator rate.
     # The model generates emoji in ~55% of responses after strong prompting.
     # We want to bring that down to the creator's rate (e.g. 22.6%).
