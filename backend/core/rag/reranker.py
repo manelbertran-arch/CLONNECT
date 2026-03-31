@@ -16,6 +16,7 @@ Providers:
 Toggle: RERANKER_PROVIDER=local|cohere (default: local)
 """
 import os
+import time
 import logging
 from typing import List, Dict, Any, Optional
 
@@ -34,6 +35,8 @@ COHERE_API_KEY = os.getenv("COHERE_API_KEY", "")
 
 # Lazy loading para evitar import pesado al inicio
 _reranker = None
+_reranker_last_failure: float = 0.0
+_RERANKER_RETRY_COOLDOWN = 30.0  # seconds before retrying after init failure
 
 
 # Reranker model: multilingual by default for CA/ES/EN/IT support.
@@ -46,19 +49,22 @@ RERANKER_MODEL = os.getenv(
 
 def get_reranker():
     """Lazy load del modelo Cross-Encoder (multilingual by default)."""
-    global _reranker
-    if _reranker is None:
-        try:
-            from sentence_transformers import CrossEncoder
-            logger.info("Loading Cross-Encoder model (%s)...", RERANKER_MODEL)
-            _reranker = CrossEncoder(RERANKER_MODEL)
-            logger.info("Cross-Encoder loaded: %s (FREE, runs locally)", RERANKER_MODEL)
-        except ImportError:
-            logger.error("sentence-transformers not installed: pip install sentence-transformers")
-            _reranker = None
-        except Exception as e:
-            logger.error(f"Failed to load Cross-Encoder: {e}")
-            _reranker = None
+    global _reranker, _reranker_last_failure
+    if _reranker is not None:
+        return _reranker
+    if _reranker_last_failure and (time.time() - _reranker_last_failure) < _RERANKER_RETRY_COOLDOWN:
+        return None
+    try:
+        from sentence_transformers import CrossEncoder
+        logger.info("Loading Cross-Encoder model (%s)...", RERANKER_MODEL)
+        _reranker = CrossEncoder(RERANKER_MODEL)
+        logger.info("Cross-Encoder loaded: %s (FREE, runs locally)", RERANKER_MODEL)
+    except ImportError:
+        logger.error("sentence-transformers not installed: pip install sentence-transformers")
+        _reranker_last_failure = time.time()
+    except Exception as e:
+        logger.error(f"Failed to load Cross-Encoder: {e}")
+        _reranker_last_failure = time.time()
     return _reranker
 
 
