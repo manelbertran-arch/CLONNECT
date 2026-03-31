@@ -144,7 +144,10 @@ def validate_links(
                     auto_fix="removed",
                 )
             )
-            # Remove the hallucinated URL from response
-            corrected = corrected.replace(url, "[enlace removido]")
+            # Remove the hallucinated URL from response (silent removal — no hardcoded locale string)
+            corrected = corrected.replace(url, "")
+
+    # Clean up residual double spaces from URL removals
+    corrected = re.sub(r'  +', ' ', corrected).strip()
 
     return issues, corrected
