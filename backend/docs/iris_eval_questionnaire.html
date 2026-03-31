@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Iris — Evaluación IA</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: #0a0a0a;
+  color: #e0e0e0;
+  min-height: 100vh;
+}
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px;
+  padding-bottom: 80px;
+}
+/* Header */
+.header {
+  text-align: center;
+  padding: 24px 0 16px;
+}
+.header h1 {
+  font-size: 1.4em;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+.header p {
+  color: #888;
+  font-size: 0.85em;
+  margin-top: 4px;
+}
+/* Progress */
+.progress-wrap {
+  margin: 12px 0 20px;
+}
+.progress-dots {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #222;
+  border: 1px solid #333;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.dot.done { background: #4caf50; border-color: #4caf50; }
+.dot.current { background: #e91e8c; border-color: #e91e8c; transform: scale(1.2); }
+.dot.partial { background: #ff9800; border-color: #ff9800; }
+.progress-text {
+  text-align: center;
+  font-size: 0.78em;
+  color: #666;
+}
+/* Card */
+.card {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.card-header {
+  background: #161616;
+  border-bottom: 1px solid #222;
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.card-num {
+  font-size: 0.75em;
+  font-weight: 700;
+  color: #e91e8c;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.card-id {
+  font-size: 0.7em;
+  color: #444;
+  font-family: monospace;
+}
+.card-body { padding: 14px 16px; }
+/* Bubbles */
+.label {
+  font-size: 0.68em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  color: #555;
+}
+.bubble {
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.9em;
+  line-height: 1.5;
+  margin-bottom: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.bubble.fan {
+  background: #1a1a2e;
+  border-left: 3px solid #5c6bc0;
+  color: #c5cae9;
+}
+.bubble.bot {
+  background: #1a2e1a;
+  border-left: 3px solid #4caf50;
+  color: #c8e6c9;
+  margin-top: 10px;
+}
+/* Questions */
+.questions { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.question { background: #161616; border-radius: 10px; padding: 12px 14px; }
+.q-label {
+  font-size: 0.82em;
+  color: #bbb;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.q-label strong { color: #fff; display: block; font-size: 1em; margin-bottom: 2px; }
+.q-label span { color: #666; font-size: 0.88em; }
+.pills {
+  display: flex;
+  gap: 6px;
+}
+.pill {
+  flex: 1;
+  padding: 8px 4px;
+  border-radius: 8px;
+  border: 1.5px solid #2a2a2a;
+  background: transparent;
+  color: #888;
+  font-size: 0.85em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.pill:active { transform: scale(0.95); }
+.pill.sel-1 { border-color: #f44336; background: #f4433622; color: #f44336; }
+.pill.sel-2 { border-color: #ff9800; background: #ff980022; color: #ff9800; }
+.pill.sel-3 { border-color: #ffc107; background: #ffc10722; color: #ffc107; }
+.pill.sel-4 { border-color: #8bc34a; background: #8bc34a22; color: #8bc34a; }
+.pill.sel-5 { border-color: #4caf50; background: #4caf5022; color: #4caf50; }
+/* Nav */
+.nav {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+.btn {
+  flex: 1;
+  padding: 13px;
+  border-radius: 10px;
+  border: none;
+  font-size: 0.9em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active { transform: scale(0.97); }
+.btn-secondary {
+  background: #1a1a1a;
+  color: #888;
+  border: 1px solid #2a2a2a;
+}
+.btn-primary {
+  background: #e91e8c;
+  color: #fff;
+}
+.btn-primary:disabled {
+  background: #3a1a2a;
+  color: #664;
+  cursor: not-allowed;
+}
+/* Done screen */
+.done-screen {
+  display: none;
+  text-align: center;
+  padding: 40px 20px;
+}
+.done-screen.show { display: block; }
+.done-icon { font-size: 3em; margin-bottom: 16px; }
+.done-screen h2 { font-size: 1.3em; color: #fff; margin-bottom: 8px; }
+.done-screen p { color: #888; font-size: 0.9em; line-height: 1.5; margin-bottom: 24px; }
+.btn-whatsapp {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #25d366;
+  color: #fff;
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 1em;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.btn-whatsapp:active { transform: scale(0.97); }
+.btn-whatsapp svg { width: 22px; height: 22px; fill: white; }
+.score-summary {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 24px 0;
+  text-align: left;
+}
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #1a1a1a;
+  font-size: 0.85em;
+}
+.score-row:last-child { border-bottom: none; }
+.score-row .lbl { color: #888; }
+.score-row .val { color: #4caf50; font-weight: 700; }
+.btn-restart {
+  background: transparent;
+  color: #666;
+  border: 1px solid #2a2a2a;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.85em;
+  cursor: pointer;
+  margin-top: 12px;
+  display: block;
+  width: 100%;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <h1>🤖 ¿Sonas a tu?</h1>
+    <p>Evalúa 20 respuestas de tu IA clone · 3 preguntas cada una</p>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-dots" id="dots"></div>
+    <div class="progress-text" id="progress-text">Caso 1 de 20</div>
+  </div>
+
+  <div id="card-container"></div>
+
+  <div class="done-screen" id="done-screen">
+    <div class="done-icon">🎉</div>
+    <h2>¡Acabado!</h2>
+    <p>Has evaluado los 20 casos. Pulsa el botón para enviar los resultados a Manel por WhatsApp.</p>
+    <div class="score-summary" id="score-summary"></div>
+    <a id="wa-link" href="#" class="btn-whatsapp">
+      <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+      Enviar resultados a Manel
+    </a>
+    <button class="btn-restart" onclick="restart()">Volver a empezar</button>
+  </div>
+
+</div>
+
+<script>
+const CASES = [
+  {
+    "id": "cpe_iris_b_001",
+    "fan": "Con las ganas que tenia de hacer el nuevo combo😭",
+    "bot": "¡Qué crack! 💪🩷  \nDale, que va a ser un dia genial!"
+  },
+  {
+    "id": "cpe_iris_b_002",
+    "fan": "Potser podria fer una classe d'hipopressius/estiraments?",
+    "bot": "Daleee! 😘 Te paso el link de la Sunday Bonus Session, que incluye hipopresivos! 🩷"
+  },
+  {
+    "id": "cpe_iris_b_005",
+    "fan": "Per la regla",
+    "bot": "Jajajaja, cuca! 💪🩷  \nVas a estar genial con el hipopresivo, te lo recomiendo."
+  },
+  {
+    "id": "cpe_iris_b_013",
+    "fan": "que ganas tengo de la clase hoy! \npara mí el baile siempre ha sido una vía de escape y de conectar conmigo, y tus clases son perfectas pa eso♥️",
+    "bot": "¡Daleee, mi reina! 💪🩷 Me alegra que te sientas así. ¡Vamos a conectar con todo!"
+  },
+  {
+    "id": "cpe_iris_b_014",
+    "fan": "perfect!",
+    "bot": "Jajajaja, ¡me encanta! 🫵🏻🫵🏻🫵🏻  \n¡Sí, el baile es el mejor escape! 💃  \nVamos a volar hoy, cuca!"
+  },
+  {
+    "id": "cpe_iris_b_015",
+    "fan": "yo me voy a dormir nenaaaa q nos adelantan una hora esta noche",
+    "bot": "Jajaja, que lindas 😂❤️  \n¡Dale, descansa nena! Nos vemos más tarde 🚀🌙"
+  },
+  {
+    "id": "cpe_iris_b_016",
+    "fan": "no me puedes dejar los domingos mami, tiene que estar mi booty a tope",
+    "bot": "Jajaja, ¡no te dejo solo! 🩷  \nDale, descansa que hoy te va a encantar.  \n¡Hasta mañana, nena! 🚀💤"
+  },
+  {
+    "id": "cpe_iris_b_017",
+    "fan": "Sin azucar😂",
+    "bot": "Jajajajaa, qué crack! 🫠🫠  \n¡Dale, mi reina, que el booty a tope es lo que hay!"
+  },
+  {
+    "id": "cpe_iris_b_022",
+    "fan": "Reinaaaa,Passam número de la teva secretaría millor😘😅😘😅 i em reservo un parell de clases+dinaret o soparet 🎊🍾🤩",
+    "bot": "Reinaaaa, passa'm el número de la teva secretaria millor 😘😅 i em reservo un parell de classes + dinaret o soparet 🎊🍾🤩"
+  },
+  {
+    "id": "cpe_iris_b_023",
+    "fan": "Ok no pasa nada tu dime si puedes el lunes",
+    "bot": "¡Daleee, mi reina! 😘  \nDescansá bien, que mañana seguimos con todo.  \nY el booty siempre a tope, ¡no te preocupes!  \nBesitos y hasta lunes 💜"
+  },
+  {
+    "id": "cpe_iris_b_026",
+    "fan": "yes mami són molt maques totes",
+    "bot": "Jajaja, siiii, tot espectacular! 🩷  \nDaleee, el lunes te espero a tope! 💪  \nUn besote cuca 🫠"
+  },
+  {
+    "id": "cpe_iris_b_028",
+    "fan": "tia al lado d mi cada literal o sea flipo",
+    "bot": "Jajajaja, tiaaa, que lo has pillado! 😘  \nMira, ya te pase el link del drive.  \nY por WhatsApp te aviso cuando esté disponible el número de la secretaría. 💪🩷"
+  },
+  {
+    "id": "cpe_iris_b_031",
+    "fan": "Acuérdate que la puerta es la que está atrás de la cafetería. Plaza de Charlie Ribble 1. Piso 4A.",
+    "bot": "Jajaja mi reinaaaaa 😘❤️❤️ que crack sos!  \nDale, te paso el link para que te reserves las clases 💪🩷  \nY si necesitás ayuda, siempre estoy acá 😘"
+  },
+  {
+    "id": "cpe_iris_b_033",
+    "fan": "Tia llamammé luego eh!!!!",
+    "bot": "Tiaaaaaa, ¡no te vayas! 💪🩷  \nVamos a hacer algo brutal el lunes, no te pierdas nada!"
+  },
+  {
+    "id": "cpe_iris_b_034",
+    "fan": "Dijous no, marxo a Ullastret",
+    "bot": "Jajaja, tia! 💪🩷 Me encantaaaaa! ❤️  \nDale, llamo yo! 😘  \nUn abrazo grande! 🫠❤️"
+  },
+  {
+    "id": "cpe_iris_b_037",
+    "fan": "Estimada Iris,\nle invitamos a descubrir los beneficios de la limpieza facial con HYDROFACIAL, un tratamiento avanzado que limpia, hidrata y revitaliza la piel en profundidad.\n\nPromoción especial: 70€ · válida hasta el martes 31\n\nReserve su cita y disfrute de una piel más saludable.",
+    "bot": "Jajaja tia, qué crack! 😂❤️  \nGràcies per recordar la porta, tia!  \nDijous no? Pues cuídate mucho!  \nVoy a ver el video, no te preocupes!"
+  },
+  {
+    "id": "cpe_iris_b_039",
+    "fan": "Espero que no ho faci per nivell, que no. Perque tu estas molt per sobre de nivell, energia, tècnica…",
+    "bot": "Jajaja, gràcies flor! 😘 I si, tinc nota! 🩷"
+  },
+  {
+    "id": "cpe_iris_b_042",
+    "fan": "Holaaaa",
+    "bot": "Holaaa flor! 😘"
+  },
+  {
+    "id": "cpe_iris_b_045",
+    "fan": "Ooooo mi niña verdad ufffff todo el fin de semana fue muy interesante ye todo como muy intenso \nLa sección es top  me gustó mucho ahora me falta la ultima etapa que es mandar mi vídeo para mí certificación \nMe tienes que echar una mano tengo que coger clases contigo 😛\n\nYo hice online las de presencial estaban muertas ajajaja \n\n Ahora a practicar duro y parejo",
+    "bot": "Ooooo mi niña verdad ufffff  \n¡Daleee, ya casi lo tienes! 🩷  \n¡Vamos con todo! 💪  \n¿Cuándo empezamos? 😘"
+  },
+  {
+    "id": "cpe_iris_b_049",
+    "fan": "Esq es pedazo de gira esta",
+    "bot": "¡Siii, fue una gira de crack! 🩷  \nVas por buen camino, cuca.  \n¿Ya tienes el video listo? Daleee 😘"
+  }
+];
+
+const QUESTIONS = [
+  {
+    key: 'voz',
+    strong: '¿Suenas a ti?',
+    desc: '¿Este mensaje suena como tú escribirías?',
+    labels: ['Para nada', 'Poco', 'A medias', 'Bastante', 'Totalmente']
+  },
+  {
+    key: 'sentido',
+    strong: '¿Tiene sentido?',
+    desc: '¿La respuesta encaja con lo que dijo el fan?',
+    labels: ['Sin sentido', 'Poco', 'Regular', 'Bien', 'Perfecto']
+  },
+  {
+    key: 'enviaria',
+    strong: '¿La enviarías?',
+    desc: '¿Enviarías este mensaje tal cual?',
+    labels: ['Nunca', 'Con cambios grandes', 'Con algún retoque', 'Casi igual', 'Sin dudarlo']
+  }
+];
+
+const STORAGE_KEY = 'iris_eval_v1';
+
+let current = 0;
+let answers = {};
+
+// Load from localStorage
+function load() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) answers = JSON.parse(saved);
+  } catch(e) {}
+}
+
+function save() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
+  } catch(e) {}
+}
+
+function isComplete(idx) {
+  const a = answers[idx] || {};
+  return QUESTIONS.every(q => a[q.key] != null);
+}
+
+function countDone() {
+  return CASES.reduce((n, _, i) => n + (isComplete(i) ? 1 : 0), 0);
+}
+
+function countPartial(idx) {
+  const a = answers[idx] || {};
+  return QUESTIONS.some(q => a[q.key] != null) && !isComplete(idx);
+}
+
+function renderDots() {
+  const dots = document.getElementById('dots');
+  dots.innerHTML = '';
+  CASES.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === current ? ' current' : isComplete(i) ? ' done' : countPartial(i) ? ' partial' : '');
+    d.onclick = () => goTo(i);
+    dots.appendChild(d);
+  });
+  const done = countDone();
+  document.getElementById('progress-text').textContent =
+    `Caso ${current + 1} de ${CASES.length} · ${done}/20 completados`;
+}
+
+function renderCard() {
+  const c = CASES[current];
+  const a = answers[current] || {};
+  const allDone = countDone() === CASES.length;
+
+  const container = document.getElementById('card-container');
+
+  if (allDone && current >= CASES.length) {
+    showDone();
+    return;
+  }
+
+  const isFirst = current === 0;
+  const isLast = current === CASES.length - 1;
+  const nextLabel = isLast ? 'Finalizar ✓' : 'Siguiente →';
+  const complete = isComplete(current);
+
+  container.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <span class="card-num">Caso ${current + 1}</span>
+        <span class="card-id">${c.id}</span>
+      </div>
+      <div class="card-body">
+        <div class="label">Fan escribió</div>
+        <div class="bubble fan">${escHtml(c.fan)}</div>
+        <div class="label" style="margin-top:10px">Tu IA respondió</div>
+        <div class="bubble bot">${escHtml(c.bot)}</div>
+        <div class="questions">
+          ${QUESTIONS.map((q, qi) => `
+            <div class="question">
+              <div class="q-label">
+                <strong>${q.strong}</strong>
+                <span>${q.desc}</span>
+              </div>
+              <div class="pills">
+                ${[1,2,3,4,5].map(v => `
+                  <button class="pill ${a[q.key] === v ? 'sel-' + v : ''}"
+                    onclick="pick(${current},${qi},${v})">${v}</button>
+                `).join('')}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="nav">
+          ${isFirst
+            ? '<div style="flex:1"></div>'
+            : '<button class="btn btn-secondary" onclick="goTo(' + (current-1) + ')">← Anterior</button>'
+          }
+          <button class="btn btn-primary" onclick="next()"
+            ${isLast && !complete ? 'disabled' : ''}
+          >${nextLabel}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+          .replace(/\n/g,'<br>');
+}
+
+function pick(caseIdx, qIdx, val) {
+  if (!answers[caseIdx]) answers[caseIdx] = {};
+  const key = QUESTIONS[qIdx].key;
+  answers[caseIdx][key] = val;
+  save();
+  renderDots();
+  renderCard();
+}
+
+function next() {
+  if (current < CASES.length - 1) {
+    current++;
+    renderDots();
+    renderCard();
+    window.scrollTo(0, 0);
+  } else {
+    showDone();
+  }
+}
+
+function goTo(idx) {
+  current = idx;
+  document.getElementById('done-screen').classList.remove('show');
+  document.getElementById('card-container').style.display = '';
+  document.querySelector('.progress-wrap').style.display = '';
+  renderDots();
+  renderCard();
+  window.scrollTo(0, 0);
+}
+
+function showDone() {
+  document.getElementById('card-container').style.display = 'none';
+  document.querySelector('.progress-wrap').style.display = 'none';
+  document.getElementById('done-screen').classList.add('show');
+  buildSummary();
+  buildWaLink();
+}
+
+function buildSummary() {
+  const totals = { voz: 0, sentido: 0, enviaria: 0 };
+  let count = 0;
+  CASES.forEach((_, i) => {
+    const a = answers[i] || {};
+    if (isComplete(i)) {
+      QUESTIONS.forEach(q => { totals[q.key] += a[q.key]; });
+      count++;
+    }
+  });
+  const fmt = (x) => count > 0 ? (x / count).toFixed(1) + ' / 5' : '—';
+  document.getElementById('score-summary').innerHTML = `
+    <div class="score-row"><span class="lbl">Casos completados</span><span class="val">${count}/20</span></div>
+    <div class="score-row"><span class="lbl">¿Suenas a ti? (media)</span><span class="val">${fmt(totals.voz)}</span></div>
+    <div class="score-row"><span class="lbl">¿Tiene sentido? (media)</span><span class="val">${fmt(totals.sentido)}</span></div>
+    <div class="score-row"><span class="lbl">¿La enviarías? (media)</span><span class="val">${fmt(totals.enviaria)}</span></div>
+  `;
+}
+
+function buildWaLink() {
+  const lines = ['📊 *Iris Eval — Resultados*', ''];
+  CASES.forEach((c, i) => {
+    const a = answers[i] || {};
+    if (isComplete(i)) {
+      lines.push(`*${i+1}. ${c.id}*`);
+      lines.push(`Voz: ${a.voz} | Sentido: ${a.sentido} | Enviaría: ${a.enviaria}`);
+    }
+  });
+  lines.push('');
+  // Averages
+  const totals = { voz: 0, sentido: 0, enviaria: 0 };
+  let count = 0;
+  CASES.forEach((_, i) => {
+    const a = answers[i] || {};
+    if (isComplete(i)) {
+      QUESTIONS.forEach(q => { totals[q.key] += a[q.key]; });
+      count++;
+    }
+  });
+  if (count > 0) {
+    lines.push(`*Medias (n=${count})*`);
+    lines.push(`Voz: ${(totals.voz/count).toFixed(2)} | Sentido: ${(totals.sentido/count).toFixed(2)} | Enviaría: ${(totals.enviaria/count).toFixed(2)}`);
+  }
+  const text = lines.join('\n');
+  const url = 'https://wa.me/34639066982?text=' + encodeURIComponent(text);
+  document.getElementById('wa-link').href = url;
+}
+
+function restart() {
+  if (!confirm('¿Borrar todas tus respuestas y empezar de nuevo?')) return;
+  answers = {};
+  current = 0;
+  localStorage.removeItem(STORAGE_KEY);
+  document.getElementById('done-screen').classList.remove('show');
+  document.getElementById('card-container').style.display = '';
+  document.querySelector('.progress-wrap').style.display = '';
+  renderDots();
+  renderCard();
+  window.scrollTo(0, 0);
+}
+
+// Init
+load();
+renderDots();
+// If all done already, show done screen; else render current card
+if (countDone() === CASES.length) {
+  // Find first incomplete or just go to done
+  showDone();
+} else {
+  // Start at first incomplete
+  for (let i = 0; i < CASES.length; i++) {
+    if (!isComplete(i)) { current = i; break; }
+  }
+  renderCard();
+}
+</script>
+</body>
+</html>
