@@ -135,14 +135,14 @@ Responde UNICAMENTE con JSON valido:
 
 MEMO_COMPRESSION_PROMPT = """Eres un asistente que resume informacion sobre un lead (seguidor/cliente).
 
-Dado estos hechos sobre un lead de una creadora de fitness (Iris Bertran), crea un resumen narrativo breve que capture la esencia de quien es, que quiere, y cual es su relacion con Iris.
+Dado estos hechos sobre un lead de {creator_name}, crea un resumen narrativo breve que capture la esencia de quien es, que quiere, y cual es su relacion con {creator_name}.
 
 El memo debe incluir (solo si hay datos):
 - Nombre y datos basicos
-- Servicios de interes (barre, zumba, Flow4U, pilates, etc.)
-- Estado de la relacion (nuevo, alumna habitual, amiga)
+- Servicios o contenido de interes
+- Estado de la relacion (nuevo, cliente habitual, amigo/a)
 - Compromisos pendientes o eventos importantes
-- Idioma preferido (catalan, castellano, mixto)
+- Idioma preferido
 
 Hechos:
 {facts}
@@ -525,7 +525,11 @@ class MemoryEngine:
                 fact_lines.append(f"- [{f.fact_type}] {f.fact_text}")
             facts_text = "\n".join(fact_lines)
 
-            prompt = MEMO_COMPRESSION_PROMPT.format(facts=facts_text)
+            creator_name = creator_id.replace("_", " ").title()
+            prompt = MEMO_COMPRESSION_PROMPT.format(
+                creator_name=creator_name,
+                facts=facts_text,
+            )
             memo_text = await self._call_llm_text(prompt)
 
             if not memo_text or len(memo_text.strip()) < 20:
