@@ -44,9 +44,11 @@ DECAY_HALF_LIFE_BASE_DAYS = float(os.getenv("MEMORY_DECAY_HALF_LIFE_DAYS", "30")
 DECAY_THRESHOLD = float(os.getenv("MEMORY_DECAY_THRESHOLD", "0.1"))
 
 # In-memory recall cache (per-lead, short TTL)
-_recall_cache: Dict[str, str] = {}
-_recall_cache_ts: Dict[str, float] = {}
-_RECALL_CACHE_TTL = 60  # seconds
+# BoundedTTLCache: LRU eviction + TTL, prevents unbounded growth with many leads.
+from core.cache import BoundedTTLCache as _BoundedTTLCache
+_RECALL_CACHE_MAX_SIZE = int(os.getenv("MEMORY_RECALL_CACHE_MAX_SIZE", "500"))
+_RECALL_CACHE_TTL = int(os.getenv("MEMORY_RECALL_CACHE_TTL", "60"))
+_recall_cache = _BoundedTTLCache(max_size=_RECALL_CACHE_MAX_SIZE, ttl_seconds=_RECALL_CACHE_TTL)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -338,7 +340,6 @@ class MemoryEngine:
 
             cache_key = f"{creator_id}:{lead_id}"
             _recall_cache.pop(cache_key, None)
-            _recall_cache_ts.pop(cache_key, None)
 
             return stored_memories
 
@@ -402,11 +403,10 @@ class MemoryEngine:
         creator_id = self._resolve_creator_uuid(creator_id)
         lead_id = self._resolve_lead_uuid(creator_id, lead_id)
         cache_key = f"{creator_id}:{lead_id}"
-        now = time.time()
-        cached_ts = _recall_cache_ts.get(cache_key, 0)
-        if (now - cached_ts) < _RECALL_CACHE_TTL and cache_key in _recall_cache:
+        cached = _recall_cache.get(cache_key)
+        if cached is not None:
             logger.debug("[MemoryEngine] recall() cache hit for %s", lead_id[:8])
-            return _recall_cache[cache_key]
+            return cached
 
         try:
             facts = await self.search(creator_id, lead_id, new_message, top_k=MAX_FACTS_IN_PROMPT)
@@ -417,8 +417,7 @@ class MemoryEngine:
             summary = await self._get_latest_summary(creator_id, lead_id)
             result = self._format_memory_section(facts, summary)
 
-            _recall_cache[cache_key] = result
-            _recall_cache_ts[cache_key] = now
+            _recall_cache.set(cache_key, result)
 
             if result:
                 logger.info(
@@ -556,7 +555,6 @@ class MemoryEngine:
             # Invalidate recall cache
             cache_key = f"{creator_id}:{lead_id}"
             _recall_cache.pop(cache_key, None)
-            _recall_cache_ts.pop(cache_key, None)
 
             logger.info(
                 "[MemoryEngine] Compressed %d facts into memo (%d chars) for lead=%s",
