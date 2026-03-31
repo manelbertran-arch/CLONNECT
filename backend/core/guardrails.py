@@ -83,7 +83,7 @@ class ResponseGuardrail:
                 "valid": False,
                 "reason": "; ".join(issues),
                 "issues": issues,
-                "corrected_response": None
+                "corrected_response": off_topic_redirect,  # non-None when off_topic detected
             }
 
         return {
