@@ -147,6 +147,7 @@ class FollowerMemory:
             "alternative_contact": self.alternative_contact,
             "alternative_contact_type": self.alternative_contact_type,
             "contact_requested": self.contact_requested,
+            "conversation_summary": self.conversation_summary,
         }
 
     @classmethod

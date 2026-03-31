@@ -56,13 +56,15 @@ def get_profile(creator_id: str, profile_type: str) -> Optional[dict]:
             ).fetchone()
 
             result = row[0] if row else None
-            _profile_cache[cache_key] = result
+            # Only cache actual profiles, not None — missing profiles
+            # may be created shortly after by the auto-provisioner.
+            if result is not None:
+                _profile_cache[cache_key] = result
             return result
         finally:
             session.close()
     except Exception as e:
         logger.debug("get_profile(%s, %s) failed: %s", creator_id, profile_type, e)
-        _profile_cache[cache_key] = None
         return None
 
 
