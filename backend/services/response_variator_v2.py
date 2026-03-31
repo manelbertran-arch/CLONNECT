@@ -6,7 +6,7 @@ Features:
 - Question-aware selection (v9.3): targets creator's real question% rate
 - Conversation-level dedup (v10.3): never repeats in same conversation
 - Calibration-driven: loads pools from calibration JSON when available
-- Fallback pools: hardcoded Stefan pools when no calibration exists
+- Fallback pools: generic neutral pools when no calibration exists
 
 Categories:
 - greeting: Hola, Hey, Buenas
@@ -59,22 +59,18 @@ class ResponseVariatorV2:
         calibration_path: Optional[str] = None,
     ):
         self.pools: Dict[str, List[str]] = {}
-        self._used_responses: Dict[str, Set[str]] = {}  # conv_id -> used responses (v10.3)
+        self._used_responses: Dict[str, Set[str]] = {}  # conv_id -> used responses (v10.3, capped)
+        self._MAX_TRACKED_CONVS = 5000  # Cap to prevent unbounded memory growth
         self._extraction_pools: Dict[str, Dict[str, List[str]]] = {}  # creator_id -> pools
         self._extraction_modes: Dict[str, Dict[str, str]] = {}  # creator_id -> cat -> mode
         self._extraction_multi_bubble: Dict[str, list] = {}  # creator_id -> MultiBubbleTemplate list
+        self._extraction_attempted: Set[str] = set()  # creator_ids where load was attempted
 
-        # Try loading from calibration first
-        if calibration_path:
-            self._load_from_calibration(calibration_path)
-        else:
-            self._try_load_calibration()
-
-        # Load from pools file if available
-        if not self.pools:
-            self._load_pools(pools_path)
-
-        # Always merge fallback pools
+        # Generic fallback pools only — NO creator-specific calibration here.
+        # Creator pools are loaded lazily per-creator via _load_extraction_pools(creator_id).
+        # Loading calibration JSONs in __init__ caused non-deterministic cross-creator
+        # pool contamination: whichever creator's JSON loaded first became the global
+        # default for ALL creators (BUG-PM-01 fix).
         self._setup_fallback_pools()
 
         # Build TF-IDF index for context-aware selection (v11)
@@ -113,17 +109,19 @@ class ResponseVariatorV2:
 
     def _setup_fallback_pools(self) -> None:
         """Setup fallback pools if no data exists."""
+        # Generic fallback pools — NO persona-specific language.
+        # Creator-specific pools come from Doc D extraction (v12).
         fallback = {
             "greeting": [
                 "Hola! 😊", "Hey!", "Buenas!", "Ey!", "Qué tal!",
-                "Hola hermano!", "Buenas buenas!", "Hey 😊", "Hola! 😀",
+                "Buenas buenas!", "Hey 😊", "Hola! 😀",
             ],
             "confirmation": [
                 "Dale!", "Ok!", "Perfecto!", "Genial!", "Vale!",
                 "Sí!", "Claro!", "Bien!", "👍", "Dale dale!",
             ],
             "thanks": [
-                "Gracias!", "A ti!", "Gracias hermano!", "Nada!",
+                "Gracias!", "A ti!", "Nada!",
                 "De nada!", "Gracias! 😊", "💙", "Gracias! 💪",
             ],
             "laugh": ["Jaja", "Jajaja", "Jajajaja", "😂", "🤣", "Jeje"],
@@ -147,13 +145,13 @@ class ResponseVariatorV2:
             ],
             "praise": [
                 "Gracias! 😊", "Muchas gracias! 💙", "Qué lindo! 😊",
-                "Me alegro!", "Qué bueno!", "Gracias hermano!", "💙",
+                "Me alegro!", "Qué bueno!", "💙",
             ],
             "meeting_request": [
-                "Imposible bro, me explota la agenda jaja",
-                "Uf imposible, tengo la agenda llena 😅",
-                "Me es imposible ahora mismo, hermano",
-                "Ahora no puedo, bro. Quizás más adelante! 😊",
+                "Imposible, tengo la agenda llena jaja",
+                "Uf imposible, tengo la agenda a tope 😅",
+                "Me es imposible ahora mismo",
+                "Ahora no puedo. Quizás más adelante! 😊",
             ],
             # v10.1 sub-pools (fallback)
             "humor": [
@@ -161,20 +159,20 @@ class ResponseVariatorV2:
                 "Espectacular 😂", "Jaja morí", "Jajaja que bueno",
             ],
             "encouragement": [
-                "Vamos con toda! 💪", "Dale que podés!", "Sos grande!",
-                "Vamos! 🔥", "Fuerza! 💪", "Crack!",
+                "Vamos con toda! 💪", "Tú puedes! 💪",
+                "Vamos! 🔥", "Fuerza! 💪", "Genial! 🔥",
             ],
             "gratitude": [
-                "Gracias! 😊", "A ti! 💙", "Gracias hermano!",
+                "Gracias! 😊", "A ti! 💙",
                 "De nada!", "Nada! 😊", "Gracias! 💪",
             ],
             "reaction": [
-                "Que lindo! 😊", "Hermoso!", "Genial! 🙌",
-                "Espectacular!", "Que bueno!", "Me encanta!",
+                "Qué lindo! 😊", "Genial! 🙌",
+                "Espectacular!", "Qué bueno!", "Me encanta!",
             ],
             "conversational": [
                 "Dale!", "Sí!", "Claro!", "Totalmente!", "Exacto!",
-                "Eso! 😊", "Tal cual!", "Posta!",
+                "Eso! 😊", "Tal cual!", "Sí! 😊",
             ],
         }
 
@@ -183,8 +181,7 @@ class ResponseVariatorV2:
                 # No calibration pool for this category — use fallback
                 self.pools[cat] = items
             # NOTE: if calibration pool exists for this category, do NOT merge
-            # Stefan's fallback entries. Calibration pools are creator-specific
-            # and mixing in generic "hermano/bro" responses breaks persona.
+            # fallback entries. Calibration pools are creator-specific.
 
     def _build_tfidf_index(self) -> None:
         """Build TF-IDF index over all pool responses for context-aware selection."""
@@ -211,15 +208,17 @@ class ResponseVariatorV2:
 
     def _load_extraction_pools(self, creator_id: str) -> None:
         """Load pool data from personality extraction (Doc D §4.4-4.5) for a creator."""
-        if creator_id in self._extraction_pools:
-            return  # Already loaded
+        if creator_id in self._extraction_attempted:
+            return  # Already attempted (success or failure)
+
+        self._extraction_attempted.add(creator_id)
 
         try:
             from core.personality_loader import load_extraction
 
             extraction = load_extraction(creator_id)
             if not extraction:
-                self._extraction_pools[creator_id] = {}
+                # No extraction record exists for this creator
                 return
 
             # Convert TemplateEntry list → flat string list
@@ -244,15 +243,24 @@ class ResponseVariatorV2:
             )
         except Exception as e:
             logger.warning("Could not load extraction pools for %s: %s", creator_id, e)
-            self._extraction_pools[creator_id] = {}
+            # Don't store {} — absence from _extraction_pools means "no data"
+            # _extraction_attempted prevents retry
 
     def get_pools_for_creator(self, category: str, creator_id: str = "") -> List[str]:
-        """Get pool for a category, preferring extraction pools over defaults."""
+        """Get pool for a category, preferring extraction pools over defaults.
+
+        If an extraction record exists for a creator (even if all pools are
+        DRAFT/MANUAL and the AUTO dict is empty), do NOT fall through to
+        generic fallback pools — return empty so the caller routes to LLM
+        generation instead of leaking another creator's persona.
+
+        Fallback pools only fire for creators with NO extraction record at all.
+        """
         if creator_id:
             self._load_extraction_pools(creator_id)
-            ext_pools = self._extraction_pools.get(creator_id, {})
-            if category in ext_pools and ext_pools[category]:
-                return ext_pools[category]
+            if creator_id in self._extraction_pools:
+                # Creator HAS extraction data (may be empty if all DRAFT)
+                return self._extraction_pools[creator_id].get(category, [])
         return self.pools.get(category, [])
 
     def try_multi_bubble(
@@ -474,8 +482,11 @@ class ResponseVariatorV2:
                     return "reaction", 0.82
                 return "celebration", 0.70
 
-        # Encouragement (v10) - user shares struggle/achievement
-        if any(w in msg for w in ["logré", "pude", "cuesta", "difícil", "miedo"]):
+        # Encouragement (v10) - user shares achievement/fear (NOT generic struggle words)
+        # "difícil"/"cuesta" removed: they overlap with empathy and route there instead.
+        # Empathy (0.60) falls below min_confidence → those messages go to LLM, which
+        # is correct — emotional struggle needs context, not a canned "Vamos con toda!".
+        if any(w in msg for w in ["logré", "pude", "miedo"]):
             if "encouragement" in self.pools:
                 return "encouragement", 0.75
 
@@ -492,7 +503,7 @@ class ResponseVariatorV2:
         # Praise
         praise_triggers = ["muy lindo", "estuvo genial", "eres hermoso", "que crack"]
         if any(p in msg for p in praise_triggers):
-            if len(msg) > 30:
+            if len(msg) < 30:
                 return "praise", 0.85
 
         # Sales contexts → NO pool (needs LLM)
@@ -550,6 +561,10 @@ class ResponseVariatorV2:
         """Mark a response as used in this conversation (v10.3)."""
         if conv_id:
             if conv_id not in self._used_responses:
+                # Evict oldest conversation if at capacity
+                if len(self._used_responses) >= self._MAX_TRACKED_CONVS:
+                    oldest = next(iter(self._used_responses))
+                    del self._used_responses[oldest]
                 self._used_responses[conv_id] = set()
             self._used_responses[conv_id].add(response)
 
@@ -620,7 +635,13 @@ class ResponseVariatorV2:
         elif not want_question and without_q:
             candidates = without_q
 
-        response = random.choice(candidates)
+        # v12: TF-IDF context-aware selection (BUG-PM-02 fix — was dead code).
+        # Falls back to random.choice internally when vectorizer is None,
+        # pool is small (<=top_k), or candidates are not in the index
+        # (e.g. extraction pools added after TF-IDF was built at init).
+        response = self._select_context_aware(
+            lead_message, candidates, category, turn_index=turn_index
+        )
 
         # v9.3b removed: question injection ("Todo bien?", "Cómo estás?") made the
         # bot sound like customer service. Pool responses should stand alone.
