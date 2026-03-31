@@ -414,6 +414,7 @@ async def main():
                 "test_input": r.get("test_input", r.get("lead_message", "")),
                 "ground_truth": r.get("ground_truth", ""),
                 "bot_response": r.get("bot_response", ""),
+                "bot_response_raw": r.get("bot_response_raw", ""),
                 "elapsed_ms": r.get("elapsed_ms", 0),
             }
             for r in results

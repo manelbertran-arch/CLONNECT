@@ -92,23 +92,23 @@ def _has_emoji(text: str) -> bool:
     return False
 
 
-def _strip_emojis(text: str, keep_first: bool = False) -> str:
-    """Remove emojis from text, optionally keeping the first one.
+def _strip_emojis(text: str, keep_n: int = 0) -> str:
+    """Remove emojis from text, optionally keeping the first N.
 
     Args:
         text: Input text.
-        keep_first: If True, keep the first emoji found (for avg_emoji matching).
+        keep_n: Number of emojis to keep (0 = remove all).
     """
     result = []
-    kept_first = False
+    kept = 0
     for c in text:
         is_emoji = (unicodedata.category(c) in ('So', 'Sk')
                     or '\U0001F300' <= c <= '\U0001FAFF'
                     or '\u2600' <= c <= '\u27BF')
         if is_emoji:
-            if keep_first and not kept_first:
+            if kept < keep_n:
                 result.append(c)
-                kept_first = True
+                kept += 1
                 continue
             continue
         result.append(c)
@@ -164,9 +164,13 @@ def normalize_style(
             result = re.sub(r"\.{2,}", ".", result)
 
     # 2. Emoji normalization
-    # Probabilistically strip emojis to match creator's emoji_rate_pct.
-    # keep_prob = target / bot_natural_emoji_rate.
+    # Two-level control:
+    #   a) Message-level: probabilistically strip ALL emojis (controls has_emoji %).
+    #      keep_prob = creator_emoji_rate_pct / bot_natural_emoji_rate.
+    #   b) Count-level: when keeping emojis, trim to creator's avg_emoji_count
+    #      (controls emoji_count per message).
     emoji_rate = baseline.get("emoji", {}).get("emoji_rate_pct", 20)
+    avg_emoji_count = baseline.get("emoji", {}).get("avg_emoji_count")
     if bot_rates and bot_rates.get("emoji_rate") is not None:
         model_emoji_rate = float(bot_rates["emoji_rate"])
     else:
@@ -174,8 +178,18 @@ def normalize_style(
     if _has_emoji(result) and model_emoji_rate > 0:
         keep_prob = min(1.0, emoji_rate / model_emoji_rate)
         if random.random() > keep_prob:
-            result = _strip_emojis(result)
-            # If stripping emoji left us with nothing useful, keep original
+            # Strip all emojis from this message
+            result = _strip_emojis(result, keep_n=0)
+            if len(result.strip()) < 2:
+                result = response
+        elif avg_emoji_count is not None:
+            # Keep emojis but trim to creator's per-emoji-message average.
+            # avg_emoji_count is across ALL messages; divide by emoji_rate to
+            # get the count conditioned on the message having emoji at all.
+            emoji_frac = max(0.01, emoji_rate / 100)
+            per_emoji_msg = avg_emoji_count / emoji_frac
+            target_n = max(1, round(per_emoji_msg))
+            result = _strip_emojis(result, keep_n=target_n)
             if len(result.strip()) < 2:
                 result = response
 
