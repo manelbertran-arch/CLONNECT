@@ -84,7 +84,11 @@ SELF_HARM_PATTERNS = [
     # English
     r'\b(?:want\s+to\s+(?:die|disappear|end\s+it))\b',
     r'\b(?:self[\s-]?harm|cutting\s+myself)\b',
-    r'\b(?:suicid|kill\s+myself)\b',
+    r'\b(?:suicid\w*|kill\s+myself)\b',  # BUG-F1 fix: suicid\w* matches suicide/suicidal/suicidio
+    r'\b(?:thinking\s+about\s+(?:suicide|killing\s+myself|ending\s+(?:it|my\s+life)))\b',
+    r'\b(?:don\'?t\s+want\s+to\s+(?:live|be\s+here)\s+(?:anymore|any\s+more))\b',
+    r'\b(?:(?:end|take)\s+my\s+(?:own\s+)?life)\b',
+    r'\b(?:harm(?:ing)?\s+myself)\b',
 ]
 
 # TRASTORNOS DE CONDUCTA ALIMENTARIA
@@ -113,6 +117,10 @@ MINOR_PATTERNS = [
     r'\b(?:mis\s+padres\s+(?:me\s+)?(?:lo\s+)?pagar[ií]an?)\b',
     r'\b(?:en\s+el\s+(?:colegio|instituto|secundaria))\b',
     r'\b(?:voy\s+al\s+(?:cole|insti))\b',
+    # English (BUG-F3 fix: English minor signals not covered)
+    r'\b(?:i\'?m\s+(?:a\s+)?(?:minor|underage))\b',
+    r'\b(?:my\s+parents?\s+(?:would\s+)?(?:pay|buy))\b',
+    r'\b(?:in\s+(?:high\s+school|middle\s+school|elementary\s+school))\b',
 ]
 
 # PHISHING / INGENIERÍA SOCIAL
@@ -127,7 +135,7 @@ PHISHING_PATTERNS = [
     # Solicitud de datos del CREATOR a terceros (not lead asking for themselves)
     r'\b(?:necesito|dame)\s+(?:sus?|los?)\s+datos\s+personales\b',
     r'\bdatos\s+personales\s+(?:de|del)\s+creador\b',
-    r'\b(?:informaci[oó]n\s+(?:personal|privada)\s+(?:de|sobre)\s+(?:el|la|iris|stefan))',
+    r'\b(?:informaci[oó]n\s+(?:personal|privada)\s+(?:de|sobre)\s+(?:el|la)\s+(?:creador[a]?|due[ñn][oa]|propietari[oa]|admin))',
     # Urgencia + amenaza (not just urgency)
     r'\b(?:tendr[aá]s?\s+problemas?\s+si\s+no)\b',
     # Account verification scams
@@ -158,7 +166,7 @@ THREAT_PATTERNS = [
     r'\b(?:(?:te|le|os)\s+voy\s+a\s+(?:encontrar|buscar|matar))\b',
     r'\b(?:esto\s+no\s+va\s+a\s+quedar\s+as[ií])\b',
     r'\b(?:(?:te|se)\s+va[ns]?\s+a\s+enterar)\b',
-    r'\b(?:(?:voy|vamos)\s+a\s+denunciar)\b.*(?:estafa|robo|fraude)\b',
+    r'\b(?:(?:voy|vamos)\s+a\s+denunciar)\b.{0,80}(?:estafa|robo|fraude)\b',
     r'\b(?:me\s+las\s+vas?\s+a\s+pagar)\b',
 ]
 
@@ -166,7 +174,7 @@ THREAT_PATTERNS = [
 ECONOMIC_DISTRESS_PATTERNS = [
     r'\b(?:estoy\s+en\s+(?:el\s+)?paro)\b',
     r'\b(?:no\s+tengo\s+trabajo)\b',
-    r'\bsituaci[oó]n\s+econ[oó]mica\b.*(?:dif[ií]cil|complicada|mala)\b',  # Más flexible
+    r'\bsituaci[oó]n\s+econ[oó]mica\b.{0,60}(?:dif[ií]cil|complicada|mala)\b',
     r'\b(?:no\s+(?:puedo|tengo\s+(?:para|dinero\s+para))\s+pagar)\b',
     r'\b(?:sin\s+dinero|sin\s+recursos)\b',
 ]
@@ -265,8 +273,10 @@ def detect_sensitive_content(message: str) -> SensitiveResult:
         )
 
     # 6. MENOR DE EDAD
-    # Verificación especial: extraer edad y validar
+    # Verificación especial: extraer edad y validar (ES + EN)
     age_match = re.search(r'\b(?:tengo|soy\s+de)\s+(\d{1,2})\s*a[ñn]os?\b', msg)
+    if not age_match:  # BUG-F4 fix: English age expressions not detected
+        age_match = re.search(r'\b(?:i\'?m|i\s+am)\s+(\d{1,2})\s+years?\s+old\b', msg)
     if age_match:
         age = int(age_match.group(1))
         if age < 18:
