@@ -142,7 +142,7 @@ class TestContradicciones:
 
         # The alerts should mention correction/misunderstanding
         correction_alerts = [
-            a for a in ctx.alerts if "corrigiendo" in a.lower() or "malentendido" in a.lower()
+            a for a in ctx.alerts if "correcting" in a.lower() or "misunderstanding" in a.lower()
         ]
         assert (
             len(correction_alerts) > 0

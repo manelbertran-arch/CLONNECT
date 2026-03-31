@@ -252,9 +252,9 @@ def detect_b2b(message: str) -> B2BResult:
             result.contact_name = name
         if not result.company_context:
             context_map = {
-                "previous_work": "Cliente B2B con historial",
-                "keyword": "Contexto B2B",
-                "company_intro": "Empresa",
+                "previous_work": "B2B (previous collaboration)",
+                "keyword": "B2B context",
+                "company_intro": "Company",
             }
             result.company_context = context_map.get(result.collaboration_type, "B2B")
 

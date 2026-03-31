@@ -89,8 +89,8 @@ class TestEmpatia:
         notes = ctx.build_context_notes()
         notes_text = " ".join(notes).lower()
 
-        # Context notes should mention the objection type (precio)
-        empathy_keywords = ["precio", "objecion", "objeción"]
+        # Context notes should mention the objection type (price)
+        empathy_keywords = ["price", "objection"]
         found = any(kw in notes_text for kw in empathy_keywords)
         assert (
             found or ctx.objection_type == "price"
@@ -148,9 +148,9 @@ class TestEmpatia:
         objection_type = detect_objection_type(trust_objection)
         assert objection_type == "trust", f"Should detect trust objection, got '{objection_type}'"
 
-        # context_notes for trust objection should mention confianza
+        # context_notes for trust objection should mention trust
         notes_text = " ".join(ctx.context_notes).lower()
-        empathy_indicators = ["confianza", "objeción", "objecion"]
+        empathy_indicators = ["trust", "objection"]
         found = any(ind in notes_text for ind in empathy_indicators)
         assert found or ctx.objection_type == "trust", (
             "Trust objection should generate empathy-oriented context_notes or "

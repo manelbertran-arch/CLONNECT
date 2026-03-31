@@ -98,7 +98,7 @@ class TestDetectedContext:
         ctx = DetectedContext(is_b2b=True, company_context="Bamos")
         notes = ctx.build_context_notes()
         assert len(notes) >= 1
-        assert any("empresa" in n.lower() or "marca" in n.lower() for n in notes)
+        assert any("company" in n.lower() or "brand" in n.lower() for n in notes)
 
     def test_build_context_notes_name(self):
         ctx = DetectedContext(user_name="María")
@@ -108,7 +108,7 @@ class TestDetectedContext:
     def test_build_context_notes_objection(self):
         ctx = DetectedContext(objection_type="price")
         notes = ctx.build_context_notes()
-        assert any("precio" in n.lower() for n in notes)
+        assert any("price" in n.lower() for n in notes)
 
     def test_build_context_notes_empty(self):
         ctx = DetectedContext()
@@ -315,7 +315,7 @@ class TestDetectAll:
         assert ctx.is_b2b is True
         assert ctx.user_name == "Silvia"
         # context_notes should mention B2B
-        assert any("empresa" in n.lower() or "marca" in n.lower() for n in ctx.context_notes)
+        assert any("company" in n.lower() or "brand" in n.lower() for n in ctx.context_notes)
         # Should not have frustration in notes
         assert not any("frustrad" in n.lower() for n in ctx.context_notes)
 
@@ -331,7 +331,7 @@ class TestDetectAll:
     def test_objection_with_type(self):
         ctx = detect_all("Es muy caro para mí, no puedo pagarlo")
         assert ctx.objection_type == "price"
-        assert any("precio" in n.lower() for n in ctx.context_notes)
+        assert any("price" in n.lower() for n in ctx.context_notes)
 
     def test_positive_sentiment(self):
         ctx = detect_all("Genial, me encanta, gracias!")
@@ -350,7 +350,7 @@ class TestFormatAlertsForPrompt:
         ctx = DetectedContext(is_b2b=True, company_context="Bamos")
         ctx.build_context_notes()
         text = format_alerts_for_prompt(ctx)
-        assert "empresa" in text.lower() or "marca" in text.lower()
+        assert "company" in text.lower() or "brand" in text.lower()
 
     def test_format_empty(self):
         ctx = DetectedContext()

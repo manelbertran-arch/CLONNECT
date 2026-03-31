@@ -15,11 +15,9 @@ from core.intent_classifier import Intent, IntentClassifier, classify_intent_sim
 from .detectors import (
     detect_b2b,
     detect_correction,
-    detect_frustration,
     detect_interest_level,
     detect_meta_message,
     detect_objection_type,
-    detect_sarcasm,
     extract_user_name,
 )
 from .models import DetectedContext
@@ -99,9 +97,11 @@ def detect_all(
             ctx.sentiment = "positive"
             break
 
-    # 9. Backward compat: frustration/sarcasm stubs (always return empty)
-    detect_frustration(message, history)
-    detect_sarcasm(message)
+    # NOTE: sarcasm detection is intentionally NOT implemented here.
+    # The LLM handles sarcasm natively via contextual understanding.
+    # A rule-based stub for Spanish irony ("sí, claro...") would have low
+    # precision and add no signal beyond what the LLM already detects.
+    # Frustration is handled externally by FrustrationDetector v2.
 
     # Build factual context notes for Recalling block
     ctx.build_context_notes()
