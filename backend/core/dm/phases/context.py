@@ -611,7 +611,7 @@ async def phase_memory_and_context(
             detected_lang = detect_message_language(message)
             few_shot_section = get_few_shot_section(
                 agent.calibration,
-                max_examples=10,
+                max_examples=5,  # RoleLLM (ACL 2024): k=5 is empirically optimal
                 current_message=message,
                 lead_language=detected_lang,
                 detected_intent=intent_value,
