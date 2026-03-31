@@ -107,6 +107,9 @@ def fix_identity_claim(response: str, creator_name: str = None) -> str:
     """
     Prevent the bot from claiming to be the creator.
     Examples: "Soy Stefano" -> "Soy el asistente de Stefano"
+
+    # DISABLED: called from apply_all_response_fixes with # since 2026-03-26 audit.
+    # Re-enable conditionally for bot_mode="assistant" creators.
     """
     if not response:
         return response
@@ -342,7 +345,12 @@ def _normalize_for_filler_check(text: str) -> str:
 
 
 def remove_catchphrases(response: str) -> str:
-    """FIX 9: Remove global catchphrases using accent-insensitive regex."""
+    """FIX 9: Remove global catchphrases using accent-insensitive regex.
+
+    # Deprecated: NOT called from apply_all_response_fixes() — merged into
+    # services/question_remover.py. Kept for reference only. Do not re-add
+    # to apply_all_response_fixes() without removing it from question_remover.py first.
+    """
     if not response:
         return response
 
@@ -413,7 +421,7 @@ def apply_all_response_fixes(
     # FIX 10: Strip markdown formatting — DMs don't render markdown, it looks broken.
     # **bold** → bold, *italic* → italic, `code` → code, ## headers stripped.
     response = re.sub(r'\*\*(.+?)\*\*', r'\1', response)
-    response = re.sub(r'\*([^*\n]+?)\*', r'\1', response)
+    response = re.sub(r'(?<!\w)\*([^*\n]+?)\*(?!\w)', r'\1', response)
     response = re.sub(r'`([^`\n]+?)`', r'\1', response)
     response = re.sub(r'^#{1,3}\s+', '', response, flags=re.MULTILINE)
 
