@@ -52,6 +52,8 @@ ENABLE_PREFERENCE_PROFILE = os.getenv("ENABLE_PREFERENCE_PROFILE", "false").lowe
 ENABLE_GOLD_EXAMPLES = os.getenv("ENABLE_GOLD_EXAMPLES", "false").lower() == "true"
 ENABLE_BEST_OF_N = os.getenv("ENABLE_BEST_OF_N", "false").lower() == "true"
 ENABLE_SELF_CONSISTENCY = os.getenv("ENABLE_SELF_CONSISTENCY", "false").lower() == "true"
+ENABLE_LENGTH_HINTS = os.getenv("ENABLE_LENGTH_HINTS", "true").lower() == "true"
+ENABLE_QUESTION_HINTS = os.getenv("ENABLE_QUESTION_HINTS", "true").lower() == "true"
 
 
 def _maybe_question_hint(creator_id: str) -> str:
@@ -71,7 +73,8 @@ def _maybe_question_hint(creator_id: str) -> str:
         baseline = _load_baseline(creator_id)
         if not baseline:
             return ""
-        creator_q_rate = baseline.get("punctuation", {}).get("question_rate_pct")
+        punct = baseline.get("punctuation", {})
+        creator_q_rate = punct.get("has_question_msg_pct", punct.get("question_rate_pct"))
         if creator_q_rate is None:
             return ""
 
@@ -263,7 +266,7 @@ async def phase_llm_generation(
     # Per-message question suppression hint (data-driven).
     # If the bot over-questions relative to creator baseline, probabilistically
     # inject "NO hagas pregunta" to bring question_rate closer to target.
-    _q_hint = _maybe_question_hint(agent.creator_id)
+    _q_hint = _maybe_question_hint(agent.creator_id) if ENABLE_QUESTION_HINTS else ""
     if _q_hint:
         prompt_parts.append(_q_hint)
         cognitive_metadata["question_hint"] = _q_hint
@@ -367,8 +370,9 @@ async def phase_llm_generation(
         _llm_max_tokens = int(_cal_baseline["max_tokens"]) if _cal_baseline.get("max_tokens") else 100
         _msg_category = _classify_user_message(message)
         cognitive_metadata["max_tokens_category"] = _msg_category
-        cognitive_metadata["length_hint"] = get_length_hint(message)
-        logger.info(f"[LENGTH-HINT] category={_msg_category} hint='{cognitive_metadata['length_hint']}'")
+        if ENABLE_LENGTH_HINTS:
+            cognitive_metadata["length_hint"] = get_length_hint(message)
+            logger.info(f"[LENGTH-HINT] category={_msg_category} hint='{cognitive_metadata['length_hint']}'")
         if _echo_rel_ctx:
             _llm_max_tokens = _echo_rel_ctx.llm_max_tokens
             _llm_temperature = _echo_rel_ctx.llm_temperature

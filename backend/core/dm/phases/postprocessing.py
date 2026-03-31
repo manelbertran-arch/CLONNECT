@@ -179,8 +179,9 @@ async def phase_postprocessing(
                     from services.creator_profile_service import get_baseline
                     _bl = get_baseline(agent.creator_id)
                     if _bl:
-                        _q_rate_raw = (_bl.get("metrics", {}).get("punctuation", {})
-                                       .get("question_rate_pct", 10))
+                        _punct = _bl.get("metrics", {}).get("punctuation", {})
+                        _q_rate_raw = _punct.get("has_question_msg_pct",
+                                                  _punct.get("question_rate_pct", 10))
                 except Exception:
                     pass
             _q_rate = (_q_rate_raw or 10) / 100
@@ -223,7 +224,7 @@ async def phase_postprocessing(
                 response=response_content,
                 calibration=agent.calibration,
                 system_prompt=context.system_prompt,
-                user_prompt=metadata.get("_full_prompt", ""),
+                user_prompt=cognitive_metadata.get("_full_prompt", ""),
                 lead_name=follower_name,
                 detected_language=detection.language if hasattr(detection, "language") else "ca",
                 creator_id=agent.creator_id,

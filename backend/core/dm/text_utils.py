@@ -218,7 +218,9 @@ def _load_question_rate(creator_id: str) -> Optional[float]:
             with open(path) as f:
                 baseline = json.load(f)
     if baseline:
-        rate = baseline.get("metrics", {}).get("punctuation", {}).get("question_rate_pct")
+        punct = baseline.get("metrics", {}).get("punctuation", {})
+        # Prefer per-message binary rate (WhatsApp-calibrated) over IG corpus density
+        rate = punct.get("has_question_msg_pct", punct.get("question_rate_pct"))
         _question_rate_cache[creator_id] = rate
         return rate
     _question_rate_cache[creator_id] = None
