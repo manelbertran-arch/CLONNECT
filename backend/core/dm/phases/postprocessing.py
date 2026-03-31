@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import os
 import re
 import time
 from typing import Dict
@@ -10,6 +9,7 @@ from typing import Dict
 from core.agent_config import AGENT_THRESHOLDS
 from core.dm.models import ContextBundle, DetectionResult, DMResponse
 from core.dm.text_utils import _message_mentions_product
+from core.feature_flags import flags
 from core.output_validator import validate_links
 from core.reflexion_engine import get_reflexion_engine
 from core.response_fixes import apply_all_response_fixes
@@ -19,17 +19,6 @@ from services.message_splitter import get_message_splitter
 from services.question_remover import process_questions
 
 logger = logging.getLogger(__name__)
-
-# Feature flags for postprocessing phase
-ENABLE_OUTPUT_VALIDATION = os.getenv("ENABLE_OUTPUT_VALIDATION", "true").lower() == "true"
-ENABLE_RESPONSE_FIXES = os.getenv("ENABLE_RESPONSE_FIXES", "true").lower() == "true"
-ENABLE_QUESTION_REMOVAL = os.getenv("ENABLE_QUESTION_REMOVAL", "true").lower() == "true"
-ENABLE_REFLEXION = os.getenv("ENABLE_REFLEXION", "false").lower() == "true"
-ENABLE_PPA = os.getenv("ENABLE_PPA", "false").lower() == "true"
-ENABLE_SCORE_BEFORE_SPEAK = os.getenv("ENABLE_SCORE_BEFORE_SPEAK", "false").lower() == "true"
-ENABLE_GUARDRAILS = os.getenv("ENABLE_GUARDRAILS", "true").lower() == "true"
-ENABLE_EMAIL_CAPTURE = os.getenv("ENABLE_EMAIL_CAPTURE", "false").lower() == "true"
-ENABLE_MESSAGE_SPLITTING = os.getenv("ENABLE_MESSAGE_SPLITTING", "true").lower() == "true"
 
 
 async def phase_postprocessing(
@@ -131,7 +120,7 @@ async def phase_postprocessing(
         logger.debug(f"Sentence dedup failed: {e}")
 
     # Step 7a: Output validation (links only — price validation handled by guardrails)
-    if ENABLE_OUTPUT_VALIDATION:
+    if flags.output_validation:
         try:
             known_links = [p.get("url", "") for p in agent.products if p.get("url")]
             link_issues, corrected = validate_links(response_content, known_links)
@@ -142,7 +131,7 @@ async def phase_postprocessing(
             logger.debug(f"Output validation failed: {e}")
 
     # Step 7a2: Apply response fixes (typos, formatting, patterns)
-    if ENABLE_RESPONSE_FIXES:
+    if flags.response_fixes:
         try:
             fixed_response = apply_all_response_fixes(
                 response_content, creator_id=agent.creator_id,
@@ -170,7 +159,7 @@ async def phase_postprocessing(
     # Step 7a2c: Question removal
     # Uses creator's real question_frequency_pct from calibration or baseline_metrics.
     # If rate > 15%, natural questions are preserved (only banned generics removed).
-    if ENABLE_QUESTION_REMOVAL:
+    if flags.question_removal:
         try:
             _q_rate_raw = (agent.calibration or {}).get("baseline", {}).get("question_frequency_pct")
             if _q_rate_raw is None:
@@ -190,7 +179,7 @@ async def phase_postprocessing(
             logger.debug(f"Question removal failed: {e}")
 
     # Step 7a3: Reflexion analysis for response quality (legacy)
-    if ENABLE_REFLEXION:
+    if flags.reflexion:
         try:
             prev_bot = [
                 m.get("content", "")
@@ -215,18 +204,21 @@ async def phase_postprocessing(
     #                   picks max(initial, retry) — never outputs a worse retry
     #                   if user_prompt missing or retry fails, returns original
     # When SBS is disabled, PPA runs standalone as fallback (elif branch below).
-    if ENABLE_SCORE_BEFORE_SPEAK and agent.calibration:
+    if flags.score_before_speak and agent.calibration:
         try:
             from core.reasoning.ppa import score_before_speak
 
             follower_name = (follower or {}).get("full_name", "") or (follower or {}).get("username", "")
+            # BUG-PP-2 fix: DetectionResult has no .language field; read from cognitive_metadata
+            # where the context phase deposits it (key: "detected_language"). Fallback "ca".
+            _detected_lang = cognitive_metadata.get("detected_language", "ca")
             sbs_result = await score_before_speak(
                 response=response_content,
                 calibration=agent.calibration,
                 system_prompt=context.system_prompt,
                 user_prompt=cognitive_metadata.get("_full_prompt", ""),
                 lead_name=follower_name,
-                detected_language=detection.language if hasattr(detection, "language") else "ca",
+                detected_language=_detected_lang,
                 creator_id=agent.creator_id,
                 creator_name=getattr(agent, "creator_name", ""),
             )
@@ -244,16 +236,17 @@ async def phase_postprocessing(
             logger.debug(f"Score Before You Speak failed: {e}")
 
     # Step 7a4b: Post Persona Alignment (PPA) — fallback when SBS is disabled
-    elif ENABLE_PPA and agent.calibration:
+    elif flags.ppa and agent.calibration:
         try:
             from core.reasoning.ppa import apply_ppa
 
             follower_name = (follower or {}).get("full_name", "") or (follower or {}).get("username", "")
+            _detected_lang = cognitive_metadata.get("detected_language", "ca")
             ppa_result = await apply_ppa(
                 response=response_content,
                 calibration=agent.calibration,
                 lead_name=follower_name,
-                detected_language=detection.language if hasattr(detection, "language") else "ca",
+                detected_language=_detected_lang,
                 creator_id=agent.creator_id,
                 creator_name=getattr(agent, "creator_name", ""),
             )
@@ -267,7 +260,7 @@ async def phase_postprocessing(
             logger.debug(f"PPA failed: {e}")
 
     # Step 7b: Apply guardrails validation
-    if ENABLE_GUARDRAILS and hasattr(agent, "guardrails"):
+    if flags.guardrails and hasattr(agent, "guardrails"):
         try:
             # Build allowed URLs from creator's products and booking links
             creator_urls = []
@@ -300,7 +293,7 @@ async def phase_postprocessing(
         except Exception as e:
             logger.debug(f"Guardrails check failed: {e}")
 
-    # Step 7b: Apply soft length guidance based on message type
+    # Step 7c: Apply soft length guidance based on message type  (BUG-PP-5: was "Step 7b" — duplicate)
     try:
         msg_type = detect_message_type(message)
         response_content = enforce_length(response_content, message, creator_id=agent.creator_id)
@@ -345,7 +338,7 @@ async def phase_postprocessing(
     logger.info(f"[TIMING] Phase 5 (post-processing): {int((_t4 - _t3) * 1000)}ms")
 
     # CloneScore real-time logging (non-blocking, CPU-only style_fidelity)
-    if os.getenv("ENABLE_CLONE_SCORE", "false").lower() == "true":
+    if flags.clone_score:
         try:
             from services.clone_score_engine import CloneScoreEngine
             cs_engine = CloneScoreEngine()
@@ -362,17 +355,24 @@ async def phase_postprocessing(
     new_stage = agent._update_lead_score(follower, intent_value, metadata)
 
     # Step 9a: Update conversation state machine (fire-and-forget)
+    # BUG-PP-4 fix: get_state + update_state are sync DB calls — must run off the event loop.
     try:
         from core.conversation_state import get_state_manager
 
-        state_mgr = get_state_manager()
-        conv_state = state_mgr.get_state(sender_id, agent.creator_id)
-        state_mgr.update_state(conv_state, message, intent_value, formatted_content)
+        _state_mgr = get_state_manager()
+        _creator_id_snap = agent.creator_id
+        _msg_snap, _intent_snap, _resp_snap = message, intent_value, formatted_content
+
+        def _do_state_update():
+            conv_state = _state_mgr.get_state(sender_id, _creator_id_snap)
+            _state_mgr.update_state(conv_state, _msg_snap, _intent_snap, _resp_snap)
+
+        await asyncio.to_thread(_do_state_update)
     except Exception as e:
         logger.debug(f"[STATE] update failed: {e}")
 
     # Step 9c: Email capture (non-blocking) — disabled by default
-    if ENABLE_EMAIL_CAPTURE:
+    if flags.email_capture:
         try:
             formatted_content = agent._step_email_capture(
                 message=message,
@@ -405,7 +405,7 @@ async def phase_postprocessing(
     _skip_memory = _rel_category == "PERSONAL"
     if _skip_memory:
         logger.debug("[MEMORY] Skipping fact extraction for PERSONAL lead (%s)", sender_id[:20])
-    if os.getenv("ENABLE_MEMORY_ENGINE", "false").lower() == "true" and not _skip_memory:
+    if flags.memory_engine and not _skip_memory:
         try:
             from services.memory_engine import get_memory_engine
             mem_engine = get_memory_engine()
@@ -420,7 +420,7 @@ async def phase_postprocessing(
             logger.debug(f"[MEMORY] extraction failed: {e}")
 
     # ECHO Engine: Detect commitments in bot response (Sprint 4 — fire-and-forget)
-    if os.getenv("ENABLE_COMMITMENT_TRACKING", "true").lower() == "true":
+    if flags.commitment_tracking:
         try:
             from services.commitment_tracker import get_commitment_tracker
 
@@ -452,7 +452,7 @@ async def phase_postprocessing(
 
     # Step 10b: Message splitting (store in metadata for caller)
     message_parts = None
-    if ENABLE_MESSAGE_SPLITTING:
+    if flags.message_splitting:
         try:
             splitter = get_message_splitter()
             if splitter.should_split(formatted_content):

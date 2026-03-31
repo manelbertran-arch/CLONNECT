@@ -4,6 +4,28 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-03-31 — Phase 5 Postprocessing: 4 bugs fixed (2 HIGH, 2 MEDIUM)
+
+**BUG-PP-1:** 10 module-level flag constants duplicated from `feature_flags.py` singleton.
+Replaced all 10 with `flags.xxx` references — now visible to ablation runner + `flags.to_dict()`.
+
+**BUG-PP-2:** `detection.language` attribute doesn't exist on `DetectionResult` — SBS/PPA always
+fell back to `"ca"` (wrong for Stefano/EN leads). Fixed: read from `cognitive_metadata["detected_language"]`
+with `"ca"` fallback. Language must be deposited there by context phase before SBS reads it.
+
+**BUG-PP-3:** `ENABLE_CLONE_SCORE`, `ENABLE_MEMORY_ENGINE`, `ENABLE_COMMITMENT_TRACKING` were
+inline env reads invisible to the flag registry. Added to `feature_flags.py`, replaced inline reads.
+
+**BUG-PP-4:** Step 9a (`get_state` + `update_state`) were sync DB calls directly in the async
+event loop — blocked 2-200ms per request. Wrapped in `asyncio.to_thread()`.
+
+**BUG-PP-5:** Duplicate "Step 7b" label (doc only) — second one renamed to "Step 7c".
+
+**Files modified:** `core/dm/phases/postprocessing.py`, `core/feature_flags.py`
+**Full audit:** `docs/audit/sistema_05_postprocessing.md`
+
+---
+
 ## 2026-03-31 — Input Guards: input length truncation guard added (OWASP LLM10)
 
 Messages > 3000 chars are truncated at GUARD 0 before any pipeline processing.

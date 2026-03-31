@@ -35,6 +35,9 @@ class FeatureFlags:
     media_placeholder_detection: bool = field(default_factory=lambda: _flag("ENABLE_MEDIA_PLACEHOLDER_DETECTION", True))
     pool_matching: bool = field(default_factory=lambda: _flag("ENABLE_POOL_MATCHING", True))
     prompt_injection_detection: bool = field(default_factory=lambda: _flag("ENABLE_PROMPT_INJECTION_DETECTION", True))
+    clone_score: bool = field(default_factory=lambda: _flag("ENABLE_CLONE_SCORE", False))
+    memory_engine: bool = field(default_factory=lambda: _flag("ENABLE_MEMORY_ENGINE", False))
+    commitment_tracking: bool = field(default_factory=lambda: _flag("ENABLE_COMMITMENT_TRACKING", True))
     response_fixes: bool = field(default_factory=lambda: _flag("ENABLE_RESPONSE_FIXES", True))
     question_context: bool = field(default_factory=lambda: _flag("ENABLE_QUESTION_CONTEXT", True))
     query_expansion: bool = field(default_factory=lambda: _flag("ENABLE_QUERY_EXPANSION", True))
@@ -59,6 +62,8 @@ class FeatureFlags:
     best_of_n: bool = field(default_factory=lambda: _flag("ENABLE_BEST_OF_N", False))
     gold_examples: bool = field(default_factory=lambda: _flag("ENABLE_GOLD_EXAMPLES", False))
     preference_profile: bool = field(default_factory=lambda: _flag("ENABLE_PREFERENCE_PROFILE", False))
+    score_before_speak: bool = field(default_factory=lambda: _flag("ENABLE_SCORE_BEFORE_SPEAK", False))
+    ppa: bool = field(default_factory=lambda: _flag("ENABLE_PPA", False))
 
     # === RAG ===
     reranking: bool = field(default_factory=lambda: _flag("ENABLE_RERANKING", True))
