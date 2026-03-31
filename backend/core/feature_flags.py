@@ -33,7 +33,6 @@ class FeatureFlags:
     guardrails: bool = field(default_factory=lambda: _flag("ENABLE_GUARDRAILS", True))
     output_validation: bool = field(default_factory=lambda: _flag("ENABLE_OUTPUT_VALIDATION", True))
     response_fixes: bool = field(default_factory=lambda: _flag("ENABLE_RESPONSE_FIXES", True))
-    chain_of_thought: bool = field(default_factory=lambda: _flag("ENABLE_CHAIN_OF_THOUGHT", True))
     question_context: bool = field(default_factory=lambda: _flag("ENABLE_QUESTION_CONTEXT", True))
     query_expansion: bool = field(default_factory=lambda: _flag("ENABLE_QUERY_EXPANSION", True))
     reflexion: bool = field(default_factory=lambda: _flag("ENABLE_REFLEXION", False))

@@ -38,9 +38,6 @@ from core.guardrails import get_response_guardrail
 # RAG AVANZADO - Semantic search + Reranking
 from core.rag.semantic import get_semantic_rag
 
-# RAZONAMIENTO - Chain of thought for complex queries
-from core.reasoning.chain_of_thought import ChainOfThoughtReasoner
-
 # MEMORIA AVANZADA - Conversation facts tracking
 from models.conversation_memory import ConversationMemory
 
@@ -89,7 +86,6 @@ from core.dm.models import (
 # Feature flags still used in _init_services
 ENABLE_FRUSTRATION_DETECTION = os.getenv("ENABLE_FRUSTRATION_DETECTION", "true").lower() == "true"
 ENABLE_GUARDRAILS = os.getenv("ENABLE_GUARDRAILS", "true").lower() == "true"
-ENABLE_CHAIN_OF_THOUGHT = os.getenv("ENABLE_CHAIN_OF_THOUGHT", "false").lower() == "true"
 
 logger = logging.getLogger(__name__)
 
@@ -364,15 +360,6 @@ class DMResponderAgentV2:
                 self.guardrails = get_response_guardrail()
             except Exception as e:
                 logger.warning(f"Could not initialize guardrails: {e}")
-
-        # Chain of thought (disabled by default - expensive)
-        if ENABLE_CHAIN_OF_THOUGHT:
-            try:
-                self.chain_of_thought = ChainOfThoughtReasoner(self.llm_service)
-            except Exception as e:
-                logger.warning(f"Could not initialize chain of thought: {e}")
-        else:
-            self.chain_of_thought = None
 
         # Conversation memory cache (per follower)
         self._conversation_memories: Dict[str, ConversationMemory] = {}
