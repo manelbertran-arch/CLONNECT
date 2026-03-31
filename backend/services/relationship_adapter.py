@@ -59,7 +59,7 @@ class RelationalContext:
     warmth_score: float                 # 0-1, tone calibration
     sales_push_score: float             # 0-1, sales calibration
     max_questions: int                  # Max questions per message
-    emoji_target_ratio: float           # Target emoji ratio
+    emoji_target_ratio: float           # Target emoji ratio (unused — Style Normalizer owns emoji control)
 
 
 # ---------------------------------------------------------------------------
