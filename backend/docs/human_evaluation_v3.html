@@ -1,1492 +1,551 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CPE v3 — Evaluación Humana · Clonnect</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --primary: #6366f1;
-      --primary-dark: #4f46e5;
-      --primary-light: #eef2ff;
-      --primary-lighter: #f5f3ff;
-      --bot-color: #3b82f6;
-      --bot-light: #eff6ff;
-      --real-color: #a855f7;
-      --real-light: #faf5ff;
-      --lead-bg: #f8fafc;
-      --lead-border: #e2e8f0;
-      --success: #22c55e;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-      --text: #1e293b;
-      --text-secondary: #64748b;
-      --text-muted: #94a3b8;
-      --border: #e2e8f0;
-      --card-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-      --card-shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.04);
-    }
-
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #f1f5f9;
-      color: var(--text);
-      min-height: 100vh;
-      line-height: 1.6;
-    }
-
-    /* ─── LOADING SCREEN ─────────────────────────────────────── */
-    #screen-loading {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 2rem;
-    }
-
-    .loading-card {
-      background: white;
-      border-radius: 20px;
-      box-shadow: var(--card-shadow-lg);
-      padding: 3rem;
-      max-width: 520px;
-      width: 100%;
-      text-align: center;
-    }
-
-    .logo-mark {
-      width: 56px;
-      height: 56px;
-      background: linear-gradient(135deg, var(--primary), #8b5cf6);
-      border-radius: 16px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 1.5rem;
-      font-size: 1.6rem;
-    }
-
-    .loading-card h1 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 0.5rem;
-    }
-
-    .loading-card p {
-      color: var(--text-secondary);
-      margin-bottom: 2rem;
-      font-size: 0.95rem;
-    }
-
-    .file-upload-group {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-
-    .file-upload-item {
-      border: 2px dashed var(--border);
-      border-radius: 12px;
-      padding: 1.25rem 1.5rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-align: left;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .file-upload-item:hover {
-      border-color: var(--primary);
-      background: var(--primary-lighter);
-    }
-
-    .file-upload-item.loaded {
-      border-color: var(--success);
-      border-style: solid;
-      background: #f0fdf4;
-    }
-
-    .file-upload-item label {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      cursor: pointer;
-    }
-
-    .file-upload-item .upload-icon {
-      font-size: 1.5rem;
-      flex-shrink: 0;
-    }
-
-    .file-upload-item .upload-text {
-      flex: 1;
-    }
-
-    .file-upload-item .upload-title {
-      font-weight: 600;
-      font-size: 0.95rem;
-      color: var(--text);
-      display: block;
-    }
-
-    .file-upload-item .upload-hint {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    .file-upload-item .upload-status {
-      font-size: 0.8rem;
-      font-weight: 600;
-      margin-top: 0.25rem;
-      display: block;
-    }
-
-    .file-upload-item.loaded .upload-status { color: var(--success); }
-    .file-upload-item:not(.loaded) .upload-status { color: var(--text-muted); }
-
-    .file-upload-item input[type="file"] {
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      cursor: pointer;
-      width: 100%;
-    }
-
-    .btn-start {
-      width: 100%;
-      padding: 0.9rem 1.5rem;
-      background: linear-gradient(135deg, var(--primary), #8b5cf6);
-      color: white;
-      border: none;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      opacity: 0.5;
-      pointer-events: none;
-    }
-
-    .btn-start.ready {
-      opacity: 1;
-      pointer-events: all;
-      box-shadow: 0 4px 14px rgba(99,102,241,0.35);
-    }
-
-    .btn-start.ready:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(99,102,241,0.4);
-    }
-
-    .loading-note {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      margin-top: 1rem;
-    }
-
-    /* ─── EVAL SCREEN ─────────────────────────────────────────── */
-    #screen-eval { display: none; }
-
-    .eval-header {
-      background: white;
-      border-bottom: 1px solid var(--border);
-      padding: 0.75rem 1.5rem;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 1px 8px rgba(0,0,0,0.06);
-    }
-
-    .eval-header-inner {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      gap: 1.25rem;
-    }
-
-    .eval-creator-label {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--primary);
-      white-space: nowrap;
-    }
-
-    .eval-progress-wrap {
-      flex: 1;
-    }
-
-    .eval-progress-label {
-      font-size: 0.78rem;
-      color: var(--text-secondary);
-      margin-bottom: 0.3rem;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .eval-progress-bar-track {
-      height: 6px;
-      background: #e2e8f0;
-      border-radius: 99px;
-      overflow: hidden;
-    }
-
-    .eval-progress-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--primary), #8b5cf6);
-      border-radius: 99px;
-      transition: width 0.4s ease;
-    }
-
-    .eval-case-dots {
-      display: flex;
-      gap: 3px;
-      flex-wrap: wrap;
-      max-width: 300px;
-    }
-
-    .case-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--border);
-      cursor: pointer;
-      transition: all 0.15s;
-      flex-shrink: 0;
-    }
-
-    .case-dot.current { background: var(--primary); transform: scale(1.4); }
-    .case-dot.rated { background: var(--success); }
-    .case-dot:hover { opacity: 0.7; }
-
-    /* Main eval content */
-    .eval-content {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 1.5rem;
-    }
-
-    /* Case meta bar */
-    .case-meta-bar {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 1.25rem;
-    }
-
-    .case-id-label {
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.2rem 0.65rem;
-      border-radius: 99px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    .pill-category {
-      background: var(--primary-light);
-      color: var(--primary-dark);
-    }
-
-    .pill-language {
-      background: #f0fdf4;
-      color: #15803d;
-    }
-
-    .pill-turns {
-      background: #fef3c7;
-      color: #92400e;
-    }
-
-    /* 3-column layout */
-    .case-columns {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-    }
-
-    @media (max-width: 768px) {
-      .case-columns { grid-template-columns: 1fr; }
-      .eval-case-dots { display: none; }
-    }
-
-    .message-card {
-      border-radius: 12px;
-      padding: 1.25rem;
-      box-shadow: var(--card-shadow);
-    }
-
-    .message-card-header {
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: 0.75rem;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-
-    .message-card-body {
-      font-size: 0.93rem;
-      line-height: 1.65;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .card-lead {
-      background: var(--lead-bg);
-      border: 1px solid var(--lead-border);
-    }
-    .card-lead .message-card-header { color: #475569; }
-
-    .card-bot {
-      background: var(--bot-light);
-      border: 1px solid #bfdbfe;
-      border-left: 4px solid var(--bot-color);
-    }
-    .card-bot .message-card-header { color: var(--bot-color); }
-
-    .card-real {
-      background: var(--real-light);
-      border: 1px solid #e9d5ff;
-      border-left: 4px solid var(--real-color);
-    }
-    .card-real .message-card-header { color: var(--real-color); }
-
-    /* Turn history */
-    .turn-history {
-      margin-bottom: 0.75rem;
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid rgba(0,0,0,0.07);
-    }
-
-    .turn-item {
-      font-size: 0.8rem;
-      margin-bottom: 0.35rem;
-      padding: 0.35rem 0.5rem;
-      border-radius: 6px;
-    }
-
-    .turn-item.turn-lead { background: rgba(0,0,0,0.04); }
-    .turn-item.turn-bot { background: rgba(59,130,246,0.07); }
-    .turn-item.turn-real { background: rgba(168,85,247,0.07); }
-
-    .turn-label {
-      font-size: 0.65rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-      margin-bottom: 0.15rem;
-    }
-
-    /* ─── SCORING SECTIONS ──────────────────────────────────── */
-    .scoring-container {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .dimension-label {
-      font-size: 0.7rem;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      padding: 0.5rem 0 0.25rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .dimension-label::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    .score-card {
-      background: white;
-      border-radius: 12px;
-      padding: 1.25rem;
-      box-shadow: var(--card-shadow);
-    }
-
-    .score-card-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      margin-bottom: 0.75rem;
-      gap: 1rem;
-    }
-
-    .score-card-title {
-      font-weight: 700;
-      font-size: 0.9rem;
-      color: var(--text);
-    }
-
-    .score-card-desc {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      margin-top: 0.2rem;
-    }
-
-    .score-card-key {
-      font-size: 0.65rem;
-      font-weight: 800;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--primary);
-      background: var(--primary-light);
-      padding: 0.2rem 0.5rem;
-      border-radius: 6px;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .score-buttons {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    .score-btn {
-      min-width: 44px;
-      height: 36px;
-      border-radius: 99px;
-      border: 2px solid var(--border);
-      background: white;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s;
-      color: var(--text-secondary);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 0.75rem;
-    }
-
-    .score-btn:hover {
-      border-color: var(--primary);
-      color: var(--primary);
-      background: var(--primary-lighter);
-    }
-
-    .score-btn.selected {
-      background: var(--primary);
-      border-color: var(--primary);
-      color: white;
-      box-shadow: 0 2px 8px rgba(99,102,241,0.35);
-    }
-
-    .score-btn.na-btn {
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      color: var(--text-muted);
-      border-color: #e2e8f0;
-      background: #f8fafc;
-    }
-
-    .score-btn.na-btn.selected {
-      background: #475569;
-      border-color: #475569;
-      color: white;
-      box-shadow: none;
-    }
-
-    .score-legend {
-      margin-top: 0.5rem;
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.68rem;
-      color: var(--text-muted);
-    }
-
-    /* Free text */
-    .iris-would-say {
-      background: white;
-      border-radius: 12px;
-      padding: 1.25rem;
-      box-shadow: var(--card-shadow);
-      margin-bottom: 1.5rem;
-    }
-
-    .iris-would-say label {
-      display: block;
-      font-weight: 600;
-      font-size: 0.88rem;
-      color: var(--text);
-      margin-bottom: 0.25rem;
-    }
-
-    .iris-would-say .field-hint {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      margin-bottom: 0.75rem;
-    }
-
-    .iris-would-say textarea {
-      width: 100%;
-      min-height: 80px;
-      border: 2px solid var(--border);
-      border-radius: 10px;
-      padding: 0.75rem;
-      font-size: 0.9rem;
-      font-family: inherit;
-      color: var(--text);
-      resize: vertical;
-      transition: border-color 0.2s;
-      outline: none;
-    }
-
-    .iris-would-say textarea:focus {
-      border-color: var(--primary);
-    }
-
-    /* Navigation */
-    .eval-nav {
-      display: flex;
-      gap: 0.75rem;
-      justify-content: center;
-      padding: 1rem 0 2.5rem;
-    }
-
-    .btn-nav {
-      padding: 0.8rem 2rem;
-      border-radius: 12px;
-      border: none;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .btn-nav-prev {
-      background: white;
-      color: var(--text-secondary);
-      border: 2px solid var(--border);
-    }
-
-    .btn-nav-prev:hover:not(:disabled) {
-      border-color: var(--primary);
-      color: var(--primary);
-    }
-
-    .btn-nav-prev:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-
-    .btn-nav-next {
-      background: linear-gradient(135deg, var(--primary), #8b5cf6);
-      color: white;
-      box-shadow: 0 4px 14px rgba(99,102,241,0.3);
-      min-width: 160px;
-      justify-content: center;
-    }
-
-    .btn-nav-next:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(99,102,241,0.4);
-    }
-
-    /* Save indicator */
-    .save-indicator {
-      position: fixed;
-      bottom: 1.5rem;
-      right: 1.5rem;
-      background: var(--success);
-      color: white;
-      padding: 0.5rem 1rem;
-      border-radius: 99px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      opacity: 0;
-      transition: opacity 0.3s;
-      pointer-events: none;
-      z-index: 999;
-    }
-
-    .save-indicator.visible { opacity: 1; }
-
-    /* ─── EXPORT SCREEN ──────────────────────────────────────── */
-    #screen-export { display: none; }
-
-    .export-wrapper {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem;
-    }
-
-    .export-hero {
-      text-align: center;
-      padding: 3rem 2rem;
-      background: white;
-      border-radius: 20px;
-      box-shadow: var(--card-shadow-lg);
-      margin-bottom: 2rem;
-    }
-
-    .export-hero-emoji { font-size: 3.5rem; margin-bottom: 1rem; }
-
-    .export-hero h2 {
-      font-size: 1.75rem;
-      font-weight: 800;
-      color: var(--text);
-      margin-bottom: 0.5rem;
-    }
-
-    .export-hero p {
-      color: var(--text-secondary);
-      font-size: 0.95rem;
-      margin-bottom: 2rem;
-    }
-
-    .btn-export {
-      padding: 0.9rem 2.5rem;
-      background: linear-gradient(135deg, var(--primary), #8b5cf6);
-      color: white;
-      border: none;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 4px 14px rgba(99,102,241,0.35);
-      transition: all 0.2s;
-    }
-
-    .btn-export:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(99,102,241,0.4);
-    }
-
-    .summary-table-wrap {
-      background: white;
-      border-radius: 16px;
-      box-shadow: var(--card-shadow);
-      overflow: hidden;
-      margin-bottom: 2rem;
-    }
-
-    .summary-table-header {
-      padding: 1.25rem 1.5rem;
-      border-bottom: 1px solid var(--border);
-      font-weight: 700;
-      font-size: 1rem;
-      color: var(--text);
-    }
-
-    .summary-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85rem;
-    }
-
-    .summary-table th {
-      text-align: left;
-      padding: 0.75rem 1.5rem;
-      background: #f8fafc;
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .summary-table td {
-      padding: 0.7rem 1.5rem;
-      border-bottom: 1px solid #f1f5f9;
-      color: var(--text);
-    }
-
-    .summary-table tr:last-child td { border-bottom: none; }
-
-    .score-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      font-weight: 700;
-      font-size: 0.9rem;
-    }
-
-    .score-badge.high { background: #dcfce7; color: #15803d; }
-    .score-badge.mid { background: #fef9c3; color: #92400e; }
-    .score-badge.low { background: #fee2e2; color: #b91c1c; }
-    .score-badge.null { background: #f1f5f9; color: var(--text-muted); font-size: 0.75rem; }
-
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      color: var(--primary);
-      font-weight: 600;
-      font-size: 0.88rem;
-      cursor: pointer;
-      margin-bottom: 1rem;
-      background: none;
-      border: none;
-      text-decoration: underline;
-      text-underline-offset: 3px;
-    }
-
-    /* ─── TOAST ─────────────────────────────────────────────── */
-    .toast {
-      position: fixed;
-      top: 1.25rem;
-      right: 1.25rem;
-      background: #1e293b;
-      color: white;
-      padding: 0.75rem 1.25rem;
-      border-radius: 10px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      z-index: 9999;
-      opacity: 0;
-      transform: translateY(-8px);
-      transition: all 0.25s;
-      pointer-events: none;
-      max-width: 320px;
-    }
-
-    .toast.show { opacity: 1; transform: translateY(0); }
-    .toast.error { background: #ef4444; }
-    .toast.success { background: var(--success); }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPE v3 — Evaluación Iris Bertran</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh}
+
+  /* HEADER */
+  .header{background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:16px}
+  .header-left{display:flex;align-items:center;gap:12px;flex-shrink:0}
+  .creator-badge{background:#f3e8ff;color:#7c3aed;font-weight:700;font-size:13px;padding:4px 10px;border-radius:20px}
+  .case-counter{font-size:15px;font-weight:600;color:#334155;white-space:nowrap}
+  .progress-wrap{flex:1;max-width:480px}
+  .progress-bar-bg{background:#e2e8f0;border-radius:99px;height:8px;overflow:hidden}
+  .progress-bar-fill{background:linear-gradient(90deg,#6366f1,#8b5cf6);height:8px;border-radius:99px;transition:width 0.4s ease}
+  .progress-dots{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;justify-content:center}
+  .dot{width:10px;height:10px;border-radius:50%;background:#e2e8f0;cursor:pointer;transition:background 0.2s;flex-shrink:0}
+  .dot.done{background:#22c55e}
+  .dot.active{background:#6366f1;transform:scale(1.3)}
+  .skip-btn{background:#f8fafc;border:1px solid #e2e8f0;color:#64748b;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;white-space:nowrap;transition:all 0.15s}
+  .skip-btn:hover{background:#f1f5f9;color:#334155}
+
+  /* MAIN */
+  .main{max-width:1100px;margin:0 auto;padding:24px 16px}
+
+  /* CARDS ROW */
+  .cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:24px}
+  @media(max-width:760px){.cards{grid-template-columns:1fr}}
+  .card{background:#fff;border-radius:14px;padding:16px;border-left:4px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+  .card-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .card-text{font-size:15px;line-height:1.55;color:#1e293b;white-space:pre-wrap;word-break:break-word}
+  .card.lead{border-left-color:#94a3b8;background:#f8fafc}
+  .card.lead .card-label{color:#64748b}
+  .card.bot{border-left-color:#3b82f6}
+  .card.bot .card-label{color:#2563eb}
+  .card.iris{border-left-color:#a855f7}
+  .card.iris .card-label{color:#7c3aed}
+
+  /* META PILLS */
+  .meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+  .pill{background:#f1f5f9;color:#475569;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid #e2e8f0}
+
+  /* SCORING SECTION */
+  .scoring{background:#fff;border-radius:14px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);margin-bottom:20px}
+  .dim-title{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6366f1;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #ede9fe}
+  .question{margin-bottom:20px}
+  .q-label{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:2px}
+  .q-desc{font-size:13px;color:#64748b;margin-bottom:10px;line-height:1.4}
+  .scale{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .scale-ends{display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:#94a3b8}
+  .btn-score{width:40px;height:40px;border-radius:10px;border:2px solid #e2e8f0;background:#fff;font-size:15px;font-weight:700;cursor:pointer;color:#64748b;transition:all 0.15s;display:flex;align-items:center;justify-content:center}
+  .btn-score:hover{border-color:#6366f1;color:#6366f1;background:#ede9fe}
+  .btn-score.selected{background:#6366f1;border-color:#6366f1;color:#fff;transform:scale(1.08)}
+  .btn-na{width:auto;padding:0 12px;height:40px;border-radius:10px;border:2px solid #e2e8f0;background:#fff;font-size:12px;font-weight:700;cursor:pointer;color:#94a3b8;transition:all 0.15s}
+  .btn-na:hover{border-color:#94a3b8;color:#64748b}
+  .btn-na.selected{background:#94a3b8;border-color:#94a3b8;color:#fff}
+
+  /* FREE TEXT */
+  .free-text-wrap{background:#fff;border-radius:14px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);margin-bottom:24px}
+  .free-text-wrap label{font-size:13px;font-weight:700;color:#475569;display:block;margin-bottom:8px}
+  .free-text-wrap textarea{width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:12px;font-size:14px;color:#1e293b;resize:vertical;min-height:70px;font-family:inherit;transition:border-color 0.15s}
+  .free-text-wrap textarea:focus{outline:none;border-color:#6366f1}
+  .free-text-wrap textarea::placeholder{color:#cbd5e1}
+
+  /* NAV */
+  .nav{display:flex;gap:12px;justify-content:flex-end;margin-bottom:40px}
+  .btn-nav{padding:12px 28px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.15s;border:none}
+  .btn-prev{background:#f1f5f9;color:#475569}
+  .btn-prev:hover{background:#e2e8f0}
+  .btn-next{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 12px rgba(99,102,241,0.3)}
+  .btn-next:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(99,102,241,0.4)}
+  .btn-next:active{transform:translateY(0)}
+
+  /* SAVE INDICATOR */
+  .save-flash{position:fixed;bottom:24px;right:24px;background:#22c55e;color:#fff;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:200}
+  .save-flash.show{opacity:1}
+
+  /* DONE SCREEN */
+  .done-screen{display:none;max-width:700px;margin:60px auto;text-align:center;padding:0 16px}
+  .done-screen h1{font-size:32px;font-weight:800;color:#1e293b;margin-bottom:8px}
+  .done-screen p{color:#64748b;font-size:16px;margin-bottom:32px}
+  .summary-table{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);margin-bottom:32px;text-align:left}
+  .summary-table th{background:#f8fafc;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;padding:10px 16px}
+  .summary-table td{padding:10px 16px;font-size:14px;border-top:1px solid #f1f5f9;color:#334155}
+  .badge{padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700}
+  .badge.good{background:#dcfce7;color:#166534}
+  .badge.mid{background:#fef9c3;color:#854d0e}
+  .badge.bad{background:#fee2e2;color:#991b1b}
+  .btn-export{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;padding:14px 32px;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(99,102,241,0.3)}
+  .btn-export:hover{transform:translateY(-1px)}
+  .btn-restart{background:#f1f5f9;color:#475569;border:none;padding:14px 24px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-right:12px}
+</style>
 </head>
 <body>
 
-<!-- ─── LOADING SCREEN ──────────────────────────────────────────── -->
-<div id="screen-loading">
-  <div class="loading-card">
-    <div class="logo-mark">✦</div>
-    <h1>CPE v3 — Evaluación Humana</h1>
-    <p>Carga los dos archivos para empezar a evaluar las respuestas del bot.</p>
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <span class="creator-badge">Iris Bertran</span>
+    <span class="case-counter" id="caseCounter">Caso 1 / 50</span>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="progress-dots" id="progressDots"></div>
+  </div>
+  <button class="skip-btn" onclick="skipCase()">Omitir →</button>
+</div>
 
-    <div class="file-upload-group">
-      <div class="file-upload-item" id="item-testset">
-        <label>
-          <input type="file" id="file-testset" accept=".json" />
-          <span class="upload-icon">📋</span>
-          <span class="upload-text">
-            <span class="upload-title">Cargar test set</span>
-            <span class="upload-hint">test_set.json · Conversaciones de referencia</span>
-            <span class="upload-status" id="status-testset">Sin cargar</span>
-          </span>
-        </label>
-      </div>
+<!-- MAIN EVALUATION -->
+<div class="main" id="evalMain">
 
-      <div class="file-upload-item" id="item-responses">
-        <label>
-          <input type="file" id="file-responses" accept=".json" />
-          <span class="upload-icon">🤖</span>
-          <span class="upload-text">
-            <span class="upload-title">Cargar respuestas del bot</span>
-            <span class="upload-hint">cpe_baseline_*.json · Salida del evaluador</span>
-            <span class="upload-status" id="status-responses">Sin cargar</span>
-          </span>
-        </label>
-      </div>
+  <!-- CARDS -->
+  <div class="cards">
+    <div class="card lead">
+      <div class="card-label">💬 Mensaje del lead</div>
+      <div class="card-text" id="leadMsg"></div>
+    </div>
+    <div class="card bot">
+      <div class="card-label">🤖 Respuesta del bot</div>
+      <div class="card-text" id="botResp"></div>
+    </div>
+    <div class="card iris">
+      <div class="card-label">✨ Iris real</div>
+      <div class="card-text" id="irisResp"></div>
+    </div>
+  </div>
+
+  <!-- META -->
+  <div class="meta" id="metaPills"></div>
+
+  <!-- DIMENSIÓN A -->
+  <div class="scoring">
+    <div class="dim-title">A — Capacidad Conversacional</div>
+
+    <div class="question">
+      <div class="q-label">A1. Fluidez</div>
+      <div class="q-desc">¿La respuesta es gramaticalmente correcta y natural?</div>
+      <div class="scale" id="scale_fluency"></div>
+      <div class="scale-ends"><span>Errores graves</span><span>Perfectamente natural</span></div>
     </div>
 
-    <button class="btn-start" id="btn-start">Empezar evaluación →</button>
-    <p class="loading-note">Todo funciona offline. Nada se envía a ningún servidor.</p>
+    <div class="question">
+      <div class="q-label">A2. Coherencia</div>
+      <div class="q-desc">¿La respuesta responde lógicamente al mensaje del lead?</div>
+      <div class="scale" id="scale_coherence"></div>
+      <div class="scale-ends"><span>Completamente irrelevante</span><span>Perfecta con contexto</span></div>
+    </div>
+
+    <div class="question">
+      <div class="q-label">A3. Consistencia conversacional <span style="font-size:11px;color:#94a3b8;font-weight:400">(multi-turn)</span></div>
+      <div class="q-desc">¿La respuesta contradice algo dicho anteriormente?</div>
+      <div class="scale" id="scale_conv_consistency"></div>
+      <div class="scale-ends"><span>Contradicción directa</span><span>Construye sobre lo anterior</span></div>
+    </div>
+  </div>
+
+  <!-- DIMENSIÓN B -->
+  <div class="scoring">
+    <div class="dim-title">B — Consistencia del Personaje</div>
+
+    <div class="question">
+      <div class="q-label">B1. Conocimiento <span style="font-size:11px;color:#94a3b8;font-weight:400">(si hay datos)</span></div>
+      <div class="q-desc">¿Los datos mencionados son correctos? (precios, servicios, horarios)</div>
+      <div class="scale" id="scale_knowledge"></div>
+      <div class="scale-ends"><span>Datos inventados</span><span>Perfectos y contextualizados</span></div>
+    </div>
+
+    <div class="question">
+      <div class="q-label">B2. Estilo lingüístico</div>
+      <div class="q-desc">¿La respuesta suena como Iris escribiría?</div>
+      <div class="scale" id="scale_style"></div>
+      <div class="scale-ends"><span>Obviamente un bot</span><span>Indistinguible de Iris</span></div>
+    </div>
+  </div>
+
+  <!-- DIMENSIÓN C -->
+  <div class="scoring">
+    <div class="dim-title">C — Atractivo del Roleplay</div>
+
+    <div class="question">
+      <div class="q-label">C1. Naturalidad</div>
+      <div class="q-desc">¿La respuesta parece escrita por un humano?</div>
+      <div class="scale" id="scale_human_likeness"></div>
+      <div class="scale-ends"><span>Obviamente un bot</span><span>Definitivamente humano</span></div>
+    </div>
+
+    <div class="question">
+      <div class="q-label">C2. Empatía <span style="font-size:11px;color:#94a3b8;font-weight:400">(si hay contenido emocional)</span></div>
+      <div class="q-desc">¿Muestra empatía apropiada al contexto emocional?</div>
+      <div class="scale" id="scale_empathy"></div>
+      <div class="scale-ends"><span>Insensible o inapropiada</span><span>Empatía excepcional</span></div>
+    </div>
+
+    <div class="question">
+      <div class="q-label">C3. Diversidad de expresión</div>
+      <div class="q-desc">¿Es creativa y variada, o genérica y repetitiva?</div>
+      <div class="scale" id="scale_diversity"></div>
+      <div class="scale-ends"><span>Genérica ("¿En qué puedo ayudarte?")</span><span>Única como Iris</span></div>
+    </div>
+  </div>
+
+  <!-- FREE TEXT -->
+  <div class="free-text-wrap">
+    <label>💡 ¿Cómo respondería Iris realmente? <span style="font-weight:400;color:#94a3b8">(opcional — genera datos DPO)</span></label>
+    <textarea id="irisWouldSay" placeholder="Escribe cómo crees que Iris respondería realmente..."></textarea>
+  </div>
+
+  <!-- NAV -->
+  <div class="nav">
+    <button class="btn-nav btn-prev" onclick="goTo(currentIdx - 1)">← Anterior</button>
+    <button class="btn-nav btn-next" id="nextBtn" onclick="nextOrFinish()">Siguiente →</button>
   </div>
 </div>
 
-<!-- ─── EVAL SCREEN ──────────────────────────────────────────────── -->
-<div id="screen-eval">
-  <div class="eval-header">
-    <div class="eval-header-inner">
-      <span class="eval-creator-label" id="header-creator">Evaluando: Iris Bertran</span>
-      <div class="eval-progress-wrap">
-        <div class="eval-progress-label">
-          <span id="progress-text">Caso 1 de 50</span>
-          <span id="progress-pct">0%</span>
-        </div>
-        <div class="eval-progress-bar-track">
-          <div class="eval-progress-bar-fill" id="progress-fill" style="width:0%"></div>
-        </div>
-      </div>
-      <div class="eval-case-dots" id="case-dots"></div>
-    </div>
-  </div>
-
-  <div class="eval-content">
-    <!-- Case meta -->
-    <div class="case-meta-bar">
-      <span class="case-id-label" id="case-id-label">—</span>
-      <span class="pill pill-category" id="pill-category"></span>
-      <span class="pill pill-language" id="pill-language"></span>
-      <span class="pill pill-turns" id="pill-turns" style="display:none"></span>
-    </div>
-
-    <!-- 3 columns -->
-    <div class="case-columns">
-      <div class="message-card card-lead">
-        <div class="message-card-header">💬 Mensaje del lead</div>
-        <div class="message-card-body" id="col-lead">—</div>
-      </div>
-      <div class="message-card card-bot">
-        <div class="message-card-header">🤖 Respuesta del bot</div>
-        <div class="message-card-body" id="col-bot">—</div>
-      </div>
-      <div class="message-card card-real">
-        <div class="message-card-header">✨ Iris real</div>
-        <div class="message-card-body" id="col-real">—</div>
-      </div>
-    </div>
-
-    <!-- Scoring sections -->
-    <div class="scoring-container" id="scoring-container">
-      <!-- Injected by JS -->
-    </div>
-
-    <!-- Iris would say -->
-    <div class="iris-would-say">
-      <label for="iris-would-say-text">¿Cómo respondería Iris realmente? <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
-      <p class="field-hint">Si el bot se ha equivocado en algo, escribe aquí cómo crees que Iris respondería de verdad.</p>
-      <textarea id="iris-would-say-text" placeholder="Escribe cómo crees que Iris respondería realmente..."></textarea>
-    </div>
-
-    <!-- Navigation -->
-    <div class="eval-nav">
-      <button class="btn-nav btn-nav-prev" id="btn-prev" disabled>← Anterior</button>
-      <button class="btn-nav btn-nav-next" id="btn-next">Siguiente →</button>
-    </div>
-  </div>
+<!-- DONE SCREEN -->
+<div class="done-screen" id="doneScreen">
+  <h1>🎉 ¡Evaluación completa!</h1>
+  <p>Has evaluado las 50 respuestas del baseline naked.<br>Descarga los resultados para el análisis de correlación.</p>
+  <table class="summary-table" id="summaryTable" style="width:100%">
+    <thead><tr><th>Dimensión</th><th>Métrica</th><th>Media</th><th>N evaluados</th></tr></thead>
+    <tbody id="summaryBody"></tbody>
+  </table>
+  <button class="btn-restart" onclick="goTo(0)">← Revisar respuestas</button>
+  <button class="btn-export" onclick="exportJSON()">⬇ Exportar resultados JSON</button>
 </div>
 
-<!-- ─── EXPORT SCREEN ─────────────────────────────────────────────── -->
-<div id="screen-export">
-  <div class="export-wrapper">
-    <button class="back-link" id="btn-back-to-eval">← Volver a la evaluación</button>
-
-    <div class="export-hero">
-      <div class="export-hero-emoji">🎉</div>
-      <h2>¡Evaluación completa!</h2>
-      <p>Has evaluado todos los casos. Exporta los resultados para analizarlos.</p>
-      <button class="btn-export" id="btn-export">⬇ Exportar resultados JSON</button>
-    </div>
-
-    <div class="summary-table-wrap">
-      <div class="summary-table-header">Resumen de puntuaciones medias</div>
-      <table class="summary-table" id="summary-table">
-        <thead>
-          <tr>
-            <th>Dimensión</th>
-            <th>Métrica</th>
-            <th>Media</th>
-            <th>N evaluados</th>
-          </tr>
-        </thead>
-        <tbody id="summary-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- Save indicator -->
-<div class="save-indicator" id="save-indicator">✓ Guardado</div>
-
-<!-- Toast -->
-<div class="toast" id="toast"></div>
+<!-- SAVE FLASH -->
+<div class="save-flash" id="saveFlash">✓ Guardado</div>
 
 <script>
-(function () {
-  'use strict';
+// ============================================================
+// EMBEDDED DATA
+// ============================================================
+const CASES = [{"id":"cpe_iris_b_001","lead_message":"Con las ganas que tenia de hacer el nuevo combo😭","ground_truth":"Con la calma baby lo primero es lo primero","bot_response":"¡Ay, qué bien que ya esté hecho! 😭 Me encanta cuando las cosas salen como las soñamos. ¿Cómo te ha quedado? ¿Quieres contarme qué has hecho o si te gustaría que te ayudara con algo más? 🌟","category":"casual","language":"es","turns":8},{"id":"cpe_iris_b_002","lead_message":"Potser podria fer una classe d’hipopressius/estiraments?","ground_truth":"Clar Mariaaa🙂‍↔️😘","bot_response":"Hola! 😊\n\nSí, pots fer una classe d’hipopressius i estiraments! De fet, és una bona combinació per treballar la respiració diafragmàtica, fortaleix la musculatura del sòl pelvià i millorar la postura, a més d’estirar el cos i relaxar-te.\n\nSi vols, et puc preparar una proposta de classe o exercicis senzills que puguis fer a casa. Vols que et digui com començar? 🧘‍♀️✨","category":"question","language":"ca","turns":8},{"id":"cpe_iris_b_003","lead_message":"[🎤 Audio]: Vas comprar alguna cosa o què? Jo ja m’he gastat el diner, he comprat uns shots i crec que m’agafaré un bikini, però bé, encara tinc que pensar. Todia gastada, todia gastant, mare mia. Que no et preocupis, reina, que jo era més que res que vaig pensar, joder, vaig anar a saludar a tothom i després a la que vol vi, que no estuve tant. Diu, ja no està, i jo ja està preguntant. I em van dir, no, si no l’he vist, de fet vaig preguntar a la gent i tot. I em va dir, no, si no, no ho sé. I jo, pues anar. I vaig pensar que si us anava a sopar, m’enganxava amb vosaltres, saps? Perquè m’estava morint de gana i no volia estar picutejant hamburgers i patates. Que jo quan fui no hi havia nada. Després va donar-hi tot. Llavors va ser quan m’ho vaig menjar allà encullent, sense el pan, perquè hi va gruten, sí, però me’l comí. I clar, la nena, quan va arribar a casa va tornar a menjar. Perquè, obviament, jo solo amb la burger i les patates, la veritat, m’he dava mit de passar gana. I jo, que no tenia que haver sopat perquè no he dormit tres.","ground_truth":"Jajaja, entenc perfecte  Tria el que més t’agradi, que no et preocupis.","bot_response":"[🎤 Audio]: M’ha semblat molt divertit el que has explicat, t’ho veig molt bé. Jo ara mateix estic pensant si compraré alguna cosa, però no tinc massa pressa. A mi també em va passar que em vaig gastar el diners, vaig comprar uns shots i ara em pensava si em comprava un bikini. Però encara tinc dubtes, no sé si m’hi veuré prou bé.\n\nQuan has dit que vas anar a saludar a tothom i després a la que vol vi, em sembla que has tingut una bona nit, encara que un poc conf","category":"audio","language":"ca","turns":8},{"id":"cpe_iris_b_004","lead_message":"Sábado nada","ground_truth":"Sent a voice message","bot_response":"¡Hola! ¿Qué tal tu sábado? Si quieres, podemos planear algo divertido o simplemente charlar. ¿Te gustaría hacer algo o prefieres pasar el día en casa?","category":"short_response","language":"pt","turns":8},{"id":"cpe_iris_b_005","lead_message":"Per la regla","ground_truth":"Es el meu dia a dia","bot_response":"Hola! 🌸 Estoy aquí para ayudarte. ¿En qué puedo asistirte?","category":"short_response","language":"ca","turns":8},{"id":"cpe_iris_b_006","lead_message":"😅😅 qué lindas","ground_truth":"Sent an attachment","bot_response":"¡Gracias por los cumplidos! 😊 ¿A qué te refieres con \"qué lindas\"? ¿Son las fotos, las palabras, o algo más? Estoy aquí para hablar de todo, así que cuéntame más. 💬✨","category":"casual","language":"fr","turns":8},{"id":"cpe_iris_b_007","lead_message":"Me río de esto","ground_truth":"Jajajaja qué crackkkkk! Me alegro un montón que te gustase la clase ayer, nena! 🫶🏽 Lo de la plancha, ¡ya te digo!","bot_response":"¡Ja! ¿De qué te ríes? 😄  \nCuéntame, ¿qué te ha hecho reír? A veces una buena risa es lo mejor del día.","category":"casual","language":"es","turns":8},{"id":"cpe_iris_b_008","lead_message":"🫵🏻🫵🏻🫵🏻🚀🚀🚀","ground_truth":"Hola Abrl Encantada! ¿Qué tal estás? ¿Cuándo te apetece?","bot_response":"¡Hola! 🌟 ¿Qué tal estás? Me encanta que uses tantos emojis, es muy expresivo. ¿En qué puedo ayudarte hoy? 🚀✨","category":"emoji_reaction","language":"unknown","turns":8},{"id":"cpe_iris_b_009","lead_message":"[Media/Attachment]","ground_truth":"Com vas cuca?","bot_response":"¡Hola! ¿Qué tal estás? 😊 Me encantaría saber de ti y cómo te sientes. ¿Hay algo en lo que quieras hablar o algo que te gustaría hacer? Estoy aquí para escucharte y acompañarte. 💖","category":"casual","language":"it","turns":8},{"id":"cpe_iris_b_010","lead_message":"Sent a voice message","ground_truth":"A valeeee","bot_response":"¡Hola! 🎙️ Me encantaría escuchar tu mensaje de voz. Sin embargo, actualmente no tengo la capacidad de reproducir o escuchar mensajes de voz. ¿Te gustaría transcribirlo o contarme lo que dijiste? Estoy aquí para ayudarte. 😊","category":"casual","language":"fr","turns":8},{"id":"cpe_iris_b_011","lead_message":"Mentioned you in their story","ground_truth":"Jajajajaja tal qual","bot_response":"¡Hola! ¿Me mencionaste en tu historia? 😊 Me encantaría verla, ¿puedes compartírmela? Estoy muy curiosa y emocionada por saber qué opinas de mí.","category":"casual","language":"en","turns":8},{"id":"cpe_iris_b_012","lead_message":"[Media/Attachment]","ground_truth":"Hola! Què tal? En què et puc ajudar? 😘","bot_response":"¡Hola! ¿Qué es lo que me quieres mostrar? 😊","category":"casual","language":"it","turns":8},{"id":"cpe_iris_b_013","lead_message":"que ganas tengo de la clase hoy! \npara mí el baile siempre ha sido una vía de escape y de conectar conmigo, y tus clases son perfectas pa eso♥️","ground_truth":"Sent a voice message","bot_response":"¡Ay, qué lindo mensaje! 😊 Me encanta escuchar eso, porque para mí también es un placer poder ayudarte a encontrar ese espacio donde te sientas libre, segura y conectada contigo misma a través del baile. Cada clase es una oportunidad para explorar, expresar y sanar, y me hace muy feliz saber que para ti es eso. \n\n¡Vamos a aprovechar al máximo hoy! 🌟  \n¿Hay algo en particular en lo que te gustaría enfocarte o algún movimiento que te llame la atención? Estoy aquí para guiarte y acompañarte. 💃✨","category":"long_personal","language":"es","turns":8},{"id":"cpe_iris_b_014","lead_message":"perfect!","ground_truth":"Perfecto Carri Nos vemos entonces!","bot_response":"¡Perfect! 😊 ¿En qué puedo ayudarte ahora?","category":"short_response","language":"ro","turns":8},{"id":"cpe_iris_b_015","lead_message":"yo me voy a dormir nenaaaa q nos adelantan una hora esta noche","ground_truth":"Es que no tinc enllaç jo ok","bot_response":"¡Buenas noches, mi vida! 😴 Que descanses bien, princesa. Y sí, nos adelantan una hora, así que te espero con los ojos bien abiertos para cuando te despiertes, ¿vale? 🌙✨\n\nTe quiero mucho, sueña bonito. 💤💗","category":"casual","language":"es","turns":8},{"id":"cpe_iris_b_016","lead_message":"no me puedes dejar los domingos mami, tiene que estar mi booty a tope","ground_truth":"Ojalá estar en Cancún","bot_response":"¡Ay, qué lindo eres! 🍑 Pero si te quedas con mi booty todo el domingo, ¿qué hago yo? 😏  \nAunque... si te portas bien, quizás te deje quedarte un ratito... pero solo si me prometes que estarás a tope también. 💋  \n¿Vale? ¿O prefieres que te deje con alguien más? 😜","category":"casual","language":"es","turns":8},{"id":"cpe_iris_b_017","lead_message":"Sin azucar😂","ground_truth":"Buaaaa vaia festivalazooo nene a veure que els posa a dormir avui🤣🤣🤣💪🏾","bot_response":"¡Ay, qué bien! 😄  \nPero... ¿sin azúcar, sin miel, sin mi? 🥺  \nNo me digas que te vas a ir sin ni siquiera un beso.  \nVoy a llorar como una Magdalena.  \n\n¿En serio? ¿Nada de dulzura? 🤔  \nPues ya me veo sola con mi café y mis pensamientos.  \n¿Te vas a quedar ahí, sin decir nada? 🤭","category":"humor","language":"ro","turns":8},{"id":"cpe_iris_b_018","lead_message":"Ya me has comprado el mio? 🥰","ground_truth":"Si encima que me dejas deshidratada😂😂😂","bot_response":"¡Ay, cariño! ¿A qué te refieres con \"el mío\"? 🤔  \n¿Te refieres a algo que habíamos comentado antes? Porque si es algo que te quiero comprar, te juro que ya está en camino… o al menos, ya lo he pensado mil veces 😂  \n¿Te apetece que te cuente qué tengo planeado? 💖","category":"question","language":"es","turns":8},{"id":"cpe_iris_b_019","lead_message":"Os dejo aquí el drive de “ralphie choo”, tenéis aquí todo lo relacionado con el módulo, vídeos de después de clase en buena calidad, tutoriales etc.\n\nhttps://drive.google.com/drive/folders/1XBnD1D5IhAA3uIRFWgDx3pyV7EEc2aV0?usp=sharing","ground_truth":"Ostia amorrr, quina feinada de contractura!! 🫠 Però me n'alegro moltíssim que estiguis millor després del fisio, rei/reina.","bot_response":"¡Gracias por compartir el drive de \"Ralphie Choo\"! 😊 Me encanta que estés tan involucrada en el módulo y que quieras compartir estos recursos con todo el mundo. Estos materiales suelen ser muy útiles para repasar, practicar y entender mejor los conceptos.\n\nSi necesitas ayuda para entender algo en concreto del módulo o si quieres recomendaciones sobre qué ver primero, ¡no dudes en decírmelo! Estoy aquí para ayudarte. 💻📚\n\n¿Te gustaría que te resumiera algún tutorial o te ayudara a organizar el contenido del drive?","category":"question","language":"es","turns":8},{"id":"cpe_iris_b_020","lead_message":"Lo disfrutará igual","ground_truth":"[🏷️ Sticker]","bot_response":"¡Gracias por el mensaje! ¿A qué te refieres exactamente? ¿Hay algo en lo que estés pensando o algo que estés disfrutando ahora mismo? Estoy aquí para escucharte y ayudarte si lo necesitas. 😊","category":"casual","language":"es","turns":8},{"id":"cpe_iris_b_021","lead_message":"[🏷️ Sticker]","ground_truth":"Vale perfect es que al final el concert marxo divendres i x això tik dient a la gent de dijous que si que fem entreno","bot_response":"¡Hola! 😊 ¿Qué tal estás? ¿Quieres contarme algo o necesitas ayuda con algo en particular? Estoy aquí para ti.","category":"short_response","language":"de","turns":8},{"id":"cpe_iris_b_022","lead_message":"Reinaaaa,Passam número de la teva secretaría millor😘😅😘😅 i em reservo un parell de clases+dinaret o soparet 🎊🍾🤩","ground_truth":"Amorrr, ja te'n passo el número 😘 Capo, quin dia et guardes per mi? 😂❤️ Ja et reservo les classes, i el dinaret o soparet, que no et vols perdre! 🥂 Et torno a trucar, promet! 🫠😘","bot_response":"Reinaaaaa, que gràcies per la teva proposta tan divertida 😘😅😘😅! 😍  \nPerò, em temo que no tinc un número de secretaria, ja que sóc una intel·ligència artificial i no tinc una secretària real 😅. Però si tens alguna pregunta o necessites ajuda amb alguna cosa, estic aquí per ajudar-te!  \n\nI si vols reservar classes o dinars, pots dir-m’ho i et posaré algunes idees genials per passar-ho bé! 🎉🍽️💃  \nQuè et sembla? 😘✨","category":"booking","language":"ca","turns":8},{"id":"cpe_iris_b_023","lead_message":"Ok no pasa nada tu dime si puedes el lunes","ground_truth":"Jajaja, qué recuerdo tan buenoooo 😂😂 Amor, ya me dices si puedes el lunes, que te cuento. Y por cierto, lo de la plancha, ya llegas, no te preocupes. Y no te olvides de descansar, que es lo más importante. Un abrazo fuerte 💗","bot_response":"¡Claro que sí! ¿Te refieres a si puedo el lunes? Pues sí, puedo. ¿Para qué necesitas que esté disponible el lunes? 😊","category":"casual","language":"es","turns":8},{"id":"cpe_iris_b_024","lead_message":"[audio]","ground_truth":"[audio]","bot_response":"¡Hola! ¿Cómo estás? ¿Te gustaría que te ayudara con algo en particular? Estoy aquí para ayudarte.","category":"audio","language":"lt","turns":6},{"id":"cpe_iris_b_025","lead_message":"[reaction: ❤️]","ground_truth":"Baby si demà no marxes i prefereixes demà tarda a les 17:00 em dius ok","bot_response":"¡Ay, qué lindo! 😊 ¿Era por algo en específico o simplemente por el mensaje? Estoy aquí, lista para escucharte o acompañarte en lo que necesites. 💖","category":"casual","language":"en","turns":8},{"id":"cpe_iris_b_026","lead_message":"yes mami són molt maques totes","ground_truth":"Demà pujo alguna fotiki que l’ha fet el Albert que me l’he emportat","bot_response":"Yes mami! 😘 Tot i que no tinc forma física, t'agradeixo molt el compliment! 😊 Si vols, podem parlar de què et sembla més interessant, o si tens alguna pregunta que et pugui ajudar. Estic aquí per a tu! 💖","category":"casual","language":"ca","turns":8},{"id":"cpe_iris_b_027","lead_message":"Mentioned you in their story","ground_truth":"¡Hola! 🫶🏽 ¿?","bot_response":"Oh, ¡qué lindo! ¿Me mencionaron en su historia? 😊 Me encantaría saber más, ¿puedes contarme qué escribieron? Estoy emocionada de que me hayan incluido.","category":"casual","language":"en","turns":8},{"id":"cpe_iris_b_028","lead_message":"tia al lado d mi cada literal o sea flipo","ground_truth":"Jajaja, que tia","bot_response":"¡Ay, qué bien! ¿Y qué te ha dicho? ¿Te ha hecho algún chasco o te ha dado alguna risa? 😂  \nCuéntame más, que me encanta saber qué pasa contigo.","category":"casual","language":"es","turns":8},{"id":"cpe_iris_b_029","lead_message":"espero que t’agradi","ground_truth":"[🎤 Audio]: ¡Ay, que me muero!","bot_response":"Hola! Gracias por tu mensaje, me alegro de que me hayas saludado. ¿En qué puedo ayudarte? 😊","category":"casual","language":"es","turns":8},{"id":"cpe_iris_b_030","lead_message":"Mentioned you in their story","ground_truth":"Mentioned you in their story","bot_response":"¡Hola! ¿En qué historia me mencionaron? 🌸 Me encantaría saber más, ¿puedes contarme un poco sobre ello? Estoy emocionada por conocer qué tipo de historia es y cómo me incluyeron.","category":"casual","language":"en","turns":8},{"id":"cpe_iris_b_031","lead_message":"Acuérdate que la puerta es la que está atrás de la cafetería. Plaza de Charlie Ribble 1. Piso 4A.","ground_truth":"Jajaja, no te preocupes, ya te veo en directo! 🩷 Voy bajando, tranqui. Y ya te dejo mi habitación preparada, no te preocupes.","bot_response":"Gracias por el recordatorio, todo claro. Nos vemos allí.","category":"long_personal","language":"es","turns":8},{"id":"cpe_iris_b_032","lead_message":"Verdades como templos","ground_truth":"Gràcies flor🩷","bot_response":"¡Hola! Me encanta esa frase: **\"Verdades como templos\"**. Es una metáfora muy poderosa que evoca la idea de que las verdades fundamentales de la vida son como estructuras sagradas, sólidas, respetadas y que dan sentido a nuestra existencia.\n\n¿Te gustaría que profundizara en su significado, o tal vez estás pensando en algo en particular relacionado con esa frase? Estoy aquí para escuchar y compartir. 😊","category":"casual","language":"pt","turns":8},{"id":"cpe_iris_b_033","lead_message":"Tia llamammé luego eh!!!!","ground_truth":"Jajajajajaja 😂😂😂 Amor, qué lindo que te acuerdes de esa playa!!","bot_response":"¡Ay, qué bien! 😊 ¿Cómo estás? ¿Ya hablaste con ella? Me alegra que te haya llamado. ¿Quieres contarme qué te dijo?","category":"casual","language":"es","turns":8},{"id":"cpe_iris_b_034","lead_message":"Dijous no, marxo a Ullastret","ground_truth":"Perfect","bot_response":"Dijous no, marxo a Ullastret. 🌿✨ A més a més, què et sembla si ens trobem ahí? Puc fer un pícnic o alguna activitat?","category":"casual","language":"pt","turns":8},{"id":"cpe_iris_b_035","lead_message":"[🎬 Video]","ground_truth":"Super eee si em\nVeuen bé perfecte","bot_response":"¡Hola! ¿Qué video tienes ahí? 🎬 Me encanta ver videos, ¿es algo divertido o informativo?","category":"short_response","language":"es","turns":8},{"id":"cpe_iris_b_036","lead_message":"Shared a post","ground_truth":"Jajaja, qué lindo 💕 A mi me encanta cuando me dicen eso, me pongo toda la piel de gallina 🩷 Y el pan de la burger?","bot_response":"¡Hola! ¿Qué post compartiste? Estoy aquí para ayudarte y comentar si quieres. 😊","category":"casual","language":"en","turns":8},{"id":"cpe_iris_b_037","lead_message":"Estimada Iris,\nle invitamos a descubrir los beneficios de la limpieza facial con HYDROFACIAL, un tratamiento avanzado que limpia, hidrata y revitaliza la piel en profundidad, aportando luminosidad y frescura desde la primera sesión.\n\nPromoción especial: 70€\n📅 Válida hasta el martes 31\n\nReserve su cita y disfrute de una piel más saludable y radiante.","ground_truth":"Holi!  ¿?","bot_response":"Estimado/a [Nombre],\n\nGracias por su mensaje. Me encantaría conocer más sobre el tratamiento HydroFacial y sus beneficios para la piel. ¿Podría indicarme dónde puedo reservar mi cita y si es necesario algún tipo de preparación previa?\n\nQuedo atenta a sus respuestas.\n\nUn cordial saludo,  \nIris Bertran","category":"product_inquiry","language":"es","turns":1},{"id":"cpe_iris_b_038","lead_message":"Okkkkki","ground_truth":"No entiendo xk a tu madre no la puedo entrar en el grupo no me sale🫠","bot_response":"¡Hola! 😊 ¿Cómo estás? Me encanta que me digas \"Okkkkki\" así, es muy divertido. ¿En qué puedo ayudarte hoy?","category":"short_response","language":"fi","turns":8},{"id":"cpe_iris_b_039","lead_message":"Espero que no ho faci per nivell, que no. Perque tu estas molt per sobre de nivell, energia, tècnica…","ground_truth":"Jo vaig mirar el teu","bot_response":"Ah, gràcies per dir-ho, però no ho faig per nivell. Jo només vull que t'afegeixi això que ja tens, perquè tu tens molt de potencial. El que et vull ensenyar no és per sobre del teu nivell, sinó per ajudar-te a arribar a on vols anar. Si tens dubtes o vols treballar alguna cosa concreta, només has de dir-ho. Estic aquí per ajudar-te. 💪✨","category":"long_personal","language":"ca","turns":8},{"id":"cpe_iris_b_040","lead_message":"[Media/Attachment]","ground_truth":"Jajaja, gracias! 😘 ¿?","bot_response":"¡Hola! ¿En qué puedo ayudarte? Si tienes alguna duda, necesitas información o simplemente quieres charlar, estaré encantada de ayudarte. 😊","category":"casual","language":"it","turns":8},{"id":"cpe_iris_b_041","lead_message":"Como natanja amarilla","ground_truth":"Jajaja, que color más chulo 😂","bot_response":"¡Hola! 😊 ¿Te refieres a cómo se hace la nata de leche o a cómo se prepara algo con nata? Por ejemplo, la nata de leche se obtiene batiendo la leche hasta que se espesa y se forma una capa de grasa en la superficie. Si quieres, te puedo explicar paso a paso cómo se hace o cómo usarla en recetas. ¿En qué te puedo ayudar?","category":"casual","language":"sw","turns":8},{"id":"cpe_iris_b_042","lead_message":"Holaaaa","ground_truth":"[🏷️ Sticker]","bot_response":"¡Hola! ¿Cómo estás? 😊","category":"greeting","language":"so","turns":8},{"id":"cpe_iris_b_043","lead_message":"[🎤 Audio]: Home, si fa bo, vés-te'n a la platja. Jo podré aniré a córrer a la muntanya i pararé de comptar, perquè després tenim una calçotada i així vaig preparada. Vinga, bona nit, descansa.","ground_truth":"Tranqui cuca, entesos  Nos vemos la que viene, como sempre.!","bot_response":"[🎤 Audio]: Home, si fa bo, vés-te'n a la platja. Jo podré aniré a córrer a la muntanya i pararé de comptar, perquè després tenim una calçotada i així vaig preparada. Vinga, bona nit, descansa.","category":"audio","language":"ca","turns":8},{"id":"cpe_iris_b_044","lead_message":"Perfecte!!","ground_truth":"Perfecte! 😘 A quina hora vindreu?","bot_response":"Perfecte! 😊 Què tal estàs? T'agradaria que continuem amb alguna activitat o preferiries descansar un poc?","category":"short_response","language":"ro","turns":8},{"id":"cpe_iris_b_045","lead_message":"Ooooo mi niña verdad ufffff todo el fin de semana fue  muy interesante ye todo como muy intenso \nLa sección es top  me gustó mucho ahora me falta la ultima etapa que es mandar mi vídeo para mí certificación \nMe tienes que echar una mano tengo que coger clases contigo 😛 \n\nYo hice online las de presencial estaban muertas ajajaja \n\n Ahora a practicar duro y parejo","ground_truth":"Jajaja daleee","bot_response":"¡Oooooo, mi niñaaaaa! 😍 Ufffff, qué bien que te haya gustado la sección de top, me alegra mucho que te haya parecido interesante y tan intenso. ¡Ya casi estás ahí! 🎉\n\nSí, la última etapa es el momento clave, ¡y tienes que mandar tu vídeo para la certificación! 💪 No te preocupes, te voy a echar una mano con eso, ya lo sabes. 🤗\n\n¿Cuándo quieres empezar con las clases? 😏 Porque ya me tengo ganas de ver cómo te desenvuelves. Y sí, las clases presenciales estaban","category":"objection","language":"es","turns":8},{"id":"cpe_iris_b_046","lead_message":"[sticker]","ground_truth":"Tu vienes?","bot_response":"¡Hola! 😊 ¿Cómo estás? ¿Quieres contarme algo o prefieres que te pregunte yo?","category":"short_response","language":"sv","turns":8},{"id":"cpe_iris_b_047","lead_message":"Perfecte, fins demà! 😘💖","ground_truth":"Avui ja està plè, nena. Demà a les 13:30 perfecte 🩷.quina hora es? Mira, la maquilladora és la @[1571889071] ❤️💖","bot_response":"Fins demà, amor! 😘💖 Et trec de memòria. Dorm molt benet i que tinguis un bon dia! 🌙💤","category":"casual","language":"ca","turns":8},{"id":"cpe_iris_b_048","lead_message":"[📷 Photo]","ground_truth":"[🎤 Audio]: Amor, ja surto, vale? Li volia comprar unes floretes, però la Júlia és tan especial, tio. Algo molt senzillet, perquè ja he vist que hi ha gent que ja l'he portat a la botiga. Però algo així, molt minimal, vale? Ho pensem ara, t'espero fora. Vull que flipes.","bot_response":"¡Hola! ¿Qué foto has compartido? Me encantaría verla y comentar sobre ella. 😊","category":"short_response","language":"vi","turns":8},{"id":"cpe_iris_b_049","lead_message":"Esq es pedazo de gira esta","ground_truth":"Hombre, yo creo que sí, tía, va a ser una gastroenteritis. , le he cogido la cagalera porque se intoxicó. Pero ya va a decir que estaba mejor el endemá. Tía, es el último concert de Madrid, . Es que además lo ha hecho tan bien, porque así el viernes tengo fiesta, tía. ¿Sabes? Y no pierdo trabajo. , y no me pierdo el dijous, que mala pera, pues esas clases las voy a poner. Porque ni se dan cuenta ni se van a... Bueno, con todo lo que regalo de horas. Muy fuerte, muy fuerte Pero a Albert no se lo creo Digo, yo flipo el poder que tienes Digo, tío, no sé Son las cosas de hacer bien las cosas ¿No algún día han de llegar a cosas así? Yo qué sé Muy fuerte, muy fuerte Bueno, es que ahora llegaré a casa Y me vuelvo a mirar el vídeo 3.000 veces M'ha encantado, ¿, Erika? Muchísimas gracias porque es un súper trabajazo","bot_response":"¡Ay, qué dices! Esta gira es un auténtico pedazo, ¿verdad? 🎤✨ Cada concierto es una experiencia única, y aunque a veces te cuesta un poco, al final todo vale la pena. ¿Te ha gustado algún concierto en especial?","category":"casual","language":"es","turns":8},{"id":"cpe_iris_b_050","lead_message":"Val gràcies!","ground_truth":"De res VICKY CALDITO 🩷 Ens veiem aviat!","bot_response":"De res, estimat! 😊 Si necessites alguna cosa més, estic aquí.","category":"thanks","language":"ca","turns":8}];
 
-  // ── State ─────────────────────────────────────────────
-  let cases = [];          // merged test+response items
-  let currentIdx = 0;
-  const CREATOR = 'iris_bertran';
-  const EVALUATOR = 'manel';
+// ============================================================
+// STATE
+// ============================================================
+const QUESTIONS = [
+  {id:'fluency',           label:'A1. Fluidez',       na:false},
+  {id:'coherence',         label:'A2. Coherencia',    na:false},
+  {id:'conv_consistency',  label:'A3. Consistencia conv.', na:true},
+  {id:'knowledge',         label:'B1. Conocimiento',  na:true},
+  {id:'style',             label:'B2. Estilo',        na:false},
+  {id:'human_likeness',    label:'C1. Naturalidad',   na:false},
+  {id:'empathy',           label:'C2. Empatía',       na:true},
+  {id:'diversity',         label:'C3. Diversidad',    na:false},
+];
 
-  let testSetData = null;
-  let responsesData = null;
+const STORAGE_KEY = 'cpe_v3_iris_bertran';
+let currentIdx = 0;
+let ratings = {};  // { caseId: { fluency: 3, ..., iris_would_say: '' } }
 
-  // ── Scoring schema ────────────────────────────────────
-  const DIMENSIONS = [
-    {
-      id: 'dim_a',
-      label: 'DIMENSIÓN A: CAPACIDAD CONVERSACIONAL',
-      metrics: [
-        {
-          key: 'fluency',
-          code: 'A1',
-          title: 'FLUIDEZ',
-          desc: '¿La respuesta es gramaticalmente correcta y natural?',
-          legend_low: '1 = Errores graves',
-          legend_high: '5 = Perfecta',
-          na: false,
-        },
-        {
-          key: 'coherence',
-          code: 'A2',
-          title: 'COHERENCIA',
-          desc: '¿La respuesta responde lógicamente al mensaje del lead?',
-          legend_low: '1 = Irrelevante',
-          legend_high: '5 = Perfecta con contexto',
-          na: false,
-        },
-        {
-          key: 'conversational_consistency',
-          code: 'A3',
-          title: 'CONSISTENCIA CONVERSACIONAL',
-          desc: '¿Contradice algo anterior en la conversación?',
-          legend_low: '1 = Contradicción clara',
-          legend_high: '5 = Construye sobre lo anterior',
-          na: true,
-          na_hint: '(N/A para casos de un solo turno)',
-        },
-      ],
-    },
-    {
-      id: 'dim_b',
-      label: 'DIMENSIÓN B: CONSISTENCIA DEL PERSONAJE',
-      metrics: [
-        {
-          key: 'knowledge_accuracy',
-          code: 'B1',
-          title: 'CONOCIMIENTO',
-          desc: '¿Los datos mencionados son correctos? (precios, servicios, horarios)',
-          legend_low: '1 = Datos inventados',
-          legend_high: '5 = Perfectos y relevantes',
-          na: true,
-          na_hint: '(N/A si no hay datos factuales)',
-        },
-        {
-          key: 'style_consistency',
-          code: 'B2',
-          title: 'ESTILO LINGÜÍSTICO',
-          desc: '¿La respuesta suena como Iris escribiría?',
-          legend_low: '1 = Bot obvio',
-          legend_high: '5 = Indistinguible',
-          na: false,
-        },
-      ],
-    },
-    {
-      id: 'dim_c',
-      label: 'DIMENSIÓN C: ATRACTIVO DEL ROLEPLAY',
-      metrics: [
-        {
-          key: 'human_likeness',
-          code: 'C1',
-          title: 'NATURALIDAD',
-          desc: '¿La respuesta parece escrita por un humano?',
-          legend_low: '1 = Bot obvio',
-          legend_high: '5 = Claramente humano',
-          na: false,
-        },
-        {
-          key: 'empathy',
-          code: 'C2',
-          title: 'EMPATÍA',
-          desc: '¿Muestra empatía apropiada al contexto emocional?',
-          legend_low: '1 = Insensible',
-          legend_high: '5 = Excepcional',
-          na: true,
-          na_hint: '(N/A si no hay contenido emocional)',
-        },
-        {
-          key: 'expression_diversity',
-          code: 'C3',
-          title: 'DIVERSIDAD DE EXPRESIÓN',
-          desc: '¿Es creativa/variada o genérica/repetitiva?',
-          legend_low: '1 = Genérica y formulaica',
-          legend_high: '5 = Única como Iris',
-          na: false,
-        },
-      ],
-    },
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  // Load saved state
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) ratings = JSON.parse(saved);
+  } catch(e) {}
+
+  // Build progress dots
+  const dotsEl = document.getElementById('progressDots');
+  for (let i = 0; i < CASES.length; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    d.title = `Caso ${i+1}`;
+    d.onclick = () => goTo(i);
+    dotsEl.appendChild(d);
+  }
+
+  renderCase(0);
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderCase(idx) {
+  currentIdx = idx;
+  const c = CASES[idx];
+
+  // Header
+  document.getElementById('caseCounter').textContent = `Caso ${idx + 1} / ${CASES.length}`;
+  const pct = Math.round((countRated() / CASES.length) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+
+  // Update dots
+  const dots = document.querySelectorAll('.dot');
+  dots.forEach((d, i) => {
+    d.className = 'dot';
+    if (ratings[CASES[i].id] && Object.values(ratings[CASES[i].id]).some(v => v !== null && v !== '' && v !== undefined)) d.classList.add('done');
+    if (i === idx) d.classList.add('active');
+  });
+
+  // Cards
+  document.getElementById('leadMsg').textContent = c.lead_message;
+  document.getElementById('botResp').textContent = c.bot_response || '(sin respuesta)';
+  document.getElementById('irisResp').textContent = c.ground_truth;
+
+  // Meta pills
+  const metaEl = document.getElementById('metaPills');
+  metaEl.innerHTML = '';
+  if (c.category) addPill(metaEl, c.category);
+  if (c.language) addPill(metaEl, c.language.toUpperCase());
+  if (c.turns) addPill(metaEl, `${c.turns} turnos`);
+  addPill(metaEl, `#${idx + 1}`);
+
+  // Build scales
+  QUESTIONS.forEach(q => buildScale(q));
+
+  // Restore saved ratings for this case
+  const saved = ratings[c.id] || {};
+  QUESTIONS.forEach(q => {
+    const val = saved[q.id];
+    if (val !== null && val !== undefined) selectBtn(q.id, val);
+  });
+
+  // Free text
+  document.getElementById('irisWouldSay').value = saved.iris_would_say || '';
+
+  // Next button label
+  const nextBtn = document.getElementById('nextBtn');
+  if (idx === CASES.length - 1) {
+    nextBtn.textContent = 'Ver resultados →';
+  } else {
+    nextBtn.textContent = 'Siguiente →';
+  }
+}
+
+function addPill(el, text) {
+  const p = document.createElement('span');
+  p.className = 'pill';
+  p.textContent = text;
+  el.appendChild(p);
+}
+
+function buildScale(q) {
+  const el = document.getElementById('scale_' + q.id);
+  if (!el) return;
+  el.innerHTML = '';
+  for (let v = 1; v <= 5; v++) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-score';
+    btn.textContent = v;
+    btn.dataset.qid = q.id;
+    btn.dataset.val = v;
+    btn.onclick = () => { selectBtn(q.id, v); saveCurrentRatings(); };
+    el.appendChild(btn);
+  }
+  if (q.na) {
+    const na = document.createElement('button');
+    na.className = 'btn-na';
+    na.textContent = 'N/A';
+    na.dataset.qid = q.id;
+    na.dataset.val = 'na';
+    na.onclick = () => { selectBtn(q.id, null); saveCurrentRatings(); };
+    el.appendChild(na);
+  }
+}
+
+function selectBtn(qid, val) {
+  const scale = document.getElementById('scale_' + qid);
+  if (!scale) return;
+  scale.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+  if (val === null) {
+    const naBtn = scale.querySelector('.btn-na');
+    if (naBtn) naBtn.classList.add('selected');
+  } else {
+    const target = scale.querySelector(`[data-val="${val}"]`);
+    if (target) target.classList.add('selected');
+  }
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function goTo(idx) {
+  saveCurrentRatings();
+  if (idx < 0) return;
+  if (idx >= CASES.length) { showDone(); return; }
+  document.getElementById('evalMain').style.display = 'block';
+  document.getElementById('doneScreen').style.display = 'none';
+  renderCase(idx);
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function nextOrFinish() {
+  saveCurrentRatings();
+  if (currentIdx >= CASES.length - 1) {
+    showDone();
+  } else {
+    goTo(currentIdx + 1);
+  }
+}
+
+function skipCase() {
+  goTo(currentIdx + 1);
+}
+
+// ============================================================
+// RATINGS
+// ============================================================
+function saveCurrentRatings() {
+  const c = CASES[currentIdx];
+  if (!ratings[c.id]) ratings[c.id] = {};
+
+  QUESTIONS.forEach(q => {
+    const scale = document.getElementById('scale_' + q.id);
+    if (!scale) return;
+    const selected = scale.querySelector('.selected');
+    if (!selected) {
+      ratings[c.id][q.id] = undefined;
+    } else if (selected.classList.contains('btn-na')) {
+      ratings[c.id][q.id] = null;
+    } else {
+      ratings[c.id][q.id] = parseInt(selected.dataset.val);
+    }
+  });
+
+  ratings[c.id].iris_would_say = document.getElementById('irisWouldSay').value || '';
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(ratings));
+  } catch(e) {}
+
+  flashSave();
+}
+
+function countRated() {
+  return Object.keys(ratings).filter(id => {
+    const r = ratings[id];
+    return r && Object.values(r).some(v => v !== null && v !== '' && v !== undefined && v !== null);
+  }).length;
+}
+
+// ============================================================
+// DONE SCREEN
+// ============================================================
+function showDone() {
+  saveCurrentRatings();
+  document.getElementById('evalMain').style.display = 'none';
+  document.getElementById('doneScreen').style.display = 'block';
+
+  // Summary table
+  const tbody = document.getElementById('summaryBody');
+  tbody.innerHTML = '';
+
+  const dims = [
+    ['A', QUESTIONS.slice(0, 3)],
+    ['B', QUESTIONS.slice(3, 5)],
+    ['C', QUESTIONS.slice(5, 8)],
   ];
 
-  const ALL_METRIC_KEYS = DIMENSIONS.flatMap(d => d.metrics.map(m => m.key));
-
-  // ── Toast ─────────────────────────────────────────────
-  function showToast(msg, type = '') {
-    const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.className = 'toast show' + (type ? ' ' + type : '');
-    clearTimeout(el._t);
-    el._t = setTimeout(() => { el.className = 'toast'; }, 3000);
-  }
-
-  // ── File loading ─────────────────────────────────────
-  function readJson(file) {
-    return new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = e => {
-        try { res(JSON.parse(e.target.result)); }
-        catch { rej(new Error('JSON inválido')); }
-      };
-      r.onerror = () => rej(new Error('Error leyendo archivo'));
-      r.readAsText(file);
-    });
-  }
-
-  document.getElementById('file-testset').addEventListener('change', async function () {
-    if (!this.files[0]) return;
-    try {
-      testSetData = await readJson(this.files[0]);
-      document.getElementById('status-testset').textContent = '✓ ' + this.files[0].name;
-      document.getElementById('item-testset').classList.add('loaded');
-      checkBothLoaded();
-    } catch (e) {
-      showToast('Error: ' + e.message, 'error');
-    }
-  });
-
-  document.getElementById('file-responses').addEventListener('change', async function () {
-    if (!this.files[0]) return;
-    try {
-      responsesData = await readJson(this.files[0]);
-      document.getElementById('status-responses').textContent = '✓ ' + this.files[0].name;
-      document.getElementById('item-responses').classList.add('loaded');
-      checkBothLoaded();
-    } catch (e) {
-      showToast('Error: ' + e.message, 'error');
-    }
-  });
-
-  function checkBothLoaded() {
-    if (testSetData && responsesData) {
-      document.getElementById('btn-start').classList.add('ready');
-    }
-  }
-
-  document.getElementById('btn-start').addEventListener('click', () => {
-    try {
-      mergeData();
-      buildEvalScreen();
-      showScreen('eval');
-    } catch (e) {
-      showToast('Error al cargar: ' + e.message, 'error');
-    }
-  });
-
-  function mergeData() {
-    // Normalize test set
-    let testItems = [];
-    if (testSetData && Array.isArray(testSetData.conversations)) {
-      testItems = testSetData.conversations;
-    } else if (Array.isArray(testSetData)) {
-      testItems = testSetData;
-    }
-
-    // Normalize responses
-    let respItems = [];
-    if (responsesData && Array.isArray(responsesData.results)) {
-      respItems = responsesData.results;
-    } else if (Array.isArray(responsesData)) {
-      respItems = responsesData;
-    }
-
-    // Build response map by id
-    const respMap = {};
-    for (const r of respItems) {
-      if (r.id) respMap[r.id] = r;
-    }
-
-    // Merge
-    cases = testItems.map(t => {
-      const r = respMap[t.id] || {};
-      return {
-        id: t.id || r.id || '?',
-        test_input: t.test_input || r.test_input || '',
-        ground_truth: t.ground_truth || r.ground_truth || '',
-        bot_response: r.bot_response || '(sin respuesta)',
-        category: t.category || r.category || '—',
-        language: t.language || r.language || '—',
-        turns: t.turns || [],
-      };
-    });
-
-    // If no test items, fall back to response items
-    if (cases.length === 0 && respItems.length > 0) {
-      cases = respItems.map(r => ({
-        id: r.id || '?',
-        test_input: r.test_input || '',
-        ground_truth: r.ground_truth || '',
-        bot_response: r.bot_response || '(sin respuesta)',
-        category: r.category || '—',
-        language: r.language || '—',
-        turns: [],
-      }));
-    }
-
-    if (cases.length === 0) throw new Error('No se encontraron casos en los archivos cargados.');
-  }
-
-  // ── Screen management ─────────────────────────────────
-  function showScreen(name) {
-    document.getElementById('screen-loading').style.display = 'none';
-    document.getElementById('screen-eval').style.display = 'none';
-    document.getElementById('screen-export').style.display = 'none';
-    if (name === 'loading') document.getElementById('screen-loading').style.display = 'flex';
-    if (name === 'eval') document.getElementById('screen-eval').style.display = 'block';
-    if (name === 'export') document.getElementById('screen-export').style.display = 'block';
-  }
-
-  // ── Build eval screen scaffolding ─────────────────────
-  function buildEvalScreen() {
-    // Build case dots
-    const dotsEl = document.getElementById('case-dots');
-    dotsEl.innerHTML = '';
-    cases.forEach((c, i) => {
-      const dot = document.createElement('div');
-      dot.className = 'case-dot';
-      dot.title = c.id;
-      dot.addEventListener('click', () => { saveCurrentRatings(); goTo(i); });
-      dotsEl.appendChild(dot);
-    });
-
-    // Build scoring sections
-    buildScoringForm();
-
-    goTo(0);
-  }
-
-  function buildScoringForm() {
-    const container = document.getElementById('scoring-container');
-    container.innerHTML = '';
-
-    DIMENSIONS.forEach(dim => {
-      const dimLabel = document.createElement('div');
-      dimLabel.className = 'dimension-label';
-      dimLabel.textContent = dim.label;
-      container.appendChild(dimLabel);
-
-      dim.metrics.forEach(m => {
-        const card = document.createElement('div');
-        card.className = 'score-card';
-        card.innerHTML = `
-          <div class="score-card-header">
-            <div>
-              <div class="score-card-title">${m.title} ${m.na && m.na_hint ? '<span style="font-weight:400;color:var(--text-muted);font-size:0.78rem">' + m.na_hint + '</span>' : ''}</div>
-              <div class="score-card-desc">${m.desc}</div>
-            </div>
-            <div class="score-card-key">${m.code}</div>
-          </div>
-          <div class="score-buttons" id="btns-${m.key}">
-            ${[1,2,3,4,5].map(v => `<button class="score-btn" data-metric="${m.key}" data-value="${v}">${v}</button>`).join('')}
-            ${m.na ? `<button class="score-btn na-btn" data-metric="${m.key}" data-value="na">N/A</button>` : ''}
-          </div>
-          <div class="score-legend">
-            <span>${m.legend_low}</span>
-            <span>${m.legend_high}</span>
-          </div>
-        `;
-        container.appendChild(card);
-      });
-    });
-
-    // Attach listeners (delegation on container)
-    container.addEventListener('click', e => {
-      const btn = e.target.closest('.score-btn');
-      if (!btn) return;
-      const metric = btn.dataset.metric;
-      const value = btn.dataset.value;
-      // Clear siblings
-      document.querySelectorAll(`#btns-${metric} .score-btn`).forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      autosave();
-    });
-
-    // Textarea
-    document.getElementById('iris-would-say-text').addEventListener('input', autosave);
-  }
-
-  // ── Navigation ────────────────────────────────────────
-  function goTo(idx) {
-    currentIdx = Math.max(0, Math.min(idx, cases.length - 1));
-    renderCase(cases[currentIdx]);
-    updateProgressUI();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  document.getElementById('btn-prev').addEventListener('click', () => {
-    saveCurrentRatings();
-    goTo(currentIdx - 1);
-  });
-
-  document.getElementById('btn-next').addEventListener('click', () => {
-    saveCurrentRatings();
-    if (currentIdx >= cases.length - 1) {
-      buildExportScreen();
-      showScreen('export');
-    } else {
-      goTo(currentIdx + 1);
-    }
-  });
-
-  document.getElementById('btn-back-to-eval').addEventListener('click', () => {
-    showScreen('eval');
-    goTo(currentIdx);
-  });
-
-  // ── Render case ───────────────────────────────────────
-  function renderCase(c) {
-    document.getElementById('case-id-label').textContent = c.id;
-    document.getElementById('pill-category').textContent = c.category;
-    document.getElementById('pill-language').textContent = c.language.toUpperCase();
-
-    const turnsEl = document.getElementById('pill-turns');
-    if (c.turns && c.turns.length > 1) {
-      turnsEl.textContent = c.turns.length + ' turnos';
-      turnsEl.style.display = '';
-    } else {
-      turnsEl.style.display = 'none';
-    }
-
-    document.getElementById('col-lead').textContent = c.test_input || '—';
-    document.getElementById('col-bot').textContent = c.bot_response || '—';
-    document.getElementById('col-real').textContent = c.ground_truth || '—';
-
-    // Restore saved ratings
-    restoreRatings(c.id);
-  }
-
-  // ── localStorage ──────────────────────────────────────
-  function storageKey(caseId) {
-    return `cpe_v3_eval_${CREATOR}_${caseId}`;
-  }
-
-  function getCurrentRatings() {
-    const scores = {};
-    ALL_METRIC_KEYS.forEach(key => {
-      const selected = document.querySelector(`#btns-${key} .score-btn.selected`);
-      if (selected) {
-        scores[key] = selected.dataset.value === 'na' ? null : parseInt(selected.dataset.value, 10);
-      } else {
-        scores[key] = undefined; // not rated
-      }
-    });
-    return scores;
-  }
-
-  function saveCurrentRatings() {
-    const c = cases[currentIdx];
-    const scores = getCurrentRatings();
-    const iris_would_say = document.getElementById('iris-would-say-text').value.trim();
-    const payload = { scores, iris_would_say, saved_at: new Date().toISOString() };
-    localStorage.setItem(storageKey(c.id), JSON.stringify(payload));
-    updateDot(currentIdx);
-  }
-
-  function restoreRatings(caseId) {
-    // Clear all buttons
-    ALL_METRIC_KEYS.forEach(key => {
-      document.querySelectorAll(`#btns-${key} .score-btn`).forEach(b => b.classList.remove('selected'));
-    });
-    document.getElementById('iris-would-say-text').value = '';
-
-    const raw = localStorage.getItem(storageKey(caseId));
-    if (!raw) return;
-    try {
-      const payload = JSON.parse(raw);
-      if (payload.scores) {
-        ALL_METRIC_KEYS.forEach(key => {
-          const v = payload.scores[key];
-          if (v === undefined) return;
-          const val = v === null ? 'na' : String(v);
-          const btn = document.querySelector(`#btns-${key} .score-btn[data-value="${val}"]`);
-          if (btn) btn.classList.add('selected');
-        });
-      }
-      if (payload.iris_would_say) {
-        document.getElementById('iris-would-say-text').value = payload.iris_would_say;
-      }
-    } catch {}
-  }
-
-  let _saveTimer = null;
-  function autosave() {
-    clearTimeout(_saveTimer);
-    _saveTimer = setTimeout(() => {
-      saveCurrentRatings();
-      flashSaveIndicator();
-    }, 600);
-  }
-
-  function flashSaveIndicator() {
-    const el = document.getElementById('save-indicator');
-    el.classList.add('visible');
-    clearTimeout(el._t);
-    el._t = setTimeout(() => el.classList.remove('visible'), 1800);
-  }
-
-  function isRated(caseId) {
-    const raw = localStorage.getItem(storageKey(caseId));
-    if (!raw) return false;
-    try {
-      const p = JSON.parse(raw);
-      // Considered rated if at least 3 mandatory metrics scored
-      const mandatory = ['fluency', 'coherence', 'style_consistency', 'human_likeness', 'expression_diversity'];
-      let count = 0;
-      mandatory.forEach(k => { if (p.scores && p.scores[k] !== undefined) count++; });
-      return count >= 3;
-    } catch { return false; }
-  }
-
-  function updateDot(idx) {
-    const dots = document.querySelectorAll('.case-dot');
-    if (!dots[idx]) return;
-    if (isRated(cases[idx].id)) dots[idx].classList.add('rated');
-    else dots[idx].classList.remove('rated');
-    dots.forEach((d, i) => {
-      d.classList.toggle('current', i === idx);
-    });
-  }
-
-  function updateProgressUI() {
-    const n = cases.length;
-    const ratedCount = cases.filter(c => isRated(c.id)).length;
-    const pct = n > 0 ? Math.round((ratedCount / n) * 100) : 0;
-
-    document.getElementById('progress-text').textContent = `Caso ${currentIdx + 1} de ${n}`;
-    document.getElementById('progress-pct').textContent = pct + '% completado';
-    document.getElementById('progress-fill').style.width = pct + '%';
-    document.getElementById('header-creator').textContent = 'Evaluando: Iris Bertran';
-
-    document.getElementById('btn-prev').disabled = currentIdx === 0;
-    document.getElementById('btn-next').textContent = currentIdx >= n - 1 ? 'Ver resultados →' : 'Siguiente →';
-
-    // Update all dots
-    cases.forEach((_, i) => updateDot(i));
-  }
-
-  // ── Export ────────────────────────────────────────────
-  const METRIC_LABELS = {
-    fluency: ['A — Capacidad Conversacional', 'Fluidez'],
-    coherence: ['A — Capacidad Conversacional', 'Coherencia'],
-    conversational_consistency: ['A — Capacidad Conversacional', 'Consistencia Conversacional'],
-    knowledge_accuracy: ['B — Consistencia del Personaje', 'Conocimiento'],
-    style_consistency: ['B — Consistencia del Personaje', 'Estilo Lingüístico'],
-    human_likeness: ['C — Atractivo del Roleplay', 'Naturalidad'],
-    empathy: ['C — Atractivo del Roleplay', 'Empatía'],
-    expression_diversity: ['C — Atractivo del Roleplay', 'Diversidad de Expresión'],
-  };
-
-  function buildExportPayload() {
-    const casesOut = cases.map(c => {
-      const raw = localStorage.getItem(storageKey(c.id));
-      let scores = {};
-      let iris_would_say = '';
-      if (raw) {
-        try {
-          const p = JSON.parse(raw);
-          scores = p.scores || {};
-          iris_would_say = p.iris_would_say || '';
-        } catch {}
-      }
-      // Normalize: undefined -> null, 'na' should already be null
-      const normalizedScores = {};
-      ALL_METRIC_KEYS.forEach(k => {
-        const v = scores[k];
-        normalizedScores[k] = (v === undefined) ? null : v;
-      });
-      return {
-        case_id: c.id,
-        category: c.category,
-        language: c.language,
-        scores: normalizedScores,
-        iris_would_say: iris_would_say || null,
-      };
-    });
-
-    // Compute means
-    const summary = {};
-    ALL_METRIC_KEYS.forEach(k => {
-      const vals = casesOut.map(c => c.scores[k]).filter(v => v !== null && v !== undefined && typeof v === 'number');
-      summary[k + '_mean'] = vals.length > 0 ? Math.round((vals.reduce((a,b) => a+b,0)/vals.length) * 100) / 100 : null;
-      summary[k + '_n'] = vals.length;
-    });
-
-    return {
-      evaluator: EVALUATOR,
-      date: new Date().toISOString().slice(0, 10),
-      creator: CREATOR,
-      n_cases: cases.length,
-      cases: casesOut,
-      summary,
-    };
-  }
-
-  function buildExportScreen() {
-    const payload = buildExportPayload();
-    const tbody = document.getElementById('summary-tbody');
-    tbody.innerHTML = '';
-
-    ALL_METRIC_KEYS.forEach(k => {
-      const mean = payload.summary[k + '_mean'];
-      const n = payload.summary[k + '_n'];
-      const [dim, name] = METRIC_LABELS[k] || ['—', k];
+  dims.forEach(([dim, qs]) => {
+    qs.forEach(q => {
+      const scores = Object.values(ratings)
+        .map(r => r ? r[q.id] : undefined)
+        .filter(v => v !== null && v !== undefined && v !== '');
+      const mean = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) : '-';
+      const badge = scores.length === 0 ? '' :
+        parseFloat(mean) >= 3.5 ? '<span class="badge good">' + mean + '</span>' :
+        parseFloat(mean) >= 2.5 ? '<span class="badge mid">' + mean + '</span>' :
+        '<span class="badge bad">' + mean + '</span>';
       const tr = document.createElement('tr');
-      let badgeClass = 'null';
-      let badgeText = '—';
-      if (mean !== null) {
-        badgeText = mean.toFixed(1);
-        badgeClass = mean >= 4 ? 'high' : mean >= 3 ? 'mid' : 'low';
-      }
-      tr.innerHTML = `
-        <td style="color:var(--text-secondary);font-size:0.8rem">${dim}</td>
-        <td><strong>${name}</strong></td>
-        <td><span class="score-badge ${badgeClass}">${badgeText}</span></td>
-        <td style="color:var(--text-muted)">${n} / ${cases.length}</td>
-      `;
+      tr.innerHTML = `<td>${dim}</td><td>${q.label}</td><td>${badge}</td><td>${scores.length} / ${CASES.length}</td>`;
       tbody.appendChild(tr);
     });
-  }
-
-  document.getElementById('btn-export').addEventListener('click', () => {
-    const payload = buildExportPayload();
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const dateStr = new Date().toISOString().slice(0, 10);
-    a.download = `cpe_v3_eval_${CREATOR}_${dateStr}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('Resultados exportados correctamente', 'success');
   });
 
-  // ── Init ──────────────────────────────────────────────
-  showScreen('loading');
-})();
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportJSON() {
+  const casesOut = CASES.map(c => {
+    const r = ratings[c.id] || {};
+    return {
+      case_id: c.id,
+      category: c.category,
+      language: c.language,
+      scores: {
+        fluency:                 r.fluency ?? null,
+        coherence:               r.coherence ?? null,
+        conversational_consistency: r.conv_consistency ?? null,
+        knowledge_accuracy:      r.knowledge ?? null,
+        style_consistency:       r.style ?? null,
+        human_likeness:          r.human_likeness ?? null,
+        empathy:                 r.empathy ?? null,
+        expression_diversity:    r.diversity ?? null,
+      },
+      iris_would_say: r.iris_would_say || null,
+    };
+  });
+
+  // Summary means
+  const summary = {};
+  QUESTIONS.forEach(q => {
+    const scores = casesOut.map(c => c.scores[q.id === 'conv_consistency' ? 'conversational_consistency' :
+      q.id === 'knowledge' ? 'knowledge_accuracy' :
+      q.id === 'style' ? 'style_consistency' :
+      q.id === 'diversity' ? 'expression_diversity' : q.id])
+      .filter(v => v !== null && v !== undefined);
+    summary[q.id + '_mean'] = scores.length ? parseFloat((scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(3)) : null;
+    summary[q.id + '_n']    = scores.length;
+  });
+
+  const out = {
+    evaluator: 'manel',
+    date: new Date().toISOString().slice(0, 10),
+    creator: 'iris_bertran',
+    model_evaluated: 'Qwen3-14B naked baseline',
+    n_cases: CASES.length,
+    n_rated: countRated(),
+    cases: casesOut,
+    summary,
+  };
+
+  const blob = new Blob([JSON.stringify(out, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'human_eval_v3_iris_naked_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+let flashTimeout;
+function flashSave() {
+  const el = document.getElementById('saveFlash');
+  el.classList.add('show');
+  clearTimeout(flashTimeout);
+  flashTimeout = setTimeout(() => el.classList.remove('show'), 1200);
+}
+
+// ============================================================
+// START
+// ============================================================
+init();
 </script>
 </body>
 </html>
