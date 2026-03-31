@@ -285,67 +285,6 @@ def apply_blacklist_filter(response: str, creator_id: str = None) -> str:
     return response
 
 
-_EMOJI_RE = re.compile(
-    "["
-    "\U0001F600-\U0001F64F"  # emoticons
-    "\U0001F300-\U0001F5FF"  # symbols & pictographs
-    "\U0001F680-\U0001F6FF"  # transport & map
-    "\U0001F1E0-\U0001F1FF"  # flags
-    "\U00002702-\U000027B0"
-    "\U000024C2-\U0001F251"
-    "\U0001F900-\U0001F9FF"  # supplemental
-    "\U0001FA00-\U0001FA6F"
-    "\U0001FA70-\U0001FAFF"
-    "\U00002600-\U000026FF"
-    "]"
-    "[\U0000FE0F\U0000200D\U0001F3FB-\U0001F3FF]*",  # optional modifiers (variation, ZWJ, skin tone)
-    flags=re.UNICODE,
-)
-
-
-def apply_emoji_limit(response: str, creator_id: str = None) -> str:
-    """
-    FIX 8: Limit emoji count per message from Doc D §4.3 calibration.
-
-    BUG-11 fix: applies a default limit of 5 when no calibration is available,
-    so responses with 10+ emojis are trimmed even for uncalibrated creators.
-    """
-    if not response or not creator_id:
-        return response
-
-    DEFAULT_MAX_EMOJIS = 5  # BUG-11: default when no calibration
-    max_emojis = DEFAULT_MAX_EMOJIS
-
-    try:
-        from core.personality_loader import get_calibration_override
-
-        override = get_calibration_override(creator_id)
-        if override:
-            calibrated_max = override.get("max_emojis_per_message")
-            if calibrated_max is not None:
-                max_emojis = calibrated_max
-    except Exception:
-        pass  # use default
-
-    emoji_matches = list(_EMOJI_RE.finditer(response))
-    emoji_count = len(emoji_matches)
-
-    if emoji_count <= max_emojis:
-        return response
-
-    # Remove excess emojis from the end
-    to_remove = emoji_count - max_emojis
-    for match in reversed(emoji_matches):
-        if to_remove <= 0:
-            break
-        response = response[:match.start()] + response[match.end():]
-        to_remove -= 1
-
-    response = response.strip()
-    logger.info("[FIX 8] Emoji limit applied: %d -> %d for %s", emoji_count, max_emojis, creator_id)
-    return response
-
-
 # =============================================================================
 # FIX 9: Global catchphrase removal (accent-insensitive via unicode NFKD)
 # =============================================================================
