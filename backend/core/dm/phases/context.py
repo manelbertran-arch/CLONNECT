@@ -30,6 +30,9 @@ ENABLE_ADVANCED_PROMPTS = os.getenv("ENABLE_ADVANCED_PROMPTS", "false").lower() 
 ENABLE_CITATIONS = os.getenv("ENABLE_CITATIONS", "true").lower() == "true"
 ENABLE_HIERARCHICAL_MEMORY = os.getenv("ENABLE_HIERARCHICAL_MEMORY", "false").lower() == "true"
 ENABLE_EPISODIC_MEMORY = os.getenv("ENABLE_EPISODIC_MEMORY", "false").lower() == "true"
+ENABLE_FEW_SHOT = os.getenv("ENABLE_FEW_SHOT", "true").lower() == "true"
+ENABLE_LENGTH_HINTS = os.getenv("ENABLE_LENGTH_HINTS", "true").lower() == "true"
+ENABLE_QUESTION_HINTS = os.getenv("ENABLE_QUESTION_HINTS", "true").lower() == "true"
 
 # ── Universal RAG gate: dynamic keywords from creator's content_chunks ──
 
@@ -601,7 +604,7 @@ async def phase_memory_and_context(
 
     # Load few-shot examples from calibration (intent-stratified + semantic hybrid)
     few_shot_section = ""
-    if agent.calibration:
+    if ENABLE_FEW_SHOT and agent.calibration:
         try:
             from services.calibration_loader import detect_message_language, get_few_shot_section
 
@@ -740,30 +743,32 @@ async def phase_memory_and_context(
                 logger.info("[QUESTION_CONTEXT] Injected: %s (conf=%.2f)", _q_ctx, _q_conf)
 
     # Length hint — data-driven from mined length_by_intent.json
-    try:
-        from core.dm.text_utils import get_data_driven_length_hint
-        _length_hint = get_data_driven_length_hint(message, agent.creator_id)
-        if _length_hint:
-            _context_notes_str = (
-                (_context_notes_str + "\n" + _length_hint)
-                if _context_notes_str else _length_hint
-            )
-            cognitive_metadata["length_hint_injected"] = _length_hint
-    except Exception as e:
-        logger.debug("Length hint failed: %s", e)
+    if ENABLE_LENGTH_HINTS:
+        try:
+            from core.dm.text_utils import get_data_driven_length_hint
+            _length_hint = get_data_driven_length_hint(message, agent.creator_id)
+            if _length_hint:
+                _context_notes_str = (
+                    (_context_notes_str + "\n" + _length_hint)
+                    if _context_notes_str else _length_hint
+                )
+                cognitive_metadata["length_hint_injected"] = _length_hint
+        except Exception as e:
+            logger.debug("Length hint failed: %s", e)
 
     # Question hint — data-driven from baseline_metrics question_rate_pct
-    try:
-        from core.dm.text_utils import get_data_driven_question_hint
-        _question_hint = get_data_driven_question_hint(agent.creator_id)
-        if _question_hint:
-            _context_notes_str = (
-                (_context_notes_str + "\n" + _question_hint)
-                if _context_notes_str else _question_hint
-            )
-            cognitive_metadata["question_hint_injected"] = _question_hint
-    except Exception as e:
-        logger.debug("Question hint failed: %s", e)
+    if ENABLE_QUESTION_HINTS:
+        try:
+            from core.dm.text_utils import get_data_driven_question_hint
+            _question_hint = get_data_driven_question_hint(agent.creator_id)
+            if _question_hint:
+                _context_notes_str = (
+                    (_context_notes_str + "\n" + _question_hint)
+                    if _context_notes_str else _question_hint
+                )
+                cognitive_metadata["question_hint_injected"] = _question_hint
+        except Exception as e:
+            logger.debug("Question hint failed: %s", e)
 
     # ECHO Engine: Generate relational context (Sprint 4)
     relational_block = ""
