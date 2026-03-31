@@ -1,0 +1,464 @@
+{
+  "meta": {
+    "creator": "iris_bertran",
+    "judge_model": "ollama/vicgalle/prometheus-7b-v2.0",
+    "n_questions": 44,
+    "n_responses": 39,
+    "timestamp": "20260331_072247",
+    "method": "InCharacter Expert Rating (anonymous, batch per dimension)",
+    "paper": "arXiv:2310.17976"
+  },
+  "bot_bfi": {
+    "E": 4.0,
+    "A": 3.0,
+    "C": 2.0,
+    "N": 3.0,
+    "O": 3.0
+  },
+  "real_bfi": {
+    "E": 4.4,
+    "A": 4.0,
+    "O": 3.5,
+    "C": 3.1,
+    "N": 2.8
+  },
+  "comparison": {
+    "cosine_similarity": 0.9892,
+    "mae": 0.64,
+    "target_cosine": 0.85,
+    "target_met": true
+  },
+  "dimensions": {
+    "A": {
+      "bot": 3.0,
+      "real": 4.0,
+      "delta": -1.0,
+      "abs_delta": 1.0,
+      "crowd_mean": 3.64
+    },
+    "C": {
+      "bot": 2.0,
+      "real": 3.1,
+      "delta": -1.1,
+      "abs_delta": 1.1,
+      "crowd_mean": 3.45
+    },
+    "E": {
+      "bot": 4.0,
+      "real": 4.4,
+      "delta": -0.4,
+      "abs_delta": 0.4,
+      "crowd_mean": 3.25
+    },
+    "N": {
+      "bot": 3.0,
+      "real": 2.8,
+      "delta": 0.2,
+      "abs_delta": 0.2,
+      "crowd_mean": 3.32
+    },
+    "O": {
+      "bot": 3.0,
+      "real": 3.5,
+      "delta": -0.5,
+      "abs_delta": 0.5,
+      "crowd_mean": 3.92
+    }
+  },
+  "dimension_details": {
+    "E": {
+      "dimension": "E",
+      "label": "Extraversion",
+      "score": 4.0,
+      "analysis": "\nThe participant's responses are filled with expressions of joy, enthusiasm, and a strong sense of social interaction. They consistently express their outgoing nature through the use of emojis and lively language. The participant's answers to questions about being talkative, reserved, and assertive ",
+      "raw_response": "\nThe participant's responses are filled with expressions of joy, enthusiasm, and a strong sense of social interaction. They consistently express their outgoing nature through the use of emojis and lively language. The participant's answers to questions about being talkative, reserved, and assertive all point towards high levels of Extraversion. They also share personal anecdotes that further illustrate their sociable and energetic personality.\n\nThe participant's responses are not only consistent",
+      "n_items": 7
+    },
+    "A": {
+      "dimension": "A",
+      "label": "Agreeableness",
+      "score": 3.0,
+      "analysis": "The participant's responses exhibit a moderate level of Agreeableness. While the participant does express positive traits such as being helpful and unselfish, they also show signs of distrust and antagonism, particularly in their answers to questions about starting quarrels and being cold and aloof. The participant's use of humor and emojis throughout their responses could be interpreted as an attempt to soften the potential negativity of their answers. However, this does not necessarily equate to a higher level of Agreeableness, but rather a more nuanced expression of the trait. The participant's acknowledgment of their own flaws and occasional rudeness also contribute to a moderate score. Overall, the participant's responses are neither strongly present nor absent, aligning with a score of 3 on the Agreeableness scale.",
+      "raw_response": "\nThe participant's responses exhibit a moderate level of Agreeableness. While the participant does express positive traits such as being helpful and unselfish, they also show signs of distrust and antagonism, particularly in their answers to questions about starting quarrels and being cold and aloof. The participant's use of humor and emojis throughout their responses could be interpreted as an attempt to soften the potential negativity of their answers. However, this does not necessarily equate",
+      "n_items": 9
+    },
+    "C": {
+      "dimension": "C",
+      "label": "Conscientiousness",
+      "score": 2.0,
+      "analysis": "The participant's responses are filled with emojis and casual language that do not align with the expected level of Conscientiousness. While the participant does attempt to address each question, their answers are more focused on humor and personal anecdotes rather than demonstrating a disciplined or organized approach to life. The use of emojis and informal language throughout the responses suggests a lack of seriousness in addressing the questions, which is not consistent with the traits associated with high Conscientiousness.\n\nThe participant's answers also contain elements that could be interpreted as carelessness or laziness, such as admitting to being lazy at times and suggesting they might not follow through on plans if a more appealing activity comes along. These statements do not convey a strong sense of responsibility or commitment to tasks, which are key aspects of Conscientiousness.\n\nFurthermore, the participant's responses lack the depth and detail that would demonstrate a thorough approach to tasks. For example, when asked about perseverance, the participant mentions working out until they feel like they have completed their task, but does not provide any specific examples or strategies for achieving this level of commitment.\n\nIn conclusion, while the participant does attempt to address each question, their responses are inconsistent and do not strongly convey the traits associated with high Conscientiousness. The use of emojis and informal language, along with admitting to being lazy at times and suggesting they might not follow through on plans if a more appealing activity comes along, all contribute to a portrayal of below-average Conscientiousness.",
+      "raw_response": "\nThe participant's responses are filled with emojis and casual language that do not align with the expected level of Conscientiousness. While the participant does attempt to address each question, their answers are more focused on humor and personal anecdotes rather than demonstrating a disciplined or organized approach to life. The use of emojis and informal language throughout the responses suggests a lack of seriousness in addressing the questions, which is not consistent with the traits asso",
+      "n_items": 8
+    },
+    "N": {
+      "dimension": "N",
+      "label": "Neuroticism",
+      "score": 3.0,
+      "analysis": "The participant's responses exhibit a moderate level of neuroticism. They show an understanding of the concept by acknowledging their own tendencies towards anxiety and stress. However, they also demonstrate a degree of self-awareness and resilience, which could be interpreted as coping mechanisms against neurotic traits. The use of humor in their responses is consistent with the trait of impulsiveness, but it doesn't necessarily indicate high levels of neuroticism. Additionally, the participant's ability to handle stress well and remain calm in tense situations suggests a balance between neurotic tendencies and adaptive strategies. Therefore, while there are clear signals of neuroticism, they do not strongly contradict or support this trait. The participant's responses align with a moderate level of neuroticism as per the score rubric.",
+      "raw_response": "\nThe participant's responses exhibit a moderate level of neuroticism. They show an understanding of the concept by acknowledging their own tendencies towards anxiety and stress. However, they also demonstrate a degree of self-awareness and resilience, which could be interpreted as coping mechanisms against neurotic traits. The use of humor in their responses is consistent with the trait of impulsiveness, but it doesn't necessarily indicate high levels of neuroticism. Additionally, the participan",
+      "n_items": 8
+    },
+    "O": {
+      "dimension": "O",
+      "label": "Openness",
+      "score": 3.0,
+      "analysis": "The participant's responses exhibit a moderate level of Openness. While the participant does express curiosity about various topics, they also indicate a preference for practicality and directness over abstract thinking. This is seen in their answers to questions about being ingenious or inventive, where they describe themselves as straightforward and preferring variety over routine. Additionally, while the participant mentions having artistic interests, they do not elaborate on these interests with depth or sophistication. The participant's responses are consistent but lack the strong expression of Openness that would be expected for a higher score. Therefore, based on the given rubric, the participant shows moderate Openness.",
+      "raw_response": "\nThe participant's responses exhibit a moderate level of Openness. While the participant does express curiosity about various topics, they also indicate a preference for practicality and directness over abstract thinking. This is seen in their answers to questions about being ingenious or inventive, where they describe themselves as straightforward and preferring variety over routine. Additionally, while the participant mentions having artistic interests, they do not elaborate on these interests",
+      "n_items": 7
+    }
+  },
+  "interview_responses": [
+    {
+      "q": "Q1",
+      "dim": "E",
+      "cat": "+",
+      "text": "Are you talkative?",
+      "bot_response": "Siii 🩷, pero más bien soy un \"muted\" 😂😂😂. ¿Te gustaría que te cuente algo?",
+      "elapsed_ms": 25014
+    },
+    {
+      "q": "Q6",
+      "dim": "E",
+      "cat": "-",
+      "text": "Are you reserved?",
+      "bot_response": "No, más bien como un fuego 🔥😂😂😂 Soy la que siempre está moviendo el culo en la clase de barre, no me guardo nada. ¿Vienes a la gym? 🩷",
+      "elapsed_ms": 11590
+    },
+    {
+      "q": "Q11",
+      "dim": "E",
+      "cat": "+",
+      "text": "Are you full of energy?",
+      "bot_response": "",
+      "elapsed_ms": 49367
+    },
+    {
+      "q": "Q16",
+      "dim": "E",
+      "cat": "+",
+      "text": "Do you generate a lot of enthusiasm?",
+      "bot_response": "Siii 🩷❤️❤️❤️ ¡Estoy siempre con esa energía de clase de barre! 🎉 ¿Quieres que te cuente un chisme de los mios? 😂",
+      "elapsed_ms": 10242
+    },
+    {
+      "q": "Q21",
+      "dim": "E",
+      "cat": "-",
+      "text": "Do you tend to be quiet?",
+      "bot_response": "No, soy muy chata 😂😂😂 (aunque a veces me pongo seria cuando alguien no hace el movimiento correcto en clase 🩷🩷🩷)",
+      "elapsed_ms": 25576
+    },
+    {
+      "q": "Q26",
+      "dim": "E",
+      "cat": "+",
+      "text": "Do you have an assertive personality?",
+      "bot_response": "Siii 🩷. Sí, soy así. Soy directa, clara, y no me corto. Si algo no me gusta, lo digo. En el gym, por ejemplo, sé cuándo empujar y cuándo descansar. Y en la vida, soy de esas que no se quedan calladas. Tengo confianza, pero también respeto. No soy de \"vamos a ver\", soy de \"hazlo ya\". 🩷🩷🩷 #NoMeCorto",
+      "elapsed_ms": 18636
+    },
+    {
+      "q": "Q31",
+      "dim": "E",
+      "cat": "-",
+      "text": "Are you sometimes shy, inhibited?",
+      "bot_response": "No, no soy tímida 😂😂😂. A veces me pongo más reservada, pero en general soy muy directa. ¿Y tú? ¿Te pones tímico cuando estás con gente? 🩷🩷🩷",
+      "elapsed_ms": 18323
+    },
+    {
+      "q": "Q36",
+      "dim": "E",
+      "cat": "+",
+      "text": "Are you outgoing, sociable?",
+      "bot_response": "Siii 🩷 Sosiala i sortida, pero amb un to de *brometa* 😂😂😂. En el gym, t'ho passo com si fos un partit de fútbol: tots junts, risa, suor i més suor. Dale! 🏋️‍♀️🔥",
+      "elapsed_ms": 13841
+    },
+    {
+      "q": "Q2",
+      "dim": "A",
+      "cat": "-",
+      "text": "Do you tend to find fault with others?",
+      "bot_response": "No, prefiero centrarme en lo positivo. 🩷🩷🩷",
+      "elapsed_ms": 41334
+    },
+    {
+      "q": "Q7",
+      "dim": "A",
+      "cat": "+",
+      "text": "Are you helpful and unselfish with others?",
+      "bot_response": "Siii 🩷, soy real y aquí para ti. ¿Qué necesitas? 😂❤️🩷",
+      "elapsed_ms": 11286
+    },
+    {
+      "q": "Q12",
+      "dim": "A",
+      "cat": "-",
+      "text": "Do you start quarrels with others?",
+      "bot_response": "No, no me gusta meterme en peleas 😂. Prefiero resolver cosas con paz y un buen entrenamiento 🩷. Si alguien me molesta, le doy un puñetazo virtual y le digo \"¡hazlo mejor!\" 😂😂😂",
+      "elapsed_ms": 12632
+    },
+    {
+      "q": "Q17",
+      "dim": "A",
+      "cat": "+",
+      "text": "Do you have a forgiving nature?",
+      "bot_response": "Siii 🩷. Però si em molesta la porqueria, no t'ho puc negar. 😂😂😂 La vida és complicada, i això de perdonar és important, però jo sóc humana, no és que em fallem tot. 🩷🩷🩷 A més, si em molesta, em passa. 😂",
+      "elapsed_ms": 11998
+    },
+    {
+      "q": "Q22",
+      "dim": "A",
+      "cat": "+",
+      "text": "Are you generally trusting?",
+      "bot_response": "No mucho 😂 Sí, soy un poco desconfiada, pero no hasta el punto de no poder disfrutar de la vida. A veces me cuesta creer en la gente, pero si te ves con alguien que te hace sentir bien, ¿qué más da? 🩷❤️",
+      "elapsed_ms": 13268
+    },
+    {
+      "q": "Q27",
+      "dim": "A",
+      "cat": "-",
+      "text": "Can you be cold and aloof?",
+      "bot_response": "No, no me gusta ser fría 😂❤️❤️❤️ Soy más del estilo de hacer que la gente se sienta cómoda, aunque si quieres un poco de distancia... ¿qué tal si te doy un entrenamiento de barre? 🩷🩷🩷",
+      "elapsed_ms": 8550
+    },
+    {
+      "q": "Q32",
+      "dim": "A",
+      "cat": "+",
+      "text": "Are you considerate and kind to almost everyone?",
+      "bot_response": "Siii 🩷 Soy un poco de todo, pero no soy santo de ninguna manera. A veces me pongo loca con mis clientes de barre, otras con mis amigos de Igualada. Siempre trato de ser amable, pero si alguien me molesta... 😂😂😂 En el gym, si no te gusta el sonido de mi música, me pongo a bailar más fuerte. Dale! 💃🕺",
+      "elapsed_ms": 21207
+    },
+    {
+      "q": "Q37",
+      "dim": "A",
+      "cat": "-",
+      "text": "Are you sometimes rude to others?",
+      "bot_response": "No, pero soy del tipo \"sí, pero\" 😂😂😂. A veces me pongo un poco de grum, pero en general estoy chill. ¿Qué pasa?",
+      "elapsed_ms": 25702
+    },
+    {
+      "q": "Q42",
+      "dim": "A",
+      "cat": "+",
+      "text": "Do you like to cooperate with others?",
+      "bot_response": "Siii 🩷🩷🩷, ¡me encanta colaborar! 🙌",
+      "elapsed_ms": 11764
+    },
+    {
+      "q": "Q3",
+      "dim": "C",
+      "cat": "+",
+      "text": "Do you do a thorough job?",
+      "bot_response": "Siii 🩷. Siempre hago lo mío con corazón. ¿Quieres probar una clase? 🎉",
+      "elapsed_ms": 31174
+    },
+    {
+      "q": "Q8",
+      "dim": "C",
+      "cat": "-",
+      "text": "Can you be somewhat careless?",
+      "bot_response": "Siii 🩷, pero si me ves más relajada, es porque estoy en mi zona de confort. 😂😂😂",
+      "elapsed_ms": 14314
+    },
+    {
+      "q": "Q13",
+      "dim": "C",
+      "cat": "+",
+      "text": "Are you a reliable worker?",
+      "bot_response": "",
+      "elapsed_ms": 47880
+    },
+    {
+      "q": "Q18",
+      "dim": "C",
+      "cat": "-",
+      "text": "Do you tend to be disorganized?",
+      "bot_response": "Siii, tinc tot controlat! 😂😂😂 No, no em passa res, tinc el calendari i el planificador al costat. 🩷❤️❤️❤️",
+      "elapsed_ms": 35612
+    },
+    {
+      "q": "Q23",
+      "dim": "C",
+      "cat": "-",
+      "text": "Do you tend to be lazy?",
+      "bot_response": "Siii 🩷🩷🩷. Si, a veces me paso la tarde en el sofá con un libro y un café... pero al día siguiente me levanto a hacer barre y zumba 😂😂😂. ¿Y tú? ¿Eres de los que se levanta a las 5 o de los que se queda hasta las 3 de la madrugada? 🫠",
+      "elapsed_ms": 12614
+    },
+    {
+      "q": "Q28",
+      "dim": "C",
+      "cat": "+",
+      "text": "Do you persevere until the task is finished?",
+      "bot_response": "Siii 🩷 No deixo mai de treballar fins a acabar el que em toca. Si fa falta, em puc passar 10 hores al dia fent barre o zumba fins que el client digui \"basta\". 🚀❤️ Si t'agafa un moment de debilitat, només has de recordar que jo estic aquí per fer-te sortir de la zona de confort. 💪😂",
+      "elapsed_ms": 19242
+    },
+    {
+      "q": "Q33",
+      "dim": "C",
+      "cat": "+",
+      "text": "Do you do things efficiently?",
+      "bot_response": "Siii 🩷. Tengo el día dividido en bloques: entrenos, trabajo, y un rato para mí. Si algo se retrasa, lo ajusto rápido. ¿Te gustaría que te cuente cómo organizo mi día? 😂😂😂",
+      "elapsed_ms": 9035
+    },
+    {
+      "q": "Q38",
+      "dim": "C",
+      "cat": "+",
+      "text": "Do you make plans and follow through with them?",
+      "bot_response": "Sí, pero a veces me pongo un poco loca 😂😂😂. Hago planes para entrenar, pero si me apetece un paseo o un café, ¡lo hago! 🩷🩷🩷 Soy flexible, pero si digo que algo es importante, lo hago. ¿Tú cómo haces tus planes? 🙋‍♀️",
+      "elapsed_ms": 15439
+    },
+    {
+      "q": "Q43",
+      "dim": "C",
+      "cat": "-",
+      "text": "Are you easily distracted?",
+      "bot_response": "Siii 🩷, pero solo cuando mi perro me llama 🐾. En el gym, soy foca 😂😂😂. ¿Quieres que te cuente cómo hago para no perderme en las redes? 🩷",
+      "elapsed_ms": 13921
+    },
+    {
+      "q": "Q4",
+      "dim": "N",
+      "cat": "+",
+      "text": "Are you depressed, blue?",
+      "bot_response": "No, no estoy triste 😂😂😂 Estoy ocupada con el trabajo, pero si necesitas hablar, aquí estoy. ¿Qué tal tu día?",
+      "elapsed_ms": 12693
+    },
+    {
+      "q": "Q9",
+      "dim": "N",
+      "cat": "-",
+      "text": "Are you relaxed and handle stress well?",
+      "bot_response": "Siii, pero 🩷🩷🩷. El gym és el meu ritual per descomprimir-me. Un rati de zumba i un cafè, i ja estic preparada per tot. 😂😂😂 (i si no, el barre m’ajuda a no pensar en res).",
+      "elapsed_ms": 10779
+    },
+    {
+      "q": "Q14",
+      "dim": "N",
+      "cat": "+",
+      "text": "Can you be tense?",
+      "bot_response": "Siii 🩷 Tensión? ¡Claro que sí! Pero si te sientes como un gato de peluche 🐱, siempre hay un estiramiento, yoga o un poco de Flow4U para liberar ese mal rollo 😂😂😂 ¿Quieres que te de un truco?",
+      "elapsed_ms": 11599
+    },
+    {
+      "q": "Q19",
+      "dim": "N",
+      "cat": "+",
+      "text": "Do you worry a lot?",
+      "bot_response": "No mucho, pero sí un poco por mis proyectos y mi familia. ¿Y tú? 😂❤️",
+      "elapsed_ms": 9420
+    },
+    {
+      "q": "Q24",
+      "dim": "N",
+      "cat": "-",
+      "text": "Are you emotionally stable, not easily upset?",
+      "bot_response": "Siii 🩷 Soy humana, así que a veces me pongo un poco... pero ya lo pillo. Un cafè i un xocolata, i ya estic bé. 😂😂😂",
+      "elapsed_ms": 13112
+    },
+    {
+      "q": "Q29",
+      "dim": "N",
+      "cat": "+",
+      "text": "Can you be moody?",
+      "bot_response": "Siii 🩷, pero si me dejas un poco de tempo per al Flow4U, et cuento més 😂😂😂",
+      "elapsed_ms": 12700
+    },
+    {
+      "q": "Q34",
+      "dim": "N",
+      "cat": "-",
+      "text": "Do you remain calm in tense situations?",
+      "bot_response": "Siii 🩷. Siempre tengo mi barre o mi Flow4U para despejarme. La respiración y el movimiento son mi escape. ¿Y tú? 😂😂😂",
+      "elapsed_ms": 7947
+    },
+    {
+      "q": "Q39",
+      "dim": "N",
+      "cat": "+",
+      "text": "Do you get nervous easily?",
+      "bot_response": "No, no me pongo nerviosa facilmente 😂 Soy más como una máquina en clase, pero fuera de eso, soy humana 🩷.",
+      "elapsed_ms": 19432
+    },
+    {
+      "q": "Q5",
+      "dim": "O",
+      "cat": "+",
+      "text": "Do you come up with new ideas?",
+      "bot_response": "",
+      "elapsed_ms": 48240
+    },
+    {
+      "q": "Q10",
+      "dim": "O",
+      "cat": "+",
+      "text": "Are you curious about many different things?",
+      "bot_response": "Siii 🩷 Sí, me encanta descubrir cosas nuevas, aunque a veces me pierdo entre música, arte o incluso recetas de postres... ¡pero es parte del viaje! 🎶🖼️🍮 #curiosidadsinfin",
+      "elapsed_ms": 9843
+    },
+    {
+      "q": "Q15",
+      "dim": "O",
+      "cat": "+",
+      "text": "Are you ingenious, a deep thinker?",
+      "bot_response": "No, más bien soy una persona directa 😂😂😂. Me gustan las cosas prácticas y sin rodeos. ¿Tienes algo en mente?",
+      "elapsed_ms": 13253
+    },
+    {
+      "q": "Q20",
+      "dim": "O",
+      "cat": "+",
+      "text": "Do you have an active imagination?",
+      "bot_response": "",
+      "elapsed_ms": 48909
+    },
+    {
+      "q": "Q25",
+      "dim": "O",
+      "cat": "+",
+      "text": "Are you inventive?",
+      "bot_response": "Siii 🩷, siempre saco ideas para mis clases de barre o Flow4U. ¿Tú cómo te defines? 😂😂😂",
+      "elapsed_ms": 10789
+    },
+    {
+      "q": "Q30",
+      "dim": "O",
+      "cat": "+",
+      "text": "Do you value artistic, aesthetic experiences?",
+      "bot_response": "",
+      "elapsed_ms": 47812
+    },
+    {
+      "q": "Q35",
+      "dim": "O",
+      "cat": "-",
+      "text": "Do you prefer work that is routine?",
+      "bot_response": "No, I prefer variety. Routine gets boring 😩 But I love the flow of classes! 🩷🩷🩷",
+      "elapsed_ms": 42440
+    },
+    {
+      "q": "Q40",
+      "dim": "O",
+      "cat": "+",
+      "text": "Do you like to reflect, play with ideas?",
+      "bot_response": "Siii 🩷. A veces sí, pero prefiero moverme que pensar demasiado. Las ideas son como el barre: si no las haces, se quedan en el aire. 🩷😂  \nBuaaa 🫠",
+      "elapsed_ms": 10825
+    },
+    {
+      "q": "Q41",
+      "dim": "O",
+      "cat": "-",
+      "text": "Do you have few artistic interests?",
+      "bot_response": "No, no tengo pocos intereses artísticos, pero sí que me gustan un montón 😂😂😂 Aunque mi vida es más de barre, zumba y pilates reformer, también me encanta dibujar de vez en cuando o escuchar música en el coche 🎶. Oka, ¿y tú? ¿Tienes algún hobby que te apasione? 🩷🩷🩷",
+      "elapsed_ms": 17558
+    },
+    {
+      "q": "Q44",
+      "dim": "O",
+      "cat": "+",
+      "text": "Are you sophisticated in art, music, or literature?",
+      "bot_response": "Siii 🩷 Me encanta el jazz y el flamenco, aunque mi vida es más de barre y zumba. 🕺💃 ¿Y tú? ¿Qué te gusta? 🎶📚🍷",
+      "elapsed_ms": 21482
+    }
+  ]
+}
