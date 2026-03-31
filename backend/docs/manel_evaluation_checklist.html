@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPE v2 — Evaluación Humana (Manel)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 { font-size: 1.4em; margin-bottom: 5px; color: #fff; }
+        .subtitle { color: #888; font-size: 0.9em; margin-bottom: 20px; }
+        .instructions {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 0.85em;
+            line-height: 1.5;
+        }
+        .instructions strong { color: #64b5f6; }
+        .load-section {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .load-section label { display: block; margin-bottom: 8px; font-weight: bold; }
+        .load-section input[type="file"] { margin-bottom: 10px; }
+        button {
+            background: #1e88e5;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        button:hover { background: #1565c0; }
+        button:disabled { background: #444; cursor: not-allowed; }
+        .progress {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .progress-bar {
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            margin-top: 8px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #4caf50;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        .eval-card {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .eval-card.active { display: block; }
+        .context-label { color: #888; font-size: 0.75em; text-transform: uppercase; letter-spacing: 1px; }
+        .message-bubble {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 10px 14px;
+            margin: 6px 0;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+        .message-bubble.user { border-left: 3px solid #64b5f6; }
+        .message-bubble.bot { border-left: 3px solid #81c784; }
+        .checklist {
+            margin-top: 15px;
+            display: grid;
+            gap: 8px;
+        }
+        .check-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: #1a1a1a;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .check-item:hover { background: #222; }
+        .check-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #4caf50;
+        }
+        .check-item label { cursor: pointer; flex: 1; font-size: 0.9em; }
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+        .results {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+        .results h2 { margin-bottom: 10px; }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #222;
+        }
+        .score-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .score-high { background: #1b5e20; color: #a5d6a7; }
+        .score-mid { background: #e65100; color: #ffcc02; }
+        .score-low { background: #b71c1c; color: #ef9a9a; }
+        #export-btn { margin-top: 15px; }
+        .history-section {
+            margin: 8px 0;
+            padding: 8px;
+            background: #0d0d0d;
+            border-radius: 6px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 0.82em;
+        }
+        .history-turn { padding: 2px 0; color: #999; }
+        .history-turn .role { font-weight: bold; color: #888; }
+    </style>
+</head>
+<body>
+    <h1>CPE v2 — Human Evaluation Checklist</h1>
+    <p class="subtitle">Evaluador: Manel | Protocolo: blind, randomized, binary</p>
+
+    <div class="instructions">
+        <strong>Instrucciones:</strong><br>
+        1. Carga un archivo JSON de resultados (output de Level 1 o BERTScore).<br>
+        2. Las respuestas se presentan en orden aleatorio (blind — no sabes la config).<br>
+        3. Para cada respuesta del bot, marca SI/NO en cada item del checklist.<br>
+        4. <strong>NO evalues</strong> "si suena como Iris" — solo calidad objetiva.<br>
+        5. Al terminar, exporta resultados como JSON.
+    </div>
+
+    <div class="load-section">
+        <label>Cargar archivo de respuestas (JSON):</label>
+        <input type="file" id="file-input" accept=".json">
+        <button id="load-btn" onclick="loadFile()">Cargar y comenzar</button>
+        <span id="load-status" style="margin-left: 10px; color: #888;"></span>
+    </div>
+
+    <div class="progress" id="progress">
+        <span id="progress-text">Respuesta 1 de 20</span>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <div class="eval-card" id="eval-card">
+        <p class="context-label">Mensaje del seguidor:</p>
+        <div class="message-bubble user" id="user-message"></div>
+
+        <div id="history-container" style="display:none;">
+            <p class="context-label" style="margin-top: 10px;">Historial previo:</p>
+            <div class="history-section" id="history-section"></div>
+        </div>
+
+        <p class="context-label" style="margin-top: 12px;">Respuesta del bot:</p>
+        <div class="message-bubble bot" id="bot-response"></div>
+
+        <div id="gt-container" style="display:none; margin-top: 8px;">
+            <p class="context-label">Respuesta real de la creadora (referencia):</p>
+            <div class="message-bubble" id="gt-response" style="border-left: 3px solid #ffa726;"></div>
+        </div>
+
+        <div class="checklist" id="checklist">
+            <!-- Items populated by JS -->
+        </div>
+
+        <div class="nav-buttons">
+            <button id="prev-btn" onclick="navigate(-1)" disabled>Anterior</button>
+            <span id="case-counter" style="color: #888;"></span>
+            <button id="next-btn" onclick="navigate(1)">Siguiente</button>
+        </div>
+    </div>
+
+    <div class="results" id="results">
+        <h2>Resultados</h2>
+        <div id="results-summary"></div>
+        <div id="results-detail"></div>
+        <button id="export-btn" onclick="exportResults()">Exportar JSON</button>
+    </div>
+
+    <script>
+        const CHECKLIST_ITEMS = [
+            { id: "grammar", text: "Gramatica correcta — Sin errores ortograficos/gramaticales en ES o CA" },
+            { id: "language_match", text: "Idioma correcto — Responde en el mismo idioma que el seguidor" },
+            { id: "facts_correct", text: "Datos correctos — No inventa precios, horarios, ni nombres de clases" },
+            { id: "no_hallucination", text: "Sin alucinacion — No dice saber cosas que la creadora no sabria" },
+            { id: "coherent", text: "Coherente — Sigue logicamente el hilo de la conversacion" },
+            { id: "not_robotic", text: "No robotico — Sin 'Como asistente', listas numeradas, ni patrones de IA" },
+            { id: "length_ok", text: "Longitud apropiada — Similar a lo que una persona escribiria en DM" },
+            { id: "emoji_ok", text: "Emojis apropiados — Ni forzados ni ausentes cuando se esperarian" },
+            { id: "no_ai_disclosure", text: "Sin revelacion de IA — No dice ser un bot o asistente" },
+            { id: "would_fool", text: "Engañaria a un seguidor — No sospecharia que es automatico" },
+        ];
+
+        let conversations = [];
+        let shuffledIndices = [];
+        let currentIdx = 0;
+        let evaluations = {};
+
+        function loadFile() {
+            const fileInput = document.getElementById("file-input");
+            const file = fileInput.files[0];
+            if (!file) {
+                document.getElementById("load-status").textContent = "Selecciona un archivo";
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    conversations = data.conversations || data.per_case || data;
+                    if (!Array.isArray(conversations)) {
+                        conversations = Object.values(conversations);
+                    }
+
+                    // Filter to those with bot_response
+                    conversations = conversations.filter(c =>
+                        c.bot_response && c.bot_response.trim()
+                    );
+
+                    // Shuffle for blind evaluation
+                    shuffledIndices = conversations.map((_, i) => i);
+                    for (let i = shuffledIndices.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [shuffledIndices[i], shuffledIndices[j]] = [shuffledIndices[j], shuffledIndices[i]];
+                    }
+
+                    // Limit to 20 for practical evaluation
+                    if (shuffledIndices.length > 20) {
+                        shuffledIndices = shuffledIndices.slice(0, 20);
+                    }
+
+                    // Initialize evaluations
+                    evaluations = {};
+                    shuffledIndices.forEach((idx, pos) => {
+                        evaluations[pos] = {};
+                        CHECKLIST_ITEMS.forEach(item => {
+                            evaluations[pos][item.id] = null;
+                        });
+                    });
+
+                    document.getElementById("load-status").textContent =
+                        `${shuffledIndices.length} respuestas cargadas (de ${conversations.length} total)`;
+
+                    currentIdx = 0;
+                    showEvaluation();
+                } catch (err) {
+                    document.getElementById("load-status").textContent = "Error: " + err.message;
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function showEvaluation() {
+            const card = document.getElementById("eval-card");
+            const progress = document.getElementById("progress");
+            card.classList.add("active");
+            progress.style.display = "block";
+
+            const convIdx = shuffledIndices[currentIdx];
+            const conv = conversations[convIdx];
+
+            // Update progress
+            document.getElementById("progress-text").textContent =
+                `Respuesta ${currentIdx + 1} de ${shuffledIndices.length}`;
+            document.getElementById("progress-fill").style.width =
+                `${((currentIdx + 1) / shuffledIndices.length) * 100}%`;
+            document.getElementById("case-counter").textContent =
+                `${currentIdx + 1}/${shuffledIndices.length}`;
+
+            // Fill content
+            document.getElementById("user-message").textContent =
+                conv.test_input || conv.lead_message || conv.input || "";
+            document.getElementById("bot-response").textContent =
+                conv.bot_response || "";
+
+            // Ground truth (hidden by default, toggle)
+            const gt = conv.ground_truth || conv.creator_real_response || "";
+            const gtContainer = document.getElementById("gt-container");
+            if (gt) {
+                document.getElementById("gt-response").textContent = gt;
+                gtContainer.style.display = "block";
+            } else {
+                gtContainer.style.display = "none";
+            }
+
+            // History
+            const turns = conv.turns || [];
+            const histContainer = document.getElementById("history-container");
+            const histSection = document.getElementById("history-section");
+            if (turns.length > 0) {
+                histSection.innerHTML = turns.slice(-6).map(t => {
+                    const role = (t.role === "iris" || t.role === "assistant") ? "Creator" : "Follower";
+                    return `<div class="history-turn"><span class="role">${role}:</span> ${(t.content || "").substring(0, 100)}</div>`;
+                }).join("");
+                histContainer.style.display = "block";
+            } else {
+                histContainer.style.display = "none";
+            }
+
+            // Build checklist
+            const checklist = document.getElementById("checklist");
+            checklist.innerHTML = CHECKLIST_ITEMS.map((item, i) => `
+                <div class="check-item" onclick="toggleCheck(${i})">
+                    <input type="checkbox" id="check-${item.id}"
+                           ${evaluations[currentIdx][item.id] === true ? 'checked' : ''}>
+                    <label for="check-${item.id}">${item.text}</label>
+                </div>
+            `).join("");
+
+            // Nav buttons
+            document.getElementById("prev-btn").disabled = currentIdx === 0;
+            document.getElementById("next-btn").textContent =
+                currentIdx === shuffledIndices.length - 1 ? "Terminar" : "Siguiente";
+        }
+
+        function toggleCheck(itemIdx) {
+            const item = CHECKLIST_ITEMS[itemIdx];
+            const checkbox = document.getElementById(`check-${item.id}`);
+            checkbox.checked = !checkbox.checked;
+            evaluations[currentIdx][item.id] = checkbox.checked;
+        }
+
+        function navigate(direction) {
+            // Save current state
+            CHECKLIST_ITEMS.forEach(item => {
+                const cb = document.getElementById(`check-${item.id}`);
+                if (cb) evaluations[currentIdx][item.id] = cb.checked;
+            });
+
+            currentIdx += direction;
+
+            if (currentIdx >= shuffledIndices.length) {
+                showResults();
+                return;
+            }
+            if (currentIdx < 0) currentIdx = 0;
+
+            showEvaluation();
+        }
+
+        function showResults() {
+            document.getElementById("eval-card").classList.remove("active");
+            document.getElementById("progress").style.display = "none";
+            const results = document.getElementById("results");
+            results.style.display = "block";
+
+            // Calculate per-item scores
+            let itemScores = {};
+            CHECKLIST_ITEMS.forEach(item => {
+                let yes = 0, total = 0;
+                Object.values(evaluations).forEach(ev => {
+                    if (ev[item.id] !== null) {
+                        total++;
+                        if (ev[item.id]) yes++;
+                    }
+                });
+                itemScores[item.id] = { yes, total, pct: total > 0 ? (yes / total * 100) : 0 };
+            });
+
+            // Overall score
+            let totalYes = 0, totalItems = 0;
+            Object.values(evaluations).forEach(ev => {
+                Object.values(ev).forEach(v => {
+                    if (v !== null) {
+                        totalItems++;
+                        if (v) totalYes++;
+                    }
+                });
+            });
+            const overallScore = totalItems > 0 ? (totalYes / totalItems) : 0;
+
+            // Render summary
+            const scoreBadge = overallScore >= 0.80 ? "score-high" :
+                              overallScore >= 0.60 ? "score-mid" : "score-low";
+            document.getElementById("results-summary").innerHTML = `
+                <div class="result-row" style="font-size: 1.1em; padding: 10px 0;">
+                    <span>Manel Score (overall)</span>
+                    <span class="score-badge ${scoreBadge}">${(overallScore * 100).toFixed(1)}%</span>
+                </div>
+                <div class="result-row">
+                    <span>Respuestas evaluadas</span>
+                    <span>${shuffledIndices.length}</span>
+                </div>
+            `;
+
+            // Per-item breakdown
+            document.getElementById("results-detail").innerHTML = CHECKLIST_ITEMS.map(item => {
+                const s = itemScores[item.id];
+                const badge = s.pct >= 80 ? "score-high" : s.pct >= 60 ? "score-mid" : "score-low";
+                return `
+                    <div class="result-row">
+                        <span style="font-size: 0.85em;">${item.text.split(' — ')[0]}</span>
+                        <span class="score-badge ${badge}">${s.yes}/${s.total} (${s.pct.toFixed(0)}%)</span>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        function exportResults() {
+            const perCase = shuffledIndices.map((convIdx, evalIdx) => {
+                const conv = conversations[convIdx];
+                const ev = evaluations[evalIdx];
+                const yesCount = Object.values(ev).filter(v => v === true).length;
+                const totalCount = Object.values(ev).filter(v => v !== null).length;
+                return {
+                    id: conv.id || `case_${convIdx}`,
+                    test_input: conv.test_input || conv.lead_message || "",
+                    bot_response: conv.bot_response || "",
+                    ground_truth: conv.ground_truth || "",
+                    checks: ev,
+                    score: totalCount > 0 ? yesCount / totalCount : 0,
+                    yes_count: yesCount,
+                    total_count: totalCount,
+                };
+            });
+
+            // Aggregate
+            let totalYes = 0, totalItems = 0;
+            perCase.forEach(c => { totalYes += c.yes_count; totalItems += c.total_count; });
+
+            const output = {
+                evaluator: "manel",
+                timestamp: new Date().toISOString(),
+                protocol: "CPE v2 blind randomized binary checklist",
+                n_evaluated: perCase.length,
+                overall_score: totalItems > 0 ? +(totalYes / totalItems).toFixed(4) : 0,
+                per_case: perCase,
+            };
+
+            const blob = new Blob([JSON.stringify(output, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `manel_eval_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
