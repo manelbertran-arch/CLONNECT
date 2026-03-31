@@ -83,9 +83,7 @@ from core.dm.models import (
 # =============================================================================
 
 
-# Feature flags still used in _init_services
-ENABLE_FRUSTRATION_DETECTION = os.getenv("ENABLE_FRUSTRATION_DETECTION", "true").lower() == "true"
-ENABLE_GUARDRAILS = os.getenv("ENABLE_GUARDRAILS", "true").lower() == "true"
+from core.feature_flags import flags as _flags
 
 logger = logging.getLogger(__name__)
 
@@ -348,14 +346,14 @@ class DMResponderAgentV2:
         # =============================================================================
 
         # Detectores
-        if ENABLE_FRUSTRATION_DETECTION:
+        if _flags.frustration_detection:
             self.frustration_detector = get_frustration_detector()
 
         # Response variator (pools)
         self.response_variator = get_response_variator_v2()
 
         # Guardrails
-        if ENABLE_GUARDRAILS:
+        if _flags.guardrails:
             try:
                 self.guardrails = get_response_guardrail()
             except Exception as e:
@@ -378,10 +376,11 @@ class DMResponderAgentV2:
         _t0 = time.monotonic()
 
         try:
-            # Phase 1: Detection (sensitive content, frustration, pool response, edge cases)
+            # Phase 1: Input guards (empty gate, prompt injection flag, media placeholder,
+            # sensitive content, frustration/context signals, pool matching)
             detection = await self._phase_detection(message, sender_id, metadata, cognitive_metadata)
 
-            # When Best-of-N is enabled in copilot mode, skip pool/edge-case early return
+            # When Best-of-N is enabled in copilot mode, skip pool fast-path early return
             # so the full LLM generation pipeline runs and produces 3 ranked candidates.
             from core.dm.phases.generation import ENABLE_BEST_OF_N as _BON_ON
             _skip_early_return = False

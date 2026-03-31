@@ -4,6 +4,47 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-03-31 — Sistema #4 audit: Edge Case Detection is not a system, it's missing input guards
+
+**Context:** Forensic audit of "Edge Case Detection" revealed the label was aspirational — no dedicated system existed. Three input guard gaps fixed.
+
+**BUG-EC-1:** Empty/whitespace messages had no early return — reached `try_pool_response("")`. Fixed: 3-line guard at top of `phase_detection`.
+
+**BUG-EC-2:** No prompt injection detection in Phase 1. Per Perez & Ribeiro (2022), patterns like "ignore previous instructions" / "olvida tus instrucciones" / "act as DAN" passed silently. Fixed: regex-based flag only (no blocking) — sets `cognitive_metadata["prompt_injection_attempt"] = True` and logs. LLM still handles the message; this is observability + DPO signal collection.
+
+**BUG-EC-3:** Docstrings called Phase 1 "edge case detection". Fixed to say "input guards".
+
+**Decision:** Phase 1 is now documented as **5 input guards**, not a standalone edge-case system. Ablation flag: `ENABLE_PROMPT_INJECTION_DETECTION`.
+
+**Files modified:** `core/dm/phases/detection.py`, `core/feature_flags.py`
+
+**Full audit:** `docs/audit/sistema_04_edge_case_detection.md`
+
+---
+
+## 2026-03-31 — Detection Phase Audit: 9 bugs fixed (3 HIGH, 3 MEDIUM, 3 re-audit)
+
+**Context:** Systematic audit of 5 detection subsystems found 12 initial bugs + 15 in re-audit. Fixed 9 critical ones.
+
+**HIGH fixes:**
+1. Phishing regex had hardcoded `iris|stefan` — now matches generic creator roles (creador/dueño/admin)
+2. Crisis resources always Spanish — now derives language from creator's dialect
+3. Stefan fallback pools leaked persona ("hermano/bro") to all creators — neutralized, extraction-aware
+
+**MEDIUM fixes:**
+4-5. Added `ENABLE_MEDIA_PLACEHOLDER_DETECTION` and `ENABLE_POOL_MATCHING` feature flags
+6. Consolidated triplicate flag declarations into `core.feature_flags` singleton
+
+**Re-audit fixes:**
+7. ReDoS vulnerability in threat/economic regex (unbounded `.*` → bounded `.{0,80}`)
+8-9. Memory leaks: capped FrustrationDetector and ResponseVariatorV2 at 5000 entries each
+
+**Files modified:** `core/feature_flags.py`, `core/sensitive_detector.py`, `core/dm/phases/detection.py`, `core/dm/agent.py`, `core/frustration_detector.py`, `services/response_variator_v2.py`
+
+**Full audit:** `docs/audit/fase1_detection.md`
+
+---
+
 ## 2026-03-28 — Clone Score Engine optimization (scheduler dedup, samples 50→20, knowledge recalibrated)
 
 **Problema:** Clone Score evaluaba 6x/día (cada redeploy reiniciaba scheduler), usaba 50 samples (excesivo según papers), y knowledge_accuracy puntuaba 8.6/100 (prompt demasiado estricto penalizaba respuestas conversacionales sin datos facticos).
