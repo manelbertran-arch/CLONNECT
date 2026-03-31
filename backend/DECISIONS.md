@@ -4,6 +4,32 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-03-31 — Pool Matching: remaining bugs fixed; papers confirm KEEP
+
+BUG-PM-01/02/03/05 were already fixed in code (audit doc was stale snapshot).
+
+BUG-PM-04: "que crack" (Argentine slang) removed from praise triggers.
+  Added universal alternatives: "increíble", "lo mejor", "muy bueno".
+BUG-PM-07: LatAm-specific fallback pool entries replaced.
+  "Jaja morí" → "Jajajaja 😄", "Vamos con toda!" → "Ánimo! 💪".
+BUG-PM-06: WON'T FIX — dual-gate is intentional design. Internal gate (0.7)
+  blocks empathy (0.60) from ever reaching callers. External gate (0.8) adds
+  production threshold. Different responsibilities.
+
+Papers (GPT Semantic Cache 2024, IJCAI survey 2021, Apple Krites):
+  Pool matching is academically justified for phatic/social messages.
+  random.choice() is never recommended — BUG-PM-02 fix (TF-IDF selection) is correct.
+  NEW FINDING: TF-IDF is wrong for short social messages (zero shared terms).
+  Future upgrade: cosine similarity on embeddings (dense retrieval).
+  Current TF-IDF falls back to random.choice() for small pools — acceptable short-term.
+
+VERDICT: KEEP. System is architecturally valid. Pending future work: embed-based selection.
+
+Files modified: services/response_variator_v2.py
+Full audit: docs/audit/sistema_05_pool_matching.md
+
+---
+
 ## 2026-03-31 — Phase 5 Postprocessing: 4 bugs fixed (2 HIGH, 2 MEDIUM)
 
 **BUG-PP-1:** 10 module-level flag constants duplicated from `feature_flags.py` singleton.

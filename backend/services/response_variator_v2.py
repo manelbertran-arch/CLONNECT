@@ -154,13 +154,16 @@ class ResponseVariatorV2:
                 "Ahora no puedo. Quizás más adelante! 😊",
             ],
             # v10.1 sub-pools (fallback)
+            # BUG-PM-07 fix: replaced LatAm-specific expressions with neutral Spanish.
+            # "Jaja morí" (Río de la Plata) → "Jajajaja 😄"
+            # "Vamos con toda!" (LatAm) → "Ánimo! 💪" / "Venga! 💪"
             "humor": [
-                "Jajaja 😂", "Me hiciste reir jaja", "Jajajaja genial",
-                "Espectacular 😂", "Jaja morí", "Jajaja que bueno",
+                "Jajaja 😂", "Me hiciste reír jaja", "Jajajaja genial",
+                "Espectacular 😂", "Jajajaja 😄", "Jajaja qué bueno",
             ],
             "encouragement": [
-                "Vamos con toda! 💪", "Tú puedes! 💪",
-                "Vamos! 🔥", "Fuerza! 💪", "Genial! 🔥",
+                "Ánimo! 💪", "Tú puedes! 💪",
+                "Venga! 🔥", "Fuerza! 💪", "Genial! 🔥",
             ],
             "gratitude": [
                 "Gracias! 😊", "A ti! 💙",
@@ -500,8 +503,12 @@ class ResponseVariatorV2:
         if any(a in msg for a in affection_triggers):
             return "affection", 0.90
 
-        # Praise
-        praise_triggers = ["muy lindo", "estuvo genial", "eres hermoso", "que crack"]
+        # Praise — BUG-PM-04 fix: removed "que crack" (Argentine slang, not universal).
+        # Universal alternatives cover ES/CA/EN without dialect bias.
+        praise_triggers = [
+            "muy lindo", "estuvo genial", "eres hermoso",
+            "eres increíble", "lo mejor", "muy bueno", "muy buena",
+        ]
         if any(p in msg for p in praise_triggers):
             if len(msg) < 30:
                 return "praise", 0.85
