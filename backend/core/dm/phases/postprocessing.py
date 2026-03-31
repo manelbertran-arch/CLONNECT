@@ -194,7 +194,7 @@ async def phase_postprocessing(
         try:
             prev_bot = [
                 m.get("content", "")
-                for m in metadata.get("history", [])
+                for m in history  # history is already in scope (line 45); metadata has no "history" key
                 if m.get("role") == "assistant"
             ]
             r_result = get_reflexion_engine().analyze_response(
