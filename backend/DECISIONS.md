@@ -4,6 +4,19 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-03-31 — Input Guards: input length truncation guard added (OWASP LLM10)
+
+Messages > 3000 chars are truncated at GUARD 0 before any pipeline processing.
+Instagram native limit is ~2200 chars so real leads are unaffected.
+Protects against token flooding (cost spike) and context overflow (500 error) from
+synthetic or misconfigured webhook payloads. Truncation logged at WARNING level.
+
+**File modified:** `core/dm/phases/detection.py`
+
+**Sistema #4 Input Guards — COMPLETE.**
+
+---
+
 ## 2026-03-31 — Sistema #4 audit: Edge Case Detection is not a system, it's missing input guards
 
 **Context:** Forensic audit of "Edge Case Detection" revealed the label was aspirational — no dedicated system existed. Three input guard gaps fixed.

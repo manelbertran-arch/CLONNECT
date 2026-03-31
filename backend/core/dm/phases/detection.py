@@ -82,6 +82,13 @@ async def phase_detection(
         logger.info("Empty message received from sender %s — skipping all guards", sender_id)
         return result
 
+    # GUARD 0b: Input length truncation (OWASP LLM10 — token flooding / context overflow).
+    # Instagram native limit is ~2200 chars; real leads never hit 3000.
+    # Synthetic / misconfigured webhook payloads can be arbitrarily long.
+    if len(message) > 3000:
+        logger.warning("Oversized message from sender %s (%d chars) — truncating to 3000", sender_id, len(message))
+        message = message[:3000]
+
     # GUARD 1 (observability): Prompt injection / jailbreak attempt detection.
     # Per Perez & Ribeiro (2022). Flags only — no blocking. LLM + guardrails handle response.
     if flags.prompt_injection_detection:
