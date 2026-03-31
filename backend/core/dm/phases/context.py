@@ -784,15 +784,18 @@ async def phase_memory_and_context(
             from api.models import Creator
 
             # Load StyleProfile for modulation
-            _sp = None
-            session = SessionLocal()
-            try:
-                creator = session.query(Creator).filter_by(name=agent.creator_id).first()
-                if creator:
-                    _raw_profile = load_profile_from_db(str(creator.id))
-                    _sp = style_profile_from_analyzer(_raw_profile)
-            finally:
-                session.close()
+            def _load_style_profile():
+                session = SessionLocal()
+                try:
+                    creator = session.query(Creator).filter_by(name=agent.creator_id).first()
+                    if not creator:
+                        return None
+                    raw = load_profile_from_db(str(creator.id))
+                    return style_profile_from_analyzer(raw)
+                finally:
+                    session.close()
+
+            _sp = await asyncio.to_thread(_load_style_profile)
 
             adapter = RelationshipAdapter()
             # Use local var to avoid clobbering _rel_type="" set by the scorer
