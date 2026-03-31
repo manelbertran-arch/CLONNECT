@@ -153,13 +153,11 @@ async def phase_postprocessing(
         except Exception as e:
             logger.debug(f"Response fixes failed: {e}")
 
-    # Step 7a2b2: Emoji limit
-    try:
-        from core.response_fixes import apply_emoji_limit
-
-        response_content = apply_emoji_limit(response_content, creator_id=agent.creator_id)
-    except Exception as e:
-        logger.debug(f"Emoji limit failed: {e}")
+    # Step 7a2b2: Emoji limit — DISABLED (2026-03-31)
+    # apply_emoji_limit (hard cap at 5) conflicts with the data-driven style normalizer.
+    # The normalizer calibrates emoji count from Doc D conversation data — more precise.
+    # L1 baseline showed bot generates 0.4 emojis vs creator 0.8 (50% divergence, FLAG).
+    # Leaving the normalizer as sole emoji controller.
 
     # Step 7a2b3: Blacklist word/emoji replacement from Doc D
     # Replaces prohibited address terms ('compa'→'nena') and forbidden emojis (🥰→🩷).
