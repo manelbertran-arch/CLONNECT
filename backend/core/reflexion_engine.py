@@ -249,28 +249,6 @@ class ReflexionEngine:
             result.issues.append("Usuario pregunto precio pero no se incluyo")
             result.suggestions.append("Incluye el precio especifico del producto")
 
-    def build_revision_prompt(self, result: ReflexionResult, original_response: str) -> str:
-        """
-        Build a prompt for revising the response.
-
-        Only called if needs_revision is True.
-        """
-        if not result.needs_revision:
-            return ""
-
-        parts = [
-            "Tu respuesta anterior tenia algunos problemas. Por favor, genera una nueva respuesta.",
-            "",
-            "RESPUESTA ANTERIOR:",
-            original_response,
-            "",
-            result.to_prompt_context(),
-            "",
-            "Genera una respuesta mejorada que corrija estos problemas.",
-        ]
-
-        return "\n".join(parts)
-
 
 # Singleton instance
 _reflexion_engine: Optional[ReflexionEngine] = None
