@@ -18,6 +18,22 @@ from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
+# Grammatical stop words to filter from vocabulary (ES + CA + PT)
+# Only pure function words — content words are kept as potentially characteristic
+_STOP_WORDS = {
+    "que", "de", "la", "el", "en", "y", "a", "los", "las", "del",
+    "un", "una", "unos", "unas", "es", "se", "no", "por", "con",
+    "para", "como", "más", "pero", "su", "sus", "al", "lo", "le",
+    "si", "o", "me", "mi", "tu", "te", "ni", "ha", "he", "hay",
+    # Catalan
+    "i", "o", "els", "les", "una", "uns", "unes", "amb", "per",
+    "però", "perquè", "que", "qui", "com", "quan", "on",
+    "jo", "tu", "ell", "ella", "nosaltres", "vosaltres",
+    "és", "ser", "estar", "ser", "han", "hem",
+    # PT
+    "e", "da", "do", "das", "dos", "em", "com", "por",
+}
+
 # BFI trait labels (Big Five Inventory)
 _BFI_LABELS = {
     "O": ("Openness", "abierta a nuevas experiencias", "convencional y práctica"),
@@ -138,6 +154,45 @@ def _get_length_divergence(creator_id: str) -> Optional[float]:
     return None
 
 
+def _get_catchphrases(metrics: Dict[str, Any]) -> str:
+    """Extract characteristic expressions from creator's vocabulary and greeting patterns.
+
+    Filters stop words from top_50 vocabulary and grabs notable opener tokens.
+    Returns a compact, comma-separated string of characteristic words/expressions.
+    """
+    lines = []
+
+    # 1. Characteristic vocabulary (top_50 minus stop words)
+    vocab = metrics.get("vocabulary", {})
+    top_words = vocab.get("top_50", [])
+    char_words = [
+        w[0] for w in top_words
+        if w[0].lower() not in _STOP_WORDS and len(w[0]) > 1
+    ][:12]
+    if char_words:
+        lines.append(f"- Palabras características: {', '.join(char_words)}")
+
+    # 2. Opener expressions from greeting patterns
+    greeting = metrics.get("greeting_patterns", {})
+    openers = greeting.get("top_15_openers", [])
+    char_openers = [
+        o[0] for o in openers
+        if o[0].lower() not in _STOP_WORDS and len(o[0]) > 1
+    ][:8]
+    if char_openers:
+        lines.append(f"- Expresiones de apertura: {', '.join(char_openers)}")
+
+    # 3. Filler / discourse markers from vocab (short tokens that survived stop word filter)
+    fillers = [
+        w[0] for w in top_words
+        if len(w[0]) <= 4 and w[0].lower() not in _STOP_WORDS
+    ][:6]
+    if fillers:
+        lines.append(f"- Muletillas / partículas: {', '.join(fillers)}")
+
+    return "\n".join(lines)
+
+
 def build_compressed_doc_d(creator_id: str) -> str:
     """Build a compressed ~3K char personality prompt for any creator.
 
@@ -255,7 +310,13 @@ def build_compressed_doc_d(creator_id: str) -> str:
     if products_str:
         sections.append(f"PRODUCTOS/SERVICIOS:\n{products_str}")
 
-    # 5. Anti-patterns (universal + emoji emphasis)
+    # 5. Catchphrases & behavioral patterns (RoleLLM: primary lexical consistency driver)
+    if baseline and baseline.get("metrics"):
+        catchphrases = _get_catchphrases(baseline["metrics"])
+        if catchphrases:
+            sections.append(f"FRASES Y EXPRESIONES CARACTERÍSTICAS:\n{catchphrases}")
+
+    # 6. Anti-patterns (universal + emoji emphasis)
     sections.append(
         "REGLAS CRÍTICAS (si no las cumples, se nota que eres IA):\n"
         "- La MAYORÍA de tus mensajes van SIN emoji. No pongas emoji por defecto.\n"
