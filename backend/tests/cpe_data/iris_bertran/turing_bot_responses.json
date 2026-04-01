@@ -1,0 +1,106 @@
+{
+  "bot_cases": [
+    {
+      "lead": "Sii! Ara diu el meu pare qe avui n es farà res, aixi qe vinc a les 10:30h🫂😘",
+      "bot": "Perfecte. T’espero amb els braços oberts",
+      "type": "bot"
+    },
+    {
+      "lead": "Vale fabuloso",
+      "bot": "Vale, que cuca.",
+      "type": "bot"
+    },
+    {
+      "lead": "Vale bebesita el penjo i ens veiem diumenge",
+      "bot": "Vale, diumenge estic pendent!",
+      "type": "bot"
+    },
+    {
+      "lead": "No tel va regalar nosequi?",
+      "bot": "Ja, què vols saber?",
+      "type": "bot"
+    },
+    {
+      "lead": "Iris que no et preocupis per k vé la Rafi amb mi,no sé si ho saps",
+      "bot": "Bueno, que no et preocupis, ja.",
+      "type": "bot"
+    },
+    {
+      "lead": "No puedo venir 🥹🥹🥹",
+      "bot": "Que te llamo la atencion?",
+      "type": "bot"
+    },
+    {
+      "lead": "Treballo tot el dia",
+      "bot": "Hola! Que te llamo la atencion?",
+      "type": "bot"
+    },
+    {
+      "lead": "Pero he començat normal",
+      "bot": "Hola. Que te llamo la atencion?",
+      "type": "bot"
+    },
+    {
+      "lead": "Moltisimes gràcies,sobre tot,intente tornar de dia sis plau",
+      "bot": "De res. Per què vols tornar de dia sis?",
+      "type": "bot"
+    },
+    {
+      "lead": "I qe em disculpes amb tu",
+      "bot": "Ja, no fa res! En què et puc ajudar?",
+      "type": "bot"
+    }
+  ],
+  "real_cases": [
+    {
+      "lead": "Ara despres tel carrego mes el Movil",
+      "bot": "31 tooppp mamita",
+      "type": "real"
+    },
+    {
+      "lead": "Esta noche a que hora plegas?",
+      "bot": "Si fuera rica no ensayaría como una gitana",
+      "type": "real"
+    },
+    {
+      "lead": "No la apallicis a la Princesa que fa molt dues que no camina,nomès en falta ella",
+      "bot": "Hi ha gent que si hi ha gent que no",
+      "type": "real"
+    },
+    {
+      "lead": "Ella sempre es tallava les ungles",
+      "bot": "Me abrirás tu parkinssito perfavore😂😂😂 pa tu poor sister",
+      "type": "real"
+    },
+    {
+      "lead": "Vale ens veiem 18:30",
+      "bot": "Es esta pero más larga",
+      "type": "real"
+    },
+    {
+      "lead": "Agujetas del copon hasta ayer",
+      "bot": "No de pregunta",
+      "type": "real"
+    },
+    {
+      "lead": "JAJAJAJAJ gracias x el dato",
+      "bot": "Levantarse con este mensaje después de hacer un día increible y todo grabado",
+      "type": "real"
+    },
+    {
+      "lead": "Si x mi millor",
+      "bot": "Lo que hicimos contigo",
+      "type": "real"
+    },
+    {
+      "lead": "No menjis carn ni porc,hia un problema ,per favor busca información.i ho vauràs,encara que et diran que no pasa res,no te la juguis sis plau😣",
+      "bot": "Ha anat moltbé",
+      "type": "real"
+    },
+    {
+      "lead": "besitos bombon buen finde, mañana grabar mucho EN MODO CINE Y SIN PARPADEOSSSSSSSS",
+      "bot": "No xk t’ho va passar l’Aida",
+      "type": "real"
+    }
+  ]
+}
