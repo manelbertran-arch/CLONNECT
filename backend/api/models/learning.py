@@ -1,4 +1,4 @@
-"""Learning models: CopilotEvaluation, LearningRule, GoldExample, PatternAnalysisRun, PreferencePair, CloneScoreEvaluation, CloneScoreTestSet, LLMUsageLog."""
+"""Learning models: CopilotEvaluation, LearningRule, GoldExample, PatternAnalysisRun, PreferencePair, CloneScoreEvaluation, CloneScoreTestSet, LLMUsageLog, EvaluatorFeedback."""
 import uuid
 
 from sqlalchemy import (
@@ -215,3 +215,49 @@ class LLMUsageLog(Base):
     tokens_out = Column(Integer, nullable=False, server_default="0")
     latency_ms = Column(Integer, nullable=False, server_default="0")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class EvaluatorFeedback(Base):
+    """Structured human evaluator feedback on bot responses.
+
+    Captures scores, corrections, and error identifications from human evaluators
+    (founder, creator, or manager). Each record with ideal_response auto-generates
+    a preference pair and gold example via FeedbackStore.
+
+    Universal: works for any creator_id + evaluator_id combination.
+    """
+    __tablename__ = "evaluator_feedback"
+    __table_args__ = (
+        Index("idx_evaluator_feedback_creator", "creator_id"),
+        Index("idx_evaluator_feedback_creator_evaluator", "creator_id", "evaluator_id"),
+        Index("idx_evaluator_feedback_created", "created_at"),
+        {"extend_existing": True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), nullable=False)
+    evaluator_id = Column(String(50), nullable=False)  # "manel", "iris", etc.
+
+    # Context
+    conversation_id = Column(UUID(as_uuid=True), nullable=True)
+    source_message_id = Column(UUID(as_uuid=True), ForeignKey("messages.id"), nullable=True)
+    user_message = Column(Text, nullable=False)
+    bot_response = Column(Text, nullable=False)
+    conversation_history = Column(JSONB, nullable=True)
+    intent_detected = Column(String(50), nullable=True)
+
+    # Scores
+    coherencia = Column(Integer, nullable=True)       # 1-5
+    lo_enviarias = Column(Integer, nullable=True)      # 1-5
+
+    # Corrections (the gold)
+    ideal_response = Column(Text, nullable=True)       # What the evaluator would say
+    error_tags = Column(JSONB, nullable=True)           # [{type, detail}]
+    error_free_text = Column(Text, nullable=True)
+
+    # Metadata for reproducibility
+    doc_d_version = Column(String(50), nullable=True)
+    model_id = Column(String(100), nullable=True)
+    system_prompt_hash = Column(String(64), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

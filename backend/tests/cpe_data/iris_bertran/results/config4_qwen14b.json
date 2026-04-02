@@ -1,0 +1,470 @@
+{
+  "version": "llm_judge",
+  "date": "2026-03-29",
+  "judge_model": "gpt-4o-mini",
+  "bot_model": "gemini-2.5-flash-lite",
+  "provider": "gemini",
+  "baselines": {
+    "v1_sm": 28.9,
+    "v1_judge": 3.5,
+    "v3_sm": 34.2,
+    "v3_judge": 5.7
+  },
+  "results": {
+    "overall_judge": 5.6,
+    "overall_sm": 18.0,
+    "judge_std_dev": 2.2,
+    "dimensions": {
+      "tono": 5.8,
+      "contenido": 5.3,
+      "idioma": 7.0,
+      "longitud": 5.5,
+      "naturalidad": 6.1,
+      "utilidad": 5.7
+    },
+    "by_type_judge": {
+      "unknown": 5.6
+    },
+    "by_type_sm": {
+      "unknown": 18.0
+    },
+    "by_type_counts": {
+      "unknown": 20
+    },
+    "by_language_judge": {
+      "es": 5.4,
+      "ca": 4.7,
+      "pt": 7.2,
+      "fr": 6.1,
+      "unknown": 2.3,
+      "it": 5.8,
+      "en": 8.7,
+      "ro": 6.5
+    },
+    "by_language_sm": {
+      "es": 19.1,
+      "ca": 11.1,
+      "pt": 20.2,
+      "fr": 21.3,
+      "unknown": 21.5,
+      "it": 19.6,
+      "en": 12.2,
+      "ro": 19.1
+    },
+    "by_language_counts": {
+      "es": 8,
+      "ca": 3,
+      "pt": 1,
+      "fr": 2,
+      "unknown": 1,
+      "it": 2,
+      "en": 1,
+      "ro": 2
+    },
+    "n_conversations": 20,
+    "n_judged": 20,
+    "n_errors": 0
+  },
+  "conversations": [
+    {
+      "id": "cpe_iris_b_001",
+      "type": "unknown",
+      "language": "es",
+      "test_input": "Con las ganas que tenia de hacer el nuevo combo😭",
+      "bot_response": "ja ja",
+      "ground_truth": "Con la calma baby lo primero es lo primero",
+      "sm_score": 12.8,
+      "judge": {
+        "tono": 2,
+        "contenido": 2,
+        "idioma": 10,
+        "longitud": 1,
+        "naturalidad": 3,
+        "utilidad": 2,
+        "overall": 2.0,
+        "comentario": "The bot response lacks warmth, relevance, and energy, making it feel very disconnected from Iris's style."
+      },
+      "elapsed_ms": 8018
+    },
+    {
+      "id": "cpe_iris_b_002",
+      "type": "unknown",
+      "language": "ca",
+      "test_input": "Potser podria fer una classe d’hipopressius/estiraments?",
+      "bot_response": "ja ja ja, t'entenc. que bo que t'agrada el baile, és el millor manera de desconnectar",
+      "ground_truth": "Clar Mariaaa🙂‍↔️😘",
+      "sm_score": 15.7,
+      "judge": {
+        "tono": 4,
+        "contenido": 5,
+        "idioma": 6,
+        "longitud": 5,
+        "naturalidad": 6,
+        "utilidad": 5,
+        "overall": 5.0,
+        "comentario": "The bot response lacks the warmth and affectionate language typical of Iris, making it feel less personal and engaging."
+      },
+      "elapsed_ms": 6736
+    },
+    {
+      "id": "cpe_iris_b_003",
+      "type": "unknown",
+      "language": "ca",
+      "test_input": "[🎤 Audio]: Vas comprar alguna cosa o què? Jo ja m’he gastat el diner, he comprat uns shots i crec que m’agafaré un bikini, però bé, encara tinc que pensar. Todia gastada, todia gastant, mare mia. Que no et preocupis, reina, que jo era més que res que vaig pensar, joder, vaig anar a saludar a tothom i després a la que vol vi, que no estuve tant. Diu, ja no està, i jo ja està preguntant. I em van dir, no, si no l’he vist, de fet vaig preguntar a la gent i tot. I em va dir, no, si no, no ho sé. I jo, pues anar. I vaig pensar que si us anava a sopar, m’enganxava amb vosaltres, saps? Perquè m’estava morint de gana i no volia estar picutejant hamburgers i patates. Que jo quan fui no hi havia nada. Després va donar-hi tot. Llavors va ser quan m’ho vaig menjar allà encullent, sense el pan, perquè hi va gruten, sí, però me’l comí. I clar, la nena, quan va arribar a casa va tornar a menjar. Perquè, obviament, jo solo amb la burger i les patates, la veritat, m’he dava mit de passar gana. I jo, que no tenia que haver sopat perquè no he dormit tres.",
+      "bot_response": "ja ja",
+      "ground_truth": "Jajaja, entenc perfecte  Tria el que més t’agradi, que no et preocupis.",
+      "sm_score": 10.5,
+      "judge": {
+        "tono": 2,
+        "contenido": 3,
+        "idioma": 5,
+        "longitud": 1,
+        "naturalidad": 4,
+        "utilidad": 3,
+        "overall": 2.5,
+        "comentario": "The bot response lacks warmth, energy, and relevance, making it feel very generic and disconnected from Iris's style."
+      },
+      "elapsed_ms": 7143
+    },
+    {
+      "id": "cpe_iris_b_004",
+      "type": "unknown",
+      "language": "pt",
+      "test_input": "Sábado nada",
+      "bot_response": "Jeje, t'admiro que t'adones d'això, és molt bo. 🩷 T'has de dormir, si no et veus al mirall de maña. ja veuràs",
+      "ground_truth": "Sent a voice message",
+      "sm_score": 20.2,
+      "judge": {
+        "tono": 8,
+        "contenido": 7,
+        "idioma": 6,
+        "longitud": 8,
+        "naturalidad": 7,
+        "utilidad": 7,
+        "overall": 7.2,
+        "comentario": "The bot captures Iris's warmth and energy well but misses the expected language and some informal nuances."
+      },
+      "elapsed_ms": 6551
+    },
+    {
+      "id": "cpe_iris_b_005",
+      "type": "unknown",
+      "language": "ca",
+      "test_input": "Per la regla",
+      "bot_response": "Nena, que te vayas a dormir que te vas a pillar el sueño ja ja ja No me puedes dejar los domingos mami, tiene que estar mi booty a tope ¿Ya me has comprado el mío? ja ja ja Gracias por el drive, lo reviso ahora mismo. Con las ganas que tengo de hacer el nuevo combo ja ja ja Potser podria fer una classe d’hipopressius/estiraments? Ja veig que t’has gastat el diners ja ja ja Vas comprar alguna cosa o què? Jo ja m’he gastat el di. ja ja ja Buaaaaa tiaaaa, que risa me da eso. ja ja ja",
+      "ground_truth": "Es el meu dia a dia",
+      "sm_score": 7.1,
+      "judge": {
+        "tono": 8,
+        "contenido": 5,
+        "idioma": 7,
+        "longitud": 8,
+        "naturalidad": 9,
+        "utilidad": 6,
+        "overall": 6.6,
+        "comentario": "The bot captures Iris's warm and energetic tone well, but the content strays from the original context."
+      },
+      "elapsed_ms": 6826
+    },
+    {
+      "id": "cpe_iris_b_006",
+      "type": "unknown",
+      "language": "fr",
+      "test_input": "😅😅 qué lindas",
+      "bot_response": "Nena, ja veig que t'has cansat, descansa bé",
+      "ground_truth": "Sent an attachment",
+      "sm_score": 29.5,
+      "judge": {
+        "tono": 8,
+        "contenido": 6,
+        "idioma": 4,
+        "longitud": 5,
+        "naturalidad": 7,
+        "utilidad": 6,
+        "overall": 6.0,
+        "comentario": "The response captures some warmth and informality but misses the expected language and context relevance."
+      },
+      "elapsed_ms": 7138
+    },
+    {
+      "id": "cpe_iris_b_007",
+      "type": "unknown",
+      "language": "es",
+      "test_input": "Me río de esto",
+      "bot_response": "Ja veig que tens el booty a tope. 😂 Ja te l’has comprat? 😘 Ah, i el drive de Ralphie Choo. Molt bé, molt útil",
+      "ground_truth": "Jajajaja qué crackkkkk! Me alegro un montón que te gustase la clase ayer, nena! 🫶🏽 Lo de la plancha, ¡ya te digo!",
+      "sm_score": 24.3,
+      "judge": {
+        "tono": 6,
+        "contenido": 5,
+        "idioma": 4,
+        "longitud": 7,
+        "naturalidad": 6,
+        "utilidad": 5,
+        "overall": 5.3,
+        "comentario": "The bot captures some warmth and informality but lacks the energetic and affectionate tone typical of Iris."
+      },
+      "elapsed_ms": 5599
+    },
+    {
+      "id": "cpe_iris_b_008",
+      "type": "unknown",
+      "language": "unknown",
+      "test_input": "🫵🏻🫵🏻🫵🏻🚀🚀🚀",
+      "bot_response": "{nombre} me acaba de llamar mi amiga…",
+      "ground_truth": "Hola Abrl Encantada! ¿Qué tal estás? ¿Cuándo te apetece?",
+      "sm_score": 21.5,
+      "judge": {
+        "tono": 2,
+        "contenido": 2,
+        "idioma": 2,
+        "longitud": 3,
+        "naturalidad": 3,
+        "utilidad": 2,
+        "overall": 2.3,
+        "comentario": "The bot response lacks warmth, relevance, and the appropriate language, making it feel very disconnected from Iris's style."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_009",
+      "type": "unknown",
+      "language": "it",
+      "test_input": "[Media/Attachment]",
+      "bot_response": "Ja m'ho he comprat, ja m'ho he comprat. Ja tinc el mòdul a punt, gràcies per compartir-ho",
+      "ground_truth": "Com vas cuca?",
+      "sm_score": 13.7,
+      "judge": {
+        "tono": 4,
+        "contenido": 6,
+        "idioma": 5,
+        "longitud": 7,
+        "naturalidad": 5,
+        "utilidad": 6,
+        "overall": 5.3,
+        "comentario": "The bot response lacks the warmth and affectionate language typical of Iris, making it feel less personal and energetic."
+      },
+      "elapsed_ms": 6553
+    },
+    {
+      "id": "cpe_iris_b_010",
+      "type": "unknown",
+      "language": "fr",
+      "test_input": "Sent a voice message",
+      "bot_response": "[🎤 Audio]: Tiaaa, que bonics que son aquests vídeos!",
+      "ground_truth": "A valeeee",
+      "sm_score": 13.1,
+      "judge": {
+        "tono": 8,
+        "contenido": 7,
+        "idioma": 3,
+        "longitud": 6,
+        "naturalidad": 7,
+        "utilidad": 6,
+        "overall": 6.2,
+        "comentario": "The bot captures some warmth and energy but misses the bilingual aspect and specific context of Iris's style."
+      },
+      "elapsed_ms": 6033
+    },
+    {
+      "id": "cpe_iris_b_011",
+      "type": "unknown",
+      "language": "en",
+      "test_input": "Mentioned you in their story",
+      "bot_response": "Ei reina. 😘 Ja veig que tens ganas de fer el nou combo, que bé. 😂 Ja veig que estàs molt contenta, ja veig que tens molta energia",
+      "ground_truth": "Jajajajaja tal qual",
+      "sm_score": 12.2,
+      "judge": {
+        "tono": 9,
+        "contenido": 8,
+        "idioma": 9,
+        "longitud": 8,
+        "naturalidad": 9,
+        "utilidad": 9,
+        "overall": 8.7,
+        "comentario": "The bot captures Iris's warm and energetic tone well, though it could incorporate more Catalan for a perfect match."
+      },
+      "elapsed_ms": 6077
+    },
+    {
+      "id": "cpe_iris_b_012",
+      "type": "unknown",
+      "language": "it",
+      "test_input": "[Media/Attachment]",
+      "bot_response": "Contes que tenia ganas del combo 😭 vaig a fer una classe d’hipopressius/estiraments, sí",
+      "ground_truth": "Hola! Què tal? En què et puc ajudar? 😘",
+      "sm_score": 25.6,
+      "judge": {
+        "tono": 6,
+        "contenido": 7,
+        "idioma": 8,
+        "longitud": 6,
+        "naturalidad": 5,
+        "utilidad": 7,
+        "overall": 6.3,
+        "comentario": "The bot captures some warmth and informality but lacks the full energetic and affectionate style of Iris."
+      },
+      "elapsed_ms": 7148
+    },
+    {
+      "id": "cpe_iris_b_013",
+      "type": "unknown",
+      "language": "es",
+      "test_input": "que ganas tengo de la clase hoy! \npara mí el baile siempre ha sido una vía de escape y de conectar conmigo, y tus clases son perfectas pa eso♥️",
+      "bot_response": "ja ja ja, que m’alegra sentir que et connecta. 🩷 sí, avui fem hipopressius i estiraments, i si vols, després podem fer una mica de zumba o barre, que està genial. i què, et vas amb el bikini? 😘 ja t’ho pots imaginar, amb aquesta energia, no puc resistir-me. dema també t’espero, nena. 💪💃",
+      "ground_truth": "Sent a voice message",
+      "sm_score": 9.1,
+      "judge": {
+        "tono": 9,
+        "contenido": 8,
+        "idioma": 9,
+        "longitud": 8,
+        "naturalidad": 9,
+        "utilidad": 9,
+        "overall": 8.7,
+        "comentario": "The bot response closely mimics Iris's warm and energetic style, with minor improvements needed in content relevance."
+      },
+      "elapsed_ms": 5488
+    },
+    {
+      "id": "cpe_iris_b_014",
+      "type": "unknown",
+      "language": "ro",
+      "test_input": "perfect!",
+      "bot_response": "Ja em ve de gust, reina. 🩷 Ja m’he comprat els shots i ara m’està pensant en un bikini, pero encara no tinc ben clar",
+      "ground_truth": "Perfecto Carri Nos vemos entonces!",
+      "sm_score": 17.3,
+      "judge": {
+        "tono": 8,
+        "contenido": 7,
+        "idioma": 9,
+        "longitud": 8,
+        "naturalidad": 8,
+        "utilidad": 8,
+        "overall": 8.0,
+        "comentario": "The bot captures Iris's warm and informal tone well, but the content could be more directly relevant to the lead message."
+      },
+      "elapsed_ms": 6204
+    },
+    {
+      "id": "cpe_iris_b_015",
+      "type": "unknown",
+      "language": "es",
+      "test_input": "yo me voy a dormir nenaaaa q nos adelantan una hora esta noche",
+      "bot_response": "ja ja ja, que t'has de dormir? que no te pierdas la clase. es genial, te va a encantar. a veure si t'agafa el reloj dema te veo, reina.",
+      "ground_truth": "Es que no tinc enllaç jo ok",
+      "sm_score": 24.7,
+      "judge": {
+        "tono": 8,
+        "contenido": 7,
+        "idioma": 8,
+        "longitud": 7,
+        "naturalidad": 8,
+        "utilidad": 8,
+        "overall": 7.7,
+        "comentario": "The bot captures Iris's warmth and energy well, but could improve on relevance and language consistency."
+      },
+      "elapsed_ms": 5418
+    },
+    {
+      "id": "cpe_iris_b_016",
+      "type": "unknown",
+      "language": "es",
+      "test_input": "no me puedes dejar los domingos mami, tiene que estar mi booty a tope",
+      "bot_response": "ja ja",
+      "ground_truth": "Ojalá estar en Cancún",
+      "sm_score": 30.8,
+      "judge": {
+        "tono": 2,
+        "contenido": 2,
+        "idioma": 10,
+        "longitud": 1,
+        "naturalidad": 3,
+        "utilidad": 2,
+        "overall": 2.0,
+        "comentario": "The bot response lacks warmth, relevance, and energy, making it feel very disconnected from Iris's style."
+      },
+      "elapsed_ms": 7453
+    },
+    {
+      "id": "cpe_iris_b_017",
+      "type": "unknown",
+      "language": "ro",
+      "test_input": "Sin azucar😂",
+      "bot_response": "Reina puedes venir como el otro día",
+      "ground_truth": "Buaaaa vaia festivalazooo nene a veure que els posa a dormir avui🤣🤣🤣💪🏾",
+      "sm_score": 21.0,
+      "judge": {
+        "tono": 5,
+        "contenido": 4,
+        "idioma": 6,
+        "longitud": 5,
+        "naturalidad": 6,
+        "utilidad": 5,
+        "overall": 5.0,
+        "comentario": "The bot response lacks the energetic warmth and playful tone characteristic of Iris, making it feel less authentic."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_018",
+      "type": "unknown",
+      "language": "es",
+      "test_input": "Ya me has comprado el mio? 🥰",
+      "bot_response": "ja ja ja qué moni que dices. me encanta que te lo pasas tan bien en mis clases, es lo mejor del mundo",
+      "ground_truth": "Si encima que me dejas deshidratada😂😂😂",
+      "sm_score": 27.3,
+      "judge": {
+        "tono": 7,
+        "contenido": 8,
+        "idioma": 9,
+        "longitud": 8,
+        "naturalidad": 7,
+        "utilidad": 8,
+        "overall": 7.7,
+        "comentario": "The bot captures some warmth and informality but lacks the affectionate terms and energetic tone typical of Iris."
+      },
+      "elapsed_ms": 6096
+    },
+    {
+      "id": "cpe_iris_b_019",
+      "type": "unknown",
+      "language": "es",
+      "test_input": "Os dejo aquí el drive de “ralphie choo”, tenéis aquí todo lo relacionado con el módulo, vídeos de después de clase en buena calidad, tutoriales etc.\n\nhttps://drive.google.com/drive/folders/1XBnD1D5IhAA3uIRFWgDx3pyV7EEc2aV0?usp=sharing",
+      "bot_response": "ja ja",
+      "ground_truth": "Ostia amorrr, quina feinada de contractura!! 🫠 Però me n'alegro moltíssim que estiguis millor després del fisio, rei/reina.",
+      "sm_score": 4.7,
+      "judge": {
+        "tono": 2,
+        "contenido": 2,
+        "idioma": 10,
+        "longitud": 2,
+        "naturalidad": 3,
+        "utilidad": 3,
+        "overall": 3.0,
+        "comentario": "The bot response lacks warmth, relevance, and energy, making it feel very disconnected from Iris's style."
+      },
+      "elapsed_ms": 7384
+    },
+    {
+      "id": "cpe_iris_b_020",
+      "type": "unknown",
+      "language": "es",
+      "test_input": "Lo disfrutará igual",
+      "bot_response": "ja ja ja que ganas tienes de la clase hoy",
+      "ground_truth": "[🏷️ Sticker]",
+      "sm_score": 18.9,
+      "judge": {
+        "tono": 7,
+        "contenido": 6,
+        "idioma": 10,
+        "longitud": 6,
+        "naturalidad": 7,
+        "utilidad": 7,
+        "overall": 7.0,
+        "comentario": "The bot captures some warmth and energy but lacks the affectionate terms and emoji use typical of Iris."
+      },
+      "elapsed_ms": 5035
+    }
+  ]
+}

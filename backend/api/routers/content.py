@@ -381,7 +381,8 @@ async def generate_embeddings_for_existing(creator_id: str, batch_size: int = 10
         Number of embeddings generated
     """
     try:
-        from core.embeddings import generate_embeddings_batch, store_embedding
+        from core.contextual_prefix import generate_embeddings_batch_with_context
+        from core.embeddings import store_embedding
         from sqlalchemy import text
 
         if not SessionLocal:
@@ -422,8 +423,8 @@ async def generate_embeddings_for_existing(creator_id: str, batch_size: int = 10
                 batch = chunks_without_embeddings[i : i + batch_size]
                 texts = [row.content for row in batch]
 
-                # Generate embeddings in batch
-                embeddings = generate_embeddings_batch(texts)
+                # Generate embeddings in batch (with contextual prefix per Anthropic paper)
+                embeddings = generate_embeddings_batch_with_context(texts, creator_id)
 
                 # Store each embedding
                 for j, (row, embedding) in enumerate(zip(batch, embeddings)):

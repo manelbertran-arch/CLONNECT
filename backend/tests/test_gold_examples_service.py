@@ -55,12 +55,12 @@ def clear_examples_cache():
 def _mock_session_returning(examples):
     """Create a mock DB session whose query chain returns the given list.
 
-    get_matching_examples uses: session.query(GoldExample).filter(...).all()
-    → single .filter() call with multiple conditions.
+    get_matching_examples uses: session.query(GoldExample).filter(...).limit(20).all()
     """
     session = MagicMock()
     (session.query.return_value
          .filter.return_value
+         .limit.return_value
          .all.return_value) = examples
     session.close = MagicMock()
     return session
@@ -142,17 +142,21 @@ class TestGetMatchingExamplesScoring:
         assert len(result) == 1
         assert result[0]["user_message"] == "q_universal"
 
-    def test_example_with_wrong_intent_has_score_zero_excluded(self):
-        """Example whose intent doesn't match and isn't universal gets score 0 → excluded."""
+    def test_example_with_wrong_intent_ranks_lowest(self):
+        """Example whose intent doesn't match still appears (base score > 0) but ranks last."""
         ex_mismatch = make_example(intent="other_intent", lead_stage=None,
                                    relationship_type=None, quality=0.8,
                                    user_msg="q_mismatch", response="r_mismatch")
+        ex_match = make_example(intent="pricing", lead_stage=None,
+                                relationship_type=None, quality=0.8,
+                                user_msg="q_match", response="r_match")
         with patch("api.database.SessionLocal",
-                   lambda: _mock_session_returning([ex_mismatch])):
+                   lambda: _mock_session_returning([ex_mismatch, ex_match])):
             result = get_matching_examples("creator_4", intent="pricing",
                                            lead_stage=None, relationship_type=None)
-        # Non-matching intent, no stage/rel match, not universal → score=0 → excluded
-        assert result == []
+        # Both appear (base score > 0), but intent-matched ranks first
+        assert len(result) == 2
+        assert result[0]["user_message"] == "q_match"
 
     def test_stage_match_adds_score(self):
         """Stage match (+2) ranks higher than intent match alone (+3×0.5)."""

@@ -43,10 +43,11 @@ def export_training_data(
 
     engine = sa.create_engine(database_url)
 
-    # Load all conversations
+    # Load all conversations (include created_at for session boundary detection)
     query = sa.text("""
         SELECT
             m.lead_id, m.role, m.content, m.status, m.approved_by,
+            m.created_at,
             l.username as lead_username
         FROM messages m
         JOIN leads l ON m.lead_id = l.id
@@ -60,7 +61,11 @@ def export_training_data(
 
     print(f"Loaded {len(rows)} messages")
 
-    # Build conversation pairs
+    # Build conversation pairs — session-aware to avoid cross-conversation contamination.
+    # Without session detection, a pair from Monday's "quiero barre" conversation
+    # could get mixed with Thursday's "com esta la teva mare" → contaminated DPO pair.
+    from core.conversation_boundary import segment_sessions
+
     convs_raw = defaultdict(list)
     lead_usernames = {}
     for row in rows:
@@ -69,33 +74,40 @@ def export_training_data(
             "content": row.content,
             "status": row.status or "",
             "approved_by": row.approved_by or "",
+            "created_at": row.created_at,
         })
         if row.lead_username:
             lead_usernames[row.lead_id] = row.lead_username
 
     conversations = []
     all_turns = []
+    cross_session_skipped = 0
     for lead_id, msgs in convs_raw.items():
         username = lead_usernames.get(lead_id, str(lead_id))
-        turns = []
-        for i in range(1, len(msgs)):
-            curr = msgs[i]
-            prev = msgs[i - 1]
-            if curr["role"] != "assistant" or curr["status"] != "sent":
-                continue
-            if curr["approved_by"] not in ("", "creator", "creator_manual"):
-                continue
-            if prev["role"] != "user":
-                continue
 
-            turn = {
-                "user_message": prev["content"],
-                "real_response": curr["content"],
-                "real_length": len(curr["content"]),
-                "lead_username": username,
-            }
-            turns.append(turn)
-            all_turns.append(turn)
+        # Segment into sessions so we only pair within the same conversation
+        sessions = segment_sessions(msgs)
+
+        turns = []
+        for session in sessions:
+            for i in range(1, len(session)):
+                curr = session[i]
+                prev = session[i - 1]
+                if curr["role"] != "assistant" or curr["status"] != "sent":
+                    continue
+                if curr["approved_by"] not in ("", "creator", "creator_manual"):
+                    continue
+                if prev["role"] != "user":
+                    continue
+
+                turn = {
+                    "user_message": prev["content"],
+                    "real_response": curr["content"],
+                    "real_length": len(curr["content"]),
+                    "lead_username": username,
+                }
+                turns.append(turn)
+                all_turns.append(turn)
 
         if turns:
             conversations.append({"lead_username": username, "turns": turns})

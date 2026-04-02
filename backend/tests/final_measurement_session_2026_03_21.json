@@ -1,0 +1,116 @@
+{
+  "session": "2026-03-21 final measurement",
+  "n_runs": 3,
+  "seeds": [
+    42,
+    123,
+    456
+  ],
+  "confidence_band": {
+    "judge_mean": 7.03,
+    "judge_std": 0.29,
+    "judge_min": 6.7,
+    "judge_max": 7.2,
+    "judge_band_95pct": "6.5-7.6",
+    "sm_mean": 34.1,
+    "sm_std": 5.0
+  },
+  "dimensions_cross_run": {
+    "tono": {
+      "mean": 6.8,
+      "std": 0.2
+    },
+    "contenido": {
+      "mean": 7.1,
+      "std": 0.3
+    },
+    "idioma": {
+      "mean": 7.9,
+      "std": 0.2
+    },
+    "longitud": {
+      "mean": 6.6,
+      "std": 0.3
+    },
+    "naturalidad": {
+      "mean": 6.9,
+      "std": 0.3
+    },
+    "utilidad": {
+      "mean": 7.6,
+      "std": 0.3
+    }
+  },
+  "by_type_cross_run": {
+    "precio": {
+      "mean": 6.9,
+      "range": "6.5-7.4"
+    },
+    "saludo": {
+      "mean": 7.5,
+      "range": "7.2-7.7"
+    },
+    "objecion": {
+      "mean": 6.3,
+      "range": "6.2-6.4"
+    },
+    "lead_caliente": {
+      "mean": 7.4,
+      "range": "6.7-7.9"
+    },
+    "audio": {
+      "mean": 6.9,
+      "range": "6.7-7.2"
+    },
+    "personal": {
+      "mean": 6.8,
+      "range": "6.0-7.7"
+    }
+  },
+  "by_language_cross_run": {
+    "ca": {
+      "mean": 6.8,
+      "range": "6.6-7.0"
+    },
+    "es": {
+      "mean": 7.3,
+      "range": "6.8-7.6"
+    }
+  },
+  "individual_runs": [
+    {
+      "label": "seed42",
+      "judge": 7.2,
+      "sm": 39.0,
+      "judge_intra_std": 1.4
+    },
+    {
+      "label": "seed123",
+      "judge": 6.7,
+      "sm": 29.0,
+      "judge_intra_std": 1.4
+    },
+    {
+      "label": "seed456",
+      "judge": 7.2,
+      "sm": 34.4,
+      "judge_intra_std": 1.2
+    }
+  ],
+  "baselines": {
+    "v1_pre_fixes": {
+      "judge": 3.5,
+      "sm": 28.9
+    },
+    "v3_last_run": {
+      "judge": 5.7,
+      "sm": 34.2
+    }
+  },
+  "deltas": {
+    "vs_v1_judge": "+3.5",
+    "vs_v1_sm": "+5.2",
+    "vs_v3_judge": "+1.3",
+    "vs_v3_sm": "+-0.1"
+  }
+}

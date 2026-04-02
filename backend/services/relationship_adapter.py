@@ -305,7 +305,7 @@ class RelationshipAdapter:
         # 3c. Lead memory context (always injected — this is data, not style)
         if lead_memory_summary:
             instructions_parts.append(
-                f"\n[MEMORIA DEL LEAD]\n{lead_memory_summary}"
+                f"\nRECUERDA: {lead_memory_summary}"
             )
 
         # 3d. Pending commitments (always injected — this is data)

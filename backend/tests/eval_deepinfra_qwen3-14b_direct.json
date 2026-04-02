@@ -1,0 +1,299 @@
+{
+  "version": "llm_judge",
+  "date": "2026-03-25",
+  "judge_model": "gpt-4o-mini",
+  "bot_model": "deepinfra/Qwen/Qwen3-14B",
+  "provider": "deepinfra",
+  "baselines": {
+    "v1_sm": 28.9,
+    "v1_judge": 3.5,
+    "v3_sm": 34.2,
+    "v3_judge": 5.7
+  },
+  "results": {
+    "overall_judge": 0,
+    "overall_sm": 0
+  },
+  "conversations": [
+    {
+      "id": "conv_001",
+      "type": "personal",
+      "language": "ca",
+      "test_input": "que no les trobo",
+      "bot_response": "",
+      "ground_truth": "Ay, Manel! Qué lío con las bambas. 😣 ¿Seguro que no las dejaste en casa?",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 554
+    },
+    {
+      "id": "conv_002",
+      "type": "saludo",
+      "language": "ca",
+      "test_input": "❤️❤️",
+      "bot_response": "",
+      "ground_truth": "Mare meva Irene! Quina gràcia!! 😍 Com estàs, guapa?",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 156
+    },
+    {
+      "id": "conv_003",
+      "type": "saludo",
+      "language": "es",
+      "test_input": "Aca por bajar, me vine a buenos aires unos dias",
+      "bot_response": "",
+      "ground_truth": "Daleee! Que haces babyyyy? 😘 Que fuerteee!",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 155
+    },
+    {
+      "id": "conv_004",
+      "type": "saludo",
+      "language": "es",
+      "test_input": "Sent an attachment",
+      "bot_response": "",
+      "ground_truth": "Ostiaaa😂😂😂",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 179
+    },
+    {
+      "id": "conv_005",
+      "type": "precio",
+      "language": "es",
+      "test_input": "Iris, quiero reservar plaza para barre por fis.\nMe llamo Angelina \nGracias",
+      "bot_response": "",
+      "ground_truth": "Ya estás flor",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 446
+    },
+    {
+      "id": "conv_006",
+      "type": "precio",
+      "language": "ca",
+      "test_input": "Ok",
+      "bot_response": "",
+      "ground_truth": "Hola Iolanda! 😊",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 163
+    },
+    {
+      "id": "conv_007",
+      "type": "precio",
+      "language": "es",
+      "test_input": "Nos vemos mañana *21.03* para el workshop con Tamara🌟, de *14:00h a 16:00h.*\n\nAquí os dejo el enlace para abrir la puerta de entrada:\nhttps://docs.google.com/document/d/16q47UYLdRdYF5KBBnpdSePNfROwe_ZdW/edit?usp=drivesdk&ouid=100996112409432303735&rtpof=true&sd=true",
+      "bot_response": "",
+      "ground_truth": "Hola Albert! 😊 Qué bien que te animas al workshop!",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 161
+    },
+    {
+      "id": "conv_008",
+      "type": "precio",
+      "language": "es",
+      "test_input": "abril a les 13:00",
+      "bot_response": "",
+      "ground_truth": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 154
+    },
+    {
+      "id": "conv_009",
+      "type": "precio",
+      "language": "ca",
+      "test_input": "Fins demà!!",
+      "bot_response": "",
+      "ground_truth": "Aiii Eli! 🥰 Cómo va todo?? Te paso info por privado ahora que ya he colgado.",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 160
+    },
+    {
+      "id": "conv_010",
+      "type": "objecion",
+      "language": "es",
+      "test_input": "Okiii; todo bien. Lo estoy asimilando tranqui; es solo una pausa. Volveré🥹🫶🏻",
+      "bot_response": "",
+      "ground_truth": "Amor, me alegro un montón de que lo estés asimilando bien. 🥰 ¡Ya verás qué bien te sienta!",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 162
+    },
+    {
+      "id": "conv_011",
+      "type": "objecion",
+      "language": "es",
+      "test_input": "Me han dado invitación para otra clase",
+      "bot_response": "",
+      "ground_truth": "Ay, mi vida, qué lío! 🫠 Entonces, ¿al final vas a la otra clase o te quedas a la de barre? 😘",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 155
+    },
+    {
+      "id": "conv_012",
+      "type": "objecion",
+      "language": "ca",
+      "test_input": "Gràcies preciosa!! 😍😍💖💖",
+      "bot_response": "",
+      "ground_truth": "Hola Marta! De res, guapa! 🥰 Sempre que puguis i vulguis, aquí estic! Què et va semblar la classe d'ahir? 😊",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 155
+    },
+    {
+      "id": "conv_013",
+      "type": "lead_caliente",
+      "language": "ca",
+      "test_input": "Oqqq?",
+      "bot_response": "",
+      "ground_truth": "Hola bro! Com va tot? 🥰 Que moltes ganes de barre dijous! 💪",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 152
+    },
+    {
+      "id": "conv_014",
+      "type": "lead_caliente",
+      "language": "es",
+      "test_input": "Gràcies Per la clase d’avui \nI Per la paciencia ❤️🫶🏻",
+      "bot_response": "",
+      "ground_truth": "De nada, cariño. ❤️ Me alegro que te gustara. 😘",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 162
+    },
+    {
+      "id": "conv_015",
+      "type": "lead_caliente",
+      "language": "es",
+      "test_input": "Tengo trabajo por la tarde y iré a comprar unas placas para el piso 🤯 al mediodía",
+      "bot_response": "",
+      "ground_truth": "Que vendrás el domingo que es el últimooo",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 155
+    },
+    {
+      "id": "conv_016",
+      "type": "lead_caliente",
+      "language": "ca",
+      "test_input": "VINC SÚPER RAPID",
+      "bot_response": "",
+      "ground_truth": "Tranqui",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 153
+    },
+    {
+      "id": "conv_017",
+      "type": "audio",
+      "language": "ca",
+      "test_input": "[🏷️ Sticker]",
+      "bot_response": "",
+      "ground_truth": "Jajaja, ¡qué bueno! 😂 Me alegro que todo se haya solucionado, Sònia. ¡Un abrazo! 😘",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 155
+    },
+    {
+      "id": "conv_018",
+      "type": "audio",
+      "language": "es",
+      "test_input": "[🎤 Audio]: ¡Hustia! Me ha sorprendido, no me lo esperaba. Pensaba que era un rollo de estar todo el día en el gimnasio, desconectando y sin pensar. Pero bueno, por los vídeos que hagas, tampoco pasa nada.\n\n¿Ya notabas que te quedaba clavada la cervical? Joder, tío, qué putada. Si no vas a descansar, olvídate.\n\nHoy duerme, descansa, desconecta. Si has hecho la clase, ya te han ido bien, seguro. Y cuando quieras venir a verme a Pibonacos de Barcelona, me parece perfecto. Es un planazo estupendo. Cuando queráis, vigilar la carretera, ¿vale?\n\nY mañana, en principio, si todo va bien, creo que sí, vengo a Hipopilates y Barre. Tengo ganas porque hace mucho que no vengo a Barre.",
+      "bot_response": "",
+      "ground_truth": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 161
+    },
+    {
+      "id": "conv_019",
+      "type": "lead_caliente",
+      "language": "ca",
+      "test_input": "Bon dia!!! Dema tampoc vinc, estic molt millor, pero dema tinc dia de fer gestions…🙏",
+      "bot_response": "",
+      "ground_truth": "Dijous no podrem fer entreno aviso😘",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 159
+    },
+    {
+      "id": "conv_020",
+      "type": "audio",
+      "language": "ca",
+      "test_input": "[🎤 Audio]: Muchísimas gracias, family. Os estimo, os estimo y os estimo. Vale, que vayamos cumpliendo años y santos.",
+      "bot_response": "",
+      "ground_truth": "Oleeeeee nen! Que te cuento? 🥹 Com va tot per allà?",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 151
+    }
+  ]
+}

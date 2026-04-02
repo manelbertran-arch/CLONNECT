@@ -1,0 +1,364 @@
+{
+  "version": "llm_judge",
+  "date": "2026-03-29",
+  "judge_model": "gpt-4o-mini",
+  "bot_model": "gemini-2.5-flash-lite",
+  "provider": "gemini",
+  "baselines": {
+    "v1_sm": 28.9,
+    "v1_judge": 3.5,
+    "v3_sm": 34.2,
+    "v3_judge": 5.7
+  },
+  "results": {
+    "overall_judge": 7.6,
+    "overall_sm": 30.8,
+    "judge_std_dev": 0.8,
+    "dimensions": {
+      "tono": 7.3,
+      "contenido": 7.5,
+      "idioma": 8.8,
+      "longitud": 7.1,
+      "naturalidad": 7.3,
+      "utilidad": 8.1
+    },
+    "by_type_judge": {
+      "real": 7.5,
+      "booking_reformer": 7.2,
+      "class_cancel": 7.5,
+      "booking_private": 8.3,
+      "booking_confirm": 8.2
+    },
+    "by_type_sm": {
+      "real": 29.5,
+      "booking_reformer": 26.0,
+      "class_cancel": 62.1,
+      "booking_private": 11.8,
+      "booking_confirm": 38.1
+    },
+    "by_type_counts": {
+      "real": 11,
+      "booking_reformer": 1,
+      "class_cancel": 1,
+      "booking_private": 1,
+      "booking_confirm": 1
+    },
+    "by_language_judge": {
+      "es": 7.6,
+      "ca": 7.3
+    },
+    "by_language_sm": {
+      "es": 28.8,
+      "ca": 44.0
+    },
+    "by_language_counts": {
+      "es": 13,
+      "ca": 2
+    },
+    "n_conversations": 15,
+    "n_judged": 15,
+    "n_errors": 0
+  },
+  "conversations": [
+    {
+      "id": "real_003",
+      "type": "real",
+      "language": "es",
+      "test_input": "On estas?",
+      "bot_response": "En el gym, rey! En Dinamic Sport Gym. Por? ❤️",
+      "ground_truth": "Aiiii Eli\nCom va tot?\nTe paso info per privat ara que ja he colgat.",
+      "sm_score": 26.8,
+      "judge": {
+        "tono": 6,
+        "contenido": 7,
+        "idioma": 8,
+        "longitud": 6,
+        "naturalidad": 7,
+        "utilidad": 8,
+        "overall": 7.0,
+        "comentario": "The bot captures some warmth and informality but lacks the full energy and affectionate language typical of Iris."
+      },
+      "elapsed_ms": 5627
+    },
+    {
+      "id": "real_004",
+      "type": "real",
+      "language": "es",
+      "test_input": "VINC SÚPER RAPID",
+      "bot_response": "Daleee 😘",
+      "ground_truth": "Tranqui",
+      "sm_score": 13.3,
+      "judge": {
+        "tono": 8,
+        "contenido": 7,
+        "idioma": 9,
+        "longitud": 6,
+        "naturalidad": 7,
+        "utilidad": 8,
+        "overall": 7.2,
+        "comentario": "The bot captures warmth and informality but lacks the directness and context relevance of Iris's typical responses."
+      },
+      "elapsed_ms": 4640
+    },
+    {
+      "id": "real_007",
+      "type": "real",
+      "language": "es",
+      "test_input": "A ver si mi suegra se viene conmigo el jueves",
+      "bot_response": "Uf, qué lío! Avísame si se anima entonces. 🫶🏽",
+      "ground_truth": "Ayyy es veldaaa",
+      "sm_score": 13.3,
+      "judge": {
+        "tono": 5,
+        "contenido": 6,
+        "idioma": 8,
+        "longitud": 7,
+        "naturalidad": 6,
+        "utilidad": 7,
+        "overall": 6.2,
+        "comentario": "The bot captures some warmth but lacks the energetic and affectionate style typical of Iris."
+      },
+      "elapsed_ms": 6527
+    },
+    {
+      "id": "real_008",
+      "type": "real",
+      "language": "es",
+      "test_input": "Tengo yo alitas",
+      "bot_response": "Jajaja muaaaa! 😘",
+      "ground_truth": "Jajajaja ostia 😂",
+      "sm_score": 56.2,
+      "judge": {
+        "tono": 8,
+        "contenido": 6,
+        "idioma": 10,
+        "longitud": 7,
+        "naturalidad": 9,
+        "utilidad": 7,
+        "overall": 7.5,
+        "comentario": "The bot captures Iris's warmth and energy well, but the content could be more contextually relevant."
+      },
+      "elapsed_ms": 3611
+    },
+    {
+      "id": "real_009",
+      "type": "real",
+      "language": "es",
+      "test_input": "Valeeee",
+      "bot_response": "Siii amor! Apuntada! 💪🩷",
+      "ground_truth": "Dale amor",
+      "sm_score": 31.2,
+      "judge": {
+        "tono": 9,
+        "contenido": 9,
+        "idioma": 10,
+        "longitud": 8,
+        "naturalidad": 9,
+        "utilidad": 10,
+        "overall": 9.2,
+        "comentario": "The bot response closely mimics Iris's warm and energetic style, making it feel authentic and relevant."
+      },
+      "elapsed_ms": 3016
+    },
+    {
+      "id": "real_010",
+      "type": "real",
+      "language": "es",
+      "test_input": "[🎤 Audio]: Nena, que ara m'ha vingut al cap: hi ha llet de coco al Branch o no? Perquè si ets d'agafar-te un cafè divendres, i no hi ha llet de coco, jo no hi vaig. Ja em diràs, betonet.",
+      "bot_response": "Jajaja,betonet! A ver, yo creo que sí había pero no me hagas mucho caso eh 🤔",
+      "ground_truth": "Jajajaja nena! 🤣🤣\nDilluns et dic algo. 😘",
+      "sm_score": 19.0,
+      "judge": {
+        "tono": 7,
+        "contenido": 8,
+        "idioma": 9,
+        "longitud": 7,
+        "naturalidad": 8,
+        "utilidad": 9,
+        "overall": 8.0,
+        "comentario": "The bot captures Iris's warmth and informality well, but could improve on energetic expressions and emoji use."
+      },
+      "elapsed_ms": 4278
+    },
+    {
+      "id": "real_011",
+      "type": "real",
+      "language": "es",
+      "test_input": "[🎤 Audio]: ¡Hustia! Me ha sorprendido, no me lo esperaba. Pensaba que era un rollo de estar todo el día en el gimnasio, desconectando y sin pensar. Pero bueno, por los vídeos que hagas, tampoco pasa nada.\n\n¿Ya notabas que te quedaba clavada la cervical? Joder, tío, qué putada. Si no vas a descansar, olvídate.\n\nHoy duerme, descansa, desconecta. Si has hecho la clase, ya te han ido bien, seguro. Y cuando quieras venir a verme a Pibonacos de Barcelona, me parece perfecto. Es un planazo estupendo. Cuando queráis, vigilar la carretera, ¿vale?\n\nY mañana, en principio, si todo va bien, creo que sí, vengo a Hipopilates y Barre. Tengo ganas porque hace mucho que no vengo a Barre.",
+      "bot_response": "Jajajaja qué bueno el audio!! Me encanta que te sorprenda 🫠 Lo de la cervical me pasa a mí también, tía. Si no descansas, se nota un montón.",
+      "ground_truth": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+      "sm_score": 28.4,
+      "judge": {
+        "tono": 7,
+        "contenido": 8,
+        "idioma": 10,
+        "longitud": 6,
+        "naturalidad": 7,
+        "utilidad": 8,
+        "overall": 7.3,
+        "comentario": "The bot captures some warmth and informality but lacks the full energetic and affectionate style of Iris."
+      },
+      "elapsed_ms": 5598
+    },
+    {
+      "id": "real_012",
+      "type": "real",
+      "language": "es",
+      "test_input": "Pujo súper justa a barre",
+      "bot_response": "Siii, dale! 💪",
+      "ground_truth": "Jajaja, ¡siempre igual! 😂 ¿Vienes corriendo?",
+      "sm_score": 24.6,
+      "judge": {
+        "tono": 6,
+        "contenido": 5,
+        "idioma": 8,
+        "longitud": 7,
+        "naturalidad": 6,
+        "utilidad": 7,
+        "overall": 6.3,
+        "comentario": "The bot captures some energy but lacks warmth and personal touch typical of Iris."
+      },
+      "elapsed_ms": 5966
+    },
+    {
+      "id": "real_013",
+      "type": "real",
+      "language": "es",
+      "test_input": "Tengo trabajo por la tarde y iré a comprar unas placas para el piso 🤯 al mediodía",
+      "bot_response": "Jajaja que liada!! 🫠\nPues a ver si nos vemos el domingo que es el ultimooo! 💪",
+      "ground_truth": "Que vendrás el domingo que es el últimooo",
+      "sm_score": 62.7,
+      "judge": {
+        "tono": 8,
+        "contenido": 8,
+        "idioma": 10,
+        "longitud": 9,
+        "naturalidad": 7,
+        "utilidad": 9,
+        "overall": 8.2,
+        "comentario": "The bot captures Iris's warm and energetic tone well, but could improve on the naturalness of the response."
+      },
+      "elapsed_ms": 4392
+    },
+    {
+      "id": "real_014",
+      "type": "real",
+      "language": "es",
+      "test_input": "Pacient llarga",
+      "bot_response": "nena, qué me cuentas? 💪",
+      "ground_truth": "Ostia bro dimeeee🫠!",
+      "sm_score": 28.6,
+      "judge": {
+        "tono": 8,
+        "contenido": 7,
+        "idioma": 9,
+        "longitud": 8,
+        "naturalidad": 8,
+        "utilidad": 7,
+        "overall": 7.7,
+        "comentario": "The bot captures Iris's warmth and informality well, but lacks the same energetic flair and specific context relevance."
+      },
+      "elapsed_ms": 3569
+    },
+    {
+      "id": "real_015",
+      "type": "real",
+      "language": "es",
+      "test_input": "Ja m’informes quan puguis💖💖",
+      "bot_response": "tia, t'estic esperant 🫠🫠 T'informo de tot el que pugui!! ❤️😘",
+      "ground_truth": "Dale, Sira",
+      "sm_score": 20.0,
+      "judge": {
+        "tono": 8,
+        "contenido": 9,
+        "idioma": 5,
+        "longitud": 7,
+        "naturalidad": 8,
+        "utilidad": 9,
+        "overall": 7.6,
+        "comentario": "The bot captures Iris's warmth and energy well, but the language mix is off since Iris's response was in Spanish."
+      },
+      "elapsed_ms": 4494
+    },
+    {
+      "id": "real_016",
+      "type": "booking_reformer",
+      "language": "ca",
+      "test_input": "Reinaaaa, passam número de la teva secretaría millor😘😅 i em reservo un parell de reformer",
+      "bot_response": "Siii, 678 77 67 30. Aviseu quan vulgueu reservar les sessions de reformer 😘",
+      "ground_truth": "Amorrr, ja te'n passo el número 😘 Ja et reservo!",
+      "sm_score": 26.0,
+      "judge": {
+        "tono": 6,
+        "contenido": 8,
+        "idioma": 9,
+        "longitud": 7,
+        "naturalidad": 5,
+        "utilidad": 8,
+        "overall": 7.2,
+        "comentario": "The bot captures some warmth and relevance but lacks the personal touch and energy typical of Iris."
+      },
+      "elapsed_ms": 4554
+    },
+    {
+      "id": "real_018",
+      "type": "class_cancel",
+      "language": "ca",
+      "test_input": "Bon dia guapa!! Avui no podré venir a barre",
+      "bot_response": "Tranqui flower 🙂❤️",
+      "ground_truth": "Tranqui tio",
+      "sm_score": 62.1,
+      "judge": {
+        "tono": 8,
+        "contenido": 9,
+        "idioma": 7,
+        "longitud": 6,
+        "naturalidad": 7,
+        "utilidad": 8,
+        "overall": 7.5,
+        "comentario": "The bot captures warmth and informality but lacks the bilingual aspect and some of Iris's unique expressions."
+      },
+      "elapsed_ms": 4801
+    },
+    {
+      "id": "real_019",
+      "type": "booking_private",
+      "language": "es",
+      "test_input": "Pues yo te pago clase privada mamasita",
+      "bot_response": "Siii, dale! Cuanto quieres? 😘",
+      "ground_truth": "Claro",
+      "sm_score": 11.8,
+      "judge": {
+        "tono": 8,
+        "contenido": 7,
+        "idioma": 10,
+        "longitud": 8,
+        "naturalidad": 9,
+        "utilidad": 8,
+        "overall": 8.3,
+        "comentario": "The bot captures Iris's warm and energetic tone well, but could improve relevance and personal touch."
+      },
+      "elapsed_ms": 4866
+    },
+    {
+      "id": "real_020",
+      "type": "booking_confirm",
+      "language": "es",
+      "test_input": "Siiii me apuntaste a la clase de mañana?",
+      "bot_response": "Siii! Apuntada! 😘",
+      "ground_truth": "Te apunte en la mañana🤣🤣🤣",
+      "sm_score": 38.1,
+      "judge": {
+        "tono": 7,
+        "contenido": 8,
+        "idioma": 10,
+        "longitud": 8,
+        "naturalidad": 7,
+        "utilidad": 9,
+        "overall": 8.2,
+        "comentario": "The bot captures the warmth and informality but lacks some of Iris's characteristic humor and affectionate terms."
+      },
+      "elapsed_ms": 5212
+    }
+  ]
+}

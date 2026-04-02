@@ -309,15 +309,21 @@ def get_or_create_relationship_dna(creator_id: str, follower_id: str) -> Optiona
     try:
         from api.models import RelationshipDNAModel
 
-        # Try to find existing
-        dna = (
-            session.query(RelationshipDNAModel)
-            .filter_by(creator_id=creator_id, follower_id=follower_id)
-            .first()
-        )
+        # Try to find existing (both follower_id formats)
+        follower_ids_to_try = [follower_id]
+        if "_" in follower_id:
+            follower_ids_to_try.append(follower_id.split("_", 1)[1])
+        else:
+            follower_ids_to_try.append(f"ig_{follower_id}")
 
-        if dna:
-            return _dna_to_dict(dna)
+        for fid in follower_ids_to_try:
+            dna = (
+                session.query(RelationshipDNAModel)
+                .filter_by(creator_id=creator_id, follower_id=fid)
+                .first()
+            )
+            if dna:
+                return _dna_to_dict(dna)
 
         # Create new with defaults
         dna = RelationshipDNAModel(

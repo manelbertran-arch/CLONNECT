@@ -4,6 +4,333 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-02 — ROLLBACK: Stay with OpenAI text-embedding-3-small (1536 dims)
+
+**Context:** Previous decision switched default to local MiniLM (384 dims) due to OpenAI quota exhaustion. Rolling back because DB already has 1536-dim vectors that work with OpenAI — switching dimensions would require destructive migration + re-embedding 50K+ vectors.
+
+**Changes:**
+- `core/embeddings.py`: `EMBEDDING_PROVIDER` default reverted from `"local"` to `"openai"`. `EMBEDDING_DIMENSIONS` fixed at 1536.
+- Added graceful fallback: if OpenAI fails at runtime, falls back to local MiniLM (384 dims). Dimension mismatch means DB search won't work but service stays alive.
+- Deleted `alembic/versions/044_switch_embeddings_to_384.py` (never executed)
+- Deleted `scripts/reembed_all_chunks.py`, `scripts/reembed_lead_memories.py`, `scripts/reembed_conversation_embeddings.py`
+- Tests updated to expect 1536/OpenAI defaults, with local-fallback behavior verified
+
+**Action needed:** Fix OpenAI billing to restore RAG search. The API key is set but quota is insufficient (429 errors).
+
+---
+
+## 2026-04-02 — Conversation Boundary: Discourse Markers (paper-backed optimization)
+
+**Context:** Forensic re-audit of System #13. Analyzed 8 papers paper-by-paper to identify what they do that we don't. Found ONE justified optimization: discourse markers from Topic Shift Detection papers (2023-24).
+
+**Implemented: Discourse markers** (Topic Shift Detection 2023-24, Alibaba CS hybrid approach)
+- Added `_DISCOURSE_MARKER_PATTERN` regex: "por cierto", "otra cosa", "by the way", "per cert", "a proposito", "au fait", "übrigens" + 7 languages
+- Fires ONLY in 30min-4h zone (same tier as farewell). Does NOT affect <5min or 5-30min zones.
+- Matches at START of message only (prevents mid-sentence false positives).
+- Cost: 0 dependencies, 0 latency impact (0.16ms/500 msgs, unchanged).
+- Benefit: catches explicit topic changes in 30min-4h zone where no greeting or farewell is present.
+- 49 tests pass (41 existing + 8 new).
+
+**Rejected: Embedding similarity** (Alibaba CS 2023-24, SuperDialSeg 2023)
+- Would add ~10ms per boundary check (50x current latency).
+- Noisy on 5-15 word DM messages (TextTiling/Hearst warns about short texts).
+- After adding discourse markers, the remaining uncovered edge case (30min-4h, no greeting, no farewell, no discourse marker) is <5% of boundaries.
+- Revisit condition: if false boundary rate in 30min-4h zone exceeds 5% in production.
+
+**Rejected: Time sub-bucketing** (Time-Aware Transformer 2023-24)
+- Their sub-tiers were learned from 100K+ annotated sessions. Without equivalent data, any sub-tier is arbitrary.
+- 10/10 functional tests pass with current tiers. No evidence of systematic errors.
+
+**Rejected: TextTiling** (Hearst 1997)
+- Designed for multi-paragraph docs (300+ words/block). DMs average 5-15 words — signal too noisy.
+
+**Rejected: SuperDialSeg** (Jiang 2023, EMNLP)
+- Requires annotated training data we don't have. 75-80% F1 is lower than our 10/10 functional accuracy. Adds GPU latency.
+
+---
+
+## 2026-04-02 — Forensic Audit: Conversation Boundary Detection (BUG-CB-03 fix)
+
+**Context:** Forensic audit of `core/conversation_boundary.py`. System uses tiered multi-signal approach: time gaps (5min/30min/4h thresholds) + greeting/farewell regex patterns.
+
+**Literature validation:** 15+ papers reviewed (MSC Meta, LoCoMo, SuperDialSeg, TextTiling, IRC Disentanglement). 5min/30min/4h thresholds validated by Alibaba customer service (identical tiers), Time-Aware Transformer (learned breakpoints at 30min/4h), Zendesk/Intercom defaults. Industry consensus: time-based primary + content signals in ambiguous zone.
+
+**Bugs found:**
+- BUG-CB-03 (MEDIUM): Missing greeting/farewell patterns for Arabic, Japanese, French, German, Korean, Chinese. Only affected 5min-4h ambiguous zone — time-based detection already works universally.
+- BUG-CB-04 (LOW): Copilot service uses separate 24h session detection — inconsistency (not fixed, different use case).
+- BUG-CB-05 (LOW): No discourse markers ("por cierto", "cambiando de tema"). Literature recommends but low impact — greeting/farewell covers most cases.
+
+**Fix:** Added FR/DE/AR/JA/KO/ZH greeting + farewell patterns. 41 tests pass. Performance unchanged (0.17ms/500 msgs).
+
+**Not changed (justified):**
+- Embedding similarity for ambiguous zone: Papers recommend but adds latency + cost. Our regex achieves similar precision at 0 cost. Only worth adding if false boundary rate > 5%.
+- Discourse markers: Low priority — greeting detection covers 90%+ of boundary cases.
+- 5min threshold: Could extend to 10min per IRC research, but 5min is safer (avoids false merges).
+
+---
+
+## 2026-04-02 — Switch RAG Embeddings from OpenAI to Local MiniLM-L12-v2
+
+**Context:** OpenAI API quota exceeded (429), ALL embedding-based systems dead: RAG (content_embeddings), episodic memory (conversation_embeddings), memory engine (lead_memories). `paraphrase-multilingual-MiniLM-L12-v2` already loaded in RAM for frustration detector's SentenceTransformer.
+
+**Benchmark (20 real queries, 183 iris chunks):** MiniLM retrieves correct chunks for all critical query types (schedule, price, booking, cancellation). 49% overlap@5 with OpenAI — disagreements mostly on low-value video/instagram content. Cross-encoder reranker compensates.
+
+**Decision:** Switch `generate_embedding()` to local SentenceTransformer (384 dims). Alembic migration changes all 3 vector columns from 1536→384. Re-embed all chunks. OpenAI kept as opt-in fallback via `EMBEDDING_PROVIDER=openai`.
+
+**Trade-off:** MTEB ~48 vs ~62 for OpenAI, but: (1) local is alive, OpenAI is dead, (2) 40x faster, (3) free, (4) user DMs never leave server, (5) reranker compensates.
+
+**Files:** `core/embeddings.py`, `alembic/versions/044_switch_embeddings_to_384.py` (NEW), `tests/test_embeddings_audit.py`
+
+---
+
+## 2026-04-02 — Redesign Memory Injection v3 (18 papers, 6 repos)
+
+**Context:** System #9 Memory Engine had L1 6/6/6 but human evaluation 1.4/5. Model received 600-863 chars of memory but IGNORED it. 5 failure cases. Iterated v1→v2→v3.
+
+**Research (18 papers, 6 repos):** mem0 (25K★): bulleted list, k≤2 optimal. Letta (22K★, ICLR 2024): XML blocks. Zep (2025): `<FACTS>` tags + step-by-step instructions. MRPrompt (2026): explicit protocol required. SeCom (ICLR 2025): compression-as-denoising. Context Rot (Chroma 2025): focused 300 tokens >> 113K. LangChain EntityMemory: name extraction. Li et al. (COLM 2024): persona drift in 8 turns.
+
+**Decision (v3):** (1) `<memoria>` XML tags + `- fact` bullets (mem0+Zep pattern). (2) `Nombre: X` line via universal regex (LangChain EntityMemory). (3) `Instrucción: Responde usando la info de <memoria>.` (MRPrompt+Zep). (4) Memory at END of recalling block (Lost in Middle). (5) Max 600 chars, 5 facts. (6) Echo threshold 0.55 (was 0.70) — catches semantic echoes. (7) Accent normalization NFD for Catalan.
+
+**5-Case Results:** Case 2 (Si→scheduling) went from "Ja, què?" to "Ens veiem demà a les 13:30" with name "Marta". Case 3 echo now caught (J=0.636 ≥ 0.55). Case 4 Cuca: name extracted.
+
+**Files:** `services/memory_engine.py`, `core/dm/phases/context.py`, `core/dm/phases/postprocessing.py`
+
+---
+
+## 2026-04-02 — Fix DNA Vocabulary Extraction (Data-Mined, Per-Lead TF-IDF)
+
+**Context:** DNA `vocabulary_uses` is EMPTY for ALL records. `ENABLE_DNA_AUTO_ANALYZE` defaults to `false`, so the full `RelationshipAnalyzer.analyze()` never runs. Additionally, vocabulary extraction used substring matching (`word in text`) which catches "compa" inside "acompanyar". `clone_system_prompt_v2.py` had hardcoded vocabulary `["bro", "hermano", "crack", "tío"]` (not used in prod but violates zero-hardcoding).
+
+**Decision:** Build a proper vocabulary extraction system:
+1. New `services/vocabulary_extractor.py` — canonical tokenizer with word-boundary regex, shared stopwords (ES/CA/EN/PT/IT), TF-IDF distinctiveness scoring per lead
+2. Rewrite `RelationshipAnalyzer._extract_vocabulary_uses()` to use new extractor
+3. Flip `ENABLE_DNA_AUTO_ANALYZE` default to `true`
+4. Remove hardcoded Stefan vocabulary from `clone_system_prompt_v2.py`
+5. Unify stopwords across `compressed_doc_d.py` and `relationship_analyzer.py`
+6. Backfill script to re-populate all DNA records
+
+**Verified data:** Iris has 17K+ real messages (0 bot messages). She uses "tio" (21x), "cuca" (26x), "carinyo" (23x) — these are REAL. "compa" appears 16x but 15 are substrings of "acompanyar/compartir".
+
+**Files:** `services/vocabulary_extractor.py` (NEW), `services/relationship_analyzer.py`, `services/relationship_dna_service.py`, `core/dm/phases/context.py`, `core/dm/compressed_doc_d.py`, `prompts/clone_system_prompt_v2.py`, `scripts/backfill_dna_vocabulary.py` (NEW)
+
+---
+
+## 2026-04-02 — Implement Anthropic Contextual Retrieval (Universal)
+
+**Context:** Anthropic's "Contextual Retrieval" paper (2024) shows +49% retrieval quality by prepending creator context to chunks before embedding. Clonnect had this for Iris only (`IRIS_CONTEXT_PREFIX` hardcoded in `scripts/create_proposition_chunks.py`). Now universalized for any creator.
+
+**Implementation:**
+- New module `core/contextual_prefix.py`: `build_contextual_prefix(creator_id)` auto-generates a 1-3 sentence prefix from Creator + ToneProfile DB data (name, handle, specialties, location, language/dialect)
+- Wrapper functions `generate_embedding_with_context()` and `generate_embeddings_batch_with_context()` prepend prefix to document text before embedding
+- 5 call sites patched: `SemanticRAG.add_document()`, `content_refresh.py`, `_rag_gen_embeddings.py`, `content.py` batch endpoint, `create_proposition_chunks.py`
+- Search queries remain prefix-free (asymmetric by design per paper)
+- Legacy `IRIS_CONTEXT_PREFIX` kept as fallback only
+
+**Key decision:** Prefix applied at embedding time, NOT stored in content. Clean content stays in `content_chunks`; prefix is "baked into" the vector. This means existing embeddings must be regenerated to get the quality improvement.
+
+---
+
+## 2026-04-02 — Conversation Boundary Detection System
+
+**Problem:** Instagram/WhatsApp DMs are ONE continuous thread per lead. No "sessions" exist — just a stream of messages over weeks/months. This causes:
+- DPO pairs with wrong context (pairs from different conversations mixed)
+- Test sets with contaminated pairs (unrelated messages paired together)
+- Bot responses with wrong context (loading messages from a different conversation)
+
+**Research:** Reviewed 15+ papers (TextTiling, C99, BayesSeg, GraphSeg, SuperDialSeg, MSC, LoCoMo, IRC disentanglement) + 12 GitHub repos + industry practices (Zendesk, Intercom, WhatsApp Business, Google Analytics). Key finding: MSC and LoCoMo both ASSUME pre-segmented sessions — boundary detection is an under-researched gap.
+
+**Decision:** Hybrid multi-signal approach (industry consensus for async messaging):
+1. **Time gap (tiered, primary):** <5min=SAME, 5-30min=check greeting, 30min-4h=check signals, >4h=NEW
+2. **Greeting detection (secondary):** Multilingual ES/CA/EN/PT greeting patterns
+3. **Farewell detection (secondary):** Detects conversation-ending signals in previous message
+
+**Why not embeddings:** For v1, time + greeting gets ~85% accuracy per literature. Embeddings add latency/complexity for the ambiguous 30min-4h zone — can be added in v2 if needed.
+
+**Integration points:**
+- `core/conversation_boundary.py` — pure-logic detector, no DB dependency
+- `core/dm/helpers.py` — filter context loading by current session
+- `scripts/build_stratified_test_set.py` — pair within same session
+- `scripts/export_training_data.py` — pair within same session
+- `scripts/tag_sessions.py` — retroactive tagging script
+
+**Schema:** Compute session boundaries on-the-fly from timestamps + content. No new DB column needed (session_id is derived, not stored). This avoids migration complexity and keeps the system stateless.
+
+---
+
+## 2026-04-02 — Forensic Audit: System #12 Reranker
+
+**Context:** Cross-encoder reranker using `nreimers/mmarco-mMiniLMv2-L12-H384-v1` (multilingual, 117.6M params, 926MB RAM).
+Found 5 bugs: 2x P1 IndexError crashes on empty docs in `_rerank_local`/`_rerank_cohere`, stale docstrings/comments, wrong test assertion.
+All fixed. 15 new functional tests + 25 existing tests pass.
+
+**Key metrics:** 33ms/12 pairs latency, excellent CA/ES/IT/EN quality (scores 0.996-0.999 for relevant multilingual docs).
+**Cost:** Railway Pro €20/month required (926MB RAM). Graceful fallback on Hobby plan.
+**Research:** mMARCO, ColBERTv2, BGE-reranker-v2-m3, FlashRank reviewed. Current model is good choice for multilingual. FlashRank (60MB) is lighter alternative.
+
+---
+
+## 2026-04-02 — Forensic Audit: System #11 RAG Knowledge Engine
+
+**Context:** Full forensic audit of the RAG system (15 files, ~4000 LOC). Architecture is solid: 4-step search pipeline (semantic → BM25 → rerank → source boost), adaptive retrieval gating, priority-based context budget.
+
+**Bugs Found & Fixed:**
+- **BUG-RAG-02 (P2):** RAG chunks injected into prompt without sanitization → added `_sanitize_rag_content()` to strip prompt injection patterns
+- **BUG-RAG-03 (P2):** RAG search runs synchronously in async context (blocks event loop 300-700ms) → wrapped in `asyncio.to_thread()`
+- **BUG-RAG-04 (P3):** `_creator_kw_cache` was unbounded dict → replaced with `BoundedTTLCache(50, 3600s)`
+- **BUG-RAG-05 (P3):** BM25 `_retrievers` was unbounded dict → replaced with `BoundedTTLCache(50, 3600s)`
+
+**Known Issue (not fixed):**
+- **BUG-RAG-01 (P1):** `scripts/create_proposition_chunks.py` is hardcoded for Iris (context prefix, UUID, all content). Not fixed because `ingestion/v2/pipeline.py` already handles generic chunk creation — this script should be deprecated.
+
+**Full audit:** `docs/audit/sistema_11_rag_knowledge.md`
+
+---
+
+## 2026-04-02 — Merge System #7 (User Context) INTO System #8 (DNA Engine)
+
+**Context:** Ablation testing showed System #7 (User Context Builder) adds no measurable improvement as a separate system (p>0.05 on 11/12 metrics). System #7 and #8 overlap: both inject lead profile data into the prompt. Two separate blocks compete for token budget.
+
+**Decision:** Absorb #7's unique data (name, language, interests, CRM status) into #8's DNA block. ONE unified `=== CONTEXTO DE RELACIÓN ===` block replaces two separate injections.
+
+**Implementation:**
+- `format_unified_lead_context()` in `dm_agent_context_integration.py` merges DNA + lead profile
+- Lead profile built as dict in `context.py`, passed to merge function
+- `_build_recalling_block()` no longer has `lead_profile` parameter
+- Deduplication: interests already in DNA `recurring_topics` are not repeated
+- If no DNA exists yet (new lead), minimal block with lead profile data still injected
+
+**Token savings:** ~100-400 chars per prompt (eliminated duplicate header/footer + deduplicated fields).
+
+**Tests:** 35/35 passed (15 test groups). Smoke: 7/7 passed.
+
+**Not changed:** `user_context_loader.py` kept (marked DEPRECATED) — still imported by `tests/academic/` and `prompt_builder/`.
+
+---
+
+## 2026-04-02 — Unified FeedbackStore: Consolidate 3 feedback services + add evaluator feedback
+
+**Context:** Forensic audit of System #11 found 3 overlapping feedback services (preference_pairs, learning_rules, gold_examples) with:
+- 2 P1 bugs: double-confidence multiplication in scoring (learning_rules:154+185, gold_examples:162+183)
+- 80+ duplicated lines of historical mining code
+- Same copilot action → data in up to 3 tables with no conflict resolution
+- No evaluator feedback capture (feedback from CPE ablation dies in chat)
+
+**Research basis:** 20 papers + 20 repos analyzed (docs/research/HUMAN_FEEDBACK_SYSTEM.md). PAHF, DEEPER, DPRF, Character.ai, Replika, Delphi.ai — ALL use one unified feedback store.
+
+**Decision:** 
+1. Fix P1 scoring bugs (2-line fixes)
+2. Create unified `FeedbackStore` facade that delegates to existing 3 services (no caller changes needed)
+3. Add `EvaluatorFeedback` DB model + `save_feedback()` that auto-creates preference pairs and gold examples
+4. New API endpoints: POST/GET /api/feedback
+5. Keep existing 3 tables + add 1 new table (not merge — different schemas)
+
+**Architecture:** Facade pattern. 19+ existing callers untouched. New code uses FeedbackStore. Backward compatible.
+
+**Files:** services/feedback_store.py (new), api/models/learning.py (add model), api/routers/feedback.py (new), 2 bug fixes, alembic migration, tests.
+
+---
+
+## 2026-04-02 — BUG-EMOJI-01: Fix broken emoji-only detection (universal)
+
+**Root cause:** `response_variator_v2.py:446` used `ord(c) > 127000` to detect emoji-only
+messages. This hardcoded threshold misses ALL emoji below U+1F018: ❤️ (U+2764), ✨ (U+2728),
+⭐, ☺️, ♥️, ✅, ⚡, and all variation-selector sequences (U+FE0F = 65039). Same bug in
+`clone_system_prompt_v2.py:224` for emoji counting.
+
+**Impact:** Emoji-only messages like "💃🏻💃🏻💃🏻❤️❤️" fell through to LLM, producing
+incoherent hallucinated responses ("Ja m'he espavilat, t'he vist!"). Discovered during
+Layer 2 + System #10 ablation.
+
+**Fix:** Created `core/emoji_utils.py` with Unicode-category-based detection:
+- `is_emoji_char(c)`: unicodedata.category + variation selectors + ZWJ + skin tones + keycap + tags
+- `is_emoji_only(text)`: all chars are emoji or whitespace
+- `count_emojis(text)`: visible emoji count (excludes modifiers)
+
+Unified 3 separate emoji detection implementations:
+1. `services/response_variator_v2.py` — pool routing (the critical path)
+2. `prompts/clone_system_prompt_v2.py` — style metric calculation
+3. `core/dm/style_normalizer.py` — emoji stripping post-processing
+
+**Research:** PersonaGym (EMNLP 2025), Character.ai, Replika all treat emoji-only as
+emotion-signal → short persona-consistent pool response. Never echo emoji. Never send to LLM.
+
+---
+
+## 2026-04-01 — Episodic Memory: Fix 8 audit bugs (System #10)
+
+Forensic audit (docs/audit/sistema_10_episodic_memory.md) found 8 bugs.
+
+**P0 — BUG-EP-01**: No write path for Instagram leads. `add_message()` was never
+called in the main DM pipeline. Fixed by adding `get_semantic_memory().add_message()`
+in `post_response.py`.
+
+**P1 fixes**: Raised similarity threshold 0.45→0.60 (EP-02), added dedup against
+recent history (EP-04). **P2 fixes**: Single ID resolution pass (EP-05), quality-gated
+results fetch 5 cap 3 (EP-06), logged exceptions instead of `pass` (EP-07).
+**P3**: Content truncation 150→250 chars (EP-08).
+
+**Decision**: BUG-EP-03 (timestamp filter) deferred — requires testing with production
+data to calibrate time window. Higher similarity threshold partially mitigates.
+
+---
+
+## 2026-04-01 — User Context Builder: Fix all 8 audit bugs
+
+Forensic audit (docs/audit/sistema_07_user_context.md) found 9 bugs. BUG-UC-06
+(ConvState ES-only) was already fixed. Remaining 8:
+
+**P0 — Language write-back (BUG-UC-01):**
+  In post_response.update_follower_memory(), detect language from user_message
+  and write to follower.preferred_language if high confidence. Uses existing
+  core.i18n.detect_language (wraps langdetect). Only update if detected != current
+  and message is long enough (>=10 chars) to avoid false positives.
+
+**P0 — Name persistence (BUG-UC-02):**
+  In post_response.update_follower_memory(), check cognitive_metadata for
+  detected user_name from context_signals. If present and follower.name is empty,
+  persist it.
+
+**P1 — Numeric username filter (BUG-UC-08):**
+  In prompt_service.build_user_context(), skip username if all digits.
+
+**P2 — Rename UserContext (BUG-UC-03):**
+  Rename conversation_state.UserContext → SalesFunnelContext to disambiguate.
+
+**P2 — Delete dead code (BUG-UC-04):**
+  Delete services/context_memory_service.py.
+
+**P2 — Fix deprecated import (BUG-UC-05):**
+  In user_context_loader._load_from_follower_memory(), use services.memory_service
+  MemoryStore instead of deprecated core.memory.MemoryStore.
+
+**P3 — Unbounded situation (BUG-UC-09):**
+  Cap situation string at 200 chars in conversation_state._extract_context().
+
+**P3 — Cache TTL (BUG-UC-07):**
+  WON'T FIX — 60s TTL in UserContextLoader is acceptable. The main DM pipeline
+  doesn't use this cache. Risk is minimal.
+
+**Files affected:** core/dm/post_response.py, services/prompt_service.py,
+  core/conversation_state.py, core/user_context_loader.py,
+  services/context_memory_service.py (DELETE)
+
+**BUG-UC-10 (CRITICAL): build_user_context() output is dead code in generation phase.**
+  context.py:934 builds user_context → stored in ctx.user_context →
+  generation.py:115 loads it into local var → NEVER injected into prompt.
+  Lead commercial data (interests, objections, products, purchase score, stage,
+  name, language) is computed but thrown away.
+
+  Fix: Build a structured lead profile block directly in the context phase
+  and inject it into the Recalling block (system prompt). Delete the unused
+  build_user_context() call. Per papers (LaMP 2023, PEARL 2023, Li et al. 2024):
+  structured key-value format in system prompt > prose in user message.
+
+  user_context_loader.py KEPT as secondary path (prompt_builder/debug/tests).
+  Not wired into main pipeline — main pipeline already has follower data available
+  directly, no need for a 3-source loader that adds latency.
+
+---
+
 ## 2026-03-31 — Pool Matching: remaining bugs fixed; papers confirm KEEP
 
 BUG-PM-01/02/03/05 were already fixed in code (audit doc was stale snapshot).

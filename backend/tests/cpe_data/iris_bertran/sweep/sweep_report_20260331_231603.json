@@ -1,0 +1,58 @@
+{
+  "creator": "iris_bertran",
+  "timestamp": "2026-03-31T21:16:03.996455+00:00",
+  "protocol": "additive_ablation",
+  "n_runs": 3,
+  "n_cases": 50,
+  "naked_baseline": {
+    "bertscore_f1": -0.047,
+    "chrf": 0.1643
+  },
+  "systems": [
+    {
+      "system": "guardrails",
+      "env_var": "ENABLE_GUARDRAILS",
+      "status": "TESTED",
+      "l2_bertscore": -0.0494,
+      "l2_delta": -0.0024,
+      "l2_p": 0.680645,
+      "l2_cliff": -0.0056,
+      "l2_cliff_mag": "negligible",
+      "l3_chrf": 0.1607,
+      "l3_delta": -0.0036,
+      "l3_p": 0.533571,
+      "l3_cliff": -0.0232,
+      "decision": "NO EFFECT"
+    },
+    {
+      "system": "output_validation",
+      "env_var": "ENABLE_OUTPUT_VALIDATION",
+      "status": "TESTED",
+      "l2_bertscore": -0.0527,
+      "l2_delta": -0.0057,
+      "l2_p": 0.372486,
+      "l2_cliff": -0.0216,
+      "l2_cliff_mag": "negligible",
+      "l3_chrf": 0.1644,
+      "l3_delta": 0.0001,
+      "l3_p": 0.174988,
+      "l3_cliff": -0.0192,
+      "decision": "NO EFFECT"
+    },
+    {
+      "system": "response_fixes",
+      "env_var": "ENABLE_RESPONSE_FIXES",
+      "status": "TESTED",
+      "l2_bertscore": -0.0499,
+      "l2_delta": -0.003,
+      "l2_p": 0.840754,
+      "l2_cliff": -0.0112,
+      "l2_cliff_mag": "negligible",
+      "l3_chrf": 0.1668,
+      "l3_delta": 0.0025,
+      "l3_p": 0.295473,
+      "l3_cliff": -0.0072,
+      "decision": "NO EFFECT"
+    }
+  ]
+}

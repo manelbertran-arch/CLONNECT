@@ -1,126 +1,78 @@
-"""Tests for VocabularyExtractor service.
+"""Tests for vocabulary_extractor service (data-mined, TF-IDF).
 
-TDD: Tests written FIRST before implementation.
-Part of RELATIONSHIP-DNA feature.
+Updated to test the new module-level functions after rewrite.
 """
 
-from models.relationship_dna import RelationshipType
 
-
-class TestVocabularyExtractor:
-    """Test suite for VocabularyExtractor service."""
+class TestVocabularyExtractorService:
+    """Test suite for vocabulary_extractor module functions."""
 
     def test_extract_common_words(self):
         """Should extract commonly used words from messages."""
-        from services.vocabulary_extractor import VocabularyExtractor
+        from services.vocabulary_extractor import extract_lead_vocabulary
 
-        extractor = VocabularyExtractor()
         messages = [
-            "Hola hermano, que tal?",
-            "Muy bien hermano! Y vos?",
-            "Todo genial hermano, gracias por preguntar",
+            "Hola cuca, que tal?",
+            "Cuca bon dia!",
+            "Adeu cuca, un petó!",
         ]
 
-        result = extractor.extract_common_words(messages)
+        result = extract_lead_vocabulary(messages, min_freq=2)
 
-        assert "hermano" in result
-        assert len(result) <= 10  # Should limit results
-
-    def test_extract_emojis(self):
-        """Should extract emojis from messages."""
-        from services.vocabulary_extractor import VocabularyExtractor
-
-        extractor = VocabularyExtractor()
-        messages = [
-            "Genial! 🙏🏽",
-            "Gracias hermano 💪🏽 🔥",
-            "Un abrazo 🙏🏽",
-        ]
-
-        result = extractor.extract_emojis(messages)
-
-        assert "🙏🏽" in result
-        assert any("💪" in e or "🔥" in e for e in result)
-
-    def test_detect_forbidden_words(self):
-        """Should detect words that should be avoided based on relationship."""
-        from services.vocabulary_extractor import VocabularyExtractor
-
-        extractor = VocabularyExtractor()
-
-        # For INTIMA relationship, should avoid "hermano"
-        forbidden = extractor.get_forbidden_words(RelationshipType.INTIMA.value)
-
-        assert "hermano" in forbidden
-        assert "bro" in forbidden
-
-    def test_extract_muletillas(self):
-        """Should extract filler words (muletillas) from messages."""
-        from services.vocabulary_extractor import VocabularyExtractor
-
-        extractor = VocabularyExtractor()
-        messages = [
-            "Bueno, pues nada, que te cuento",
-            "Pues mira, la verdad es que...",
-            "Bueno pues eso, que genial",
-        ]
-
-        result = extractor.extract_muletillas(messages)
-
-        assert "bueno" in result or "pues" in result
+        assert "cuca" in result
+        assert result["cuca"] >= 2
 
     def test_empty_history_returns_empty(self):
-        """Should return empty list for empty message history."""
-        from services.vocabulary_extractor import VocabularyExtractor
+        """Should return empty dict for empty message history."""
+        from services.vocabulary_extractor import extract_lead_vocabulary
 
-        extractor = VocabularyExtractor()
-
-        result = extractor.extract_common_words([])
-
-        assert result == []
+        result = extract_lead_vocabulary([])
+        assert result == {}
 
     def test_short_history_returns_partial(self):
         """Should return partial results for short history."""
-        from services.vocabulary_extractor import VocabularyExtractor
+        from services.vocabulary_extractor import extract_lead_vocabulary
 
-        extractor = VocabularyExtractor()
         messages = ["Hola", "Hey"]
-
-        result = extractor.extract_common_words(messages)
-
-        assert isinstance(result, list)
-        # May be empty or have few results for short history
+        result = extract_lead_vocabulary(messages, min_freq=2)
+        assert isinstance(result, dict)
 
     def test_long_history_extracts_patterns(self):
         """Should extract patterns from long conversation history."""
-        from services.vocabulary_extractor import VocabularyExtractor
+        from services.vocabulary_extractor import extract_lead_vocabulary
 
-        extractor = VocabularyExtractor()
-        messages = []
-        for i in range(50):
-            messages.append(f"Mensaje {i} con palabra crack repetida")
+        messages = [f"Mensaje con palabra crack repetida" for _ in range(50)]
+        result = extract_lead_vocabulary(messages, min_freq=2)
+        assert "crack" in result
 
-        result = extractor.extract_common_words(messages)
+    def test_stopwords_filtered(self):
+        """Stopwords should be excluded from results."""
+        from services.vocabulary_extractor import extract_lead_vocabulary
 
-        assert "crack" in result  # Should find repeated word
+        messages = ["que bueno que estás bien"] * 5
+        result = extract_lead_vocabulary(messages, min_freq=2)
+        for sw in ["que", "bueno", "bien"]:
+            assert sw not in result
 
-    def test_extract_from_stefan_style_data(self):
-        """Should extract Stefan's specific vocabulary patterns."""
-        from services.vocabulary_extractor import VocabularyExtractor
+    def test_word_boundary_no_substring_match(self):
+        """Should not match 'compa' inside 'acompanyar'."""
+        from services.vocabulary_extractor import tokenize
 
-        extractor = VocabularyExtractor()
-        # Stefan's typical messages
-        messages = [
-            "Hermano que bueno verte por aqui! 🙏🏽",
-            "Bro, como vas con todo?",
-            "Increible! Me alegro mucho por ti hermano 💪🏽",
-            "El proximo circulo va a estar brutal",
-            "Te mando un abrazo grande hermano 🫂",
-        ]
+        tokens = tokenize("Voy a acompanyarte al retiro")
+        assert "compa" not in tokens
 
-        common = extractor.extract_common_words(messages)
-        emojis = extractor.extract_emojis(messages)
+    def test_get_top_distinctive_words(self):
+        """Should return top distinctive words."""
+        from services.vocabulary_extractor import get_top_distinctive_words
 
-        # Should detect Stefan's vocabulary
-        assert "hermano" in common or "bro" in common
-        assert "🙏🏽" in emojis or "💪🏽" in emojis
+        messages = ["Hola flower"] * 5 + ["Bon dia reina"] * 3
+        result = get_top_distinctive_words(messages, top_n=3)
+        assert len(result) <= 3
+        assert isinstance(result, list)
+
+    def test_tokenize_media_placeholder(self):
+        """Media placeholders should produce no tokens."""
+        from services.vocabulary_extractor import tokenize
+
+        assert tokenize("[🎤 Audio]: algo") == []
+        assert tokenize("[media/attachment]") == []

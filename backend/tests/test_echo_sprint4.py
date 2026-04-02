@@ -202,7 +202,7 @@ class TestRelationshipAdapter:
             lead_memory_summary="Le interesa yoga y meditación. Compró el curso básico.",
         )
 
-        assert "MEMORIA DEL LEAD" in ctx.prompt_instructions
+        assert "RECUERDA:" in ctx.prompt_instructions
         assert "yoga" in ctx.prompt_instructions
 
     def test_lead_name_personalization(self):

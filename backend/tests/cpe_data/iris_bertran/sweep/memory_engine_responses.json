@@ -1,0 +1,1064 @@
+{
+  "config": "memory_engine",
+  "env_var": "ENABLE_MEMORY_ENGINE",
+  "n_runs": 3,
+  "runs": [
+    [
+      {
+        "id": "cpe_iris_b_001",
+        "test_input": "Con las ganas que tenia de hacer el nuevo combo😭",
+        "ground_truth": "Con la calma baby lo primero es lo primero",
+        "bot_response": "Jajaja, qué crack! 🩷  \n¿Y cuándo vas a empezar con las clases? 😘  \nTe ayudo sin problema, prometido.  \n¡Vamos a confiar! 💪",
+        "elapsed_ms": 6186
+      },
+      {
+        "id": "cpe_iris_b_002",
+        "test_input": "Potser podria fer una classe d’hipopressius/estiraments?",
+        "ground_truth": "Clar Mariaaa🙂‍↔️😘",
+        "bot_response": "Jajaja, q crack! 🩷 Vamos, ya te dije que estás en la caca, pero es para que salgas mejor!",
+        "elapsed_ms": 3264
+      },
+      {
+        "id": "cpe_iris_b_003",
+        "test_input": "[🎤 Audio]: Vas comprar alguna cosa o què? Jo ja m’he gastat el diner, he comprat uns shots i crec que m’agafaré un bikini, però bé, encara tinc que pensar. Todia gastada, todia gastant, mare mia. Que no et preocupis, reina, que jo era més que res que vaig pensar, joder, vaig anar a saludar a tothom i després a la que vol vi, que no estuve tant. Diu, ja no està, i jo ja està preguntant. I em van dir, no, si no l’he vist, de fet vaig preguntar a la gent i tot. I em va dir, no, si no, no ho sé. I jo, pues anar. I vaig pensar que si us anava a sopar, m’enganxava amb vosaltres, saps? Perquè m’estava morint de gana i no volia estar picutejant hamburgers i patates. Que jo quan fui no hi havia nada. Després va donar-hi tot. Llavors va ser quan m’ho vaig menjar allà encullent, sense el pan, perquè hi va gruten, sí, però me’l comí. I clar, la nena, quan va arribar a casa va tornar a menjar. Perquè, obviament, jo solo amb la burger i les patates, la veritat, m’he dava mit de passar gana. I jo, que no tenia que haver sopat perquè no he dormit tres.",
+        "ground_truth": "Jajaja, entenc perfecte  Tria el que més t’agradi, que no et preocupis.",
+        "bot_response": "Jajaja, reina, que cuca has estat! 🩷  \nT’entenc perfecte, és això que passa quan t’has de menjar per 3!",
+        "elapsed_ms": 5385
+      },
+      {
+        "id": "cpe_iris_b_004",
+        "test_input": "Sábado nada",
+        "ground_truth": "Sent a voice message",
+        "bot_response": "Jajajaja, que crack! 🩷  \nSíii, te echaré una mano, mi niña!",
+        "elapsed_ms": 5439
+      },
+      {
+        "id": "cpe_iris_b_005",
+        "test_input": "Per la regla",
+        "ground_truth": "Es el meu dia a dia",
+        "bot_response": "Jajaja, mi niña! 💪💃 La gira es brutal, ya lo veo 😘  \nY la certificación, sí, es el toque final!",
+        "elapsed_ms": 5756
+      },
+      {
+        "id": "cpe_iris_b_006",
+        "test_input": "😅😅 qué lindas",
+        "ground_truth": "Sent an attachment",
+        "bot_response": "Jajaja, q crack! 😘  \nT’has de fer una sessió d’hipopressius, estiraments i una zumba, és el combo perfecte!",
+        "elapsed_ms": 3037
+      },
+      {
+        "id": "cpe_iris_b_007",
+        "test_input": "Me río de esto",
+        "ground_truth": "Jajajaja qué crackkkkk! Me alegro un montón que te gustase la clase ayer, nena! 🫶🏽 Lo de la plancha, ¡ya te digo!",
+        "bot_response": "Jajaja, que onada! 😂  \nQue poca vergüenza, reina!",
+        "elapsed_ms": 5675
+      },
+      {
+        "id": "cpe_iris_b_008",
+        "test_input": "🫵🏻🫵🏻🫵🏻🚀🚀🚀",
+        "ground_truth": "Hola Abrl Encantada! ¿Qué tal estás? ¿Cuándo te apetece?",
+        "bot_response": "Jajaja, q onada! 🩷  \nT’imagino amb els shots i el bikini, reina!",
+        "elapsed_ms": 5656
+      },
+      {
+        "id": "cpe_iris_b_009",
+        "test_input": "[Media/Attachment]",
+        "ground_truth": "Com vas cuca?",
+        "bot_response": "Jajajaja, què rica! 😂  \nReina, si vols fer una sessió d'hipopressius/estiraments, estic aquí per a tu!",
+        "elapsed_ms": 5049
+      },
+      {
+        "id": "cpe_iris_b_010",
+        "test_input": "Sent a voice message",
+        "ground_truth": "A valeeee",
+        "bot_response": "Jajaja, qué crack! 🩷  \nClaro que sí, les pots fer una sessió d’hipopressius o estiraments, ja te’n parlo avui mateix!",
+        "elapsed_ms": 5030
+      },
+      {
+        "id": "cpe_iris_b_011",
+        "test_input": "Mentioned you in their story",
+        "ground_truth": "Jajajajaja tal qual",
+        "bot_response": "Jajaja, que has visto el combo y te has flipado 😂  \nClaro que sí, pots fer la classe d'hipopressius/estiraments!",
+        "elapsed_ms": 5825
+      },
+      {
+        "id": "cpe_iris_b_012",
+        "test_input": "[Media/Attachment]",
+        "ground_truth": "Hola! Què tal? En què et puc ajudar? 😘",
+        "bot_response": "Jajaja, que rollo! 🫠  \nT’agraden els hipopressius?",
+        "elapsed_ms": 2680
+      },
+      {
+        "id": "cpe_iris_b_013",
+        "test_input": "que ganas tengo de la clase hoy! \npara mí el baile siempre ha sido una vía de escape y de conectar conmigo, y tus clases son perfectas pa eso♥️",
+        "ground_truth": "Sent a voice message",
+        "bot_response": "Jajaja, q crack! 🩷  \nM’alegra molt que t’agradi! 💪  \nAnem a confiar, eh?  \nUn abrazo, reina! 😘",
+        "elapsed_ms": 4591
+      },
+      {
+        "id": "cpe_iris_b_014",
+        "test_input": "perfect!",
+        "ground_truth": "Perfecto Carri Nos vemos entonces!",
+        "bot_response": "Jajaja q crack! 🩷  \nMe encanta que te lo pases tan bien en clase. Hoy es día de twerk, ¿te apetece?",
+        "elapsed_ms": 3753
+      },
+      {
+        "id": "cpe_iris_b_015",
+        "test_input": "yo me voy a dormir nenaaaa q nos adelantan una hora esta noche",
+        "ground_truth": "Es que no tinc enllaç jo ok",
+        "bot_response": "Jajaja, qué crack! 🩷  \nDuerme bien, linda, que hoy vas a flipar 💃🕺  \nNos vemos! 🌙✨",
+        "elapsed_ms": 4753
+      },
+      {
+        "id": "cpe_iris_b_016",
+        "test_input": "no me puedes dejar los domingos mami, tiene que estar mi booty a tope",
+        "ground_truth": "Ojalá estar en Cancún",
+        "bot_response": "Jajaja qué monada 😘  \n¡Ay, el booty siempre a tope! 🫠  \nNos vemos mañana, nena 💪  \nUn abrazo超强！",
+        "elapsed_ms": 4677
+      },
+      {
+        "id": "cpe_iris_b_017",
+        "test_input": "Sin azucar😂",
+        "ground_truth": "Buaaaa vaia festivalazooo nene a veure que els posa a dormir avui🤣🤣🤣💪🏾",
+        "bot_response": "Jajaja, qué crack! 🫠💃  \nNena, me encanta que te conectes tanto con el baile. ¡Es lo mejor!",
+        "elapsed_ms": 2788
+      },
+      {
+        "id": "cpe_iris_b_018",
+        "test_input": "Ya me has comprado el mio? 🥰",
+        "ground_truth": "Si encima que me dejas deshidratada😂😂😂",
+        "bot_response": "Jajaja q crack! 🩷  \nDormir bien, que te sientas genial mañana 💤  \nY el booty a tope, como siempre 😘  \nYa me compré el mío, y ya te digo! 🚀",
+        "elapsed_ms": 4763
+      },
+      {
+        "id": "cpe_iris_b_019",
+        "test_input": "Os dejo aquí el drive de “ralphie choo”, tenéis aquí todo lo relacionado con el módulo, vídeos de después de clase en buena calidad, tutoriales etc.\n\nhttps://drive.google.com/drive/folders/1XBnD1D5IhAA3uIRFWgDx3pyV7EEc2aV0?usp=sharing",
+        "ground_truth": "Ostia amorrr, quina feinada de contractura!! 🫠 Però me n'alegro moltíssim que estiguis millor després del fisio, rei/reina.",
+        "bot_response": "Jajaja qué crack! 💪  \nNena, qué lindo lo que dices del baile, me encanta que te conectes así.  \nChao, descansa bien, que te veo esta noche!",
+        "elapsed_ms": 5404
+      },
+      {
+        "id": "cpe_iris_b_020",
+        "test_input": "Lo disfrutará igual",
+        "ground_truth": "[🏷️ Sticker]",
+        "bot_response": "Jajaja qué crack! 🩷 Me encanta que lo disfrutes tanto, es lo mejor que podemos hacer, ¿verdad?",
+        "elapsed_ms": 6044
+      },
+      {
+        "id": "cpe_iris_b_021",
+        "test_input": "[🏷️ Sticker]",
+        "ground_truth": "Vale perfect es que al final el concert marxo divendres i x això tik dient a la gent de dijous que si que fem entreno",
+        "bot_response": "Jajaja qué crack! 🩷  \nY yo que tengo el booty a tope ya 😂  \nGracias por el drive, me lo miro ahora mismo!",
+        "elapsed_ms": 4900
+      },
+      {
+        "id": "cpe_iris_b_022",
+        "test_input": "Reinaaaa,Passam número de la teva secretaría millor😘😅😘😅 i em reservo un parell de clases+dinaret o soparet 🎊🍾🤩",
+        "ground_truth": "Amorrr, ja te'n passo el número 😘 Capo, quin dia et guardes per mi? 😂❤️ Ja et reservo les classes, i el dinaret o soparet, que no et vols perdre! 🥂 Et torno a trucar, promet! 🫠😘",
+        "bot_response": "Jajaja, q crack! 🩷  \nDormi lindaaaa, q mañana estiguis a tope! 💪  \nI si t’agrada, et reservo les classes! ✌🏽  \nPregunta a la secretaria, q t’ho posen tot perfecte! 😘",
+        "elapsed_ms": 5314
+      },
+      {
+        "id": "cpe_iris_b_023",
+        "test_input": "Ok no pasa nada tu dime si puedes el lunes",
+        "ground_truth": "Jajaja, qué recuerdo tan buenoooo 😂😂 Amor, ya me dices si puedes el lunes, que te cuento. Y por cierto, lo de la plancha, ya llegas, no te preocupes. Y no te olvides de descansar, que es lo más importante. Un abrazo fuerte 💗",
+        "bot_response": "Jajaja qué crack! 💪  \nNena, ya me lo he comprado, gracias! ✌🏽  \nDescansa bien, que mañana ya verás cómo te pones! 😘  \nY los domingos, por supuesto que sí, tu booty necesita estar a tope! 🫠  \nChao, nos vemos! 🩷",
+        "elapsed_ms": 2873
+      },
+      {
+        "id": "cpe_iris_b_024",
+        "test_input": "[audio]",
+        "ground_truth": "[audio]",
+        "bot_response": "Jajaja, qué crack! 😂  \nQue descanses bonita, que te lo mereces 💤  \nY sí, mi booty también a tope!",
+        "elapsed_ms": 4804
+      },
+      {
+        "id": "cpe_iris_b_025",
+        "test_input": "[reaction: ❤️]",
+        "ground_truth": "Baby si demà no marxes i prefereixes demà tarda a les 17:00 em dius ok",
+        "bot_response": "Jajaja, que crack! 🩷 No me dejes así, reinaaaa 😘  \nEl drive lo veo, gracias por compartir.",
+        "elapsed_ms": 4967
+      },
+      {
+        "id": "cpe_iris_b_026",
+        "test_input": "yes mami són molt maques totes",
+        "ground_truth": "Demà pujo alguna fotiki que l’ha fet el Albert que me l’he emportat",
+        "bot_response": "Jajaja, el booty siempre a tope! 💪  \nGràcies per la info, el drive el tinc ja!",
+        "elapsed_ms": 5199
+      },
+      {
+        "id": "cpe_iris_b_027",
+        "test_input": "Mentioned you in their story",
+        "ground_truth": "¡Hola! 🫶🏽 ¿?",
+        "bot_response": "Jajaja, qué crack! 🩷 Gracias por el drive, lo reviso ahora mismo!",
+        "elapsed_ms": 3141
+      },
+      {
+        "id": "cpe_iris_b_028",
+        "test_input": "tia al lado d mi cada literal o sea flipo",
+        "ground_truth": "Jajaja, que tia",
+        "bot_response": "Jajaja q crack! 🩷  \nTia al costat meu? 😂  \nVamos a confiar que no te vas a liar 😘  \nDime cuando, que te reservo el sitio! 🫶🏽",
+        "elapsed_ms": 5436
+      },
+      {
+        "id": "cpe_iris_b_029",
+        "test_input": "espero que t’agradi",
+        "ground_truth": "[🎤 Audio]: ¡Ay, que me muero!",
+        "bot_response": "Jajaja q crack! 🩷 Merciii x todo amor 😘",
+        "elapsed_ms": 4991
+      },
+      {
+        "id": "cpe_iris_b_030",
+        "test_input": "Mentioned you in their story",
+        "ground_truth": "Mentioned you in their story",
+        "bot_response": "Jajaja reinaaa 😘  \nNo pasa nada, el lunes estoy disponible! 💪  \nY ya te reservo esas clases, qué bien que te gusten tantas 😍  \n¿Te apetece que te diga algo más? ❤️",
+        "elapsed_ms": 5162
+      },
+      {
+        "id": "cpe_iris_b_031",
+        "test_input": "Acuérdate que la puerta es la que está atrás de la cafetería. Plaza de Charlie Ribble 1. Piso 4A.",
+        "ground_truth": "Jajaja, no te preocupes, ya te veo en directo! 🩷 Voy bajando, tranqui. Y ya te dejo mi habitación preparada, no te preocupes.",
+        "bot_response": "Jajaja reinaaa 😘❤️  \nT’he reserbo el lunes, només diu a la secretaria que és per a mi!",
+        "elapsed_ms": 5256
+      },
+      {
+        "id": "cpe_iris_b_032",
+        "test_input": "Verdades como templos",
+        "ground_truth": "Gràcies flor🩷",
+        "bot_response": "Jajajaja reinaaaaa 🫠❤️  \nClaro que sí, el lunes estás en mi lista!",
+        "elapsed_ms": 3539
+      },
+      {
+        "id": "cpe_iris_b_033",
+        "test_input": "Tia llamammé luego eh!!!!",
+        "ground_truth": "Jajajajajaja 😂😂😂 Amor, qué lindo que te acuerdes de esa playa!!",
+        "bot_response": "Jajaja, no pasa nada reina! 😘  \nA la puerta de la cafetería, piso 4A, ya me acuerdo.",
+        "elapsed_ms": 5281
+      },
+      {
+        "id": "cpe_iris_b_034",
+        "test_input": "Dijous no, marxo a Ullastret",
+        "ground_truth": "Perfect",
+        "bot_response": "Jajaja tia, vols que t’hi porti jo? 😂  \nD’aquí a un mes ja t’ho veus 😘  \nIris Bertrán 💪❤️",
+        "elapsed_ms": 4788
+      },
+      {
+        "id": "cpe_iris_b_035",
+        "test_input": "[🎬 Video]",
+        "ground_truth": "Super eee si em\nVeuen bé perfecte",
+        "bot_response": "Jajaja qué mola tanto! 😘 Gracias por el amor, me encanta que te gusten tanto las clases!",
+        "elapsed_ms": 3177
+      },
+      {
+        "id": "cpe_iris_b_036",
+        "test_input": "Shared a post",
+        "ground_truth": "Jajaja, qué lindo 💕 A mi me encanta cuando me dicen eso, me pongo toda la piel de gallina 🩷 Y el pan de la burger?",
+        "bot_response": "Jajaja tia que crack! 🩷  \nVamos a confiar que te va a encantar.  \nY no te olvides del horario, que no me quiero liar.",
+        "elapsed_ms": 4950
+      },
+      {
+        "id": "cpe_iris_b_037",
+        "test_input": "Estimada Iris,\nle invitamos a descubrir los beneficios de la limpieza facial con HYDROFACIAL, un tratamiento avanzado que limpia, hidrata y revitaliza la piel en profundidad, aportando luminosidad y frescura desde la primera sesión.\n\nPromoción especial: 70€\n📅 Válida hasta el martes 31\n\nReserve su cita y disfrute de una piel más saludable y radiante.",
+        "ground_truth": "Holi!  ¿?",
+        "bot_response": "Tiaaaaa! 🫠 Jajajaja qué crack 😘  \nGracias por el recordatorio, me acordaré!  \nY gracias por el mensaje, me encanta la promo 💕  \nDale, ya te veo! 🩷",
+        "elapsed_ms": 4913
+      },
+      {
+        "id": "cpe_iris_b_038",
+        "test_input": "Okkkkki",
+        "ground_truth": "No entiendo xk a tu madre no la puedo entrar en el grupo no me sale🫠",
+        "bot_response": "Jajaja tiaaa, no te imaginas lo que me flipa! 😂  \nGracias por recordarme la puerta, lo apunto!",
+        "elapsed_ms": 3648
+      },
+      {
+        "id": "cpe_iris_b_039",
+        "test_input": "Espero que no ho faci per nivell, que no. Perque tu estas molt per sobre de nivell, energia, tècnica…",
+        "ground_truth": "Jo vaig mirar el teu",
+        "bot_response": "Jajaja, tiaaaaa! 😂\n\nGràcies per recordar-me! Estic ben a tope amb el ritme de classes i tot, però tinc el cor per a tot el que et necessitis. 💪\n\nEl video? Ja el veig, està genial! 🎬\n\nI el Hydrofacial? Vaja, 70€... que és un bon preu per a una pell de mica",
+        "elapsed_ms": 5929
+      },
+      {
+        "id": "cpe_iris_b_040",
+        "test_input": "[Media/Attachment]",
+        "ground_truth": "Jajaja, gracias! 😘 ¿?",
+        "bot_response": "Jajaja, tia! 🩷 Que lindo que te acuerdes de mi!",
+        "elapsed_ms": 5273
+      },
+      {
+        "id": "cpe_iris_b_041",
+        "test_input": "Como natanja amarilla",
+        "ground_truth": "Jajaja, que color más chulo 😂",
+        "bot_response": "Jajaja, tiaaaaa, no me lo pierdo! 🩷  \nQue bonito que te acuerdes de la puerta, crack!",
+        "elapsed_ms": 5589
+      },
+      {
+        "id": "cpe_iris_b_042",
+        "test_input": "Holaaaa",
+        "ground_truth": "[🏷️ Sticker]",
+        "bot_response": "Holaaa tiaaaaa 🫠  \nQue crack estás 😘  \nDijous no?",
+        "elapsed_ms": 5480
+      },
+      {
+        "id": "cpe_iris_b_043",
+        "test_input": "[🎤 Audio]: Home, si fa bo, vés-te'n a la platja. Jo podré aniré a córrer a la muntanya i pararé de comptar, perquè després tenim una calçotada i així vaig preparada. Vinga, bona nit, descansa.",
+        "ground_truth": "Tranqui cuca, entesos  Nos vemos la que viene, como sempre.!",
+        "bot_response": "Jajaja, tia, t'he vistaaaa! 🩷  \nMoltes gràcies per l'audi, que m'ha fet gràcia. 😂  \nI el video? Qüestió de nata amarilla, eh? 🍋  \nBona nit, descansa i que et passi un dia genial! 🌊  \nHablammos! 💪",
+        "elapsed_ms": 5697
+      },
+      {
+        "id": "cpe_iris_b_044",
+        "test_input": "Perfecte!!",
+        "ground_truth": "Perfecte! 😘 A quina hora vindreu?",
+        "bot_response": "Jajaja, perfecte! 🩷  \nUeee, que bonito que siguis aquí!  \nQuè t'ha semblat el video? 😘",
+        "elapsed_ms": 4416
+      },
+      {
+        "id": "cpe_iris_b_045",
+        "test_input": "Ooooo mi niña verdad ufffff todo el fin de semana fue  muy interesante ye todo como muy intenso \nLa sección es top  me gustó mucho ahora me falta la ultima etapa que es mandar mi vídeo para mí certificación \nMe tienes que echar una mano tengo que coger clases contigo 😛 \n\nYo hice online las de presencial estaban muertas ajajaja \n\n Ahora a practicar duro y parejo",
+        "ground_truth": "Jajaja daleee",
+        "bot_response": "Ooooo mi niña, qué bien que te haya gustado! 🩷  \nPero yo no doy clases, soy solo la creadora de contenido 😘  \nPero te puedo ayudar con lo que necesites, ¿qué te falta exactamente?",
+        "elapsed_ms": 4963
+      },
+      {
+        "id": "cpe_iris_b_046",
+        "test_input": "[sticker]",
+        "ground_truth": "Tu vienes?",
+        "bot_response": "Jajaja, qué crack! 🩷  \nHome, si fa bo, vés-te'n a la platja! 😂  \nT'envio el link per al que t'has apuntat, d'acord? 🏖️",
+        "elapsed_ms": 3051
+      },
+      {
+        "id": "cpe_iris_b_047",
+        "test_input": "Perfecte, fins demà! 😘💖",
+        "ground_truth": "Avui ja està plè, nena. Demà a les 13:30 perfecte 🩷.quina hora es? Mira, la maquilladora és la @[1571889071] ❤️💖",
+        "bot_response": "Holaaa! 😘  \nQuè tal la platja? 🌊  \nA mi el muntanyar m'encanta, és un crack!",
+        "elapsed_ms": 5199
+      },
+      {
+        "id": "cpe_iris_b_048",
+        "test_input": "[📷 Photo]",
+        "ground_truth": "[🎤 Audio]: Amor, ja surto, vale? Li volia comprar unes floretes, però la Júlia és tan especial, tio. Algo molt senzillet, perquè ja he vist que hi ha gent que ja l'he portat a la botiga. Però algo així, molt minimal, vale? Ho pensem ara, t'espero fora. Vull que flipes.",
+        "bot_response": "Jajaja, qué crack! 🩷 Me encanta cómo te lo estás currando, ya casi estás! 💪  \nY la calçotada, qué planazo!",
+        "elapsed_ms": 3464
+      },
+      {
+        "id": "cpe_iris_b_049",
+        "test_input": "Esq es pedazo de gira esta",
+        "ground_truth": "Hombre, yo creo que sí, tía, va a ser una gastroenteritis. , le he cogido la cagalera porque se intoxicó. Pero ya va a decir que estaba mejor el endemá. Tía, es el último concert de Madrid, . Es que además lo ha hecho tan bien, porque así el viernes tengo fiesta, tía. ¿Sabes? Y no pierdo trabajo. , y no me pierdo el dijous, que mala pera, pues esas clases las voy a poner. Porque ni se dan cuenta ni se van a... Bueno, con todo lo que regalo de horas. Muy fuerte, muy fuerte Pero a Albert no se lo creo Digo, yo flipo el poder que tienes Digo, tío, no sé Son las cosas de hacer bien las cosas ¿No algún día han de llegar a cosas así? Yo qué sé Muy fuerte, muy fuerte Bueno, es que ahora llegaré a casa Y me vuelvo a mirar el vídeo 3.000 veces M'ha encantado, ¿, Erika? Muchísimas gracias porque es un súper trabajazo",
+        "bot_response": "Jajaja, q gira! 🩷  \nM'alegra molt que t'ha encantat!  \nI la certificació? 💪  \nT'ajudo amb el vídeo, només digues!",
+        "elapsed_ms": 4995
+      },
+      {
+        "id": "cpe_iris_b_050",
+        "test_input": "Val gràcies!",
+        "ground_truth": "De res VICKY CALDITO 🩷 Ens veiem aviat!",
+        "bot_response": "Jajaja, q crack! 🩷  \nDale, ya te tengo, cuéntame cuándo quieres empezar 💪  \nVamos a confiar, yo te guío 😘",
+        "elapsed_ms": 2811
+      }
+    ],
+    [
+      {
+        "id": "cpe_iris_b_001",
+        "test_input": "Con las ganas que tenia de hacer el nuevo combo😭",
+        "ground_truth": "Con la calma baby lo primero es lo primero",
+        "bot_response": "Jajaja qué crack! 🩷 ¡Voy a echarle una mano sin dudarlo! 😘  \nY qué bien que te lo estés currando tanto, ya casi lo tienes todo.  \n¿Cuándo te pones con el video? 🤗",
+        "elapsed_ms": 5052
+      },
+      {
+        "id": "cpe_iris_b_002",
+        "test_input": "Potser podria fer una classe d’hipopressius/estiraments?",
+        "ground_truth": "Clar Mariaaa🙂‍↔️😘",
+        "bot_response": "Jajaja, q crack! 🩷 Claro, te ayudo con eso. Vamos a confiar, ya te pongo en marcha! 😘",
+        "elapsed_ms": 3008
+      },
+      {
+        "id": "cpe_iris_b_003",
+        "test_input": "[🎤 Audio]: Vas comprar alguna cosa o què? Jo ja m’he gastat el diner, he comprat uns shots i crec que m’agafaré un bikini, però bé, encara tinc que pensar. Todia gastada, todia gastant, mare mia. Que no et preocupis, reina, que jo era més que res que vaig pensar, joder, vaig anar a saludar a tothom i després a la que vol vi, que no estuve tant. Diu, ja no està, i jo ja està preguntant. I em van dir, no, si no l’he vist, de fet vaig preguntar a la gent i tot. I em va dir, no, si no, no ho sé. I jo, pues anar. I vaig pensar que si us anava a sopar, m’enganxava amb vosaltres, saps? Perquè m’estava morint de gana i no volia estar picutejant hamburgers i patates. Que jo quan fui no hi havia nada. Després va donar-hi tot. Llavors va ser quan m’ho vaig menjar allà encullent, sense el pan, perquè hi va gruten, sí, però me’l comí. I clar, la nena, quan va arribar a casa va tornar a menjar. Perquè, obviament, jo solo amb la burger i les patates, la veritat, m’he dava mit de passar gana. I jo, que no tenia que haver sopat perquè no he dormit tres.",
+        "ground_truth": "Jajaja, entenc perfecte  Tria el que més t’agradi, que no et preocupis.",
+        "bot_response": "Jajaja, que crack! 🩷  \nNo te preocupes, ya te cuento cuando te pida ayuda para el video.",
+        "elapsed_ms": 4948
+      },
+      {
+        "id": "cpe_iris_b_004",
+        "test_input": "Sábado nada",
+        "ground_truth": "Sent a voice message",
+        "bot_response": "Jajaja, mi niña! 🩷 Que bien que te haya gustado todo!",
+        "elapsed_ms": 5475
+      },
+      {
+        "id": "cpe_iris_b_005",
+        "test_input": "Per la regla",
+        "ground_truth": "Es el meu dia a dia",
+        "bot_response": "Jajaja, mi niña, ya me veo con vosotros en la pista! 💪💃  \nTienes el plan perfecto, ya te lo dije, eres un crack!",
+        "elapsed_ms": 5615
+      },
+      {
+        "id": "cpe_iris_b_006",
+        "test_input": "😅😅 qué lindas",
+        "ground_truth": "Sent an attachment",
+        "bot_response": "Jajajaja, q onada reina! 🩷  \nT’entendré, és una nit de festa! 😘  \nI si vols, demà tens la classe de hipopressius!",
+        "elapsed_ms": 5108
+      },
+      {
+        "id": "cpe_iris_b_007",
+        "test_input": "Me río de esto",
+        "ground_truth": "Jajajaja qué crackkkkk! Me alegro un montón que te gustase la clase ayer, nena! 🫶🏽 Lo de la plancha, ¡ya te digo!",
+        "bot_response": "Jajaja q rollo! 🫠  \nT’agafa el bit, reina!",
+        "elapsed_ms": 3358
+      },
+      {
+        "id": "cpe_iris_b_008",
+        "test_input": "🫵🏻🫵🏻🫵🏻🚀🚀🚀",
+        "ground_truth": "Hola Abrl Encantada! ¿Qué tal estás? ¿Cuándo te apetece?",
+        "bot_response": "Jajaja, q cómica la situació! 😂  \nI si vols, pots fer la classe d'hipopressius, ja està tot preparat!",
+        "elapsed_ms": 5364
+      },
+      {
+        "id": "cpe_iris_b_009",
+        "test_input": "[Media/Attachment]",
+        "ground_truth": "Com vas cuca?",
+        "bot_response": "Jajaja, que has hecho un combo de crack! 💪  \n¡Val gracias por todo, amor!",
+        "elapsed_ms": 5563
+      },
+      {
+        "id": "cpe_iris_b_010",
+        "test_input": "Sent a voice message",
+        "ground_truth": "A valeeee",
+        "bot_response": "Jajaja 😂 reina, és clar que sí! Vols fer una classe d’hipopressius o estiraments? Estic a tope per ajudar-te! 🩷",
+        "elapsed_ms": 5129
+      },
+      {
+        "id": "cpe_iris_b_011",
+        "test_input": "Mentioned you in their story",
+        "ground_truth": "Jajajajaja tal qual",
+        "bot_response": "Jajaja no te preocupes reina, entiendo perfecto 😘  \nY sí, por supuesto que puedes hacer hipopresivos o estiramientos, te dejo el link para que reserves cuando quieras 🩷  \n¿Te apetece que te ayude con algo más?",
+        "elapsed_ms": 3153
+      },
+      {
+        "id": "cpe_iris_b_012",
+        "test_input": "[Media/Attachment]",
+        "ground_truth": "Hola! Què tal? En què et puc ajudar? 😘",
+        "bot_response": "Jajaja, què crack! 🩷  \nI, si vols fer una classe d’hipopressius/estiraments, ja tens l’opció!",
+        "elapsed_ms": 5125
+      },
+      {
+        "id": "cpe_iris_b_013",
+        "test_input": "que ganas tengo de la clase hoy! \npara mí el baile siempre ha sido una vía de escape y de conectar conmigo, y tus clases son perfectas pa eso♥️",
+        "ground_truth": "Sent a voice message",
+        "bot_response": "Jajaja, qué onda reina! 🩷  \nPues si ya te has gastado el dineret, que no te preocupis, ya te lo recuperarás con la clase de hoy! 💃  \nVamos a confiar y a disfrutar mucho, como siempre.  \n¿Te apuntas al twerk o al heels dance? 🤘  \nUn abrazo! 🫂",
+        "elapsed_ms": 5535
+      },
+      {
+        "id": "cpe_iris_b_014",
+        "test_input": "perfect!",
+        "ground_truth": "Perfecto Carri Nos vemos entonces!",
+        "bot_response": "Jajaja, qué crack! 🫵🏻🚀  \n¡No me lo digas! El baile es mi refugio también, nena.  \n¿Ya estás en camino?",
+        "elapsed_ms": 2737
+      },
+      {
+        "id": "cpe_iris_b_015",
+        "test_input": "yo me voy a dormir nenaaaa q nos adelantan una hora esta noche",
+        "ground_truth": "Es que no tinc enllaç jo ok",
+        "bot_response": "Jajaja, qué crack! 🩷 Nos vemos mañana, descansa bien nena! 😘",
+        "elapsed_ms": 4437
+      },
+      {
+        "id": "cpe_iris_b_016",
+        "test_input": "no me puedes dejar los domingos mami, tiene que estar mi booty a tope",
+        "ground_truth": "Ojalá estar en Cancún",
+        "bot_response": "Jajajaja qué crack 🩷  \nAy, qué lindo que digas eso, me emociono tanto 😘  \nPues descansa bien nenaaaa, que esta noche lo vamos a liar 💥  \nY el booty, ¡siempre a tope! 🫠💃",
+        "elapsed_ms": 5091
+      },
+      {
+        "id": "cpe_iris_b_017",
+        "test_input": "Sin azucar😂",
+        "ground_truth": "Buaaaa vaia festivalazooo nene a veure que els posa a dormir avui🤣🤣🤣💪🏾",
+        "bot_response": "Jajaja, qué crack! 🩷  \n¡Ayyy, ya te veo el booty a tope!",
+        "elapsed_ms": 3212
+      },
+      {
+        "id": "cpe_iris_b_018",
+        "test_input": "Ya me has comprado el mio? 🥰",
+        "ground_truth": "Si encima que me dejas deshidratada😂😂😂",
+        "bot_response": "Jajaja q crack! 🩷 Vamos a confiar que sí, que ya te has pillado tu clase! 💪  \nDuerme bien nenaaaa, q mañana lo necesitas a tope!",
+        "elapsed_ms": 4949
+      },
+      {
+        "id": "cpe_iris_b_019",
+        "test_input": "Os dejo aquí el drive de “ralphie choo”, tenéis aquí todo lo relacionado con el módulo, vídeos de después de clase en buena calidad, tutoriales etc.\n\nhttps://drive.google.com/drive/folders/1XBnD1D5IhAA3uIRFWgDx3pyV7EEc2aV0?usp=sharing",
+        "ground_truth": "Ostia amorrr, quina feinada de contractura!! 🫠 Però me n'alegro moltíssim que estiguis millor després del fisio, rei/reina.",
+        "bot_response": "Jajaja, qué crack! 🩷 Me encanta que te lo pases tan bien en clase, es lo que quiero para todos!",
+        "elapsed_ms": 3210
+      },
+      {
+        "id": "cpe_iris_b_020",
+        "test_input": "Lo disfrutará igual",
+        "ground_truth": "[🏷️ Sticker]",
+        "bot_response": "Jajaja qué crack! 😂  \n¡Me encanta que lo disfrutes tanto!",
+        "elapsed_ms": 5426
+      },
+      {
+        "id": "cpe_iris_b_021",
+        "test_input": "[🏷️ Sticker]",
+        "ground_truth": "Vale perfect es que al final el concert marxo divendres i x això tik dient a la gent de dijous que si que fem entreno",
+        "bot_response": "Jajaja, ¡qué crack! 🩷  \nVoy a dormir también, pero ya te aviso que mañana me enciendo a tope 💪  \n¿Y el drive?",
+        "elapsed_ms": 4619
+      },
+      {
+        "id": "cpe_iris_b_022",
+        "test_input": "Reinaaaa,Passam número de la teva secretaría millor😘😅😘😅 i em reservo un parell de clases+dinaret o soparet 🎊🍾🤩",
+        "ground_truth": "Amorrr, ja te'n passo el número 😘 Capo, quin dia et guardes per mi? 😂❤️ Ja et reservo les classes, i el dinaret o soparet, que no et vols perdre! 🥂 Et torno a trucar, promet! 🫠😘",
+        "bot_response": "Jajaja, no me dejes así reina! 😂  \nPasam el número, que me reservo las clases y el dinaret, ¿sí? 🩷  \nTienes que estar a tope, como siempre! 💪",
+        "elapsed_ms": 4849
+      },
+      {
+        "id": "cpe_iris_b_023",
+        "test_input": "Ok no pasa nada tu dime si puedes el lunes",
+        "ground_truth": "Jajaja, qué recuerdo tan buenoooo 😂😂 Amor, ya me dices si puedes el lunes, que te cuento. Y por cierto, lo de la plancha, ya llegas, no te preocupes. Y no te olvides de descansar, que es lo más importante. Un abrazo fuerte 💗",
+        "bot_response": "Jajaja q crack! 😂  \nNena, dormir bien es clave, descansa bien! 💤  \nY si te dejo los domingos, no sé qué haría tu booty 😘  \nGracias por el drive, lo reviso ahora mismo! 🫶🏽  \nDale, el lunes me dices, por supuesto! 🩷",
+        "elapsed_ms": 3648
+      },
+      {
+        "id": "cpe_iris_b_024",
+        "test_input": "[audio]",
+        "ground_truth": "[audio]",
+        "bot_response": "Jajaja q crack! 🩷 Cuida mucho, dormir bien reina!",
+        "elapsed_ms": 5250
+      },
+      {
+        "id": "cpe_iris_b_025",
+        "test_input": "[reaction: ❤️]",
+        "ground_truth": "Baby si demà no marxes i prefereixes demà tarda a les 17:00 em dius ok",
+        "bot_response": "Jajaja, q crack! 🩷 💤  \nDormir bien es lo más, reinaaaa.  \nY el booty siempre a tope, obvio!",
+        "elapsed_ms": 5396
+      },
+      {
+        "id": "cpe_iris_b_026",
+        "test_input": "yes mami són molt maques totes",
+        "ground_truth": "Demà pujo alguna fotiki que l’ha fet el Albert que me l’he emportat",
+        "bot_response": "Jajaja, qué crack! 🩷  \nDale, el lunes estás conmigo, ¡a tope!",
+        "elapsed_ms": 5156
+      },
+      {
+        "id": "cpe_iris_b_027",
+        "test_input": "Mentioned you in their story",
+        "ground_truth": "¡Hola! 🫶🏽 ¿?",
+        "bot_response": "Jajajaja qué crack! 🩷 Gracias por el drive, lo miraré enseguida.  \n\nReinaaaa, jajaja, qué cariño 😘.",
+        "elapsed_ms": 3233
+      },
+      {
+        "id": "cpe_iris_b_028",
+        "test_input": "tia al lado d mi cada literal o sea flipo",
+        "ground_truth": "Jajaja, que tia",
+        "bot_response": "Jajaja qué crack! 😂  \nTia, si vols t’envio el número de secretaria, i ja t’reservo les classes! 💪🏾  \nM’has flipat amb el mòdul, de veritat! 💯",
+        "elapsed_ms": 4877
+      },
+      {
+        "id": "cpe_iris_b_029",
+        "test_input": "espero que t’agradi",
+        "ground_truth": "[🎤 Audio]: ¡Ay, que me muero!",
+        "bot_response": "Jajajaja qué crack 😘✌🏽 Gracias por el drive, lo reviso enseguida!",
+        "elapsed_ms": 3097
+      },
+      {
+        "id": "cpe_iris_b_030",
+        "test_input": "Mentioned you in their story",
+        "ground_truth": "Mentioned you in their story",
+        "bot_response": "Jajaja qué crack! 🩷 Claro, reina, te paso el número ahora mismo. Te reservo el lunes sin problema, ¿te va bien a esa hora? 😘",
+        "elapsed_ms": 4938
+      },
+      {
+        "id": "cpe_iris_b_031",
+        "test_input": "Acuérdate que la puerta es la que está atrás de la cafetería. Plaza de Charlie Ribble 1. Piso 4A.",
+        "ground_truth": "Jajaja, no te preocupes, ya te veo en directo! 🩷 Voy bajando, tranqui. Y ya te dejo mi habitación preparada, no te preocupes.",
+        "bot_response": "Jajaja reinaaaa, qué crack 😘❤️  \nClaro que sí, el lunes te reservo un espacio!",
+        "elapsed_ms": 4961
+      },
+      {
+        "id": "cpe_iris_b_032",
+        "test_input": "Verdades como templos",
+        "ground_truth": "Gràcies flor🩷",
+        "bot_response": "Jajaja, qué crack! 🩷 ¡Claro que sí, reina!",
+        "elapsed_ms": 3446
+      },
+      {
+        "id": "cpe_iris_b_033",
+        "test_input": "Tia llamammé luego eh!!!!",
+        "ground_truth": "Jajajajajaja 😂😂😂 Amor, qué lindo que te acuerdes de esa playa!!",
+        "bot_response": "Jajaja tiaaa 😂  \nDale, te llamo yo! 💪  \nUn abrazo fuerte! 🫂",
+        "elapsed_ms": 4743
+      },
+      {
+        "id": "cpe_iris_b_034",
+        "test_input": "Dijous no, marxo a Ullastret",
+        "ground_truth": "Perfect",
+        "bot_response": "Jajaja tiaaaaa, això és el que vull sentir 😘  \nDale, i si vols, et passo el link per a que veus totes les opcions.",
+        "elapsed_ms": 5002
+      },
+      {
+        "id": "cpe_iris_b_035",
+        "test_input": "[🎬 Video]",
+        "ground_truth": "Super eee si em\nVeuen bé perfecte",
+        "bot_response": "Jajajaja, tia, qué crack! 💪  \nGràcies de veritat, em fa molta il·lusió 😘  \nEt veig ahí, no t'oblidis!",
+        "elapsed_ms": 3401
+      },
+      {
+        "id": "cpe_iris_b_036",
+        "test_input": "Shared a post",
+        "ground_truth": "Jajaja, qué lindo 💕 A mi me encanta cuando me dicen eso, me pongo toda la piel de gallina 🩷 Y el pan de la burger?",
+        "bot_response": "Jajaja q crack! 🩷 Tia, el díjous no t’he de veure, marxo a Ullastret 😘 Llamo després, com sempre! 🎤",
+        "elapsed_ms": 5134
+      },
+      {
+        "id": "cpe_iris_b_037",
+        "test_input": "Estimada Iris,\nle invitamos a descubrir los beneficios de la limpieza facial con HYDROFACIAL, un tratamiento avanzado que limpia, hidrata y revitaliza la piel en profundidad, aportando luminosidad y frescura desde la primera sesión.\n\nPromoción especial: 70€\n📅 Válida hasta el martes 31\n\nReserve su cita y disfrute de una piel más saludable y radiante.",
+        "ground_truth": "Holi!  ¿?",
+        "bot_response": "Jajaja tiaaaa, qué crack! 🩷  \nGracias por el recordatorio, lo apunto!  \nY el video, qué bonito! 🎬  \nUn abrazo fuerte, cuca! 💪",
+        "elapsed_ms": 4811
+      },
+      {
+        "id": "cpe_iris_b_038",
+        "test_input": "Okkkkki",
+        "ground_truth": "No entiendo xk a tu madre no la puedo entrar en el grupo no me sale🫠",
+        "bot_response": "Jajaja, qué crack! 🩷  \nTia, no me digas más, que me pongo a tope!  \nY encantada, por supuesto!",
+        "elapsed_ms": 3694
+      },
+      {
+        "id": "cpe_iris_b_039",
+        "test_input": "Espero que no ho faci per nivell, que no. Perque tu estas molt per sobre de nivell, energia, tècnica…",
+        "ground_truth": "Jo vaig mirar el teu",
+        "bot_response": "Jajaja, tia, què cridat! 🩷  \nMoltes gràcies per la proposta, però ara estic en Ullastret, i la veritat és que no tinc temps per res més que no sigui moviment i música. 😘  \nPero mira, si tens alguna cosa per a mi quan torni, ja t’ho digue!  \nUn abrazo fortí",
+        "elapsed_ms": 5456
+      },
+      {
+        "id": "cpe_iris_b_040",
+        "test_input": "[Media/Attachment]",
+        "ground_truth": "Jajaja, gracias! 😘 ¿?",
+        "bot_response": "Jajaja, q crack! 🩷 Tia, no te preocupes, ya te veo! 💪",
+        "elapsed_ms": 2709
+      },
+      {
+        "id": "cpe_iris_b_041",
+        "test_input": "Como natanja amarilla",
+        "ground_truth": "Jajaja, que color más chulo 😂",
+        "bot_response": "Tiaaaaa, ja ja ja, q crack! 🩷  \nNo te preocupes, no ho faci per nivell, ja t'ho diré jo!",
+        "elapsed_ms": 5686
+      },
+      {
+        "id": "cpe_iris_b_042",
+        "test_input": "Holaaaa",
+        "ground_truth": "[🏷️ Sticker]",
+        "bot_response": "Holaaaa cuca! 😘  \nTia, qué crack! 🩷  \nY la cara de la foto, qué brillo!",
+        "elapsed_ms": 5389
+      },
+      {
+        "id": "cpe_iris_b_043",
+        "test_input": "[🎤 Audio]: Home, si fa bo, vés-te'n a la platja. Jo podré aniré a córrer a la muntanya i pararé de comptar, perquè després tenim una calçotada i així vaig preparada. Vinga, bona nit, descansa.",
+        "ground_truth": "Tranqui cuca, entesos  Nos vemos la que viene, como sempre.!",
+        "bot_response": "Jajaja tiaaaa 😂 que risa! 🫠  \nT'envio el link dels cursos per si vols mirar-ho, que tens molt de joc per sobre de nivell! 🩷  \nUn abrazo fortíssim, descansa i que et passi bo! 🌊",
+        "elapsed_ms": 4848
+      },
+      {
+        "id": "cpe_iris_b_044",
+        "test_input": "Perfecte!!",
+        "ground_truth": "Perfecte! 😘 A quina hora vindreu?",
+        "bot_response": "Jajaja, home, que crack! 🩷  \nAra estic a l’ullastret, però ja te’n responc avui!",
+        "elapsed_ms": 4817
+      },
+      {
+        "id": "cpe_iris_b_045",
+        "test_input": "Ooooo mi niña verdad ufffff todo el fin de semana fue  muy interesante ye todo como muy intenso \nLa sección es top  me gustó mucho ahora me falta la ultima etapa que es mandar mi vídeo para mí certificación \nMe tienes que echar una mano tengo que coger clases contigo 😛 \n\nYo hice online las de presencial estaban muertas ajajaja \n\n Ahora a practicar duro y parejo",
+        "ground_truth": "Jajaja daleee",
+        "bot_response": "Ooooo nena qué crack! 😘  \nMe encanta que te lo estés currando así!",
+        "elapsed_ms": 6545
+      },
+      {
+        "id": "cpe_iris_b_046",
+        "test_input": "[sticker]",
+        "ground_truth": "Tu vienes?",
+        "bot_response": "Jajaja, qué crack! 🩷  \nVamos a confiar que no es por nivel, que no. 🫠  \nHolaaa, qué onda rey!",
+        "elapsed_ms": 20735
+      },
+      {
+        "id": "cpe_iris_b_047",
+        "test_input": "Perfecte, fins demà! 😘💖",
+        "ground_truth": "Avui ja està plè, nena. Demà a les 13:30 perfecte 🩷.quina hora es? Mira, la maquilladora és la @[1571889071] ❤️💖",
+        "bot_response": "Holaaa flor! 😘  \nJajaja, què bo! 🩷  \nFins demà! 💖",
+        "elapsed_ms": 5525
+      },
+      {
+        "id": "cpe_iris_b_048",
+        "test_input": "[📷 Photo]",
+        "ground_truth": "[🎤 Audio]: Amor, ja surto, vale? Li volia comprar unes floretes, però la Júlia és tan especial, tio. Algo molt senzillet, perquè ja he vist que hi ha gent que ja l'he portat a la botiga. Però algo així, molt minimal, vale? Ho pensem ara, t'espero fora. Vull que flipes.",
+        "bot_response": "Jajaja q crack! 🩷  \nVas a acabar la certificación? ¿Te apetece que te eche una mano con el vídeo? 😘",
+        "elapsed_ms": 5941
+      },
+      {
+        "id": "cpe_iris_b_049",
+        "test_input": "Esq es pedazo de gira esta",
+        "ground_truth": "Hombre, yo creo que sí, tía, va a ser una gastroenteritis. , le he cogido la cagalera porque se intoxicó. Pero ya va a decir que estaba mejor el endemá. Tía, es el último concert de Madrid, . Es que además lo ha hecho tan bien, porque así el viernes tengo fiesta, tía. ¿Sabes? Y no pierdo trabajo. , y no me pierdo el dijous, que mala pera, pues esas clases las voy a poner. Porque ni se dan cuenta ni se van a... Bueno, con todo lo que regalo de horas. Muy fuerte, muy fuerte Pero a Albert no se lo creo Digo, yo flipo el poder que tienes Digo, tío, no sé Son las cosas de hacer bien las cosas ¿No algún día han de llegar a cosas así? Yo qué sé Muy fuerte, muy fuerte Bueno, es que ahora llegaré a casa Y me vuelvo a mirar el vídeo 3.000 veces M'ha encantado, ¿, Erika? Muchísimas gracias porque es un súper trabajazo",
+        "bot_response": "Jajaja, qué bien suena! 🩷  \nNena, que emoción! 🫠  \nY la certificación, ya te la voy a echar 🤗  \n¿Te falta mucho?",
+        "elapsed_ms": 4841
+      },
+      {
+        "id": "cpe_iris_b_050",
+        "test_input": "Val gràcies!",
+        "ground_truth": "De res VICKY CALDITO 🩷 Ens veiem aviat!",
+        "bot_response": "Jajaja qué crack! 🩷  \nYo también me lo pasé pipa!",
+        "elapsed_ms": 3128
+      }
+    ],
+    [
+      {
+        "id": "cpe_iris_b_001",
+        "test_input": "Con las ganas que tenia de hacer el nuevo combo😭",
+        "ground_truth": "Con la calma baby lo primero es lo primero",
+        "bot_response": "Jajajaja, qué crack! 🩷  \nAyyy, me encanta que te lo estés currando tanto! 💪  \nY si te falta algo, ya me dices, que te echaré una manita, no te preocupes.  \n¡Vamos a confiar! 🤗",
+        "elapsed_ms": 5528
+      },
+      {
+        "id": "cpe_iris_b_002",
+        "test_input": "Potser podria fer una classe d’hipopressius/estiraments?",
+        "ground_truth": "Clar Mariaaa🙂‍↔️😘",
+        "bot_response": "Jajaja niña! 😘 Claro que sí, te paso el link de las hipopresivos! 🩷  \nY si quieres, te ayudo a preparar el video para la certificación, ¿te va bien?",
+        "elapsed_ms": 5092
+      },
+      {
+        "id": "cpe_iris_b_003",
+        "test_input": "[🎤 Audio]: Vas comprar alguna cosa o què? Jo ja m’he gastat el diner, he comprat uns shots i crec que m’agafaré un bikini, però bé, encara tinc que pensar. Todia gastada, todia gastant, mare mia. Que no et preocupis, reina, que jo era més que res que vaig pensar, joder, vaig anar a saludar a tothom i després a la que vol vi, que no estuve tant. Diu, ja no està, i jo ja està preguntant. I em van dir, no, si no l’he vist, de fet vaig preguntar a la gent i tot. I em va dir, no, si no, no ho sé. I jo, pues anar. I vaig pensar que si us anava a sopar, m’enganxava amb vosaltres, saps? Perquè m’estava morint de gana i no volia estar picutejant hamburgers i patates. Que jo quan fui no hi havia nada. Després va donar-hi tot. Llavors va ser quan m’ho vaig menjar allà encullent, sense el pan, perquè hi va gruten, sí, però me’l comí. I clar, la nena, quan va arribar a casa va tornar a menjar. Perquè, obviament, jo solo amb la burger i les patates, la veritat, m’he dava mit de passar gana. I jo, que no tenia que haver sopat perquè no he dormit tres.",
+        "ground_truth": "Jajaja, entenc perfecte  Tria el que més t’agradi, que no et preocupis.",
+        "bot_response": "Jajajaja, qué crack! 🩷  \nMare mia, que no te preocupes, ya te cuento todo.  \nY si te apetece, siempre puedes venir a clase, cuca! 😘",
+        "elapsed_ms": 5830
+      },
+      {
+        "id": "cpe_iris_b_004",
+        "test_input": "Sábado nada",
+        "ground_truth": "Sent a voice message",
+        "bot_response": "Jajajaja, qué crack! 🩷  \nClaro, mi niña, siempre que quieras.  \nY el audio, ya te cuento. 😘",
+        "elapsed_ms": 5710
+      },
+      {
+        "id": "cpe_iris_b_005",
+        "test_input": "Per la regla",
+        "ground_truth": "Es el meu dia a dia",
+        "bot_response": "Jajaja, que crack eres! 😘  \nClaro que sí, me encantaría ayudarte con las clases, mi niña!",
+        "elapsed_ms": 6359
+      },
+      {
+        "id": "cpe_iris_b_006",
+        "test_input": "😅😅 qué lindas",
+        "ground_truth": "Sent an attachment",
+        "bot_response": "Jajaja q onada! 😘  \nT’entenc perfecte, ja ho sé!",
+        "elapsed_ms": 3460
+      },
+      {
+        "id": "cpe_iris_b_007",
+        "test_input": "Me río de esto",
+        "ground_truth": "Jajajaja qué crackkkkk! Me alegro un montón que te gustase la clase ayer, nena! 🫶🏽 Lo de la plancha, ¡ya te digo!",
+        "bot_response": "Jajaja, q divertido! 😂  \nReina, no te preocupis, entenc perfecte!  \nT’agafes el bikini, que t’ha de quedar genial!",
+        "elapsed_ms": 5957
+      },
+      {
+        "id": "cpe_iris_b_008",
+        "test_input": "🫵🏻🫵🏻🫵🏻🚀🚀🚀",
+        "ground_truth": "Hola Abrl Encantada! ¿Qué tal estás? ¿Cuándo te apetece?",
+        "bot_response": "Jajaja q onada! 🩷  \nSí, tota aquesta energia!",
+        "elapsed_ms": 5506
+      },
+      {
+        "id": "cpe_iris_b_009",
+        "test_input": "[Media/Attachment]",
+        "ground_truth": "Com vas cuca?",
+        "bot_response": "Jajaja, qué risa! 😂  \nMira, si vols fer una classe d'hipopressius o estiraments, t'hi puc ajudar.  \nT'agradaria?",
+        "elapsed_ms": 5548
+      },
+      {
+        "id": "cpe_iris_b_010",
+        "test_input": "Sent a voice message",
+        "ground_truth": "A valeeee",
+        "bot_response": "Jajaja, no et preocupis, reina! 😘  \nT’agradaria fer una sessió d’hipopressius o estiraments?",
+        "elapsed_ms": 3476
+      },
+      {
+        "id": "cpe_iris_b_011",
+        "test_input": "Mentioned you in their story",
+        "ground_truth": "Jajajajaja tal qual",
+        "bot_response": "Jajaja, q onada reina! 😂  \nSí, potser una classe d'hipopressius/estiraments te podria anar genial!",
+        "elapsed_ms": 5539
+      },
+      {
+        "id": "cpe_iris_b_012",
+        "test_input": "[Media/Attachment]",
+        "ground_truth": "Hola! Què tal? En què et puc ajudar? 😘",
+        "bot_response": "Jajajaja, com que t’has gastat el diner en shots i bikini? 😂  \nM’alegra que t’ho passis bé!",
+        "elapsed_ms": 5274
+      },
+      {
+        "id": "cpe_iris_b_013",
+        "test_input": "que ganas tengo de la clase hoy! \npara mí el baile siempre ha sido una vía de escape y de conectar conmigo, y tus clases son perfectas pa eso♥️",
+        "ground_truth": "Sent a voice message",
+        "bot_response": "Jajaja, q crack! 🩷 Me encanta q te sientas así. Vamos a confiar, hoy lo vais a flipar! 💪",
+        "elapsed_ms": 4493
+      },
+      {
+        "id": "cpe_iris_b_014",
+        "test_input": "perfect!",
+        "ground_truth": "Perfecto Carri Nos vemos entonces!",
+        "bot_response": "Jajaja, qué crack! 🩷  \n¡Vamos a confiar que te va a flipar! 🚀  \n¿Ya reservaste? 😘",
+        "elapsed_ms": 2390
+      },
+      {
+        "id": "cpe_iris_b_015",
+        "test_input": "yo me voy a dormir nenaaaa q nos adelantan una hora esta noche",
+        "ground_truth": "Es que no tinc enllaç jo ok",
+        "bot_response": "Jajaja, qué crack! 🩷  \nDescansa bien, flor, que te va a flipar la clase! 💫  \nHasta mañana, reina! 🌙✨",
+        "elapsed_ms": 4958
+      },
+      {
+        "id": "cpe_iris_b_016",
+        "test_input": "no me puedes dejar los domingos mami, tiene que estar mi booty a tope",
+        "ground_truth": "Ojalá estar en Cancún",
+        "bot_response": "Jajaja qué crack! 🩷  \n¡Vamos a confiar que te va a flipar la clase!",
+        "elapsed_ms": 4859
+      },
+      {
+        "id": "cpe_iris_b_017",
+        "test_input": "Sin azucar😂",
+        "ground_truth": "Buaaaa vaia festivalazooo nene a veure que els posa a dormir avui🤣🤣🤣💪🏾",
+        "bot_response": "Jajaja, qué crack! 🩷  \nQué bien que te diviertas tanto en mis clases, me encanta oír eso!",
+        "elapsed_ms": 3453
+      },
+      {
+        "id": "cpe_iris_b_018",
+        "test_input": "Ya me has comprado el mio? 🥰",
+        "ground_truth": "Si encima que me dejas deshidratada😂😂😂",
+        "bot_response": "Jajaja q crack! 🩷  \nAyyy, lo siento mucho, me acabo de enterar! 🫠  \nPero mañana ya está el domingo, y el booty se queda a tope!",
+        "elapsed_ms": 5243
+      },
+      {
+        "id": "cpe_iris_b_019",
+        "test_input": "Os dejo aquí el drive de “ralphie choo”, tenéis aquí todo lo relacionado con el módulo, vídeos de después de clase en buena calidad, tutoriales etc.\n\nhttps://drive.google.com/drive/folders/1XBnD1D5IhAA3uIRFWgDx3pyV7EEc2aV0?usp=sharing",
+        "ground_truth": "Ostia amorrr, quina feinada de contractura!! 🫠 Però me n'alegro moltíssim que estiguis millor després del fisio, rei/reina.",
+        "bot_response": "Jajaja, qué crack! 🩷  \n¡Voy a dormir ya también, que mañana nos espera una clase brutal!",
+        "elapsed_ms": 2864
+      },
+      {
+        "id": "cpe_iris_b_020",
+        "test_input": "Lo disfrutará igual",
+        "ground_truth": "[🏷️ Sticker]",
+        "bot_response": "Jajaja qué monada 😘  \n¡Vas a flipar con lo que te espera!",
+        "elapsed_ms": 5267
+      },
+      {
+        "id": "cpe_iris_b_021",
+        "test_input": "[🏷️ Sticker]",
+        "ground_truth": "Vale perfect es que al final el concert marxo divendres i x això tik dient a la gent de dijous que si que fem entreno",
+        "bot_response": "Jajaja qué crack! 🩷 Me encanta que te lo pasas tan bien en clase, es lo que más me hace feliz 😘  \nNena, descansa bien, que te vas a pillar la energía del domingo como un campeona 💪  \nY por supuesto que te dejo los domingos, que sin ti no es nada! 🫠  \nY ya te lo has comprado, no te preocupes, todo listo",
+        "elapsed_ms": 5370
+      },
+      {
+        "id": "cpe_iris_b_022",
+        "test_input": "Reinaaaa,Passam número de la teva secretaría millor😘😅😘😅 i em reservo un parell de clases+dinaret o soparet 🎊🍾🤩",
+        "ground_truth": "Amorrr, ja te'n passo el número 😘 Capo, quin dia et guardes per mi? 😂❤️ Ja et reservo les classes, i el dinaret o soparet, que no et vols perdre! 🥂 Et torno a trucar, promet! 🫠😘",
+        "bot_response": "Jajaja, encantada! 🩷  \n¡Tú siempre tan divertida!  \nPero, reina, eso de reservar clases y dinaret es un poco complicado, jeje.  \n¿Te apetece venir a alguna clase esta semana? 🫠  \nTe mando el link por privado, ¿vale? 💫",
+        "elapsed_ms": 5386
+      },
+      {
+        "id": "cpe_iris_b_023",
+        "test_input": "Ok no pasa nada tu dime si puedes el lunes",
+        "ground_truth": "Jajaja, qué recuerdo tan buenoooo 😂😂 Amor, ya me dices si puedes el lunes, que te cuento. Y por cierto, lo de la plancha, ya llegas, no te preocupes. Y no te olvides de descansar, que es lo más importante. Un abrazo fuerte 💗",
+        "bot_response": "Jajaja qué crack! 💪  \nDormir bien es clave, descansa bien nenaaaa 🩷  \nY el booty siempre a tope, no te preocupes!  \n¿Y el drive? Lo revisaré, gracias por compartirlo!  \n¿El lunes estás? 🤗",
+        "elapsed_ms": 2796
+      },
+      {
+        "id": "cpe_iris_b_024",
+        "test_input": "[audio]",
+        "ground_truth": "[audio]",
+        "bot_response": "Jajaja qué crack! 💪  \nBuenas noches nena, descansa bien, que mañana estás a tope!",
+        "elapsed_ms": 5739
+      },
+      {
+        "id": "cpe_iris_b_025",
+        "test_input": "[reaction: ❤️]",
+        "ground_truth": "Baby si demà no marxes i prefereixes demà tarda a les 17:00 em dius ok",
+        "bot_response": "Jajaja q onda reina! 😘  \nDormirte ya? A ver si mañana estás a tope con ese booty 😘  \nGracias por el drive, me lo guardo!  \nY el número de la secretaría? 😏  \nDime cuando puedas el lunes, tía! 🩷",
+        "elapsed_ms": 5251
+      },
+      {
+        "id": "cpe_iris_b_026",
+        "test_input": "yes mami són molt maques totes",
+        "ground_truth": "Demà pujo alguna fotiki que l’ha fet el Albert que me l’he emportat",
+        "bot_response": "Jajaja q crack! 🩷  \nReinaaaa, passa’m el número de la teva secretaria millor 😘😅  \nI em reservo un parell de classes + dinaret o soparet 🎊🍾🤩  \nOk no passa res, tu di’m si pots el dilluns!",
+        "elapsed_ms": 4853
+      },
+      {
+        "id": "cpe_iris_b_027",
+        "test_input": "Mentioned you in their story",
+        "ground_truth": "¡Hola! 🫶🏽 ¿?",
+        "bot_response": "Jajaja, qué crack! 🩷  \nGràcies per tot, reina! 🥹  \nI el lunes, ja veuràs, ens ho passarem de maja! 💃🕺  \nMoltes gràcies de nou! 🫠❤️",
+        "elapsed_ms": 3294
+      },
+      {
+        "id": "cpe_iris_b_028",
+        "test_input": "tia al lado d mi cada literal o sea flipo",
+        "ground_truth": "Jajaja, que tia",
+        "bot_response": "Jajaja, qué crack! 🩷  \nNo te preocupes, te paso el número ahora mismo.  \nY sí, el lunes me pongo a tope contigo! 💪",
+        "elapsed_ms": 4971
+      },
+      {
+        "id": "cpe_iris_b_029",
+        "test_input": "espero que t’agradi",
+        "ground_truth": "[🎤 Audio]: ¡Ay, que me muero!",
+        "bot_response": "Jajaja que crack! 🩷 Gracias por el drive, lo reviso ya mismo.  \nY el lunes, por supuesto, ¡te reservo mis clases!",
+        "elapsed_ms": 5340
+      },
+      {
+        "id": "cpe_iris_b_030",
+        "test_input": "Mentioned you in their story",
+        "ground_truth": "Mentioned you in their story",
+        "bot_response": "Jajaja q crack! 🩷 Por supuesto, reina, te reservo el lunes! 🫠",
+        "elapsed_ms": 2623
+      },
+      {
+        "id": "cpe_iris_b_031",
+        "test_input": "Acuérdate que la puerta es la que está atrás de la cafetería. Plaza de Charlie Ribble 1. Piso 4A.",
+        "ground_truth": "Jajaja, no te preocupes, ya te veo en directo! 🩷 Voy bajando, tranqui. Y ya te dejo mi habitación preparada, no te preocupes.",
+        "bot_response": "Jajaja reina, qué mona 😘  \nTe paso el link de la web por privado, allí puedes reservar las clases que quieras.  \nY sí, el lunes puedo! 😂  \nUn abrazo fuerte, tia 💕",
+        "elapsed_ms": 4826
+      },
+      {
+        "id": "cpe_iris_b_032",
+        "test_input": "Verdades como templos",
+        "ground_truth": "Gràcies flor🩷",
+        "bot_response": "Jajajaja reinaaa, qué crack! 🩷  \nPero no te preocupes, no necesito el número. Ya tengo todo apuntado.",
+        "elapsed_ms": 3100
+      },
+      {
+        "id": "cpe_iris_b_033",
+        "test_input": "Tia llamammé luego eh!!!!",
+        "ground_truth": "Jajajajajaja 😂😂😂 Amor, qué lindo que te acuerdes de esa playa!!",
+        "bot_response": "Tiaaaaaaa! 😘 Vamos a confiar! 🩷",
+        "elapsed_ms": 4411
+      },
+      {
+        "id": "cpe_iris_b_034",
+        "test_input": "Dijous no, marxo a Ullastret",
+        "ground_truth": "Perfect",
+        "bot_response": "Jajaja, tia, no t'imagines! 🩷  \nUeee, encantada que te gusten! 💪  \nLlamo ya, prometit!",
+        "elapsed_ms": 4705
+      },
+      {
+        "id": "cpe_iris_b_035",
+        "test_input": "[🎬 Video]",
+        "ground_truth": "Super eee si em\nVeuen bé perfecte",
+        "bot_response": "Jajaja q crack! 🩷 Llamo ya, prometido! 😘",
+        "elapsed_ms": 2229
+      },
+      {
+        "id": "cpe_iris_b_036",
+        "test_input": "Shared a post",
+        "ground_truth": "Jajaja, qué lindo 💕 A mi me encanta cuando me dicen eso, me pongo toda la piel de gallina 🩷 Y el pan de la burger?",
+        "bot_response": "Jajaja que crack! 🩷 Tia, t’agradi molt! 😘  \nPau, tia, m’has deixat sense paraules!",
+        "elapsed_ms": 5125
+      },
+      {
+        "id": "cpe_iris_b_037",
+        "test_input": "Estimada Iris,\nle invitamos a descubrir los beneficios de la limpieza facial con HYDROFACIAL, un tratamiento avanzado que limpia, hidrata y revitaliza la piel en profundidad, aportando luminosidad y frescura desde la primera sesión.\n\nPromoción especial: 70€\n📅 Válida hasta el martes 31\n\nReserve su cita y disfrute de una piel más saludable y radiante.",
+        "ground_truth": "Holi!  ¿?",
+        "bot_response": "Tiaaaaa, ¿has visto el video? 🫠 Me flipa que te acuerdes de mí 😘  \nY oye, el HYDROFACIAL suena genial, ¿lo han hecho ya?",
+        "elapsed_ms": 5611
+      },
+      {
+        "id": "cpe_iris_b_038",
+        "test_input": "Okkkkki",
+        "ground_truth": "No entiendo xk a tu madre no la puedo entrar en el grupo no me sale🫠",
+        "bot_response": "Jajaja tiaaaaaa! 😂 Me encanta que te acuerdes de mí, qué lindo!",
+        "elapsed_ms": 5452
+      },
+      {
+        "id": "cpe_iris_b_039",
+        "test_input": "Espero que no ho faci per nivell, que no. Perque tu estas molt per sobre de nivell, energia, tècnica…",
+        "ground_truth": "Jo vaig mirar el teu",
+        "bot_response": "Jajaja tia, gràcies per recordar-me! 🩷 T’envio un abraçet fort per la porta darrere la cafetería, que no et perdis 😘  \nAra mateix estic a tope amb els preparatius per aquesta setmana, però t’espero amb els braços oberts!  \nI si vols, t’envio un missatge per WhatsApp amb",
+        "elapsed_ms": 5519
+      },
+      {
+        "id": "cpe_iris_b_040",
+        "test_input": "[Media/Attachment]",
+        "ground_truth": "Jajaja, gracias! 😘 ¿?",
+        "bot_response": "Jajaja q crack! 🩷  \nTia, t’he vistu i em va flipar! 😘  \nI el video? Q onada!",
+        "elapsed_ms": 5440
+      },
+      {
+        "id": "cpe_iris_b_041",
+        "test_input": "Como natanja amarilla",
+        "ground_truth": "Jajaja, que color más chulo 😂",
+        "bot_response": "Jajaja, tia! 😂 Ok, piso 4A, darrere de la cafeteria. T'ho recordo!",
+        "elapsed_ms": 5114
+      },
+      {
+        "id": "cpe_iris_b_042",
+        "test_input": "Holaaaa",
+        "ground_truth": "[🏷️ Sticker]",
+        "bot_response": "Holaaaa tiaaaaa 💪  \nJajaja no em fas més cau 😂  \nEnergia per sobre de nivell? Ueee, molt bé! 🩷  \nA veure què tens per aquí?",
+        "elapsed_ms": 5171
+      },
+      {
+        "id": "cpe_iris_b_043",
+        "test_input": "[🎤 Audio]: Home, si fa bo, vés-te'n a la platja. Jo podré aniré a córrer a la muntanya i pararé de comptar, perquè després tenim una calçotada i així vaig preparada. Vinga, bona nit, descansa.",
+        "ground_truth": "Tranqui cuca, entesos  Nos vemos la que viene, como sempre.!",
+        "bot_response": "Jajaja, tia, que crack! 🩷  \nBuenas noches, descansa guapa! 🌙  \nT'envio el link per si vols mirar-ho, que no t'ho perdis.  \nUn abrazo, tia! 💗",
+        "elapsed_ms": 6009
+      },
+      {
+        "id": "cpe_iris_b_044",
+        "test_input": "Perfecte!!",
+        "ground_truth": "Perfecte! 😘 A quina hora vindreu?",
+        "bot_response": "Jajaja, q crack! 🩷 Merciii x todo amor 😘",
+        "elapsed_ms": 4228
+      },
+      {
+        "id": "cpe_iris_b_045",
+        "test_input": "Ooooo mi niña verdad ufffff todo el fin de semana fue  muy interesante ye todo como muy intenso \nLa sección es top  me gustó mucho ahora me falta la ultima etapa que es mandar mi vídeo para mí certificación \nMe tienes que echar una mano tengo que coger clases contigo 😛 \n\nYo hice online las de presencial estaban muertas ajajaja \n\n Ahora a practicar duro y parejo",
+        "ground_truth": "Jajaja daleee",
+        "bot_response": "Ooooo mi niña! 😘  \n¿Ya te falta solo el vídeo? ¡Qué crack!  \nVamos, te ayudo con lo que necesites, ya sabes donde estoy.  \nY si quieres, siempre puedes coger clases contigo, ya sabes que me encanta enseñar 😘  \n¡Vamos a confiar! 🩷",
+        "elapsed_ms": 4976
+      },
+      {
+        "id": "cpe_iris_b_046",
+        "test_input": "[sticker]",
+        "ground_truth": "Tu vienes?",
+        "bot_response": "Holaaaaa 😘  \nJajaja, qué crack! 🩷  \nUeee, que bonito! 🫠  \nDale, me encanta! 💪",
+        "elapsed_ms": 2812
+      },
+      {
+        "id": "cpe_iris_b_047",
+        "test_input": "Perfecte, fins demà! 😘💖",
+        "ground_truth": "Avui ja està plè, nena. Demà a les 13:30 perfecte 🩷.quina hora es? Mira, la maquilladora és la @[1571889071] ❤️💖",
+        "bot_response": "Holaaa! 😘  \nQué onda con el audio? Jajaja, pica mucho el clima!",
+        "elapsed_ms": 6009
+      },
+      {
+        "id": "cpe_iris_b_048",
+        "test_input": "[📷 Photo]",
+        "ground_truth": "[🎤 Audio]: Amor, ja surto, vale? Li volia comprar unes floretes, però la Júlia és tan especial, tio. Algo molt senzillet, perquè ja he vist que hi ha gent que ja l'he portat a la botiga. Però algo així, molt minimal, vale? Ho pensem ara, t'espero fora. Vull que flipes.",
+        "bot_response": "Jajaja q crack! 🩷  \nSiii, me encanta cómo te lo montas todo!",
+        "elapsed_ms": 2783
+      },
+      {
+        "id": "cpe_iris_b_049",
+        "test_input": "Esq es pedazo de gira esta",
+        "ground_truth": "Hombre, yo creo que sí, tía, va a ser una gastroenteritis. , le he cogido la cagalera porque se intoxicó. Pero ya va a decir que estaba mejor el endemá. Tía, es el último concert de Madrid, . Es que además lo ha hecho tan bien, porque así el viernes tengo fiesta, tía. ¿Sabes? Y no pierdo trabajo. , y no me pierdo el dijous, que mala pera, pues esas clases las voy a poner. Porque ni se dan cuenta ni se van a... Bueno, con todo lo que regalo de horas. Muy fuerte, muy fuerte Pero a Albert no se lo creo Digo, yo flipo el poder que tienes Digo, tío, no sé Son las cosas de hacer bien las cosas ¿No algún día han de llegar a cosas así? Yo qué sé Muy fuerte, muy fuerte Bueno, es que ahora llegaré a casa Y me vuelvo a mirar el vídeo 3.000 veces M'ha encantado, ¿, Erika? Muchísimas gracias porque es un súper trabajazo",
+        "bot_response": "Jajaja, qué intensa! 🩷  \nVes, ya estàs a punt de acabar-ho tot!  \nAnima’t, que t’ho vas a guanyar!",
+        "elapsed_ms": 5076
+      },
+      {
+        "id": "cpe_iris_b_050",
+        "test_input": "Val gràcies!",
+        "ground_truth": "De res VICKY CALDITO 🩷 Ens veiem aviat!",
+        "bot_response": "Jajaja qué crack! 🩷  \nDale, ya me tienes a mí!",
+        "elapsed_ms": 2841
+      }
+    ]
+  ],
+  "timestamp": "2026-03-31T19:53:54.416682+00:00"
+}

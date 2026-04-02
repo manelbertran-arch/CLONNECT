@@ -28,6 +28,57 @@ logger = logging.getLogger(__name__)
 ENABLE_FACT_TRACKING = os.getenv("ENABLE_FACT_TRACKING", "true").lower() == "true"
 ENABLE_DNA_TRIGGERS = os.getenv("ENABLE_DNA_TRIGGERS", "true").lower() == "true"
 
+
+# BUG-EP-04 fix: Shared fact-tracking function (was duplicated in two code paths).
+# BUG-EP-05 fix: Added multilingual regex (ES/CA/EN/IT).
+def _extract_facts(
+    assistant_msg: str, user_msg: str, products: list, follower_name: str | None = None,
+) -> list[str]:
+    """Extract fact tags from assistant + user messages. Returns list of tag strings."""
+    facts: list[str] = []
+    if re.search(r"\d+\s*€|\d+\s*euros?|\$\d+|\d+\s*USD", assistant_msg, re.IGNORECASE):
+        facts.append("PRICE_GIVEN")
+    if "https://" in assistant_msg or "http://" in assistant_msg:
+        facts.append("LINK_SHARED")
+    if products:
+        for prod in products:
+            prod_name = prod.get("name", "").lower()
+            if prod_name and len(prod_name) > 3 and prod_name in assistant_msg.lower():
+                facts.append("PRODUCT_EXPLAINED")
+                break
+    # ES + CA + EN + IT objection handling
+    if re.search(
+        r"entiendo tu (duda|preocupación)|es normal|no te preocupes|garantía|devolución"
+        r"|I understand your concern|don't worry|garanzia|non preoccuparti"
+        r"|entenc el teu dubte|no et preocupis",
+        assistant_msg, re.IGNORECASE,
+    ):
+        facts.append("OBJECTION_RAISED")
+    # ES + CA + EN + IT interest signals
+    if re.search(
+        r"me interesa|quiero saber|cuéntame|suena bien|me gusta"
+        r"|I'm interested|tell me more|sounds good|I like"
+        r"|m'interessa|vull saber|explica'm|mi interessa|voglio sapere",
+        user_msg, re.IGNORECASE,
+    ):
+        facts.append("INTEREST_EXPRESSED")
+    if re.search(
+        r"reserva|agenda|cita|llamada|reunión|calendly|cal\.com"
+        r"|booking|appointment|meeting|call|prenotazione|appuntamento",
+        assistant_msg, re.IGNORECASE,
+    ):
+        facts.append("APPOINTMENT_MENTIONED")
+    if re.search(
+        r"@\w{3,}|[\w.-]+@[\w.-]+\.\w+|\+?\d{9,}|wa\.me|whatsapp",
+        assistant_msg, re.IGNORECASE,
+    ):
+        facts.append("CONTACT_SHARED")
+    if "?" in assistant_msg:
+        facts.append("QUESTION_ASKED")
+    if follower_name and len(follower_name) > 2 and follower_name.lower() in assistant_msg.lower():
+        facts.append("NAME_USED")
+    return facts
+
 # Intents where we should NOT ask for email
 _EMAIL_SKIP_INTENTS = frozenset({
     "escalation", "support", "sensitive", "crisis",
@@ -89,36 +140,51 @@ def sync_post_response(
     follower.total_messages += 1
     follower.last_contact = now
 
-    # Fact tracking
+    # BUG-EP-04 fix: Use shared _extract_facts() instead of inline duplicate
     if ENABLE_FACT_TRACKING:
         try:
-            facts = []
-            if re.search(r"\d+\s*€|\d+\s*euros?|\$\d+", formatted_content, re.IGNORECASE):
-                facts.append("PRICE_GIVEN")
-            if "https://" in formatted_content or "http://" in formatted_content:
-                facts.append("LINK_SHARED")
-            if agent.products:
-                for prod in agent.products:
-                    prod_name = prod.get("name", "").lower()
-                    if prod_name and len(prod_name) > 3 and prod_name in formatted_content.lower():
-                        facts.append("PRODUCT_EXPLAINED")
-                        break
-            if re.search(r"entiendo tu (duda|preocupación)|es normal|no te preocupes|garantía|devolución", formatted_content, re.IGNORECASE):
-                facts.append("OBJECTION_RAISED")
-            if re.search(r"me interesa|quiero saber|cuéntame|suena bien|me gusta", message, re.IGNORECASE):
-                facts.append("INTEREST_EXPRESSED")
-            if re.search(r"reserva|agenda|cita|llamada|reunión|calendly|cal\.com", formatted_content, re.IGNORECASE):
-                facts.append("APPOINTMENT_MENTIONED")
-            if re.search(r"@\w{3,}|[\w.-]+@[\w.-]+\.\w+|\+?\d{9,}|wa\.me|whatsapp", formatted_content, re.IGNORECASE):
-                facts.append("CONTACT_SHARED")
-            if "?" in formatted_content:
-                facts.append("QUESTION_ASKED")
-            if follower.name and len(follower.name) > 2 and follower.name.lower() in formatted_content.lower():
-                facts.append("NAME_USED")
+            facts = _extract_facts(formatted_content, message, agent.products or [], follower.name)
             if facts:
                 follower.last_messages[-1]["facts"] = facts
         except Exception as e:
             logger.debug(f"Fact tracking failed: {e}")
+
+    # BUG-UC-02 fix: Persist detected user name from context_signals
+    try:
+        _ctx_sigs = cognitive_metadata.get("context_signals", {})
+        _detected_name = _ctx_sigs.get("user_name", "")
+        if _detected_name and not follower.name:
+            follower.name = _detected_name
+            logger.info(f"[UC-FIX] Persisted detected name '{_detected_name}' for {sender_id}")
+    except Exception as e:
+        logger.debug(f"Name persistence failed: {e}")
+
+    # BUG-UC-01 fix: Detect and persist lead's language.
+    # Only update when stored language is still the default "es" to avoid
+    # overwriting a confirmed non-ES language with a false "es" detection
+    # on short/ambiguous messages (reviewer Issue 3).
+    try:
+        _current_lang = getattr(follower, "preferred_language", "es") or "es"
+        if _current_lang == "es" and len(message.strip()) >= 10:
+            from core.i18n import detect_language as _detect_lang
+            _detected_lang = _detect_lang(message)
+            if _detected_lang and _detected_lang != "es" and _detected_lang != "unknown":
+                follower.preferred_language = _detected_lang
+                logger.info(f"[UC-FIX] Updated language to '{_detected_lang}' for {sender_id}")
+    except Exception as e:
+        logger.debug(f"Language detection failed: {e}")
+
+    # BUG-EP-01 fix: Index messages into conversation_embeddings for episodic search.
+    # Without this, _episodic_search() finds nothing for Instagram leads.
+    if os.getenv("ENABLE_SEMANTIC_MEMORY_PGVECTOR", "true").lower() == "true":
+        try:
+            from core.semantic_memory_pgvector import get_semantic_memory
+            sm = get_semantic_memory(agent.creator_id, sender_id)
+            sm.add_message("user", message)
+            if not is_copilot:
+                sm.add_message("assistant", formatted_content)
+        except Exception as e:
+            logger.debug(f"[EPISODIC] Embedding indexing failed: {e}")
 
     # Save to JSON storage (sync file I/O)
     try:
@@ -196,52 +262,13 @@ async def update_follower_memory(
 
     follower.last_messages = follower.last_messages[-20:]
 
-    # Track facts in assistant response (9 types)
+    # BUG-EP-04 fix: Use shared _extract_facts() instead of inline duplicate
     if ENABLE_FACT_TRACKING:
         try:
-            facts = []
-            if re.search(r"\d+\s*€|\d+\s*euros?|\$\d+", assistant_message, re.IGNORECASE):
-                facts.append("PRICE_GIVEN")
-            if "https://" in assistant_message or "http://" in assistant_message:
-                facts.append("LINK_SHARED")
-            if agent.products:
-                for prod in agent.products:
-                    prod_name = prod.get("name", "").lower()
-                    if (
-                        prod_name
-                        and len(prod_name) > 3
-                        and prod_name in assistant_message.lower()
-                    ):
-                        facts.append("PRODUCT_EXPLAINED")
-                        break
-            if re.search(
-                r"entiendo tu (duda|preocupación)|es normal|no te preocupes|garantía|devolución",
-                assistant_message, re.IGNORECASE,
-            ):
-                facts.append("OBJECTION_RAISED")
-            if re.search(
-                r"me interesa|quiero saber|cuéntame|suena bien|me gusta",
-                user_message, re.IGNORECASE,
-            ):
-                facts.append("INTEREST_EXPRESSED")
-            if re.search(
-                r"reserva|agenda|cita|llamada|reunión|calendly|cal\.com",
-                assistant_message, re.IGNORECASE,
-            ):
-                facts.append("APPOINTMENT_MENTIONED")
-            if re.search(
-                r"@\w{3,}|[\w.-]+@[\w.-]+\.\w+|\+?\d{9,}|wa\.me|whatsapp",
-                assistant_message, re.IGNORECASE,
-            ):
-                facts.append("CONTACT_SHARED")
-            if "?" in assistant_message:
-                facts.append("QUESTION_ASKED")
-            if (
-                follower.name
-                and len(follower.name) > 2
-                and follower.name.lower() in assistant_message.lower()
-            ):
-                facts.append("NAME_USED")
+            facts = _extract_facts(
+                assistant_message, user_message, agent.products or [],
+                getattr(follower, "name", None),
+            )
             if facts:
                 follower.last_messages[-1]["facts"] = facts
                 logger.debug(f"Facts tracked: {facts}")

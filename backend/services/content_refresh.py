@@ -182,11 +182,12 @@ async def _embed_new_chunks(creator_id: str) -> int:
         if not rows:
             return 0
 
-        from core.embeddings import generate_embedding, store_embedding
+        from core.contextual_prefix import generate_embedding_with_context
+        from core.embeddings import store_embedding
 
         stored = 0
         for row in rows:
-            embedding = generate_embedding(row.content)
+            embedding = generate_embedding_with_context(row.content, creator_id)
             if embedding:
                 store_embedding(row.chunk_id, creator_id, row.content, embedding)
                 stored += 1

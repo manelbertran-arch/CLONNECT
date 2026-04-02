@@ -51,7 +51,7 @@ from api.models.learning import (
     CopilotEvaluation, LearningRule, GoldExample,
     PatternAnalysisRun, PreferencePair,
     CloneScoreEvaluation, CloneScoreTestSet,
-    LLMUsageLog,
+    LLMUsageLog, EvaluatorFeedback,
 )
 
 # Analytics
@@ -87,7 +87,7 @@ __all__ = [
     "CopilotEvaluation", "LearningRule", "GoldExample",
     "PatternAnalysisRun", "PreferencePair",
     "CloneScoreEvaluation", "CloneScoreTestSet",
-    "LLMUsageLog",
+    "LLMUsageLog", "EvaluatorFeedback",
     "CreatorMetricsDaily", "Prediction", "Recommendation",
     "DetectedTopic", "WeeklyReport", "CSATRating",
     "UnifiedProfile", "PlatformIdentity",

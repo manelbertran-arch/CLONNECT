@@ -163,8 +163,7 @@ class MemoryStore:
     """
     Store for follower memory.
 
-    Provides in-memory caching with JSON file persistence.
-    Can be extended to support database persistence.
+    Provides BoundedTTLCache with JSON file persistence.
     """
 
     def __init__(self, storage_path: str = "data/followers") -> None:
@@ -176,7 +175,9 @@ class MemoryStore:
         """
         self.storage_path = storage_path
         os.makedirs(storage_path, exist_ok=True)
-        self._cache: Dict[str, FollowerMemory] = {}
+        # BUG-MEM-07 fix: bounded cache instead of unbounded dict
+        from core.cache import BoundedTTLCache
+        self._cache = BoundedTTLCache(max_size=500, ttl_seconds=600)
         logger.info(f"[MemoryStore] Initialized with path: {storage_path}")
 
     def _get_cache_key(self, creator_id: str, follower_id: str) -> str:
@@ -236,14 +237,15 @@ class MemoryStore:
         cache_key = self._get_cache_key(creator_id, follower_id)
 
         # Check cache first
-        if cache_key in self._cache:
+        cached = self._cache.get(cache_key)
+        if cached is not None:
             logger.debug(f"[MemoryStore] Cache hit for {follower_id}")
-            return self._cache[cache_key]
+            return cached
 
         # Load from JSON
         memory = self._load_from_json(creator_id, follower_id)
         if memory:
-            self._cache[cache_key] = memory
+            self._cache.set(cache_key, memory)
             logger.debug(f"[MemoryStore] Loaded {follower_id} from JSON")
 
         return memory
@@ -258,7 +260,7 @@ class MemoryStore:
             memory: FollowerMemory to save
         """
         cache_key = self._get_cache_key(memory.creator_id, memory.follower_id)
-        self._cache[cache_key] = memory
+        self._cache.set(cache_key, memory)
         self._save_to_json(memory)
         logger.debug(f"[MemoryStore] Saved {memory.follower_id}")
 
@@ -373,9 +375,37 @@ class ConversationMemoryService:
         return os.path.join(self.storage_path, f"{creator_id}_{lead_id}.json")
 
     async def load(self, lead_id: str, creator_id: str) -> ConversationMemory:
-        """Carga la memoria de una conversación."""
-        path = self._get_memory_path(lead_id, creator_id)
+        """Carga la memoria de una conversación (DB first, JSON fallback)."""
+        import asyncio as _aio
+        # BUG-MEM-06 fix: try DB first (survives Railway deploys)
+        try:
+            def _load_db():
+                from api.database import SessionLocal
+                from sqlalchemy import text
+                session = SessionLocal()
+                try:
+                    row = session.execute(
+                        text(
+                            "SELECT fact_text FROM lead_memories "
+                            "WHERE creator_id = CAST(:cid AS uuid) "
+                            "AND lead_id = CAST(:lid AS uuid) "
+                            "AND fact_type = '_conv_memory_state' "
+                            "AND is_active = true "
+                            "ORDER BY updated_at DESC LIMIT 1"
+                        ),
+                        {"cid": creator_id, "lid": lead_id},
+                    ).fetchone()
+                    return row[0] if row else None
+                finally:
+                    session.close()
+            data_str = await _aio.to_thread(_load_db)
+            if data_str:
+                return ConversationMemory.from_dict(json.loads(data_str))
+        except Exception:
+            pass  # Fall through to JSON
 
+        # Fallback: JSON file (legacy)
+        path = self._get_memory_path(lead_id, creator_id)
         if os.path.exists(path):
             try:
                 with open(path, "r") as f:
@@ -387,12 +417,55 @@ class ConversationMemoryService:
         return ConversationMemory(lead_id=lead_id, creator_id=creator_id)
 
     async def save(self, memory: ConversationMemory):
-        """Guarda la memoria de una conversación."""
-        path = self._get_memory_path(memory.lead_id, memory.creator_id)
+        """Guarda la memoria de una conversación (DB + JSON fallback)."""
+        import asyncio as _aio
+        import uuid as _uuid
+        data = memory.to_dict()
+        data_str = json.dumps(data, ensure_ascii=False)
 
+        # BUG-MEM-06 fix: persist to DB (survives Railway deploys)
+        try:
+            def _save_db():
+                from api.database import SessionLocal
+                from sqlalchemy import text
+                session = SessionLocal()
+                try:
+                    # Deactivate old state
+                    session.execute(
+                        text(
+                            "UPDATE lead_memories SET is_active = false, updated_at = NOW() "
+                            "WHERE creator_id = CAST(:cid AS uuid) "
+                            "AND lead_id = CAST(:lid AS uuid) "
+                            "AND fact_type = '_conv_memory_state' "
+                            "AND is_active = true"
+                        ),
+                        {"cid": memory.creator_id, "lid": memory.lead_id},
+                    )
+                    # Insert new state
+                    session.execute(
+                        text(
+                            "INSERT INTO lead_memories "
+                            "(id, creator_id, lead_id, fact_type, fact_text, "
+                            "confidence, source_type, created_at, updated_at) "
+                            "VALUES ("
+                            "CAST(:id AS uuid), CAST(:cid AS uuid), CAST(:lid AS uuid), "
+                            "'_conv_memory_state', :ftext, 1.0, 'system', NOW(), NOW())"
+                        ),
+                        {"id": str(_uuid.uuid4()), "cid": memory.creator_id,
+                         "lid": memory.lead_id, "ftext": data_str},
+                    )
+                    session.commit()
+                finally:
+                    session.close()
+            await _aio.to_thread(_save_db)
+        except Exception as e:
+            logger.debug(f"[ConvMemory] DB save failed, using JSON only: {e}")
+
+        # Also save to JSON as fallback
+        path = self._get_memory_path(memory.lead_id, memory.creator_id)
         try:
             with open(path, "w") as f:
-                json.dump(memory.to_dict(), f, indent=2, ensure_ascii=False)
+                json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Error saving conversation memory to {path}: {e}")
 
@@ -405,9 +478,18 @@ class ConversationMemoryService:
         )
 
     def extract_facts(
-        self, message: str, response: str, is_bot_response: bool = True
+        self, message: str, response: str, is_bot_response: bool = True,
+        products: Optional[List[str]] = None,
     ) -> list:
-        """Extrae facts de un intercambio de mensajes."""
+        """Extrae facts de un intercambio de mensajes.
+
+        Args:
+            message: Mensaje del lead.
+            response: Respuesta del bot.
+            is_bot_response: True para analizar la respuesta del bot.
+            products: Lista de nombres de productos del creador (desde DB).
+                      Si es None o vacía, se omite la detección de productos.
+        """
         facts = []
         text = response if is_bot_response else message
 
@@ -436,10 +518,9 @@ class ConversationMemoryService:
                 )
             )
 
-        # Detectar productos mencionados
-        products = ["círculo", "coaching", "mentoría", "programa", "sesión", "sesion"]
-        for product in products:
-            if product in text.lower() and len(text) > 50:
+        # Detectar productos mencionados — usa catálogo del creador, no hardcoded
+        for product in (products or []):
+            if product and len(product) > 2 and product.lower() in text.lower() and len(text) > 50:
                 facts.append(
                     ConversationFact(
                         fact_type=FactType.PRODUCT_EXPLAINED,

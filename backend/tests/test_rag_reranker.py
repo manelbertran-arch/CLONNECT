@@ -106,9 +106,9 @@ class TestEnhancedSearchPipeline:
         """Test that feature flags have correct defaults"""
         from core.rag.semantic import ENABLE_RERANKING, ENABLE_BM25_HYBRID
 
-        # ENABLE_RERANKING defaults to True, ENABLE_BM25_HYBRID defaults to False
+        # Both default to True
         assert ENABLE_RERANKING == True
-        assert ENABLE_BM25_HYBRID == False
+        assert ENABLE_BM25_HYBRID == True
 
     def test_search_returns_list(self):
         """Test search returns a list"""

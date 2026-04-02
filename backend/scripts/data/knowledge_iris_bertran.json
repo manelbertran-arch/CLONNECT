@@ -1,0 +1,239 @@
+{
+  "creator": "iris_bertran",
+  "mined_at": "2026-03-28T09:27:37Z",
+  "n_chunks": 15,
+  "by_category": {
+    "faq": 4,
+    "testimonial": 4,
+    "objection_handling": 2,
+    "expertise": 4,
+    "policies": 1
+  },
+  "chunks": [
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "fcbd96463eb2082812dfc3fe4ac407cd",
+      "content": "Iris se encuentra en la calle Sant Martí de Tous, número 21 bis, primero.",
+      "source_type": "conversation_faq",
+      "title": "Ubicación de Iris",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "faq",
+        "original_user": "Que piso tienes y la calle",
+        "original_creator": "Calle sant marti de tous num.21bis primero",
+        "mined_at": "2026-03-28T09:27:31Z"
+      }
+    },
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "f1b10b98fa7ae5f921d277fa6ca7904b",
+      "content": "Las clases de mañana jueves y viernes están completas por el momento.",
+      "source_type": "conversation_faq",
+      "title": "Disponibilidad de clases",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "faq",
+        "original_user": "Si! Tenia al cap les 11",
+        "original_creator": "Es que ta tot ple demà dijous i divendres de moment🫠",
+        "mined_at": "2026-03-28T09:27:31Z"
+      }
+    },
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "575b0047e710f6fa7e705314b1771be4",
+      "content": "Iris agradece a la usuaria por haber completado una acción deseada.",
+      "source_type": "conversation_testimonial",
+      "title": "Agradecimiento por acción completada",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "testimonial",
+        "original_user": "Nenaaa ja t’ho he fet😉😘",
+        "original_creator": "Gràcies cuka❤️",
+        "mined_at": "2026-03-28T09:27:31Z"
+      }
+    },
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "c1422c0edc31f1020de37c66eec18b50",
+      "content": "Si deseas desconectar un rato, puedes avisar a Iris.",
+      "source_type": "conversation_objection_handling",
+      "title": "Opción para desconectar",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "objection_handling",
+        "original_user": "Y le dejé una nota al del coche de al lado",
+        "original_creator": "Bueno como quieras si te apetece un rato desconectar me dices",
+        "mined_at": "2026-03-28T09:27:31Z"
+      }
+    },
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "14665ced09b9f0106e4b724f1aefb683",
+      "content": "El entrenamiento dinámico es más entretenido y menos monótono que otras actividades.",
+      "source_type": "conversation_expertise",
+      "title": "Entrenamiento dinámico",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "expertise",
+        "original_user": "Sempre anem a full per feina",
+        "original_creator": "I que al final lo meu et dona joc es mes dinàmic, me muero si tengo que estar 3 dies viendo uñas😂😂😂😂",
+        "mined_at": "2026-03-28T09:27:35Z"
+      }
+    },
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "4b8f3b10d7273e80680af0c6034cc495",
+      "content": "Agradece el mensaje generoso y el tiempo dedicado, expresando gratitud y afecto.",
+      "source_type": "conversation_testimonial",
+      "title": "Agradecimiento por mensaje",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "testimonial",
+        "original_user": "Que guai Iris, m’encanta",
+        "original_creator": "Remuntarem ❤️ gràcies x ser tan generós amb aquest missatge i dedicar-me aquesta estoneta.\nMe has llenado el cora hoy😘😘😘❤️",
+        "mined_at": "2026-03-28T09:27:35Z"
+      }
+    },
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "38be8dd812327810f93df18ff4360206",
+      "content": "Prepara clases de barre y da clases dinámicas los domingos para cubrir gastos de autónomo.",
+      "source_type": "conversation_expertise",
+      "title": "Clases de barre y autónomo",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "expertise",
+        "original_user": "Si que et lleves d'hora",
+        "original_creator": "Preparant la classe de barre avui tinc combito al dinamic els diumenges mentres plogui faig 3 classes i así ko me hago con el autónomo😂😂😂😂😂",
+        "mined_at": "2026-03-28T09:27:35Z"
+      }
+    },
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "3fcaa410255fbcaf7adc054c42a2c58a",
+      "content": "Se está considerando un horario más tarde para las clases hasta la primavera debido al frío matutino.",
+      "source_type": "conversation_faq",
+      "title": "Horario de clase",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "faq",
+        "original_user": "I també buscar una hora una mica mes tard fins la primavera perque al mati gela molt! A veure si tens algo mes tard 😅",
+        "original_creator": "Que no m’enrecordava com haviem quedat😘",
+        "mined_at": "2026-03-28T09:27:35Z"
+      }
+    },
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "4a42a9d32be7208cbbdc0b8fff43e4f4",
+      "content": "El pie está desinflamado y se recomienda tomar ibuprofeno según lo indicado.",
+      "source_type": "conversation_expertise",
+      "title": "Recuperación de pie",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "expertise",
+        "original_user": "Menjar a la nevera descongelado se,mes o mens el k fant als restaruant,no gastos ni un euro,amb menjar,es lo que hay,Jo estic perfecta i ara despré del matí a caseta m'en vaig a descansar i dormir per",
+        "original_creator": "Mama això encara està inflat siusplau prente el ibuprofeno que et toca ara",
+        "mined_at": "2026-03-28T09:27:35Z"
+      }
+    },
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "7c6336e576861bc3b4737cc53a2c46dd",
+      "content": "Agradece el cumplido sobre la mejora, expresando alegría.",
+      "source_type": "conversation_testimonial",
+      "title": "Agradecimiento por mejora",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "testimonial",
+        "original_user": "Millor que avui",
+        "original_creator": "Uooo merciii cuka",
+        "mined_at": "2026-03-28T09:27:35Z"
+      }
+    },
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "a0fc4d55eef4f340ce84ad34b9077458",
+      "content": "Se alquilarán los objetos por el momento.",
+      "source_type": "conversation_policies",
+      "title": "Alquiler de objetos",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "policies",
+        "original_user": "De moment els llogare",
+        "original_creator": "Claroo",
+        "mined_at": "2026-03-28T09:27:35Z"
+      }
+    },
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "67937926853ea1ffbaade2520a947eb4",
+      "content": "Classes start at 15:15.",
+      "source_type": "conversation_faq",
+      "title": "Class start time",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "faq",
+        "original_user": "A les 15h, no??",
+        "original_creator": "15:15",
+        "mined_at": "2026-03-28T09:27:37Z"
+      }
+    },
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "937fca840745a6658631b9eec43af1e7",
+      "content": "The user is excited about the potent and visible differences in the training.",
+      "source_type": "conversation_testimonial",
+      "title": "Visible differences",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "testimonial",
+        "original_user": "Espero q sigui potent pq es veuen super b les diferencies",
+        "original_creator": "Que tens negre x deixar-me",
+        "mined_at": "2026-03-28T09:27:37Z"
+      }
+    },
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "5526fa57e1f164ea04e78ba9940a1a0a",
+      "content": "We can die, so we should live fully.",
+      "source_type": "conversation_expertise",
+      "title": "Mortality and living",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "expertise",
+        "original_user": "Ella sempre es tallava les ungles",
+        "original_creator": "Xk nos podemos morir i ja ho hem fet",
+        "mined_at": "2026-03-28T09:27:37Z"
+      }
+    },
+    {
+      "creator_id": "iris_bertran",
+      "chunk_id": "bbe4f1a370066b9e0bcef2e5a9c0a25e",
+      "content": "If something isn't working well for you, it's important to acknowledge it.",
+      "source_type": "conversation_objection_handling",
+      "title": "Addressing effectiveness",
+      "chunk_index": 0,
+      "total_chunks": 1,
+      "extra_data": {
+        "category": "objection_handling",
+        "original_user": "Es que em va molt bé,pero bé no ho faré",
+        "original_creator": "No et va bé",
+        "mined_at": "2026-03-28T09:27:37Z"
+      }
+    }
+  ]
+}

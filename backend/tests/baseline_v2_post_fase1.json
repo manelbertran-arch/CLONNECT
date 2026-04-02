@@ -1,0 +1,247 @@
+{
+  "version": "v2",
+  "date": "2026-03-21",
+  "system_state": "post-fase1-fixes",
+  "changes_since_v1": [
+    "Guardrail anti-loop: [:50] -> exacto (5 fallbacks eliminados)",
+    "Calibration file: 20 few-shot examples de Iris real",
+    "Few-shot limit: 2 -> 10 examples por prompt",
+    "Doc D: 16600 -> 1870 tokens (89% reduccion)",
+    "RAG: 0 -> 107 embeddings buscables + 14 chunks producto",
+    "Memory Engine: budget 1200 -> 3000 chars",
+    "Conversation State: update_state() conectado",
+    "Audio Context: clean_text + summary inyectados"
+  ],
+  "baseline_v1_score": 28.9,
+  "delta_vs_v1": "+7.3 puntos (+25.3%)",
+  "flags": {
+    "ENABLE_LEARNING_RULES": false,
+    "ENABLE_BEST_OF_N": false,
+    "ENABLE_SELF_CONSISTENCY": false,
+    "ENABLE_REFLEXION": false,
+    "ENABLE_MEMORY_ENGINE": true,
+    "ENABLE_CLONE_SCORE": true
+  },
+  "model": "gemini-2.5-flash-lite",
+  "results": {
+    "overall_clone_score": 36.2,
+    "by_type": {
+      "personal": 29.6,
+      "saludo": 29.7,
+      "precio": 53.4,
+      "objecion": 29.6,
+      "lead_caliente": 21.5,
+      "audio": 47.4
+    },
+    "by_language": {
+      "ca": 40.6,
+      "es": 31.8
+    },
+    "std_dev": 23.6,
+    "n_conversations": 20,
+    "n_successful": 20,
+    "n_errors": 0
+  },
+  "conversations": [
+    {
+      "id": "conv_001",
+      "type": "personal",
+      "language": "ca",
+      "bot_response": "Ostia amor, qué no trobes Explica'm.",
+      "ground_truth": "Ay, Manel! Qué lío con las bambas. 😣 ¿Seguro que no las dejaste en casa?",
+      "clone_score": 29.6,
+      "elapsed_ms": 4714,
+      "error": null
+    },
+    {
+      "id": "conv_002",
+      "type": "saludo",
+      "language": "ca",
+      "bot_response": "Hola nena Que et sembla tot plegat",
+      "ground_truth": "Mare meva Irene! Quina gràcia!! 😍 Com estàs, guapa?",
+      "clone_score": 32.9,
+      "elapsed_ms": 3472,
+      "error": null
+    },
+    {
+      "id": "conv_003",
+      "type": "saludo",
+      "language": "es",
+      "bot_response": "Emiliano!! Que haces por acá Que alegría. Que tal todo?",
+      "ground_truth": "Daleee! Que haces babyyyy? 😘 Que fuerteee!",
+      "clone_score": 45.4,
+      "elapsed_ms": 3456,
+      "error": null
+    },
+    {
+      "id": "conv_004",
+      "type": "saludo",
+      "language": "es",
+      "bot_response": "Hola Que et vaig enviar No m'apareix res al chat. Escribe'm si us plau que no veig l'adjunt. Gràcies!🩷",
+      "ground_truth": "Ostiaaa😂😂😂",
+      "clone_score": 10.7,
+      "elapsed_ms": 4015,
+      "error": null
+    },
+    {
+      "id": "conv_005",
+      "type": "precio",
+      "language": "es",
+      "bot_response": "Ya estas flor!",
+      "ground_truth": "Ya estás flor",
+      "clone_score": 88.9,
+      "elapsed_ms": 3176,
+      "error": null
+    },
+    {
+      "id": "conv_006",
+      "type": "precio",
+      "language": "ca",
+      "bot_response": "Hola guapa",
+      "ground_truth": "Hola Iolanda! 😊",
+      "clone_score": 56.0,
+      "elapsed_ms": 3615,
+      "error": null
+    },
+    {
+      "id": "conv_007",
+      "type": "precio",
+      "language": "es",
+      "bot_response": "Perfecte Albert Ens veiem demà  Gràcies pel link!",
+      "ground_truth": "Hola Albert! 😊 Qué bien que te animas al workshop!",
+      "clone_score": 32.3,
+      "elapsed_ms": 4034,
+      "error": null
+    },
+    {
+      "id": "conv_008",
+      "type": "precio",
+      "language": "es",
+      "bot_response": "Okaaa tio, confirmat.",
+      "ground_truth": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂",
+      "clone_score": 25.6,
+      "elapsed_ms": 3779,
+      "error": null
+    },
+    {
+      "id": "conv_009",
+      "type": "precio",
+      "language": "ca",
+      "bot_response": "Hola Eli Com va tot? T'avanço info per privat ara que ja he penjat la classe.",
+      "ground_truth": "Aiii Eli! 🥰 Cómo va todo?? Te paso info por privado ahora que ya he colgado.",
+      "clone_score": 64.1,
+      "elapsed_ms": 3334,
+      "error": null
+    },
+    {
+      "id": "conv_010",
+      "type": "objecion",
+      "language": "es",
+      "bot_response": "Amorrr quan vulguis, ja saps on sóc. Petons guapa",
+      "ground_truth": "Amor, me alegro un montón de que lo estés asimilando bien. 🥰 ¡Ya verás qué bien te sienta!",
+      "clone_score": 25.9,
+      "elapsed_ms": 3439,
+      "error": null
+    },
+    {
+      "id": "conv_011",
+      "type": "objecion",
+      "language": "es",
+      "bot_response": "Amorrr que guayyyy Moltbe que t'hagin donat una invitacio.  Quina classe es",
+      "ground_truth": "Ay, mi vida, qué lío! 🫠 Entonces, ¿al final vas a la otra clase o te quedas a la de barre? 😘",
+      "clone_score": 32.3,
+      "elapsed_ms": 3686,
+      "error": null
+    },
+    {
+      "id": "conv_012",
+      "type": "objecion",
+      "language": "ca",
+      "bot_response": "De res cuca Quan vulguis",
+      "ground_truth": "Hola Marta! De res, guapa! 🥰 Sempre que puguis i vulguis, aquí estic! Què et va semblar la classe d'ahir? 😊",
+      "clone_score": 30.5,
+      "elapsed_ms": 3348,
+      "error": null
+    },
+    {
+      "id": "conv_013",
+      "type": "lead_caliente",
+      "language": "ca",
+      "bot_response": "Oqqq bro Que pasa?😂",
+      "ground_truth": "Hola bro! Com va tot? 🥰 Que moltes ganes de barre dijous! 💪",
+      "clone_score": 33.3,
+      "elapsed_ms": 3445,
+      "error": null
+    },
+    {
+      "id": "conv_014",
+      "type": "lead_caliente",
+      "language": "es",
+      "bot_response": "Jajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajajaj",
+      "ground_truth": "De nada, cariño. ❤️ Me alegro que te gustara. 😘",
+      "clone_score": 2.7,
+      "elapsed_ms": 3817,
+      "error": null
+    },
+    {
+      "id": "conv_015",
+      "type": "lead_caliente",
+      "language": "es",
+      "bot_response": "Ay mi amor, qué pena lo del perrito. 😔 Te mando un abrazo enorme, compa. ❤️",
+      "ground_truth": "Que vendrás el domingo que es el últimooo",
+      "clone_score": 29.3,
+      "elapsed_ms": 3552,
+      "error": null
+    },
+    {
+      "id": "conv_016",
+      "type": "lead_caliente",
+      "language": "ca",
+      "bot_response": "Holaaa Que et porta per aqui?",
+      "ground_truth": "Tranqui",
+      "clone_score": 22.2,
+      "elapsed_ms": 3679,
+      "error": null
+    },
+    {
+      "id": "conv_017",
+      "type": "audio",
+      "language": "ca",
+      "bot_response": "Hola Sònia Que et porta per aqui Que t'ha cridat l'atenció?",
+      "ground_truth": "Jajaja, ¡qué bueno! 😂 Me alegro que todo se haya solucionado, Sònia. ¡Un abrazo! 😘",
+      "clone_score": 21.3,
+      "elapsed_ms": 3225,
+      "error": null
+    },
+    {
+      "id": "conv_018",
+      "type": "audio",
+      "language": "es",
+      "bot_response": "Ostia, amor, que rotllo el de la cervical!  Espero que descansis bé avui, que ja et val. Si necessites algo, ja saps que estic aquí. Molt bé que vinguis demà a Hipopilates i Barre!",
+      "ground_truth": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+      "clone_score": 25.0,
+      "elapsed_ms": 12061,
+      "error": null
+    },
+    {
+      "id": "conv_019",
+      "type": "lead_caliente",
+      "language": "ca",
+      "bot_response": "No t'amoïnis, reina. Jo ja ho sabia. Quan puguis ja vindràs. Que et vagi súper bé les gestions",
+      "ground_truth": "Dijous no podrem fer entreno aviso😘",
+      "clone_score": 20.2,
+      "elapsed_ms": 4441,
+      "error": null
+    },
+    {
+      "id": "conv_020",
+      "type": "audio",
+      "language": "ca",
+      "bot_response": "Oleeeeee nen Que te cuento Com va tot per allà?",
+      "ground_truth": "Oleeeeee nen! Que te cuento? 🥹 Com va tot per allà?",
+      "clone_score": 95.9,
+      "elapsed_ms": 3491,
+      "error": null
+    }
+  ]
+}

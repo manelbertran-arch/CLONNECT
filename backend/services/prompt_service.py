@@ -144,10 +144,13 @@ class PromptBuilder:
         Returns:
             User context string
         """
-        context_parts = [
-            f"Usuario: {username}",
-            f"Etapa: {stage}",
-        ]
+        # BUG-UC-08 fix: Skip numeric-only usernames (raw Instagram IDs)
+        username = username or ""
+        display_user = username if not username.isdigit() else ""
+        context_parts = []
+        if display_user:
+            context_parts.append(f"Usuario: {display_user}")
+        context_parts.append(f"Etapa: {stage}")
 
         # Add lead info if available
         if lead_info:

@@ -1,0 +1,194 @@
+{
+  "version": "naked_baseline_v1",
+  "creator": "iris_bertran",
+  "model": "Qwen/Qwen3-14B",
+  "system_prompt": "Eres Iris Bertran. Responde a los mensajes.",
+  "n_runs": 3,
+  "n_cases": 50,
+  "methodology": "naked_zero — no Doc D, no memory, no RAG, no history, no guardrails",
+  "computed": "2026-04-01",
+  "note": "DEFINITIVE baseline. All ablations compared against this.",
+  "l1": {
+    "score": "2/9",
+    "note": "pass = bot metric within acceptable divergence from Iris reference",
+    "metrics": {
+      "has_emoji_pct": {
+        "bot": 91.33,
+        "iris": 22.6,
+        "pass": false,
+        "runs": [
+          92.0,
+          92.0,
+          90.0
+        ]
+      },
+      "has_excl_pct": {
+        "bot": 85.33,
+        "iris": 1.8,
+        "pass": false,
+        "runs": [
+          88.0,
+          84.0,
+          84.0
+        ]
+      },
+      "q_rate_pct": {
+        "bot": 83.33,
+        "iris": 14.2,
+        "pass": false,
+        "runs": [
+          86.0,
+          80.0,
+          84.0
+        ]
+      },
+      "len_mean_chars": {
+        "bot": 183.63,
+        "iris": 95.2,
+        "pass": false,
+        "runs": [
+          188.7,
+          176.4,
+          185.8
+        ]
+      },
+      "len_median_chars": {
+        "bot": 140.5,
+        "iris": 26.0,
+        "pass": false,
+        "runs": [
+          148.0,
+          140.5,
+          133.0
+        ]
+      },
+      "ca_rate_pct": {
+        "bot": 18.67,
+        "iris": 43.5,
+        "pass": false,
+        "runs": [
+          18.0,
+          18.0,
+          20.0
+        ]
+      },
+      "vocab_jac_pct": {
+        "bot": 5.46,
+        "iris": 5.0,
+        "pass": true,
+        "runs": [
+          5.83,
+          5.33,
+          5.22
+        ]
+      },
+      "sentence_count": {
+        "bot": 4.44,
+        "iris": 1.81,
+        "pass": false,
+        "runs": [
+          4.58,
+          4.42,
+          4.32
+        ]
+      },
+      "distinct_2": {
+        "bot": 0.836,
+        "iris": 0.934,
+        "pass": true,
+        "runs": [
+          0.8247,
+          0.8235,
+          0.8605
+        ]
+      }
+    },
+    "note_corrected": "distinct_2 passes: |0.836-0.934|/0.934*100=10.5% < 30% tol. Corrected from 1/9 to 2/9 on 2026-04-01."
+  },
+  "l2": {
+    "note": "n_pairs=50 (all pairs incl 'Sent a voice message' GTs). CPE-native char-ngram chrF++.",
+    "chrf_note": "chrF++ uses word-padded char n-grams (CPE-native), not sacrebleu. sacrebleu chrF++=0.121.",
+    "metrics": {
+      "chrf": {
+        "mean": 0.1505,
+        "std": 0.0037,
+        "runs": [
+          0.1473,
+          0.1496,
+          0.1545
+        ],
+        "confirmed_0_150": true
+      },
+      "bleu4": {
+        "mean": 0.0007,
+        "std": 0.0013,
+        "runs": [
+          0.0,
+          0.0,
+          0.0022
+        ]
+      },
+      "rouge_l": {
+        "mean": 0.0578,
+        "std": 0.0057,
+        "runs": [
+          0.0513,
+          0.0601,
+          0.062
+        ]
+      },
+      "meteor": {
+        "mean": 0.0627,
+        "std": 0.0059,
+        "runs": [
+          0.0572,
+          0.062,
+          0.069
+        ]
+      },
+      "len_ratio": {
+        "mean": 8.1554,
+        "std": 0.2657,
+        "runs": [
+          8.2053,
+          7.8683,
+          8.3926
+        ]
+      }
+    }
+  },
+  "l3": {
+    "note": "Quality metrics on all 50 responses per run.",
+    "metrics": {
+      "coherence_bert_f1": {
+        "mean": 0.8284,
+        "std": 0.0013,
+        "runs": [
+          0.8273,
+          0.8281,
+          0.8299
+        ],
+        "model": "distilbert-base-multilingual-cased",
+        "direction": "BERTScore(lead → bot_response), higher = more coherent to lead"
+      },
+      "repetition_rate_pct": {
+        "mean": 2.0,
+        "std": 0.0,
+        "runs": [
+          2.0,
+          2.0,
+          2.0
+        ]
+      },
+      "hallucination_rate_pct": {
+        "mean": 0.6667,
+        "std": 1.1547,
+        "runs": [
+          2.0,
+          0.0,
+          0.0
+        ]
+      }
+    }
+  }
+}

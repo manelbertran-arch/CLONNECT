@@ -1,0 +1,51 @@
+{
+  "session": "2026-03-24 post-session measurement",
+  "test_set": "test_set_v2.json (50 conversations)",
+  "n_runs": 3,
+  "confidence_band": {
+    "judge_mean": 6.13,
+    "judge_std": 0.15,
+    "judge_min": 6.0,
+    "judge_max": 6.3,
+    "judge_band_95pct": "5.8-6.4",
+    "sm_mean": 24.1
+  },
+  "dimensions_mean": {
+    "tono": 6.1,
+    "contenido": 5.9,
+    "idioma": 7.4,
+    "longitud": 5.8,
+    "naturalidad": 6.3,
+    "utilidad": 6.4
+  },
+  "by_type_mean": {
+    "precio": 6.8,
+    "saludo": 5.9,
+    "objecion": 5.6,
+    "lead_caliente": 6.1,
+    "audio": 6.1,
+    "personal": 5.7
+  },
+  "by_language_mean": {
+    "ca": 6.0,
+    "es": 6.3,
+    "mixto": 6.2
+  },
+  "individual_runs": [
+    {
+      "file": "tests/run_march24_r1.json",
+      "judge": 6.1,
+      "sm": 23.2
+    },
+    {
+      "file": "tests/run_march24_r2.json",
+      "judge": 6.0,
+      "sm": 25.1
+    },
+    {
+      "file": "tests/run_march24_r3.json",
+      "judge": 6.3,
+      "sm": 24.1
+    }
+  ]
+}

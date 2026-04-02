@@ -159,7 +159,8 @@ def get_matching_examples(
         for ex in examples:
             # Base score ensures examples with non-matching context still rank above zero.
             # Same fix as learning_rules: context matching is for RANKING, not GATING.
-            score = ex.quality_score * 0.1
+            # NOTE: quality_score is applied ONCE at line 183 (`score *= quality_score`).
+            score = 0.1
 
             # Intent match
             if intent and ex.intent and ex.intent.lower() == intent.lower():

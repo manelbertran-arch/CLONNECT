@@ -2,8 +2,10 @@
 
 import asyncio
 import logging
+import os
 import re
 import time
+import unicodedata
 from typing import Dict
 
 from core.agent_config import AGENT_THRESHOLDS
@@ -118,6 +120,41 @@ async def phase_postprocessing(
                         llm_response.content = response_content
     except Exception as e:
         logger.debug(f"Sentence dedup failed: {e}")
+
+    # A3: Echo detector — bot copied lead's message (Jaccard >= 0.55).
+    # Qwen3-14B repeats/paraphrases input when it doesn't know what to say.
+    # Threshold lowered from 0.70→0.55 because semantic echoes (rephrased
+    # with 2-3 extra words like "tio", "crack") scored Jaccard ~0.64 and
+    # slipped through.  Papers: semantic embeddings beat Jaccard (0.829 vs
+    # 0.711 balanced accuracy) but add latency.  0.55 catches paraphrases
+    # without false-flagging short agreements like "si, vale".
+    _ECHO_THRESHOLD = float(os.environ.get("ECHO_JACCARD_THRESHOLD", "0.55"))
+    try:
+        if response_content and message:
+            def _norm_words(text: str) -> set:
+                # NFD decompose + strip combining diacritics (accents)
+                # so "entès"=="entes", "Sí"=="si" — critical for Catalan
+                text = unicodedata.normalize('NFD', text.lower())
+                text = re.sub(r'[\u0300-\u036f]', '', text)
+                text = re.sub(r'[^\w\s]', '', text)
+                return set(text.split())
+            _lead_words = _norm_words(message)
+            _bot_words = _norm_words(response_content)
+            if len(_lead_words) >= 3 and _bot_words:
+                _union = _lead_words | _bot_words
+                _jaccard = len(_lead_words & _bot_words) / len(_union)
+                if _jaccard >= _ECHO_THRESHOLD:
+                    import random
+                    _ECHO_FALLBACKS = ["ja", "vale", "uf", "ok", "entès", "vaja"]
+                    _fallback = random.choice(_ECHO_FALLBACKS)
+                    logger.warning(
+                        "[A3] Echo detected (Jaccard=%.2f) — replacing '%s...' with '%s'",
+                        _jaccard, response_content[:40], _fallback,
+                    )
+                    response_content = _fallback
+                    cognitive_metadata["echo_detected"] = round(_jaccard, 2)
+    except Exception as e:
+        logger.debug(f"Echo detection failed: {e}")
 
     # Step 7a: Output validation (links only — price validation handled by guardrails)
     if flags.output_validation:
@@ -409,7 +446,13 @@ async def phase_postprocessing(
         try:
             from services.memory_engine import get_memory_engine
             mem_engine = get_memory_engine()
-            conversation_msgs = [
+            # BUG-MEM-04 fix: include last 3 messages from history for multi-turn context
+            recent_history = [
+                {"role": m.get("role", "user"), "content": m.get("content", "")}
+                for m in (history[-3:] if history else [])
+                if m.get("content")
+            ]
+            conversation_msgs = recent_history + [
                 {"role": "user", "content": message},
                 {"role": "assistant", "content": formatted_content},
             ]

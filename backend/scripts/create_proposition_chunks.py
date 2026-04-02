@@ -36,7 +36,9 @@ logger = logging.getLogger(__name__)
 # ─── Iris contextual prefix (Anthropic method) ───────────────────────
 # Prepended to each chunk BEFORE embedding so the vector captures
 # creator identity + domain + location context.
-IRIS_CONTEXT_PREFIX = (
+# DEPRECATED: Hardcoded prefix replaced by universal build_contextual_prefix().
+# Kept as fallback ONLY if DB is unreachable during chunk creation for iris_bertran.
+_IRIS_LEGACY_PREFIX = (
     "Iris Bertran (@iraais5) es instructora de fitness en Barcelona "
     "(Igualada/Odena, comarca Anoia). Imparte clases de barre, zumba, "
     "Flow4U (heels dance) y pilates reformer personal en Dinamic Sport Gym "
@@ -44,8 +46,24 @@ IRIS_CONTEXT_PREFIX = (
     "Tiene un estilo cercano, cálido y directo con sus alumnas.\n\n"
 )
 
+# Default creator — can be overridden by --creator-id CLI arg
 IRIS_CREATOR_ID_SLUG = "iris_bertran"
 IRIS_CREATOR_ID_UUID = "8e9d1705-4772-40bd-83b1-c6821c5593bf"
+
+
+def _get_context_prefix(creator_id: str) -> str:
+    """Get contextual prefix for any creator (Anthropic Contextual Retrieval)."""
+    try:
+        from core.contextual_prefix import build_contextual_prefix
+        prefix = build_contextual_prefix(creator_id)
+        if prefix:
+            return prefix
+    except Exception as e:
+        logger.warning(f"Universal prefix failed for {creator_id}: {e}")
+    # Fallback for Iris only
+    if creator_id == "iris_bertran":
+        return _IRIS_LEGACY_PREFIX
+    return ""
 
 
 # ─── Proposition Chunks Definition ────────────────────────────────────
@@ -417,9 +435,11 @@ def insert_chunks(chunks: List[Dict], dry_run: bool = False) -> Tuple[int, int]:
         s.close()
         return 0, skipped
 
-    # Generate embeddings in batch with contextual prefix
-    texts_for_embedding = [IRIS_CONTEXT_PREFIX + c["content"] for c in new_chunks]
-    logger.info(f"Generating {len(texts_for_embedding)} embeddings (batch)...")
+    # Generate embeddings in batch with universal contextual prefix
+    # (Anthropic Contextual Retrieval: +49% quality)
+    context_prefix = _get_context_prefix(IRIS_CREATOR_ID_SLUG)
+    texts_for_embedding = [context_prefix + c["content"] for c in new_chunks]
+    logger.info(f"Generating {len(texts_for_embedding)} embeddings (batch, prefix={len(context_prefix)} chars)...")
     embeddings = generate_embeddings_batch(texts_for_embedding)
 
     inserted = 0

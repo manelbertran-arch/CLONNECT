@@ -278,6 +278,16 @@ class MessageStore:
                         except Exception as capture_err:
                             logger.warning(f"[SaveMsg] Media capture failed: {capture_err}")
 
+                    # BUG-CS-03: Persist audio transcription so future history
+                    # loads get the real text instead of "[Audio]" placeholder.
+                    _resp_meta = getattr(response, "metadata", {}) or {}
+                    _audio_intel = _resp_meta.get("audio_intel")
+                    if _audio_intel and isinstance(_audio_intel, dict):
+                        _clean = _audio_intel.get("clean_text") or _audio_intel.get("raw_text", "")
+                        if _clean:
+                            content = f"[\U0001f3a4 Audio]: {_clean}"
+                            msg_metadata["transcription"] = _clean
+
                     # Save user message
                     user_msg = Message(
                         lead_id=lead.id,

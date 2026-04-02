@@ -33,6 +33,7 @@ ENABLE_EPISODIC_MEMORY = os.getenv("ENABLE_EPISODIC_MEMORY", "false").lower() ==
 ENABLE_FEW_SHOT = os.getenv("ENABLE_FEW_SHOT", "true").lower() == "true"
 ENABLE_LENGTH_HINTS = os.getenv("ENABLE_LENGTH_HINTS", "true").lower() == "true"
 ENABLE_QUESTION_HINTS = os.getenv("ENABLE_QUESTION_HINTS", "true").lower() == "true"
+ENABLE_DNA_AUTO_ANALYZE = os.getenv("ENABLE_DNA_AUTO_ANALYZE", "true").lower() == "true"
 
 # ── Universal RAG gate: dynamic keywords from creator's content_chunks ──
 
@@ -66,8 +67,10 @@ _KW_STOPWORDS = {
     "información", "informació", "pregunta", "consulta",
 }
 
-# Cache: creator_id → set of keywords (lives for process lifetime)
-_creator_kw_cache: Dict[str, Set[str]] = {}
+# BUG-RAG-04 fix: Use BoundedTTLCache instead of unbounded dict.
+# Each entry holds a set of keywords extracted from content_chunks.
+from core.cache import BoundedTTLCache as _BoundedTTLCache
+_creator_kw_cache: _BoundedTTLCache = _BoundedTTLCache(max_size=50, ttl_seconds=3600)
 
 
 def _get_creator_product_keywords(creator_id: str) -> Set[str]:
@@ -76,8 +79,10 @@ def _get_creator_product_keywords(creator_id: str) -> Set[str]:
     Cached per creator — only runs once per deploy/process restart.
     Returns empty set on failure (falls back to universal keywords only).
     """
-    if creator_id in _creator_kw_cache:
-        return _creator_kw_cache[creator_id]
+    # BUG-RAG-04 fix: Use .get()/.set() API of BoundedTTLCache
+    cached = _creator_kw_cache.get(creator_id)
+    if cached is not None:
+        return cached
 
     try:
         from api.database import SessionLocal
@@ -108,7 +113,7 @@ def _get_creator_product_keywords(creator_id: str) -> Set[str]:
                     ):
                         words.add(word)
 
-            _creator_kw_cache[creator_id] = words
+            _creator_kw_cache.set(creator_id, words)
             logger.info(
                 "[RAG-GATE] Loaded %d dynamic keywords for %s from %d chunks",
                 len(words),
@@ -120,11 +125,14 @@ def _get_creator_product_keywords(creator_id: str) -> Set[str]:
             session.close()
     except Exception as e:
         logger.warning("[RAG-GATE] Failed to load keywords for %s: %s", creator_id, e)
-        _creator_kw_cache[creator_id] = set()
+        _creator_kw_cache.set(creator_id, set())
         return set()
 
 
-def _episodic_search(creator_slug: str, sender_id: str, message: str) -> str:
+def _episodic_search(
+    creator_slug: str, sender_id: str, message: str,
+    recent_history: list = None,
+) -> str:
     """Search conversation_embeddings for past messages relevant to current message.
 
     Runs synchronously (called via asyncio.to_thread).
@@ -135,32 +143,61 @@ def _episodic_search(creator_slug: str, sender_id: str, message: str) -> str:
     """
     from core.semantic_memory_pgvector import SemanticMemoryPgvector
 
-    # Strategy: try slug+platform_id first (Stefano pattern),
-    # then UUID+lead_uuid (Iris pattern) via DB lookup
-    sm = SemanticMemoryPgvector(creator_slug, sender_id)
-    results = sm.search(message, k=3, min_similarity=0.45)
+    # BUG-EP-02 fix: Raise min_similarity from 0.45 → 0.60 to avoid noise.
+    # BUG-EP-06 fix: Fetch k=5 then filter, cap at 3 quality results.
+    _MIN_SIM = 0.60
+    _FETCH_K = 5
+    _MAX_RESULTS = 3
+    _MAX_CONTENT_CHARS = 250  # BUG-EP-08 fix: 150 → 250
+
+    # BUG-EP-05 fix: Resolve IDs once upfront instead of double search.
+    # BUG-EP-07 fix: Use get_db_session() context manager (no session leak).
+    creator_uuid = None
+    lead_uuid = None
+    try:
+        from api.database import get_db_session
+        from sqlalchemy import text as _sql_text
+
+        with get_db_session() as session:
+            row = session.execute(
+                _sql_text("SELECT id FROM creators WHERE name = :name LIMIT 1"),
+                {"name": creator_slug},
+            ).fetchone()
+            if row:
+                creator_uuid = str(row[0])
+                lead_row = session.execute(
+                    _sql_text("SELECT id FROM leads WHERE platform_user_id = :pid AND creator_id = :cid LIMIT 1"),
+                    {"pid": sender_id, "cid": creator_uuid},
+                ).fetchone()
+                if lead_row:
+                    lead_uuid = str(lead_row[0])
+    except Exception as e:
+        logger.debug("[EPISODIC] ID resolution failed for %s/%s: %s", creator_slug, sender_id, e)
+
+    # Try UUID pair first (canonical), then slug pair as fallback
+    results = []
+    for cid, fid in [(creator_uuid, lead_uuid), (creator_slug, sender_id)]:
+        if not cid or not fid:
+            continue
+        sm = SemanticMemoryPgvector(cid, fid)
+        results = sm.search(message, k=_FETCH_K, min_similarity=_MIN_SIM)
+        if results:
+            break
 
     if not results:
-        # Try UUID-based lookup
-        try:
-            from api.database import SessionLocal
-            from api.models import Creator
-            session = SessionLocal()
-            try:
-                creator = session.query(Creator).filter_by(name=creator_slug).first()
-                if creator:
-                    from sqlalchemy import text
-                    lead = session.execute(
-                        text("SELECT id FROM leads WHERE platform_user_id = :pid AND creator_id = :cid LIMIT 1"),
-                        {"pid": sender_id, "cid": str(creator.id)},
-                    ).fetchone()
-                    if lead:
-                        sm2 = SemanticMemoryPgvector(str(creator.id), str(lead[0]))
-                        results = sm2.search(message, k=3, min_similarity=0.45)
-            finally:
-                session.close()
-        except Exception:
-            pass
+        return ""
+
+    # BUG-EP-04 fix: Deduplicate against recent history already in prompt
+    if recent_history:
+        recent_contents = {
+            (msg.get("content", "") or "")[:100]
+            for msg in recent_history[-10:]
+            if msg.get("content")
+        }
+        results = [r for r in results if r["content"][:100] not in recent_contents]
+
+    # BUG-EP-06 fix: Cap at _MAX_RESULTS quality results
+    results = results[:_MAX_RESULTS]
 
     if not results:
         return ""
@@ -169,8 +206,8 @@ def _episodic_search(creator_slug: str, sender_id: str, message: str) -> str:
     lines = []
     for r in results:
         role = "lead" if r["role"] == "user" else "tú"
-        content = r["content"][:150]
-        if len(r["content"]) > 150:
+        content = r["content"][:_MAX_CONTENT_CHARS]
+        if len(r["content"]) > _MAX_CONTENT_CHARS:
             content += "..."
         lines.append(f"- {role}: \"{content}\"")
 
@@ -267,12 +304,24 @@ async def phase_memory_and_context(
 
     # Episodic memory: search conversation_embeddings for past messages relevant
     # to the current message. Complements Memory Engine facts with raw conversation
-    # snippets the lead actually said. Skip for short/casual messages.
+    # snippets the lead actually said.
+    # O4 (Multi-Layered, 2026): Adaptive retrieval gating — only search when
+    # the message has enough semantic complexity (length + unique words).
+    # Short/casual messages ("hola", "ok", "sí") skip the embedding call entirely.
     episodic_context = ""
-    if ENABLE_EPISODIC_MEMORY and len(message.strip()) >= 15:
+    _msg_stripped = message.strip()
+    _msg_words = set(_msg_stripped.lower().split())
+    _episodic_gate = (
+        ENABLE_EPISODIC_MEMORY
+        and len(_msg_stripped) >= 15
+        and len(_msg_words) >= 3  # O4: at least 3 unique words
+    )
+    if _episodic_gate:
         try:
+            _hist = metadata.get("history", [])
             episodic_context = await asyncio.to_thread(
-                _episodic_search, agent.creator_id, sender_id, message
+                _episodic_search, agent.creator_id, sender_id, message,
+                recent_history=_hist,
             )
             if episodic_context:
                 cognitive_metadata["episodic_recalled"] = True
@@ -281,12 +330,13 @@ async def phase_memory_and_context(
             logger.debug(f"[EPISODIC] search failed: {e}")
 
     # Hierarchical memory (IMPersona-style 3-level: episodic + semantic + abstract)
+    # BUG-EP-08 fix: Cache HierarchicalMemoryManager per creator (avoid disk I/O per message)
     hier_memory_context = ""
     if ENABLE_HIERARCHICAL_MEMORY:
         try:
-            from core.hierarchical_memory.hierarchical_memory import HierarchicalMemoryManager
+            from core.hierarchical_memory.hierarchical_memory import get_hierarchical_memory
 
-            hmm = HierarchicalMemoryManager(agent.creator_id)
+            hmm = get_hierarchical_memory(agent.creator_id)
             lead_name = metadata.get("username", "") or (
                 follower.username if hasattr(follower, "username") else ""
             )
@@ -344,6 +394,14 @@ async def phase_memory_and_context(
                 detected_type = det_result.get("type", "DESCONOCIDO")
                 det_confidence = det_result.get("confidence", 0)
 
+                # Base trust per type (aligned with RelationshipAnalyzer._calculate_trust_score)
+                _SEED_TRUST = {
+                    "FAMILIA": 0.85, "INTIMA": 0.80,
+                    "AMISTAD_CERCANA": 0.60, "AMISTAD_CASUAL": 0.40,
+                    "COLABORADOR": 0.50, "CLIENTE": 0.25,
+                    "DESCONOCIDO": 0.10,
+                }
+
                 async def _create_seed_dna():
                     try:
                         from services.relationship_dna_repository import (
@@ -355,12 +413,13 @@ async def phase_memory_and_context(
                         )
                         if existing:
                             return  # Already exists, race condition
+                        _seed_trust = _SEED_TRUST.get(detected_type, 0.10)
                         await asyncio.to_thread(
                             create_relationship_dna,
                             creator_id=agent.creator_id,
                             follower_id=sender_id,
                             relationship_type=detected_type,
-                            trust_score=round(det_confidence * 0.3, 2),
+                            trust_score=round(_seed_trust, 2),
                             depth_level=0,
                         )
                         logger.info(
@@ -375,6 +434,36 @@ async def phase_memory_and_context(
                 cognitive_metadata["dna_seed_created"] = True
         except Exception as e:
             logger.debug(f"DNA auto-create check failed: {e}")
+
+    # Auto-trigger full RelationshipAnalyzer when DNA exists but is stale or
+    # under-analyzed (B1-CRITICAL: most leads stuck with seed-only DNA).
+    # Fire-and-forget: analysis runs in background, result used on next DM.
+    if ENABLE_DNA_AUTO_ANALYZE and raw_dna:
+        try:
+            hist = metadata.get("history", [])
+            msg_count = follower.total_messages or len(hist)
+            if msg_count >= 5 and hist:
+                from services.relationship_analyzer import RelationshipAnalyzer
+                _analyzer = RelationshipAnalyzer()
+                if _analyzer.should_update_dna(raw_dna, msg_count):
+                    async def _run_full_analysis():
+                        try:
+                            from services.relationship_dna_service import get_dna_service
+                            svc = get_dna_service()
+                            await asyncio.to_thread(
+                                svc.analyze_and_update_dna,
+                                agent.creator_id, sender_id, hist,
+                            )
+                            logger.info(
+                                f"[DNA-ANALYZE] Full analysis completed for {sender_id} "
+                                f"({msg_count} msgs)"
+                            )
+                        except Exception as e:
+                            logger.debug(f"DNA full analysis failed: {e}")
+                    asyncio.create_task(_run_full_analysis())
+                    cognitive_metadata["dna_full_analysis_triggered"] = True
+        except Exception as e:
+            logger.debug(f"DNA auto-analyze check failed: {e}")
 
     _t1b = time.monotonic()
     logger.info(f"[TIMING] Phase 2 sub: intent={int((_t1a - _t1) * 1000)}ms parallel_io={int((_t1b - _t1a) * 1000)}ms")
@@ -431,8 +520,11 @@ async def phase_memory_and_context(
                     cognitive_metadata["query_expanded"] = True
             except Exception as e:
                 logger.debug(f"Query expansion failed: {e}")
-        rag_results = agent.semantic_rag.search(
-            rag_query, top_k=agent.config.rag_top_k, creator_id=agent.creator_id
+        # BUG-RAG-03 fix: RAG search includes blocking OpenAI API call +
+        # pgvector DB query + CPU-bound reranking. Wrap in to_thread.
+        rag_results = await asyncio.to_thread(
+            agent.semantic_rag.search,
+            rag_query, top_k=agent.config.rag_top_k, creator_id=agent.creator_id,
         )
         # Source-type routing: prefer results matching the signal type
         if rag_results and _preferred_types:
@@ -680,12 +772,20 @@ async def phase_memory_and_context(
         episodic: str = "",
     ) -> str:
         """Consolidate per-lead context into a single 'Sobre @username' block
-        with a Recalling trigger that instructs the LLM to use it naturally."""
-        parts = [p for p in [relational, memory, dna, state, frustration_note, context_notes, episodic] if p]
+        with a Recalling trigger that instructs the LLM to use it naturally.
+
+        Note: lead_profile data is merged INTO the dna block via
+        format_unified_lead_context() — no separate lead_profile param needed.
+        """
+        # Order: memory LAST for high-attention end position (Liu et al.
+        # 2023 "Lost in the Middle", Chroma 2025 "Context Rot").
+        parts = [p for p in [relational, dna, state, episodic, frustration_note, context_notes, memory] if p]
         if not parts:
             return ""
         header = f"Sobre @{username}:"
-        footer = "Usa esta info naturalmente en tu respuesta — no la repitas textual."
+        # Zep pattern: step-by-step usage instruction. MRPrompt (2026):
+        # explicit protocol improves memory utilization in ≤14B models.
+        footer = "IMPORTANTE: Lee <memoria> y responde mencionando algo de ahí. No repitas textual."
         return header + "\n" + "\n".join(parts) + "\n" + footer
 
     # Frustration note — factual, no behavior instruction (v2)
@@ -898,7 +998,7 @@ async def phase_memory_and_context(
     if not history:
         from core.dm.helpers import get_history_from_db
         history = await asyncio.to_thread(
-            get_history_from_db, agent.creator_id, sender_id, 20
+            get_history_from_db, agent.creator_id, sender_id, 10
         )
         if history:
             logger.info(f"[HISTORY-DB] Loaded {len(history)} messages from DB for {sender_id}")
@@ -916,27 +1016,115 @@ async def phase_memory_and_context(
     _t1c = time.monotonic()
     logger.info(f"[TIMING] Phase 3 sub: fast_ops={int((_t1c - _t1b) * 1000)}ms")
 
-    # Build lead_info from follower memory for richer context
+    # CRM enrichment: query Lead table for tags, deal_value, notes, status.
+    # Papers (PUMA 2024, PersonaChat 2018): richer user profiles improve response
+    # quality. Previously this data existed in user_context_loader (dead code).
+    _crm_tags = []
+    _crm_deal_value = 0.0
+    _crm_notes = ""
+    _crm_status = ""
+    _crm_full_name = ""
+    try:
+        def _load_lead_crm(creator_slug: str, platform_uid: str):
+            from api.models.creator import Creator
+            from api.models.lead import Lead
+            from api.services.db_service import get_session as db_get_session
+            s = db_get_session()
+            if not s:
+                return None
+            try:
+                creator = s.query(Creator).filter_by(name=creator_slug).first()
+                if not creator:
+                    return None
+                # Try both with and without ig_ prefix
+                pids = [platform_uid]
+                if platform_uid.startswith("ig_"):
+                    pids.append(platform_uid[3:])
+                else:
+                    pids.append(f"ig_{platform_uid}")
+                for pid in pids:
+                    lead = s.query(Lead).filter_by(
+                        creator_id=creator.id, platform_user_id=pid
+                    ).first()
+                    if lead:
+                        return {
+                            "tags": lead.tags or [],
+                            "deal_value": lead.deal_value or 0.0,
+                            "notes": (lead.notes or "")[:200],
+                            "status": lead.status or "",
+                            "full_name": lead.full_name or "",
+                        }
+                return None
+            except Exception:
+                return None
+            finally:
+                s.close()
+        _crm = _load_lead_crm(agent.creator_id, sender_id)
+        if _crm:
+            _crm_tags = _crm["tags"]
+            _crm_deal_value = _crm["deal_value"]
+            _crm_notes = _crm["notes"]
+            _crm_status = _crm["status"]
+            _crm_full_name = _crm["full_name"]
+    except Exception as e:
+        logger.debug(f"CRM enrichment failed: {e}")
+
+    # Build lead profile data dict for merging INTO the DNA block.
+    # System #7 (User Context Builder) merged into System #8 (DNA Engine):
+    # ONE unified block in prompt, no duplicate context blocks.
+    _lead_name = _crm_full_name or getattr(follower, "name", "") or ""
+    _lead_username = follower.username or ""
+    _lead_lang = getattr(follower, "preferred_language", "es") or "es"
+    _is_vip = "vip" in [t.lower() for t in _crm_tags]
+    _is_price_sensitive = (
+        "price_sensitive" in [t.lower() for t in _crm_tags]
+        or any(
+            obj in (follower.objections_raised or [])
+            for obj in ("precio", "prezzo", "preu", "price")
+        )
+    )
+    _lead_profile_data = {
+        "name": _lead_name,
+        "language": _lead_lang,
+        "stage": current_stage,
+        "interests": (follower.interests or [])[:5],
+        "products": (follower.products_discussed or [])[:5],
+        "objections": (follower.objections_raised or [])[:3],
+        "purchase_score": round(follower.purchase_intent_score, 2) if (follower.purchase_intent_score or 0) > 0 else 0,
+        "is_customer": follower.is_customer,
+        "crm_status": _crm_status,
+        "is_vip": _is_vip,
+        "is_price_sensitive": _is_price_sensitive,
+        "deal_value": _crm_deal_value,
+        "crm_notes": _crm_notes,
+        "summary": (follower.conversation_summary or "")[:200] if follower.conversation_summary else "",
+    }
+
+    # Merge lead profile INTO DNA block — one unified context block
+    from services.dm_agent_context_integration import format_unified_lead_context
+    dna_context = format_unified_lead_context(dna_context, _lead_profile_data)
+
+    # Legacy: build_user_context still called for backward compat (copilot, tests).
+    # Its output is NOT injected into LLM prompt — unified DNA block replaces it.
     _lead_info = {}
     if follower.interests:
-        _lead_info["interests"] = follower.interests[:5]
+        _lead_info["interests"] = (follower.interests or [])[:5]
     if follower.objections_raised:
-        _lead_info["objections"] = follower.objections_raised[:5]
+        _lead_info["objections"] = (follower.objections_raised or [])[:5]
     if follower.products_discussed:
-        _lead_info["products_discussed"] = follower.products_discussed[:5]
-    if follower.purchase_intent_score > 0:
+        _lead_info["products_discussed"] = (follower.products_discussed or [])[:5]
+    if (follower.purchase_intent_score or 0) > 0:
         _lead_info["purchase_score"] = round(follower.purchase_intent_score, 2)
     if follower.is_customer:
         _lead_info["is_customer"] = True
     if follower.conversation_summary:
-        _lead_info["summary"] = follower.conversation_summary[:200]
-
+        _lead_info["summary"] = (follower.conversation_summary or "")[:200]
     user_context = agent.prompt_builder.build_user_context(
-        username=follower.username or sender_id,
+        username=_lead_username or sender_id,
         stage=current_stage,
         history=history,
         lead_info=_lead_info if _lead_info else None,
-        include_history=False,  # history injected as multi-turn messages in generation phase
+        include_history=False,
     )
 
     _t2 = time.monotonic()

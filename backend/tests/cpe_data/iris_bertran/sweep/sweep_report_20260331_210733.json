@@ -1,0 +1,28 @@
+{
+  "creator": "iris_bertran",
+  "timestamp": "2026-03-31T19:07:33.395890+00:00",
+  "protocol": "additive_ablation",
+  "n_runs": 3,
+  "n_cases": 50,
+  "naked_baseline": {
+    "bertscore_f1": -0.047,
+    "chrf": 0.1643
+  },
+  "systems": [
+    {
+      "system": "few_shot",
+      "env_var": "ENABLE_FEW_SHOT",
+      "status": "TESTED",
+      "l2_bertscore": -0.1678,
+      "l2_delta": -0.1208,
+      "l2_p": 0.0,
+      "l2_cliff": -0.3768,
+      "l2_cliff_mag": "medium",
+      "l3_chrf": 0.1257,
+      "l3_delta": -0.0386,
+      "l3_p": 0.001432,
+      "l3_cliff": -0.2392,
+      "decision": "HURTS"
+    }
+  ]
+}

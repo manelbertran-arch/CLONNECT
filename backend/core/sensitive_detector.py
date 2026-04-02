@@ -57,7 +57,7 @@ SELF_HARM_PATTERNS = [
     r'\bme\s+corto\b',  # "me corto" simple
     r'\bme\s+lastimo\b',  # "me lastimo" simple
     # Ideación suicida
-    r'\b(?:quiero\s+(?:morir|desaparecer|acabar\s+con\s+todo))\b',
+    r'\b(?:quiero\s+(?:morir(?:me)?|desaparecer|acabar\s+con\s+todo))\b',
     r'\b(?:no\s+quiero\s+(?:vivir|seguir|existir))\b',
     r'\b(?:pienso\s+en\s+(?:suicid|matarme|quitarme\s+la\s+vida))\b',
     r'\bsuicid(?:arme|io|a)\b',  # suicidarme, suicidio, suicida
@@ -141,6 +141,8 @@ PHISHING_PATTERNS = [
     # Account verification scams
     r'\b(?:verifica(?:r)?\s+(?:tu|su)\s+cuenta)\b',
     r'\b(?:tu\s+cuenta\s+(?:ser[aá]|ha\s+sido)\s+(?:suspendida|bloqueada|eliminada))\b',
+    # Credential theft (password/token requests targeting the creator)
+    r'\b(?:dame|env[ií]a(?:me)?|pas[ae](?:me)?)\s+(?:tu\s+)?(?:contrase[ñn]a|password|token|credenciales)\b',
 ]
 
 # SPAM / BOTS
@@ -166,7 +168,7 @@ THREAT_PATTERNS = [
     r'\b(?:(?:te|le|os)\s+voy\s+a\s+(?:encontrar|buscar|matar))\b',
     r'\b(?:esto\s+no\s+va\s+a\s+quedar\s+as[ií])\b',
     r'\b(?:(?:te|se)\s+va[ns]?\s+a\s+enterar)\b',
-    r'\b(?:(?:voy|vamos)\s+a\s+denunciar)\b.{0,80}(?:estafa|robo|fraude)\b',
+    r'\b(?:(?:voy|vamos)\s+a\s+denunciar)\b.{0,80}(?:estafa\w*|robo|fraude)\b',
     r'\b(?:me\s+las\s+vas?\s+a\s+pagar)\b',
 ]
 

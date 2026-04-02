@@ -1,0 +1,1661 @@
+{
+  "metadata": {
+    "creator": "iris_bertran",
+    "version": "v2_stratified",
+    "generated_at": "2026-04-01T19:26:20.665909+00:00",
+    "n_cases": 50,
+    "n_single_turn": 40,
+    "n_multi_turn": 10,
+    "category_distribution": {
+      "short_response": 8,
+      "casual": 30,
+      "humor": 1,
+      "question": 3,
+      "greeting": 1,
+      "objection": 1,
+      "booking": 2,
+      "emoji_reaction": 1,
+      "product_inquiry": 1,
+      "thanks": 1,
+      "long_personal": 1
+    },
+    "language_distribution": {
+      "unknown": 43,
+      "es": 5,
+      "ca": 2
+    },
+    "real_distribution_source": "DB query — last 3 months",
+    "generator": "build_stratified_test_set.py",
+    "seed": 42
+  },
+  "conversations": [
+    {
+      "test_input": "Lol",
+      "ground_truth": "Jajaja, qué fuerte! 😂",
+      "category": "short_response",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34682882838",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        },
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        },
+        {
+          "role": "assistant",
+          "content": "El nom es la cagada😂😂😂 quien se llama Jonathan y tiene canas en las cejas"
+        },
+        {
+          "role": "user",
+          "content": "JAJAJJAJAJ"
+        },
+        {
+          "role": "user",
+          "content": "es diu jonathan?"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "da971eae-0b00-4e0a-b0fc-2e4631521d99",
+      "id": "cpe_iris__001",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "💖💖💖",
+      "ground_truth": "Nanit wapa",
+      "category": "short_response",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "tach.ink77",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Pffff"
+        },
+        {
+          "role": "user",
+          "content": "Jajaajajajajaj"
+        },
+        {
+          "role": "user",
+          "content": "😂😂😂"
+        },
+        {
+          "role": "user",
+          "content": "Vale genial 🙂"
+        }
+      ],
+      "msg_count": 4,
+      "source_msg_id": "306c146a-475a-4e0b-a5e9-09d821c42105",
+      "id": "cpe_iris__002",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Okey",
+      "ground_truth": "[audio]",
+      "category": "short_response",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34658986017",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Saps sí això és teu?  Estaba a la teva bústia"
+        },
+        {
+          "role": "assistant",
+          "content": "Ni idea obre-ho a ver"
+        },
+        {
+          "role": "user",
+          "content": "Res una tonteria"
+        },
+        {
+          "role": "assistant",
+          "content": "Regala-li a me mare…"
+        },
+        {
+          "role": "assistant",
+          "content": "Si vens dilluns et donc els diners amb cash merci"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "01dd7947-c506-4ce2-83da-43e55c7fe395",
+      "id": "cpe_iris__003",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Si",
+      "ground_truth": "Bueno després et confirmo que creo que me he liao de dia😂😂😂😂",
+      "category": "short_response",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34619709161",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Descansa flor xk vaia caca de dia😅😅"
+        },
+        {
+          "role": "assistant",
+          "content": "Cuca podem fer dimecres a les 10:00🙏🏽"
+        },
+        {
+          "role": "assistant",
+          "content": "Demà tinc hora mips"
+        }
+      ],
+      "msg_count": 3,
+      "source_msg_id": "06c6ceff-9614-4dde-8d51-cc93e3b42875",
+      "id": "cpe_iris__004",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "[audio]",
+      "ground_truth": "Duxa’t a casa",
+      "category": "short_response",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34619379120",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Bueno vaig a dormir una mica i sobre les 20:15 aniré a casa i faré eliptica si vens faré zumba😂tant em fa😘 & hipos"
+        },
+        {
+          "role": "assistant",
+          "content": "Ja em dius sense problems😘"
+        },
+        {
+          "role": "user",
+          "content": "Amoreee"
+        },
+        {
+          "role": "user",
+          "content": "He quedat a les 21:30h"
+        },
+        {
+          "role": "user",
+          "content": "Lo veo una mica just"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "049e9487-e7e3-427e-92c6-c80af9a38735",
+      "id": "cpe_iris__005",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Obvioo",
+      "ground_truth": "Buenos días rey🌈 café y te veo",
+      "category": "short_response",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "emi_ojeda006",
+      "turns": [
+        {
+          "role": "user",
+          "content": "❤️"
+        },
+        {
+          "role": "assistant",
+          "content": "Queda pendiente el video en el gym"
+        },
+        {
+          "role": "user",
+          "content": "❤️"
+        },
+        {
+          "role": "assistant",
+          "content": "😎🫶🏽"
+        },
+        {
+          "role": "user",
+          "content": "En esa estamos💪🏾🍀"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "78657656-7b8d-4d67-8459-3a417b38b56e",
+      "id": "cpe_iris__006",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "😂😂",
+      "ground_truth": "Jajjajajajajajajajaja me meo",
+      "category": "short_response",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34622240239",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Araa"
+        },
+        {
+          "role": "assistant",
+          "content": "Si si"
+        },
+        {
+          "role": "assistant",
+          "content": "Perfect que no ho sabia"
+        },
+        {
+          "role": "assistant",
+          "content": "Ara ja pots votar"
+        },
+        {
+          "role": "user",
+          "content": "YA ESTÁ MI MADRE COMPRANDO MI VOTO EH"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "012c8fde-d856-4ee8-8268-d911093b9e51",
+      "id": "cpe_iris__007",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Valiwis",
+      "ground_truth": "Stay tuned",
+      "category": "short_response",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34622240239",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Sisi"
+        },
+        {
+          "role": "user",
+          "content": "Soc jo que tinc retràs mental ❤️"
+        },
+        {
+          "role": "assistant",
+          "content": "Demà no sé si fer alguna cosa"
+        },
+        {
+          "role": "assistant",
+          "content": "Bueno voy a ver"
+        }
+      ],
+      "msg_count": 4,
+      "source_msg_id": "02c03a65-4bdc-4d93-845a-2b8176b61504",
+      "id": "cpe_iris__008",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "No me’n fio de res",
+      "ground_truth": "🫠🫠",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34666722290",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Hauré de deixar el meu cotxe al meu cunyat"
+        },
+        {
+          "role": "user",
+          "content": "No em queda otra"
+        },
+        {
+          "role": "user",
+          "content": "Tia, jo a l’Iñaki no vull escriure’l"
+        },
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        },
+        {
+          "role": "assistant",
+          "content": "Estic trucant a la Blanca però el te parat…"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "01646617-e478-432f-9d28-0aa6775be743",
+      "id": "cpe_iris__009",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "I aixi de sobre",
+      "ground_truth": "Ho ha deixat amb la novia",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "+120363025388866560",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Ostres 😱😱😱"
+        },
+        {
+          "role": "user",
+          "content": "[🎤 Audio]: ¿Te ha explicado algo más de lo que le ha pasado? Porque justo acababa de dejar a la novia, ahora deja el gimnasio, se va a vivir a la playa... Es como que ha explotado todo de golpe, ¿no?"
+        },
+        {
+          "role": "assistant",
+          "content": "[🎤 Audio]: Lo de la novia lo tenemos que dar nosotros, pero tal vez se va a vivir a la playa con ella. Es que no hay más. Yo creo que la novia sigue, ya está. Me da igual, paso."
+        },
+        {
+          "role": "user",
+          "content": "[🎤 Audio]: Joder, es raro que, si estás mal en el gimnasio, lo dejes, vale. Pero también es raro que coincida que lo dejes y, encima, te vayas a vivir a la playa. Me cuadraría más que lo hubieras dejado para un cambio de aires, o que tu novia hubiera descubierto algo y volvierais a marchar para ver si continuáis juntos.\n\nTambién podría ser que os marcharais los dos, pero de golpe y porrazo, cambiar de piso, dejar el trabajo... y te quedas como con las manos vacías. Tampoco tienes otro trabajo previsto ni nada. Es como saltar un poco al vacío, vaya tela."
+        },
+        {
+          "role": "user",
+          "content": "Ostiaaaa que fort"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "bbc02099-7734-4678-bfe9-2602a828d268",
+      "id": "cpe_iris__010",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Fabuloso programo",
+      "ground_truth": "[🎤 Audio]: Ya amor, pero es que estoy como una bombona, ya no sé que me has metido cintura ya, no me hagas sentirme peor.",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "èrica ✨",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Està perfecte"
+        },
+        {
+          "role": "user",
+          "content": "A ver como lo ves"
+        },
+        {
+          "role": "user",
+          "content": "Te he metido cinuruta en los dos ultimos"
+        },
+        {
+          "role": "user",
+          "content": "[🎬 Video]"
+        },
+        {
+          "role": "assistant",
+          "content": "Està perfecte"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "a130251f-f38c-4812-9b3e-84e5cf6758a7",
+      "id": "cpe_iris__011",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Xurri ja pensava i testic muntant un espera q acabo de dinar porfis",
+      "ground_truth": "[audio]",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "èrica ✨",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Guau tiaaa"
+        },
+        {
+          "role": "user",
+          "content": "Enhorabona"
+        },
+        {
+          "role": "user",
+          "content": "El publico te adora"
+        },
+        {
+          "role": "user",
+          "content": "Fins dema princesss✨✨🩷🩷"
+        },
+        {
+          "role": "assistant",
+          "content": "Cuka em pots passar els videos x wetransfer de la primera hora de barre creo que solo son 2🙏🏽🫶🏽"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "004a229d-24db-4ab2-a7ff-f8d756815a35",
+      "id": "cpe_iris__012",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "A mi magrada mes laltre inici pero com tu prefereixis bb",
+      "ground_truth": "[audio]",
+      "category": "casual",
+      "language": "es",
+      "platform": "whatsapp",
+      "lead_username": "èrica ✨",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Ja carinyu ja"
+        },
+        {
+          "role": "assistant",
+          "content": "Vale tranqui"
+        },
+        {
+          "role": "assistant",
+          "content": "😍"
+        },
+        {
+          "role": "user",
+          "content": "Et reenvio"
+        },
+        {
+          "role": "user",
+          "content": "[video]"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "00cb0d49-0572-43aa-a0d3-4263d6ec5e7d",
+      "id": "cpe_iris__013",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Si no li va be li tornen els diners",
+      "ground_truth": "[audio]",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "+34636022878",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Seria aixo cuca. No es perqe t’agobis, ho he deixat fet perqe tho miris"
+        },
+        {
+          "role": "user",
+          "content": "I si vols ja ho tens fet, sino pues nada!"
+        },
+        {
+          "role": "user",
+          "content": "🫶🏻"
+        },
+        {
+          "role": "user",
+          "content": "I share with you my ASEA shared cart link,  https://shop.aseaglobal.com/info?cartSharingId=GSH341HS0I3I6DE&st=sc&sn=wsp"
+        },
+        {
+          "role": "user",
+          "content": "Cuca aixo es el que hauria de comprar per la teva mare"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "056df0bb-bfee-4417-8fc5-8feb04a8614a",
+      "id": "cpe_iris__014",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Espero qe hagis pogut descansar",
+      "ground_truth": "Si tens ibuprofeno me traes uno xfis",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "+34636022878",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Si no els socis poden anular a última hora y esto un domingo no puede pasar xk me cago en tó ya😂😂😂"
+        },
+        {
+          "role": "user",
+          "content": "Vale cuca"
+        },
+        {
+          "role": "user",
+          "content": "Doncs dsp paso i pago"
+        },
+        {
+          "role": "user",
+          "content": "I jo clico"
+        },
+        {
+          "role": "user",
+          "content": "Cuca\nJo ja fa una hora qe estic desperta, ja m’avises si vas! 😘❤️"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "0411f906-fbaf-46d8-aa24-93a79c3d7de2",
+      "id": "cpe_iris__015",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Se viene suelo 🤸🏽‍♀️",
+      "ground_truth": "[🏷️ Sticker]",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "Albert Sala",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Te amoooooooooooo les amooooooo gracias siempre"
+        },
+        {
+          "role": "assistant",
+          "content": "Jajaja, qué bien  Me encanta que disfrutes tanto los vídeos, Albert!  Y por cierto, el workshop del sábado, ¿te apuntas?  Te paso el link otra vez por aquí. ¿Tienes alguna duda?"
+        },
+        {
+          "role": "user",
+          "content": "[🏷️ Sticker]"
+        },
+        {
+          "role": "user",
+          "content": "Nos vemos mañana *miércoles 1.04*, en el horario de *17.30h a 19.30h.*✨\n\nEste link es para acceder a la puerta de entrada en caso de que lleguéis tarde a clase: https://docs.google.com/document/d/16q47UYLdRdYF5KBBnpdSePNfROwe_ZdW/edit?usp=drivesdk&ouid=100996112409432303735&rtpof=true&sd=true\n\nEn este documento encontraréis el enlace de acceso de cada grupo, junto con su horario correspondiente."
+        },
+        {
+          "role": "user",
+          "content": "Hola chicxs, que no os he dicho nada xa mañana, este módulo que viene es comercial, con lenguaje deconstruido ya sabéis, avisaros que el principio empezamos con suelo, luego ya subimos arriba. \n\nAcordaros del efectivo.\n\nUn abrazo a todos ! Hasta mañana"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "3513a6a9-0297-4ed4-a405-54b14008c7fa",
+      "id": "cpe_iris__016",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Yo hoy soy un poko putaaaaa",
+      "ground_truth": "Me meo🤣🤣🤣",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34646490869",
+      "turns": [
+        {
+          "role": "user",
+          "content": "💚✨🙏😘"
+        },
+        {
+          "role": "user",
+          "content": "O dictador!!!!!🤣🤣🤣🤣"
+        },
+        {
+          "role": "assistant",
+          "content": "K cabrona🤣🤣"
+        },
+        {
+          "role": "assistant",
+          "content": "Suerte que os llevo a raya🫡😎💪🏾"
+        },
+        {
+          "role": "user",
+          "content": "[image]"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "01ef9e3f-c4a7-4f5c-853d-3ec57b56cb37",
+      "id": "cpe_iris__017",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Sent an attachment",
+      "ground_truth": "Au vaaa",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "carlagabe",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Sent an attachment"
+        },
+        {
+          "role": "assistant",
+          "content": "Sent an attachment"
+        },
+        {
+          "role": "user",
+          "content": "Mentioned you in their story"
+        },
+        {
+          "role": "user",
+          "content": "Sent an attachment"
+        },
+        {
+          "role": "user",
+          "content": "Sent an attachment"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "f3067638-643d-4a30-b96b-eb3eed212f27",
+      "id": "cpe_iris__018",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Si fuese trabajadora me pillaba la baja",
+      "ground_truth": "[audio]",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "èrica ✨",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Haig de dormir una mica"
+        },
+        {
+          "role": "assistant",
+          "content": "Tu em\nDius fins les 17:30 no tinc entren"
+        },
+        {
+          "role": "assistant",
+          "content": "Que ha passat"
+        },
+        {
+          "role": "assistant",
+          "content": "Familiar?"
+        },
+        {
+          "role": "user",
+          "content": "Si😔 estic molt trista no puc parar de plorar des dahir"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "03e1fb7a-0afd-4913-9bd0-e0d2f155e7b0",
+      "id": "cpe_iris__019",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Y los lunes iré a zumba y hit pero cuando no tengo Pau cada quince días",
+      "ground_truth": "Que he estado limpiando 4 horas la casa de mi madre y 2 haciendole masaje",
+      "category": "casual",
+      "language": "es",
+      "platform": "whatsapp",
+      "lead_username": "+34638287533",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Jueves iré a barre y a ver si martes por la mañana puedo ir a zumba"
+        },
+        {
+          "role": "assistant",
+          "content": "Moltbeee"
+        },
+        {
+          "role": "assistant",
+          "content": "Yuhuu"
+        },
+        {
+          "role": "assistant",
+          "content": "Voy hacer el hiit"
+        },
+        {
+          "role": "assistant",
+          "content": "🫠"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "00b42767-f9f5-4a9d-8697-88f588541581",
+      "id": "cpe_iris__020",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Tranqui per que he dormit i aniré a dormir quan acavi el Colapse",
+      "ground_truth": "Mama",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "+34660042310",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "❤️❤️❤️"
+        },
+        {
+          "role": "user",
+          "content": "Tampoc sé quan i per k ens vem reunir ni que celebravem,si que es Barna"
+        },
+        {
+          "role": "assistant",
+          "content": "Mama ja et pots prendre la pastilla porfi"
+        },
+        {
+          "role": "assistant",
+          "content": "No passa res si te la prens 30min abans es un ibuprofeno no es res fort"
+        },
+        {
+          "role": "assistant",
+          "content": "Xk es de 400mg"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "02103793-0f66-4075-9682-7fc21abb7c98",
+      "id": "cpe_iris__021",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "12:45, 13:00,15:00, 17:00",
+      "ground_truth": "A les 16:45 potser xk a les 17:30 tinc una clienta i es molt just",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34669399751",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Reines que teniu un foradet x fer les celles ara?"
+        },
+        {
+          "role": "user",
+          "content": "Hola!\nSi vens ara mateix o a les16:30 h., si"
+        },
+        {
+          "role": "assistant",
+          "content": "Voyyy"
+        },
+        {
+          "role": "assistant",
+          "content": "Flors que teniu algun forat avui x fer un express?"
+        },
+        {
+          "role": "user",
+          "content": "Hola Iris"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "06b3c379-cedb-42a5-9c8c-ca96ef279db1",
+      "id": "cpe_iris__022",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Ànims princess, el resultat serà TOP 🩰💖",
+      "ground_truth": "Yesss",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "_loles7",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Siii porfavor😂😂😂❤️❤️❤️❤️❤️avisarmeeeeee"
+        }
+      ],
+      "msg_count": 1,
+      "source_msg_id": "69b47683-d8ec-435a-80ef-8499cdfa1b18",
+      "id": "cpe_iris__023",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Jo encara no ho he endivinat",
+      "ground_truth": "Cuka la veig benne🤍 ho tenim controlat?",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "carlotaceron",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "😂"
+        },
+        {
+          "role": "assistant",
+          "content": "🫶🏽🫶🏽🫶🏽🫶🏽"
+        },
+        {
+          "role": "assistant",
+          "content": "😂"
+        },
+        {
+          "role": "assistant",
+          "content": "K disee"
+        }
+      ],
+      "msg_count": 4,
+      "source_msg_id": "671820c2-6d74-4776-8a70-09cc2b8d6001",
+      "id": "cpe_iris__024",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Sent a photo",
+      "ground_truth": "😂😂😂😂😂✌🏽",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "orangeyoulearning",
+      "turns": [
+        {
+          "role": "user",
+          "content": "La jefa ja mesta fent vestir"
+        },
+        {
+          "role": "assistant",
+          "content": "Tu no te estreses eeee que son moltes coreos y ellas ya se las saben de sobra tu sobrevive y ya ta"
+        },
+        {
+          "role": "user",
+          "content": "Ahora te veo"
+        },
+        {
+          "role": "assistant",
+          "content": "Tu no te estreses eeee que son moltes coreos y ellas ya se las saben de sobra tu sobrevive y ya ta"
+        },
+        {
+          "role": "assistant",
+          "content": "Hazlo x tu amiga😂😂😂😂"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "bf749dab-4a45-432b-a7a0-eed8baa90c57",
+      "id": "cpe_iris__025",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Sis molt tontessss",
+      "ground_truth": "Que m’ha saltat la trucada",
+      "category": "casual",
+      "language": "ca",
+      "platform": "whatsapp",
+      "lead_username": "wa_34619302901",
+      "turns": [
+        {
+          "role": "user",
+          "content": "A tu🥰🥰🥰"
+        },
+        {
+          "role": "user",
+          "content": "Nenaaa las botes per el día 5"
+        },
+        {
+          "role": "user",
+          "content": "Que et sembla????"
+        },
+        {
+          "role": "user",
+          "content": "[image]"
+        },
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "05931675-cc98-4969-9781-530ea7ec1f94",
+      "id": "cpe_iris__026",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Sisi portada, todo lo que necesitas saber de mis clases de barre",
+      "ground_truth": "[audio]",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "èrica ✨",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Esq total som unes pringades tia hem daprendre a dir q no"
+        },
+        {
+          "role": "user",
+          "content": "Gracies. Em fa molt feliç q mentenguis"
+        },
+        {
+          "role": "assistant",
+          "content": "Es que 3 dies eeee suerteee"
+        },
+        {
+          "role": "user",
+          "content": "Esq es aixi, em sembla tot imprescindible al final i aixi esta tota la info"
+        },
+        {
+          "role": "user",
+          "content": "I si, el principi es de gancho mola"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "06957720-f5b3-488f-acce-71e0ab24791c",
+      "id": "cpe_iris__027",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Super 🔝🔝🔝🔝🔝",
+      "ground_truth": "Cuca com estàs? Has descansat una mica🩷 espero que hagis tingut un millor dia😘",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34676570973",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Descansa tranquila❤️"
+        },
+        {
+          "role": "assistant",
+          "content": "Si la tinc tranqui😘😘😘😘"
+        },
+        {
+          "role": "assistant",
+          "content": "‎Sigue el canal de 👑 El mundo de Iris 🩷 en WhatsApp: https://whatsapp.com/channel/0029Vb7QkgtHLHQVclzz2D1E"
+        },
+        {
+          "role": "assistant",
+          "content": "Si clickeu aquest enllaç us redigirà al meu canal de difusió. A les classes us ho explicaré i si algú te algún dubte m’ho diu.\n\nAquest canal és per a:\n🔥 Avisar de masterclass i esdeveniments\n💪 Penjar rutines d’entrenament esporàdiques\n🎁 Sortejos d’entrenaments i passes gratuïts\n📍 Entrenar en llocs diferents\n🧠 Tips reals del meu dia a dia\n\nEs un canal on no es pot escriure, si algú vol dir-me alguna cosa, m’ho dirà x privat. Aquest tipus de canal em facilita no deixar exclós a ningú quan faig classes sorpreses o tinc events de diferents modalitats."
+        },
+        {
+          "role": "assistant",
+          "content": "Bona tarda🩷"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "06dfe770-058c-40c5-9fa5-e89747eac071",
+      "id": "cpe_iris__028",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Records de part d’ell",
+      "ground_truth": "Arribo 5’ tsrd",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "+34648239025",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Així m’agrada"
+        },
+        {
+          "role": "assistant",
+          "content": "Records al Xatungo"
+        },
+        {
+          "role": "user",
+          "content": "Bona nit!😘"
+        },
+        {
+          "role": "assistant",
+          "content": "Nanit✨🧚🏽‍♀️"
+        }
+      ],
+      "msg_count": 4,
+      "source_msg_id": "042dfde8-d237-4fdf-a067-3220c1ff3594",
+      "id": "cpe_iris__029",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Jajjajajaja valee pobre….🥲 quina llastima aixo del gluten",
+      "ground_truth": "Avui surt el\nVideoooo🙂‍↔️😍😍😍😍",
+      "category": "humor",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "brunchbalance_",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Weee l’Ariii que waiii 🩷🩷🩷 es nutricionista ella també Estefania🫶🏽"
+        },
+        {
+          "role": "user",
+          "content": "Mes mona ella 😍😍😍"
+        },
+        {
+          "role": "assistant",
+          "content": "Siii🩷🩷🩷 demà vé la seva bestie ja veuràs es super maca😘 es la del glúten🤣🤣 que al final me ha dicho que le da igual que le duela la barriga que quiere el aguacate🤣🤣✌🏽"
+        }
+      ],
+      "msg_count": 3,
+      "source_msg_id": "269cecc0-fbcc-430a-adb9-899cb158ab70",
+      "id": "cpe_iris__030",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Com esta la teva mare ??\nQue et van dir ahir ??",
+      "ground_truth": "Baby demà a les 11 et va benne?",
+      "category": "question",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "Alba",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Jo 🤐"
+        },
+        {
+          "role": "user",
+          "content": "*oblidar"
+        },
+        {
+          "role": "user",
+          "content": "Primer dia d’entreno \n5/12/26"
+        },
+        {
+          "role": "user",
+          "content": "Escolta que vagi bé amb la teva mare a Barcelona \nJa et  preguntaré"
+        },
+        {
+          "role": "user",
+          "content": "Reina dilluns no podré venir🙏🏻🙏🏻\nEns veiem dimecres a les 10h👌🏻"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "05c47ccb-c26b-4025-acb6-7cb1c467b30d",
+      "id": "cpe_iris__031",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "[🎤 Audio]: Mamacita! Què dius? Com et trobes? T'ha anat bé allò que t'ha adonat o què? Espero que estiguis millor, tia, que estava superpillada avui al matí, eh? Flipat!",
+      "ground_truth": "[🎤 Audio]: Mami, crec que el que m'ha donat és el xino, el do-lo-stop. La meva cosina diu que és el xino, do-lo-stop.\n\nEstic pitjor, Sònia. Jo m'ho vaig xutant, ara de costat, al centre, costat... Estic en mitjana, entreno al centre. Però gràcies, cuca, joder, pensava que havia passat alguna cosa a la gimnàstia.",
+      "category": "question",
+      "language": "ca",
+      "platform": "whatsapp",
+      "lead_username": "+34680444952",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Cuants hi ha ara?"
+        },
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        },
+        {
+          "role": "user",
+          "content": "[audio]"
+        },
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "7035ac52-cc1c-4978-90bb-d0e65bcd2e83",
+      "id": "cpe_iris__032",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "https://youtu.be/7fyufPkXLbs?si=NSujgOqxxtmExQMU",
+      "ground_truth": "[audio]",
+      "category": "question",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "Manel",
+      "turns": [
+        {
+          "role": "user",
+          "content": "[🎤 Audio]: Me dirigía al cine, al de Florida Blanca, que se renovó. Es un cine de autor, con películas en versión original. Acabo de ver \"El último coche\".\n\nDe camino, pasé por La Paloma y me acordé de ti. Pensé: \"Quizás está Iris aquí\". En lugar de ir al cine, me fui para el Vico Loco."
+        },
+        {
+          "role": "user",
+          "content": "[📷 Photo]"
+        },
+        {
+          "role": "assistant",
+          "content": "Tu hermana está aqui🫠 pa variar🤣🤣"
+        },
+        {
+          "role": "assistant",
+          "content": "Tu hermana está aqui🫠 pa variar🤣🤣"
+        },
+        {
+          "role": "assistant",
+          "content": "[🎤 Audio]: ¡Póntela! La versión que ha hecho la bambola de los Goya. Tío, con un piano esa mujer nos dejó atónitos. Vaya pedazo de versión, increíble. Me puso la piel de gallina.\n\nY después va y la Gílfaro hace una rumba de Barcelona. Es que es brutal. Brutal el momento Goya, eh. Tenemos un talento en España que flipas.\n\nRosalía es un producto, tío. Ella es increíble, todas sus performances. Pero ahí Ana Mena va a estar a la altura de cualquiera, de cualquiera."
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "2baf8782-4355-4149-96c3-51caacb2c781",
+      "id": "cpe_iris__033",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Bona tarda iris si em pots apuntar x dema barre genial!!no fallare😘",
+      "ground_truth": "[🏷️ Sticker]",
+      "category": "greeting",
+      "language": "es",
+      "platform": "whatsapp",
+      "lead_username": "wa_34667690443",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Guapa perdona m’ha sortit una urgencia de feina una reunió i no arribo"
+        },
+        {
+          "role": "user",
+          "content": "He trucat al dinàmic x anular pero no contesta bibgu"
+        },
+        {
+          "role": "user",
+          "content": "Ningú ..em sap greu perque em moria x venir"
+        },
+        {
+          "role": "user",
+          "content": "👏"
+        },
+        {
+          "role": "user",
+          "content": "👏"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "006d2279-2339-477c-9261-42b3829fcb73",
+      "id": "cpe_iris__034",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Si no pots 11, fem 12h com sempre cap problema eh!",
+      "ground_truth": "A les 11 baby😘",
+      "category": "objection",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34649776345",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Alba tu has trucat??"
+        },
+        {
+          "role": "user",
+          "content": "Cuquiiii! Si vols puc venir a les 11h demà? 💃🏻"
+        },
+        {
+          "role": "assistant",
+          "content": "A les 9:00 tens algú no?"
+        },
+        {
+          "role": "assistant",
+          "content": "A portes la Lola al cole oi?"
+        },
+        {
+          "role": "user",
+          "content": "Siii les dues coses"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "00cf4908-0dbf-4b25-b571-1e8d15c15ac8",
+      "id": "cpe_iris__035",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Ostress pensava q els apuntats drl diumenge eren pagats",
+      "ground_truth": "[audio]",
+      "category": "booking",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34679971800",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Ai la última ja te l’he passat"
+        },
+        {
+          "role": "assistant",
+          "content": "He anat de totes les maneres🤣🤣🤣🫶🏽"
+        },
+        {
+          "role": "user",
+          "content": "Kin goig q fas bueno q coi tu sempre"
+        },
+        {
+          "role": "user",
+          "content": "Ja quasi ho tenim 🙌"
+        },
+        {
+          "role": "assistant",
+          "content": "A veure si paguen ja t’ho diré🫠"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "00f67096-0091-44c4-8629-f216dde7abab",
+      "id": "cpe_iris__036",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "💃🏻💃🏻💃🏻❤️❤️",
+      "ground_truth": "Vine a barre demà si tas free",
+      "category": "emoji_reaction",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34649776345",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Mevaa🥰"
+        },
+        {
+          "role": "user",
+          "content": "Hit💃🏻💃🏻💃🏻"
+        },
+        {
+          "role": "assistant",
+          "content": "‎Sigue el canal de 👑 El mundo de Iris 🩷 en WhatsApp: https://whatsapp.com/channel/0029Vb7QkgtHLHQVclzz2D1E"
+        },
+        {
+          "role": "assistant",
+          "content": "Si clickeu aquest enllaç us redigirà al meu canal de difusió. A les classes us ho explicaré i si algú te algún dubte m’ho diu.\n\nAquest canal és per a:\n🔥 Avisar de masterclass i esdeveniments\n💪 Penjar rutines d’entrenament esporàdiques\n🎁 Sortejos d’entrenaments i passes gratuïts\n📍 Entrenar en llocs diferents\n🧠 Tips reals del meu dia a dia\n\nEs un canal on no es pot escriure, si algú vol dir-me alguna cosa, m’ho dirà x privat. Aquest tipus de canal em facilita no deixar exclós a ningú quan faig classes sorpreses o tinc events de diferents modalitats."
+        },
+        {
+          "role": "assistant",
+          "content": "Bona tarda🩷"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "0101ac15-56cb-4af1-bda5-2cbc1c14909f",
+      "id": "cpe_iris__037",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Sha d pagar la sessio o com funciona?",
+      "ground_truth": "Però enrecorda’t de dir-m’ho abans xk s’omple la classe el\nDilluns i les que no sou socies us haig d’apuntar jo ok",
+      "category": "product_inquiry",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_99076473401420",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "No pots venir a cap sessió entre setmana ?"
+        },
+        {
+          "role": "user",
+          "content": "Complicadet!"
+        },
+        {
+          "role": "user",
+          "content": "A quina hora ho feu?"
+        },
+        {
+          "role": "assistant",
+          "content": "Dimarts 18:30\nDijous 9:30/ 19:15"
+        },
+        {
+          "role": "user",
+          "content": "Va. Provo dimarts"
+        }
+      ],
+      "msg_count": 5,
+      "source_msg_id": "02b11029-57e3-44a5-bbc2-563178d2c25e",
+      "id": "cpe_iris__038",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Merci !!! Em fa mal els bessons i els braços .. demà mes",
+      "ground_truth": "[reaction: 😂]",
+      "category": "thanks",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34667690443",
+      "turns": [
+        {
+          "role": "user",
+          "content": "👏"
+        },
+        {
+          "role": "user",
+          "content": "Bona tarda iris si em pots apuntar x dema barre genial!!no fallare😘"
+        },
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        },
+        {
+          "role": "user",
+          "content": "[reaction: 😂]"
+        }
+      ],
+      "msg_count": 4,
+      "source_msg_id": "026148e3-c447-495e-ad12-34c29f8a75bb",
+      "id": "cpe_iris__039",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Féliz  año \nEste año es el nuestro \nLo vamos a petar! A toppe!!!!\nSalud y amor !\nTe  quiero gracias por todo y  por tanto!",
+      "ground_truth": "Bellaaa",
+      "category": "long_personal",
+      "language": "es",
+      "platform": "instagram",
+      "lead_username": "laurichara",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Diosa"
+        },
+        {
+          "role": "user",
+          "content": "No mas qué tuuuu"
+        },
+        {
+          "role": "assistant",
+          "content": "Felizzz año mi reinaaa❤️❤️❤️"
+        }
+      ],
+      "msg_count": 3,
+      "source_msg_id": "f3b5d68d-8d56-494d-a0ef-40698c2c07d9",
+      "id": "cpe_iris__040",
+      "is_multi_turn": false
+    },
+    {
+      "test_input": "Vale genial 👌",
+      "ground_truth": "Vale cuca, ya veo que hablarás con el haber. Tú sabes lo que quieres",
+      "category": "casual",
+      "language": "es",
+      "platform": "whatsapp",
+      "lead_username": "wa_34666250000",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Vull que el pare agafi un bonus de 10 sessions a ver si se anima a venir al gym"
+        },
+        {
+          "role": "assistant",
+          "content": "No ha fet mai gimnas"
+        },
+        {
+          "role": "assistant",
+          "content": "Els nens, un és jugador de futbol, que l'any que ve entra al club de futbol del Girona, que és el que jo entreno. Ahir ja li vaig dir a la Maria, la Maria va dir que no podien entrar, però avui he parlat amb el Toni. I, , que és que aquests nens ja estan més que entrenats, saps? Si saben, si tenen 15 anys, però un és federat i l'altre és que és bassor. Llavors, bueno, ja m'ha dit al Toni que no passa res. Llavors, jo el que vull és que el pare es fidelitzi. , quiero que primero coja un bono de 10 sessions y si s'anima a venir al gimnasio. Que avui li ensenyes una miqueta a les màquines, que aniran molt perduts, suposo, un poquito, que els nens ja estaran allà amb ells, però ja faran una miqueta la seva, tu els guies com vulguis. I ja està, si s'anima i s'agafa el bono de 10 sessions per començar el gimnasio. perquè la dona ja ve, ja fa barre amb mi i a part li feia entrenos. I bueno, nunca ha hecho deporte, ? Pau, yo creo que eres el más indicado para animarlo un poquito a que haga deporte. Ha de rebaixar una miqueta. Bueno, jo el coneixeràs, es diu Oriol, i els nens es diuen Marc i el Mau."
+        },
+        {
+          "role": "user",
+          "content": "Vale ya hablare con el haber que quiere hacer"
+        },
+        {
+          "role": "assistant",
+          "content": "Els nens, un és jugador de futbol, que l'any que ve entra al club de futbol del Girona, que és el que jo entreno. Ahir ja li vaig dir a la Maria, la Maria va dir que no podien entrar, però avui he parlat amb el Toni. I, , que és que aquests nens ja estan més que entrenats, saps? Si saben, si tenen 15 anys, però un és federat i l'altre és que és bassor. Llavors, bueno, ja m'ha dit al Toni que no passa res. Llavors, jo el que vull és que el pare es fidelitzi. , quiero que primero coja un bono de 10 sessions y si s'anima a venir al gimnasio. Que avui li ensenyes una miqueta a les màquines, que aniran molt perduts, suposo, un poquito, que els nens ja estaran allà amb ells, però ja faran una miqueta la seva, tu els guies com vulguis. I ja està, si s'anima i s'agafa el bono de 10 sessions per començar el gimnasio. perquè la dona ja ve, ja fa barre amb mi i a part li feia entrenos. I bueno, nunca ha hecho deporte, ? Pau, yo creo que eres el más indicado para animarlo un poquito a que haga deporte. Ha de rebaixar una miqueta. Bueno, jo el coneixeràs, es diu Oriol, i els nens es diuen Marc i el Mau."
+        }
+      ],
+      "msg_count": 5,
+      "is_multi_turn": true,
+      "source_msg_id": "ae6fc10d-3686-4cc6-b676-d452742f9a02",
+      "id": "cpe_iris__041_mt"
+    },
+    {
+      "test_input": "Jejejeje! Jo sería aixiiiins! 🤪🫶🏼",
+      "ground_truth": "Guapaaa",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "vaaloos",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Shared content"
+        },
+        {
+          "role": "assistant",
+          "content": "Jajajajajja quantes així el primer dia"
+        },
+        {
+          "role": "assistant",
+          "content": "Vine un diaaaa que et vull fet🫠🫠🫠🥰"
+        }
+      ],
+      "msg_count": 3,
+      "is_multi_turn": true,
+      "source_msg_id": "4d00e6bb-e396-4cb9-ae27-8a400fd6f017",
+      "id": "cpe_iris__042_mt"
+    },
+    {
+      "test_input": "Pivonnnnnnn",
+      "ground_truth": "Bombonetti🙂‍↔️",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "mendez6666",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "Me lo ha dicho tu tía😂 es la radiopatio"
+        },
+        {
+          "role": "assistant",
+          "content": "Me n’alegro rei"
+        },
+        {
+          "role": "user",
+          "content": "Mersiii guapa❤️"
+        },
+        {
+          "role": "user",
+          "content": "Pensaba que vendrias tú a verme tambe"
+        },
+        {
+          "role": "assistant",
+          "content": "Bombonetti🙂‍↔️"
+        }
+      ],
+      "msg_count": 5,
+      "is_multi_turn": true,
+      "source_msg_id": "d3168ddf-a75d-4f11-bdb3-caa313008225",
+      "id": "cpe_iris__043_mt"
+    },
+    {
+      "test_input": "Ya te he apuntado para el martes!!",
+      "ground_truth": "Gracias🩷",
+      "category": "booking",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34933930160",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Hola Iris! Apuntada💗🫂"
+        },
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        },
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        },
+        {
+          "role": "assistant",
+          "content": "Reina estoy con gastroenteritis, iré el Martes con Marcel que es fiesta en Igualada. Me encuentro fatal🥹🙏🏽"
+        },
+        {
+          "role": "user",
+          "content": "Mejórate Iris☺️🤍🤍🫂"
+        }
+      ],
+      "msg_count": 5,
+      "is_multi_turn": true,
+      "source_msg_id": "1c4e024b-22df-47af-885b-f05cf4feacab",
+      "id": "cpe_iris__044_mt"
+    },
+    {
+      "test_input": "Vaig anar de festa a Sabadell ahir i de tornada al cotxe quan vam passar pel Bruc vsig dir epsssss jeje",
+      "ground_truth": "Que hi ha a Sabadell un diumenge a la nit?? Molt crack tu😮‍💨😮‍💨😮‍💨",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "carles_costa",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Pero si estas genial aqui!!!"
+        },
+        {
+          "role": "user",
+          "content": "🙄"
+        },
+        {
+          "role": "assistant",
+          "content": "Jo sempre em veig malament😂😂😂😮‍💨 però ara ja em posaré millor, pensa que vinc de bodes, eventos, pff que s’acabi ja😂😂"
+        },
+        {
+          "role": "assistant",
+          "content": "M’expliques escriure’m a les 3:00 de la matinada un diumenge? Que taves al row o k😂😂😂😂"
+        },
+        {
+          "role": "user",
+          "content": "L’estiu es lo pitjor… jo tampoc em veig al 100%🙈🐡"
+        }
+      ],
+      "msg_count": 5,
+      "is_multi_turn": true,
+      "source_msg_id": "de1655a9-568e-4644-a71d-fb20a63f952e",
+      "id": "cpe_iris__045_mt"
+    },
+    {
+      "test_input": "Mentioned you in their story",
+      "ground_truth": "Hola Núria! Que et porta per aqui? 🩷",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "nura.aesthetic",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "😂😂😂oka"
+        },
+        {
+          "role": "user",
+          "content": "demà vinc i pago tmb lu de diumenge"
+        },
+        {
+          "role": "assistant",
+          "content": "Listo mami"
+        },
+        {
+          "role": "user",
+          "content": "🔥🔥"
+        }
+      ],
+      "msg_count": 4,
+      "is_multi_turn": true,
+      "source_msg_id": "fc3bf5e4-cadf-4f5e-9e89-35b458804e6a",
+      "id": "cpe_iris__046_mt"
+    },
+    {
+      "test_input": "Mentioned you in their story",
+      "ground_truth": "Hola! Què tal? En què et puc ajudar?",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "zoraidabj",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Mentioned you in their story"
+        },
+        {
+          "role": "assistant",
+          "content": "Uepaaa graciss amor"
+        },
+        {
+          "role": "assistant",
+          "content": "Es un festival pa contestar ese día siempre me pasa igual, y cuando me volvéis a escribir lo veo😒 y me muero de la verguensssa❤️"
+        },
+        {
+          "role": "assistant",
+          "content": "Espero que estés bien bonitaaa mía😘😘"
+        },
+        {
+          "role": "user",
+          "content": "Normal bonita! Jejejejejeje. Si aquí todo bien 😊"
+        }
+      ],
+      "msg_count": 5,
+      "is_multi_turn": true,
+      "source_msg_id": "6ec82f8e-3ad9-4db4-807d-bd2365de771c",
+      "id": "cpe_iris__047_mt"
+    },
+    {
+      "test_input": "Espero que almenys la classe valgui la pena✨",
+      "ground_truth": "Wowww❤️❤️❤️brutallll",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "stefilungu_",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "La meva amiga ha parlat amb una noia que al final hem pogut contactar i super estúpida"
+        },
+        {
+          "role": "assistant",
+          "content": "Es que jo no tinc ni idea ho va fer ella si jo només vaig a hotcore🫠"
+        },
+        {
+          "role": "assistant",
+          "content": "Pero vamos nunca más"
+        },
+        {
+          "role": "assistant",
+          "content": "🥴"
+        },
+        {
+          "role": "user",
+          "content": "Si tenen una mica aquesta fama la veritat…"
+        }
+      ],
+      "msg_count": 5,
+      "is_multi_turn": true,
+      "source_msg_id": "59ca1db9-3738-4481-800d-9abd2efea105",
+      "id": "cpe_iris__048_mt"
+    },
+    {
+      "test_input": "Geniaal!!",
+      "ground_truth": "Ja vinc eee que m’arribat tard la clienta🫠🫠",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "instagram",
+      "lead_username": "bbylasercenter",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Hola guapíssima☺️☺️"
+        },
+        {
+          "role": "user",
+          "content": "Siiii🥰 T'esperem!"
+        },
+        {
+          "role": "assistant",
+          "content": "Merciii❤️❤️❤️"
+        },
+        {
+          "role": "user",
+          "content": "Una coseta Iris alèrgies dermatológiques que sàpigues?"
+        },
+        {
+          "role": "assistant",
+          "content": "Nooo😂😂😘"
+        }
+      ],
+      "msg_count": 5,
+      "is_multi_turn": true,
+      "source_msg_id": "0b051079-3eff-46a1-a3ca-5f78ea7c1f6d",
+      "id": "cpe_iris__049_mt"
+    },
+    {
+      "test_input": "I potser anire",
+      "ground_truth": "Cuka, que te lo curras como siempre si te sientes flipada, descansa un poco. Te veo a barre o zumba?",
+      "category": "casual",
+      "language": "unknown",
+      "platform": "whatsapp",
+      "lead_username": "wa_34619379120",
+      "turns": [
+        {
+          "role": "assistant",
+          "content": "No aniré a ballar suposo que sortiré sobre les 18:30"
+        },
+        {
+          "role": "assistant",
+          "content": "Ja em dius"
+        },
+        {
+          "role": "user",
+          "content": "Avui no puc 💔💔💔"
+        },
+        {
+          "role": "user",
+          "content": "Ojala"
+        },
+        {
+          "role": "user",
+          "content": "Ara mirare si dilluns esta obert"
+        }
+      ],
+      "msg_count": 5,
+      "is_multi_turn": true,
+      "source_msg_id": "e9d7f6c9-a45a-40bf-981d-46b362926907",
+      "id": "cpe_iris__050_mt"
+    }
+  ]
+}

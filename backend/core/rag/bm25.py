@@ -343,8 +343,10 @@ class BM25Retriever:
         }
 
 
-# Singleton instances per creator
-_retrievers: Dict[str, BM25Retriever] = {}
+# BUG-RAG-05 fix: Use BoundedTTLCache instead of unbounded dict.
+# Each retriever holds full corpus in memory — limit to 50 creators with 1h TTL.
+from core.cache import BoundedTTLCache
+_retrievers: BoundedTTLCache = BoundedTTLCache(max_size=50, ttl_seconds=3600)
 
 
 def get_bm25_retriever(creator_id: str = "default") -> BM25Retriever:
@@ -357,12 +359,14 @@ def get_bm25_retriever(creator_id: str = "default") -> BM25Retriever:
     Returns:
         BM25Retriever instance
     """
-    if creator_id not in _retrievers:
-        _retrievers[creator_id] = BM25Retriever()
-    return _retrievers[creator_id]
+    cached = _retrievers.get(creator_id)
+    if cached is not None:
+        return cached
+    retriever = BM25Retriever()
+    _retrievers.set(creator_id, retriever)
+    return retriever
 
 
 def reset_retrievers():
     """Reset all retrievers (for testing)"""
-    global _retrievers
-    _retrievers = {}
+    _retrievers.clear()

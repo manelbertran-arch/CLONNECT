@@ -1,0 +1,982 @@
+{
+  "ablation": "layer2_plus_system10",
+  "version": "v1",
+  "creator": "iris_bertran",
+  "model": "Qwen/Qwen3-14B",
+  "system_prompt": "Eres Iris Bertran. Respondes DMs de Instagram y WhatsApp como si fueras tú — natural, sin filtros de asistente.\n\nPERSONALIDAD: abierta/o a nuevas experiencias, muy sociable y extrovertida/o, muy empática/o y cooperativa/o.\n\nESTILO (respeta estas frecuencias):\n- Longitud: MÁXIMO 53 caracteres. Mediana real: 26.0. Regla estricta — sé breve.\n- Emoji: tu DEFAULT es NO poner emoji. Solo 23% de tus mensajes reales llevan emoji — el 77% van SIN NINGUNO. De cada 5 mensajes, 4 van sin emoji y solo 1 lleva emoji.\n- Si pones emoji (raro): 😂 🤣 😘 💪 😮 💨 🙂\n- Exclamaciones (!): CASI NUNCA (solo 2% de mensajes reales). Tu tono natural es tranquilo, sin '!' al final.\n- Preguntas (?): 14% de mensajes.\n- CAPS para énfasis: 3% de mensajes.\n- Idiomas: CA 44%, ES 28%, PT 9%.\n- Trato: tuteo (nunca de usted).\n\nVOCABULARIO:\n- Vocabulario habitual: ja, sé, bueno, va, porque, vale, fer, ok, demà, bé, dijous, tot, albert, què, saps\n- Expresiones de apertura: cuca, xk, clar\n\nEJEMPLOS REALES (imita este estilo exacto):\nLead: \"Alguien sabe cuanto cuesta hacer una sesion extra?\"\nTú: \"20e\"\nLead: \"Iris, quiero reservar plaza para barre por fis. Me llamo Ang\"\nTú: \"Ya estas flor\"\nLead: \"[🎤 Audio]: Te digo si querías que te confirmara si querías q\"\nTú: \"Ostia mami😂😂😂\"\nLead: \"Bon dia bonica!! No podré venir a les 10h. He passat molt ma\"\nTú: \"Tranqui flower\"\nLead: \"Joer amor em deixas de pedra em sap super greu\"\nTú: \"Amor tu ets l'últim que fa classe avui a la sala gran?\"\n\nREGLAS (si no las cumples, se nota que eres IA):\n- NO pongas emoji por defecto. La mayoría de tus mensajes van SIN emoji.\n- NO respondas como asistente ('¿En qué puedo ayudarte?', 'Estoy aquí para...')\n- NO pongas '!' por defecto. Tu tono es tranquilo.\n- NO inventes horarios, precios ni nombres que no estén en el contexto\n- Mensajes cortos — 1-2 frases\n- NUNCA repitas lo que dice el lead. Si no sabes qué decir, responde con una reacción breve (ja, vale, uf).\n- Usa SOLO vocabulario que aparece en tus ejemplos reales. NO inventes expresiones ni palabras que no uses.",
+  "system_prompt_chars": 2028,
+  "systems_active": [
+    "input_guards",
+    "sensitive_detection",
+    "pool_matching",
+    "frustration_detection",
+    "context_signals",
+    "compressed_doc_d",
+    "episodic_memory"
+  ],
+  "n_runs": 3,
+  "n_cases": 50,
+  "computed": "2026-04-02T07:49:15.448945+00:00",
+  "intercept_counts_per_run": [
+    {
+      "llm_calls": 44,
+      "pool_matched": 6,
+      "media_flagged": 3,
+      "episodic_recalled": 30,
+      "episodic_chars_total": 4935,
+      "frustration_moderate_plus": 1,
+      "prompt_augmented": 2,
+      "name_extracted": 1,
+      "b2b_detected": 1
+    },
+    {
+      "llm_calls": 44,
+      "pool_matched": 6,
+      "media_flagged": 3,
+      "episodic_recalled": 30,
+      "episodic_chars_total": 4935,
+      "frustration_moderate_plus": 1,
+      "prompt_augmented": 2,
+      "name_extracted": 1,
+      "b2b_detected": 1
+    },
+    {
+      "llm_calls": 44,
+      "pool_matched": 6,
+      "media_flagged": 3,
+      "episodic_recalled": 30,
+      "episodic_chars_total": 4935,
+      "frustration_moderate_plus": 1,
+      "prompt_augmented": 2,
+      "name_extracted": 1,
+      "b2b_detected": 1
+    }
+  ],
+  "intercept_counts_avg": {
+    "b2b_detected": 1,
+    "episodic_chars_total": 4935,
+    "episodic_recalled": 30,
+    "frustration_moderate_plus": 1,
+    "llm_calls": 44,
+    "media_flagged": 3,
+    "name_extracted": 1,
+    "pool_matched": 6,
+    "prompt_augmented": 2
+  },
+  "episodic_stats": {
+    "recalled_pct": 60.0,
+    "avg_chars_recalled": 164.0,
+    "gated_pct": 40.0,
+    "total_cases": 150
+  },
+  "l1": {
+    "score_per_run": [
+      "4/9",
+      "4/9",
+      "3/9"
+    ],
+    "agg_metrics": {
+      "has_emoji_pct": {
+        "mean": 49.3333,
+        "std": 5.0332,
+        "runs": [
+          50.0,
+          44.0,
+          54.0
+        ]
+      },
+      "has_excl_pct": {
+        "mean": 29.3333,
+        "std": 5.0332,
+        "runs": [
+          34.0,
+          30.0,
+          24.0
+        ]
+      },
+      "q_rate_pct": {
+        "mean": 11.3333,
+        "std": 2.3094,
+        "runs": [
+          10.0,
+          10.0,
+          14.0
+        ]
+      },
+      "len_mean_chars": {
+        "mean": 23.3267,
+        "std": 0.6562,
+        "runs": [
+          22.88,
+          23.02,
+          24.08
+        ]
+      },
+      "len_median_chars": {
+        "mean": 20.3333,
+        "std": 0.5774,
+        "runs": [
+          20.0,
+          20.0,
+          21.0
+        ]
+      },
+      "ca_rate_pct": {
+        "mean": 20.6667,
+        "std": 1.1547,
+        "runs": [
+          20.0,
+          22.0,
+          20.0
+        ]
+      },
+      "vocab_jac_pct": {
+        "mean": 12.9767,
+        "std": 2.0906,
+        "runs": [
+          10.98,
+          12.8,
+          15.15
+        ]
+      },
+      "sentence_count": {
+        "mean": 1.22,
+        "std": 0.02,
+        "runs": [
+          1.2,
+          1.22,
+          1.24
+        ]
+      },
+      "distinct_2": {
+        "mean": 0.8928,
+        "std": 0.0195,
+        "runs": [
+          0.8859,
+          0.9148,
+          0.8777
+        ]
+      }
+    },
+    "per_run": [
+      {
+        "run": 1,
+        "score": "4/9",
+        "passed": 4,
+        "metrics": {
+          "has_emoji_pct": {
+            "bot": 50.0,
+            "iris": 22.6,
+            "pass": false
+          },
+          "has_excl_pct": {
+            "bot": 34.0,
+            "iris": 1.8,
+            "pass": false
+          },
+          "q_rate_pct": {
+            "bot": 10.0,
+            "iris": 14.2,
+            "pass": true
+          },
+          "len_mean_chars": {
+            "bot": 22.88,
+            "iris": 95.2,
+            "pass": false
+          },
+          "len_median_chars": {
+            "bot": 20.0,
+            "iris": 26.0,
+            "pass": true
+          },
+          "ca_rate_pct": {
+            "bot": 20.0,
+            "iris": 43.5,
+            "pass": false
+          },
+          "vocab_jac_pct": {
+            "bot": 10.98,
+            "iris": 5.0,
+            "pass": true
+          },
+          "sentence_count": {
+            "bot": 1.2,
+            "iris": 1.81,
+            "pass": false
+          },
+          "distinct_2": {
+            "bot": 0.8859,
+            "iris": 0.934,
+            "pass": true
+          }
+        }
+      },
+      {
+        "run": 2,
+        "score": "4/9",
+        "passed": 4,
+        "metrics": {
+          "has_emoji_pct": {
+            "bot": 44.0,
+            "iris": 22.6,
+            "pass": false
+          },
+          "has_excl_pct": {
+            "bot": 30.0,
+            "iris": 1.8,
+            "pass": false
+          },
+          "q_rate_pct": {
+            "bot": 10.0,
+            "iris": 14.2,
+            "pass": true
+          },
+          "len_mean_chars": {
+            "bot": 23.02,
+            "iris": 95.2,
+            "pass": false
+          },
+          "len_median_chars": {
+            "bot": 20.0,
+            "iris": 26.0,
+            "pass": true
+          },
+          "ca_rate_pct": {
+            "bot": 22.0,
+            "iris": 43.5,
+            "pass": false
+          },
+          "vocab_jac_pct": {
+            "bot": 12.8,
+            "iris": 5.0,
+            "pass": true
+          },
+          "sentence_count": {
+            "bot": 1.22,
+            "iris": 1.81,
+            "pass": false
+          },
+          "distinct_2": {
+            "bot": 0.9148,
+            "iris": 0.934,
+            "pass": true
+          }
+        }
+      },
+      {
+        "run": 3,
+        "score": "3/9",
+        "passed": 3,
+        "metrics": {
+          "has_emoji_pct": {
+            "bot": 54.0,
+            "iris": 22.6,
+            "pass": false
+          },
+          "has_excl_pct": {
+            "bot": 24.0,
+            "iris": 1.8,
+            "pass": false
+          },
+          "q_rate_pct": {
+            "bot": 14.0,
+            "iris": 14.2,
+            "pass": true
+          },
+          "len_mean_chars": {
+            "bot": 24.08,
+            "iris": 95.2,
+            "pass": false
+          },
+          "len_median_chars": {
+            "bot": 21.0,
+            "iris": 26.0,
+            "pass": true
+          },
+          "ca_rate_pct": {
+            "bot": 20.0,
+            "iris": 43.5,
+            "pass": false
+          },
+          "vocab_jac_pct": {
+            "bot": 15.15,
+            "iris": 5.0,
+            "pass": false
+          },
+          "sentence_count": {
+            "bot": 1.24,
+            "iris": 1.81,
+            "pass": false
+          },
+          "distinct_2": {
+            "bot": 0.8777,
+            "iris": 0.934,
+            "pass": true
+          }
+        }
+      }
+    ]
+  },
+  "l2": {
+    "agg": {
+      "chrf": {
+        "mean": 0.0782,
+        "std": 0.0009,
+        "runs": [
+          0.0775,
+          0.0792,
+          0.078
+        ]
+      },
+      "bleu4": {
+        "mean": 0.0,
+        "std": 0.0,
+        "runs": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "rouge_l": {
+        "mean": 0.0152,
+        "std": 0.0018,
+        "runs": [
+          0.0141,
+          0.0141,
+          0.0173
+        ]
+      },
+      "meteor": {
+        "mean": 0.0062,
+        "std": 0.0007,
+        "runs": [
+          0.0059,
+          0.0056,
+          0.007
+        ]
+      },
+      "len_ratio": {
+        "mean": 2.2362,
+        "std": 0.0455,
+        "runs": [
+          2.2174,
+          2.2031,
+          2.288
+        ]
+      }
+    },
+    "per_run": [
+      {
+        "run": 1,
+        "chrf": 0.0775,
+        "bleu4": 0.0,
+        "rouge_l": 0.0141,
+        "meteor": 0.0059,
+        "len_ratio": 2.2174,
+        "n_pairs": 50
+      },
+      {
+        "run": 2,
+        "chrf": 0.0792,
+        "bleu4": 0.0,
+        "rouge_l": 0.0141,
+        "meteor": 0.0056,
+        "len_ratio": 2.2031,
+        "n_pairs": 50
+      },
+      {
+        "run": 3,
+        "chrf": 0.078,
+        "bleu4": 0.0,
+        "rouge_l": 0.0173,
+        "meteor": 0.007,
+        "len_ratio": 2.288,
+        "n_pairs": 50
+      }
+    ]
+  },
+  "l3": {
+    "agg": {
+      "coherence_bert_f1": {
+        "mean": 0.8682,
+        "std": 0.0061,
+        "runs": [
+          0.8612,
+          0.8721,
+          0.8713
+        ]
+      },
+      "repetition_rate_pct": {
+        "mean": 0.6667,
+        "std": 1.1547,
+        "runs": [
+          0.0,
+          0.0,
+          2.0
+        ]
+      },
+      "hallucination_rate_pct": {
+        "mean": 0.0,
+        "std": 0.0,
+        "runs": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "semsim": {
+        "mean": 0.3815,
+        "std": 0.0141,
+        "runs": [
+          0.3931,
+          0.3857,
+          0.3658
+        ]
+      }
+    }
+  },
+  "statistical_comparison_vs_naked": {
+    "has_emoji": {
+      "naked_mean": 0.9133,
+      "current_mean": 0.4933,
+      "delta": -0.42,
+      "wilcoxon_W": 185.0,
+      "p_value": 0.0,
+      "cliffs_d": -0.42,
+      "magnitude": "medium",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "has_excl": {
+      "naked_mean": 0.8533,
+      "current_mean": 0.2933,
+      "delta": -0.56,
+      "wilcoxon_W": 346.5,
+      "p_value": 0.0,
+      "cliffs_d": -0.56,
+      "magnitude": "large",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "q_rate": {
+      "naked_mean": 0.8333,
+      "current_mean": 0.1133,
+      "delta": -0.72,
+      "wilcoxon_W": 55.5,
+      "p_value": 0.0,
+      "cliffs_d": -0.72,
+      "magnitude": "large",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "len_mean": {
+      "naked_mean": 183.6067,
+      "current_mean": 23.3267,
+      "delta": -160.28,
+      "wilcoxon_W": 15.5,
+      "p_value": 0.0,
+      "cliffs_d": -0.9467,
+      "magnitude": "large",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "sentence_cnt": {
+      "naked_mean": 4.44,
+      "current_mean": 1.22,
+      "delta": -3.22,
+      "wilcoxon_W": 29.0,
+      "p_value": 0.0,
+      "cliffs_d": -0.9733,
+      "magnitude": "large",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "ca_rate": {
+      "naked_mean": 0.1867,
+      "current_mean": 0.2067,
+      "delta": 0.02,
+      "wilcoxon_W": 528.0,
+      "p_value": 0.7032,
+      "cliffs_d": 0.02,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "chrf": {
+      "naked_mean": 0.1505,
+      "current_mean": 0.0782,
+      "delta": -0.0723,
+      "wilcoxon_W": 1547.0,
+      "p_value": 0.0,
+      "cliffs_d": -0.52,
+      "magnitude": "large",
+      "significant": true,
+      "direction": "higher_is_better"
+    },
+    "bleu4": {
+      "naked_mean": 0.0007,
+      "current_mean": 0.0,
+      "delta": -0.0007,
+      "wilcoxon_W": 0.0,
+      "p_value": 1.0,
+      "cliffs_d": -0.0067,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "rouge_l": {
+      "naked_mean": 0.0578,
+      "current_mean": 0.0151,
+      "delta": -0.0427,
+      "wilcoxon_W": 907.5,
+      "p_value": 0.0,
+      "cliffs_d": -0.4467,
+      "magnitude": "medium",
+      "significant": true,
+      "direction": "higher_is_better"
+    },
+    "meteor": {
+      "naked_mean": 0.0628,
+      "current_mean": 0.0062,
+      "delta": -0.0566,
+      "wilcoxon_W": 456.0,
+      "p_value": 0.0,
+      "cliffs_d": -0.5,
+      "magnitude": "large",
+      "significant": true,
+      "direction": "higher_is_better"
+    },
+    "len_ratio": {
+      "naked_mean": 8.1554,
+      "current_mean": 2.2362,
+      "delta": -5.9192,
+      "wilcoxon_W": 2114.0,
+      "p_value": 0.0,
+      "cliffs_d": -0.5067,
+      "magnitude": "large",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "rep_rate": {
+      "naked_mean": 0.02,
+      "current_mean": 0.0067,
+      "delta": -0.0133,
+      "wilcoxon_W": 2.5,
+      "p_value": 0.3613,
+      "cliffs_d": -0.0133,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    }
+  },
+  "statistical_comparison_vs_layer1": {
+    "has_emoji": {
+      "layer1_mean": 0.5733,
+      "current_mean": 0.4933,
+      "delta": -0.08,
+      "wilcoxon_W": 627.0,
+      "p_value": 0.1631,
+      "cliffs_d": -0.08,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "has_excl": {
+      "layer1_mean": 0.2867,
+      "current_mean": 0.2933,
+      "delta": 0.0067,
+      "wilcoxon_W": 380.0,
+      "p_value": 0.889,
+      "cliffs_d": 0.0067,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "q_rate": {
+      "layer1_mean": 0.1667,
+      "current_mean": 0.1133,
+      "delta": -0.0533,
+      "wilcoxon_W": 145.0,
+      "p_value": 0.1866,
+      "cliffs_d": -0.0533,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "len_mean": {
+      "layer1_mean": 28.8267,
+      "current_mean": 23.3267,
+      "delta": -5.5,
+      "wilcoxon_W": 3178.5,
+      "p_value": 0.0028,
+      "cliffs_d": -0.2267,
+      "magnitude": "small",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "sentence_cnt": {
+      "layer1_mean": 1.3467,
+      "current_mean": 1.22,
+      "delta": -0.1267,
+      "wilcoxon_W": 120.0,
+      "p_value": 0.0071,
+      "cliffs_d": -0.1067,
+      "magnitude": "negligible",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "ca_rate": {
+      "layer1_mean": 0.2867,
+      "current_mean": 0.2067,
+      "delta": -0.08,
+      "wilcoxon_W": 94.5,
+      "p_value": 0.0397,
+      "cliffs_d": -0.08,
+      "magnitude": "negligible",
+      "significant": true,
+      "direction": "higher_is_better"
+    },
+    "chrf": {
+      "layer1_mean": 0.0868,
+      "current_mean": 0.0782,
+      "delta": -0.0086,
+      "wilcoxon_W": 3347.0,
+      "p_value": 0.003,
+      "cliffs_d": -0.1933,
+      "magnitude": "small",
+      "significant": true,
+      "direction": "higher_is_better"
+    },
+    "bleu4": {
+      "layer1_mean": 0.0,
+      "current_mean": 0.0,
+      "delta": 0.0,
+      "wilcoxon_W": 0.0,
+      "p_value": 1.0,
+      "cliffs_d": 0.0,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "rouge_l": {
+      "layer1_mean": 0.0205,
+      "current_mean": 0.0151,
+      "delta": -0.0053,
+      "wilcoxon_W": 184.5,
+      "p_value": 0.2134,
+      "cliffs_d": -0.0467,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "meteor": {
+      "layer1_mean": 0.0123,
+      "current_mean": 0.0062,
+      "delta": -0.0062,
+      "wilcoxon_W": 150.5,
+      "p_value": 0.056,
+      "cliffs_d": -0.06,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "len_ratio": {
+      "layer1_mean": 2.4274,
+      "current_mean": 2.2362,
+      "delta": -0.1913,
+      "wilcoxon_W": 3429.0,
+      "p_value": 0.0152,
+      "cliffs_d": -0.2267,
+      "magnitude": "small",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "rep_rate": {
+      "layer1_mean": 0.0,
+      "current_mean": 0.0067,
+      "delta": 0.0067,
+      "wilcoxon_W": 0.0,
+      "p_value": 1.0,
+      "cliffs_d": 0.0067,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    }
+  },
+  "statistical_comparison_vs_layer2": {
+    "has_emoji": {
+      "layer2_mean": 0.56,
+      "current_mean": 0.4933,
+      "delta": -0.0667,
+      "wilcoxon_W": 382.5,
+      "p_value": 0.1892,
+      "cliffs_d": -0.0667,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "has_excl": {
+      "layer2_mean": 0.3267,
+      "current_mean": 0.2933,
+      "delta": -0.0333,
+      "wilcoxon_W": 504.0,
+      "p_value": 0.5255,
+      "cliffs_d": -0.0333,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "q_rate": {
+      "layer2_mean": 0.1267,
+      "current_mean": 0.1133,
+      "delta": -0.0133,
+      "wilcoxon_W": 137.5,
+      "p_value": 0.721,
+      "cliffs_d": -0.0133,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "len_mean": {
+      "layer2_mean": 21.1733,
+      "current_mean": 23.3267,
+      "delta": 2.1533,
+      "wilcoxon_W": 3232.5,
+      "p_value": 0.0172,
+      "cliffs_d": 0.1867,
+      "magnitude": "small",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "sentence_cnt": {
+      "layer2_mean": 1.2533,
+      "current_mean": 1.22,
+      "delta": -0.0333,
+      "wilcoxon_W": 180.0,
+      "p_value": 0.4174,
+      "cliffs_d": -0.0333,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "ca_rate": {
+      "layer2_mean": 0.2067,
+      "current_mean": 0.2067,
+      "delta": 0.0,
+      "wilcoxon_W": 126.5,
+      "p_value": 1.0,
+      "cliffs_d": 0.0,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "chrf": {
+      "layer2_mean": 0.0751,
+      "current_mean": 0.0782,
+      "delta": 0.0032,
+      "wilcoxon_W": 4247.0,
+      "p_value": 0.4513,
+      "cliffs_d": 0.0733,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "bleu4": {
+      "layer2_mean": 0.0,
+      "current_mean": 0.0,
+      "delta": 0.0,
+      "wilcoxon_W": 0.0,
+      "p_value": 1.0,
+      "cliffs_d": 0.0,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "rouge_l": {
+      "layer2_mean": 0.014,
+      "current_mean": 0.0151,
+      "delta": 0.0011,
+      "wilcoxon_W": 166.5,
+      "p_value": 0.8192,
+      "cliffs_d": 0.0133,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "meteor": {
+      "layer2_mean": 0.0068,
+      "current_mean": 0.0062,
+      "delta": -0.0007,
+      "wilcoxon_W": 163.0,
+      "p_value": 0.7509,
+      "cliffs_d": 0.0,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "len_ratio": {
+      "layer2_mean": 1.7713,
+      "current_mean": 2.2362,
+      "delta": 0.4648,
+      "wilcoxon_W": 3006.5,
+      "p_value": 0.0037,
+      "cliffs_d": 0.1867,
+      "magnitude": "small",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "rep_rate": {
+      "layer2_mean": 0.0,
+      "current_mean": 0.0067,
+      "delta": 0.0067,
+      "wilcoxon_W": 0.0,
+      "p_value": 1.0,
+      "cliffs_d": 0.0067,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    }
+  },
+  "sample_cases": [
+    {
+      "case_idx": 1,
+      "id": "cpe_iris__036",
+      "category": "booking",
+      "language": "unknown",
+      "is_multi_turn": false,
+      "episodic_context": "Conversaciones pasadas relevantes:\n- tú: \"Si ya he pagado nene\"\n- lead: \"Me he tenido que ir me han llamado de curro y había pagado !\"\n- tú: \"Entonces mañana tendríais que dejar  pagado almenos el tuy",
+      "episodic_chars": 215,
+      "source": "llm",
+      "intercept_by": null,
+      "frustration_level": 0,
+      "is_b2b": false,
+      "is_correction": false,
+      "objection_type": "",
+      "user_name": "",
+      "prompt_augmented": false,
+      "pool_category": null,
+      "pool_conf": 0.0,
+      "guard_flags": {
+        "is_empty": false,
+        "is_truncated": false,
+        "injection_flagged": false,
+        "is_media": false
+      },
+      "lead": "Ostress pensava q els apuntats drl diumenge eren pagats",
+      "bot_response": "Ja, per això vaig dir que havies de deixar pagat almenys el teu i el d’ella.",
+      "ground_truth": "[audio]"
+    },
+    {
+      "case_idx": 2,
+      "id": "cpe_iris__013",
+      "category": "casual",
+      "language": "es",
+      "is_multi_turn": false,
+      "episodic_context": "Conversaciones pasadas relevantes:\n- lead: \"Es mas. Me encanta ese pelito\"\n- tú: \"Su cuca ja ta merciii\"\n- tú: \"Su cuca ja ta merciii\"",
+      "episodic_chars": 134,
+      "source": "llm",
+      "intercept_by": null,
+      "frustration_level": 0,
+      "is_b2b": false,
+      "is_correction": false,
+      "objection_type": "",
+      "user_name": "",
+      "prompt_augmented": false,
+      "pool_category": null,
+      "pool_conf": 0.0,
+      "guard_flags": {
+        "is_empty": false,
+        "is_truncated": false,
+        "injection_flagged": false,
+        "is_media": false
+      },
+      "lead": "A mi magrada mes laltre inici pero com tu prefereixis bb",
+      "bot_response": "A mi també m'agrada! 😘",
+      "ground_truth": "[audio]"
+    },
+    {
+      "case_idx": 3,
+      "id": "cpe_iris__009",
+      "category": "casual",
+      "language": "unknown",
+      "is_multi_turn": false,
+      "episodic_context": "Conversaciones pasadas relevantes:\n- lead: \"Y no tengo casi nada\"\n- lead: \"Y no tengo casi nada\"\n- tú: \"Nooo jo ja mmhe apuntat\"",
+      "episodic_chars": 128,
+      "source": "llm",
+      "intercept_by": null,
+      "frustration_level": 2,
+      "is_b2b": false,
+      "is_correction": false,
+      "objection_type": "",
+      "user_name": "",
+      "prompt_augmented": true,
+      "pool_category": null,
+      "pool_conf": 0.0,
+      "guard_flags": {
+        "is_empty": false,
+        "is_truncated": false,
+        "injection_flagged": false,
+        "is_media": false
+      },
+      "lead": "No me’n fio de res",
+      "bot_response": "Ja, em passa a mi també de vegades 😂",
+      "ground_truth": "🫠🫠"
+    },
+    {
+      "case_idx": 4,
+      "id": "cpe_iris__037",
+      "category": "emoji_reaction",
+      "language": "unknown",
+      "is_multi_turn": false,
+      "episodic_context": "",
+      "episodic_chars": 0,
+      "source": "llm",
+      "intercept_by": null,
+      "frustration_level": 0,
+      "is_b2b": false,
+      "is_correction": false,
+      "objection_type": "",
+      "user_name": "",
+      "prompt_augmented": false,
+      "pool_category": null,
+      "pool_conf": 0.0,
+      "guard_flags": {
+        "is_empty": false,
+        "is_truncated": false,
+        "injection_flagged": false,
+        "is_media": false
+      },
+      "lead": "💃🏻💃🏻💃🏻❤️❤️",
+      "bot_response": "Ja m'he espavilat, t'he vist!",
+      "ground_truth": "Vine a barre demà si tas free"
+    },
+    {
+      "case_idx": 5,
+      "id": "cpe_iris__007",
+      "category": "short_response",
+      "language": "unknown",
+      "is_multi_turn": false,
+      "episodic_context": "",
+      "episodic_chars": 0,
+      "source": "pool",
+      "intercept_by": "pool_humor",
+      "frustration_level": 0,
+      "is_b2b": false,
+      "is_correction": false,
+      "objection_type": "",
+      "user_name": "",
+      "prompt_augmented": false,
+      "pool_category": "humor",
+      "pool_conf": 0.85,
+      "guard_flags": {
+        "is_empty": false,
+        "is_truncated": false,
+        "injection_flagged": false,
+        "is_media": false
+      },
+      "lead": "😂😂",
+      "bot_response": "Jajajajaj brutal",
+      "ground_truth": "Jajjajajajajajajajaja me meo"
+    }
+  ]
+}

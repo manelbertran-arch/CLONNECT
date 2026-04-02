@@ -1,0 +1,523 @@
+{
+  "creator": "stefano_bonanno",
+  "timestamp": "2026-03-30T18:45:27.556769+00:00",
+  "test_set": "/Users/manelbertranluque/Clonnect/backend/tests/cpe_data/stefano_bonanno/test_set.json",
+  "n_test_cases": 50,
+  "creator_baseline": {
+    "n": 50,
+    "length": {
+      "mean": 50.1,
+      "median": 20.5,
+      "std": 138.5
+    },
+    "word_count": {
+      "mean": 8.6,
+      "median": 3.0,
+      "std": 24.4
+    },
+    "emoji_count": {
+      "mean": 0.3,
+      "median": 0.0,
+      "std": 0.5
+    },
+    "question_count": {
+      "mean": 0.3,
+      "median": 0.0,
+      "std": 0.7
+    },
+    "exclamation_count": {
+      "mean": 1,
+      "median": 1.0,
+      "std": 1.0
+    },
+    "uppercase_ratio": {
+      "mean": 0.1,
+      "median": 0.1,
+      "std": 0.1
+    },
+    "sentence_count": {
+      "mean": 2.3,
+      "median": 2.0,
+      "std": 2.4
+    },
+    "avg_word_length": {
+      "mean": 5.1,
+      "median": 4.9,
+      "std": 1.6
+    },
+    "has_emoji": {
+      "pct": 32.0
+    },
+    "has_question": {
+      "pct": 18.0
+    },
+    "has_exclamation": {
+      "pct": 56.0
+    },
+    "language_distribution": {
+      "es": 100.0
+    },
+    "vocabulary_size": 235
+  },
+  "metrics": {
+    "length": {
+      "creator_mean": 50.1,
+      "creator_median": 20.5,
+      "bot_mean": 74.8,
+      "bot_median": 60.5,
+      "divergence_pct": 49.3,
+      "flag": true,
+      "interpretation": "Bot length is 49% higher than creator"
+    },
+    "word_count": {
+      "creator_mean": 8.6,
+      "creator_median": 3.0,
+      "bot_mean": 12.9,
+      "bot_median": 10.0,
+      "divergence_pct": 50.0,
+      "flag": true,
+      "interpretation": "Bot word_count is 50% higher than creator"
+    },
+    "emoji_count": {
+      "creator_mean": 0.3,
+      "creator_median": 0.0,
+      "bot_mean": 0.2,
+      "bot_median": 0.0,
+      "divergence_pct": 33.3,
+      "flag": true,
+      "interpretation": "Bot emoji_count is 33% lower than creator"
+    },
+    "question_count": {
+      "creator_mean": 0.3,
+      "creator_median": 0.0,
+      "bot_mean": 0.2,
+      "bot_median": 0.0,
+      "divergence_pct": 33.3,
+      "flag": true,
+      "interpretation": "Bot question_count is 33% lower than creator"
+    },
+    "exclamation_count": {
+      "creator_mean": 1,
+      "creator_median": 1.0,
+      "bot_mean": 0.5,
+      "bot_median": 0.0,
+      "divergence_pct": 50.0,
+      "flag": true,
+      "interpretation": "Bot exclamation_count is 50% lower than creator"
+    },
+    "uppercase_ratio": {
+      "creator_mean": 0.1,
+      "creator_median": 0.1,
+      "bot_mean": 0.1,
+      "bot_median": 0.0,
+      "divergence_pct": 0.0,
+      "flag": false,
+      "interpretation": "Within 30% tolerance"
+    },
+    "sentence_count": {
+      "creator_mean": 2.3,
+      "creator_median": 2.0,
+      "bot_mean": 3.1,
+      "bot_median": 3.0,
+      "divergence_pct": 34.8,
+      "flag": true,
+      "interpretation": "Bot sentence_count is 35% higher than creator"
+    },
+    "avg_word_length": {
+      "creator_mean": 5.1,
+      "creator_median": 4.9,
+      "bot_mean": 4.7,
+      "bot_median": 4.6,
+      "divergence_pct": 7.8,
+      "flag": false,
+      "interpretation": "Within 30% tolerance"
+    },
+    "has_emoji": {
+      "creator_pct": 32.0,
+      "bot_pct": 20.0,
+      "divergence_pp": 12.0,
+      "flag": false
+    },
+    "has_question": {
+      "creator_pct": 18.0,
+      "bot_pct": 22.0,
+      "divergence_pp": 4.0,
+      "flag": false
+    },
+    "has_exclamation": {
+      "creator_pct": 56.0,
+      "bot_pct": 36.0,
+      "divergence_pp": 20.0,
+      "flag": false
+    },
+    "language_distribution": {
+      "creator": {
+        "es": 100.0
+      },
+      "bot": {
+        "es": 100.0
+      }
+    },
+    "vocabulary_overlap": {
+      "jaccard": 0.21,
+      "creator_vocab_size": 235,
+      "bot_vocab_size": 254,
+      "flag": false
+    }
+  },
+  "flags_count": 6,
+  "total_metrics": 12,
+  "overall_quantitative_match": 0.5,
+  "conversations": [
+    {
+      "id": "cpe_stefan_001",
+      "test_input": "Dale un beso de mi parte",
+      "ground_truth": "Daleee! Un beso grande para vos también Nadia! 💙",
+      "bot_response": "Gracias hermano! Me encantaría hacerlo en persona.",
+      "elapsed_ms": 11611
+    },
+    {
+      "id": "cpe_stefan_002",
+      "test_input": "[image]",
+      "ground_truth": "Buen día!",
+      "bot_response": "Jaja, hermano. Ven cuando puedas, ya te espero",
+      "elapsed_ms": 2870
+    },
+    {
+      "id": "cpe_stefan_003",
+      "test_input": "Mentioned you in their story",
+      "ground_truth": "Poniéndolo en práctica 🧘🏽",
+      "bot_response": "Muchas gracias hermano.",
+      "elapsed_ms": 9230
+    },
+    {
+      "id": "cpe_stefan_004",
+      "test_input": "Holaaaa",
+      "ground_truth": "Hola!!!",
+      "bot_response": "Holaaa. Gracias por el abrazo. ¿Online o en persona?",
+      "elapsed_ms": 2721
+    },
+    {
+      "id": "cpe_stefan_005",
+      "test_input": "Hola Stefano!! Me escribí a las 16:30 yo 😅",
+      "ground_truth": "no te llego un mail con la notificación?",
+      "bot_response": "Jaja, bienvenida. Cómo estás? 🙏",
+      "elapsed_ms": 7737
+    },
+    {
+      "id": "cpe_stefan_006",
+      "test_input": "[audio]",
+      "ground_truth": "[audio]",
+      "bot_response": "Jaja, qué bien. Mañana a la que quieras, hermano.",
+      "elapsed_ms": 5040
+    },
+    {
+      "id": "cpe_stefan_007",
+      "test_input": "Es por acá 👈🏼",
+      "ground_truth": "Mentioned you in their story",
+      "bot_response": "Gracias por el audio Cuentame más de lo que te surgió en la discovery.",
+      "elapsed_ms": 2639
+    },
+    {
+      "id": "cpe_stefan_008",
+      "test_input": "Buenos días! Si no he empezado 🥹 estaba con el chico y no sabía gestionar el despertarme así temprano. Hoy busco otro momento y intento de solucionarlo con el 🤗",
+      "ground_truth": "Hola Alessandra! 😊 Que te llamo la atencion?",
+      "bot_response": "Jaja, entendido. Dale un beso de mi parte",
+      "elapsed_ms": 10110
+    },
+    {
+      "id": "cpe_stefan_009",
+      "test_input": "[🎤 Audio]: Hola Estefano, buenos días.\n\n¿Qué tal el trícolo de ayer? ¿Cuántos hombres había?\n\nMe apunto al próximo, supongo que es cada mes. Seguro que me apunto con antelación.\n\nVi tu catálogo de servicios en WhatsApp y estaba curioso de saber qué ofrece y cómo está estructurado. Me estoy intentando meter en este mundo. Antes era informático, biólogo, científico, pero este año quiero dedicarme más a las cosas de wellness.\n\nQuería ver cómo funciona para los que tienen éxito. Me gustaría escuchar más de lo que haces.\n\nEspero que un día pueda pasar por Barcelona, tomamos un café y nos conocemos mejor.\n\nQue tengáis un día muy lindo. Estamos en contacto. Hasta luego.",
+      "ground_truth": "[🎤 Audio]: Hola Grant, ¿cómo estás? Buen día. Bueno, gracias por tu mensaje. Sí, mi idea es mantener los círculos online cada 15 días. Es un poco la idea, pero bueno, no hay nada confirmado. Estoy ahora haciendo el branding porque vamos a lanzar una marca relacionada a esto. O sea, círculos como una base, pero luego hay un proyecto de masculinidad que bueno, cuando nos encontremos te contaré más. Y bueno, mi servicio, yo soy coach y terapeuta. Hago sesiones de hipnosis, de reprogramación y acompaño procesos de transformación. Así que bueno, es un poco mi servicio. Tengo clientes en todo el mundo, en Latinoamérica, en España, en Italia. Así que bueno, eso es lo que hago como mi trabajo principal. Pero bueno, cuando estés en Barcelona avísame cuándo venís y si querés tomamos un café, nos conocemos y charlamos más. Y te aviso cuando haya el próximo círculo, en principios de 15 días, que lo vamos a avisar por el grupo. Así que nada, te mando un abrazo grande. Que estés bien.",
+      "bot_response": "Hola! 😊 Gracias por el audio, me encantó.",
+      "elapsed_ms": 15004
+    },
+    {
+      "id": "cpe_stefan_010",
+      "test_input": "Ciao Stefano 😊\nHai eventi in programma per il 4 e 5 Aprile a Barcellona? Sarò in Spagna e mi piacerebbe partecipare ad un tuo evento..\nGrazie!",
+      "ground_truth": "Ciao Arianna! Cómo estás?",
+      "bot_response": "Ciao! Non ho eventi fissi in programma per quei giorni, ma posso dirti che sto organizzando qualcosa di speciale per il mese di aprile. Ti faccio sapere appena ho più dettagli! 💙",
+      "elapsed_ms": 11202
+    },
+    {
+      "id": "cpe_stefan_011",
+      "test_input": "Claro!, hablamos para la próxima semana si quieres",
+      "ground_truth": "Si dale!",
+      "bot_response": "Jaja, gracias. ¿Cuándo te apuntas?",
+      "elapsed_ms": 10302
+    },
+    {
+      "id": "cpe_stefan_012",
+      "test_input": "toallas",
+      "ground_truth": "Buenooo",
+      "bot_response": "Muchas gracias Ayer hubo 15 hombres. El próximo es en 1 mes. ¿Te apuntas ya?",
+      "elapsed_ms": 5452
+    },
+    {
+      "id": "cpe_stefan_013",
+      "test_input": "Hola Stefano buenos días mañana martes si puedo venir  tengo libre 15;30",
+      "ground_truth": "Hola Dora!",
+      "bot_response": "Gracias por mencionarme. 💙 El trícolo fue genial, había unos 15 hombres.",
+      "elapsed_ms": 9780
+    },
+    {
+      "id": "cpe_stefan_014",
+      "test_input": "No quiero decir Londres ! Por si el fisco lo mira haha",
+      "ground_truth": "Está perfecto",
+      "bot_response": "Holaaa. Jaja, tranqui, ya te escucho. ¿Cómo va el día?",
+      "elapsed_ms": 9958
+    },
+    {
+      "id": "cpe_stefan_015",
+      "test_input": "🔥 my god",
+      "ground_truth": "Jajaja qué grande!! Contame,",
+      "bot_response": "Jaja, no te preocupes, ya te vi.",
+      "elapsed_ms": 5182
+    },
+    {
+      "id": "cpe_stefan_016",
+      "test_input": "Mentioned you in their story",
+      "ground_truth": "Hola hermano!! 👋 Qué onda?? Contame, qué te trae por acá??",
+      "bot_response": "Hermoso el trícolo. 🥹 Sí, cada mes. Estás en la lista.",
+      "elapsed_ms": 10135
+    },
+    {
+      "id": "cpe_stefan_017",
+      "test_input": "Besito 😚",
+      "ground_truth": "[audio]",
+      "bot_response": "Cómo estás hermano. El trícolo fue genial, como siempre.",
+      "elapsed_ms": 3010
+    },
+    {
+      "id": "cpe_stefan_018",
+      "test_input": "Sent an attachment",
+      "ground_truth": "Hola Joshua! Que te llamo la atencion?",
+      "bot_response": "Buenos días crack. 😊 Como comenté en un post, el despertar temprano puede ser un buen momento para conectar con uno mismo. El trícolo fue genial, hubo unos 15 hombres. Encantado de que te apuntes al próximo, seguro que te va genial. Me encanta que te estés metiendo en el mundo del wellness. Es un camino muy enriquecedor.",
+      "elapsed_ms": 8615
+    },
+    {
+      "id": "cpe_stefan_019",
+      "test_input": "Perfecto, me lo miro todo esta noche o mañana",
+      "ground_truth": "Genial!! 👍",
+      "bot_response": "Gracias por el audio. El trícolo fue genial, hubo como 15 tipos.",
+      "elapsed_ms": 10574
+    },
+    {
+      "id": "cpe_stefan_020",
+      "test_input": "Ciao Stefano, \nFor March 1st\n\nTantra temple finishes at 6 pm and we will head to Stefania's Awaken anniversary evening around 8 pm, maybe after a dinner with Henk & Cindy (creators of wildflow sober rave events - I actually wanted to introduce you guys)\n\nStefania told me that she would love to see you there as a guest if u like. Would you join us?\n\nI hope you enjoy the snow fully! 🏂🏂",
+      "ground_truth": "Hello Inci!",
+      "bot_response": "Ciao! Gracias por la invitación, suena muy interesante. Me encantaría unirme.",
+      "elapsed_ms": 7791
+    },
+    {
+      "id": "cpe_stefan_021",
+      "test_input": "Hecho está ❤️",
+      "ground_truth": "Jajaja\nQué grande Mariana!!\nMe encanta tu energía! 😊",
+      "bot_response": "Hecho está ️",
+      "elapsed_ms": 4957
+    },
+    {
+      "id": "cpe_stefan_022",
+      "test_input": "[audio]",
+      "ground_truth": "estoy en call",
+      "bot_response": "Qué guay! Estoy encantado de ir. Gracias por la invitación",
+      "elapsed_ms": 2580
+    },
+    {
+      "id": "cpe_stefan_023",
+      "test_input": "Mentioned you in their story",
+      "ground_truth": "Hola, qué bueno que te conectás! 😀 Contame, qué te trae por acá??",
+      "bot_response": "Muchas gracias ! Me encantaría estar allí.",
+      "elapsed_ms": 10766
+    },
+    {
+      "id": "cpe_stefan_024",
+      "test_input": "Pero resulta que le escribí al señor con este que no quería laburar más, para decirle que estaba de vuelta y me pidió que lo llame.. la cosa es que lo llame y me dijo que se había encontrado muy bien con la chica que me cubrió cuando no estuve y que va a seguir con ella. Así que tema cerrado",
+      "ground_truth": "Ufffff! Qué situación Manue! 😬 Pero bueno, a veces las cosas se cierran así. Lo importante es que vos seguís moviendo y buscando lo que querés!",
+      "bot_response": "Jaja, qué bien. Gracias por el mensaje, lo veo pronto. Hasta luego.",
+      "elapsed_ms": 8268
+    },
+    {
+      "id": "cpe_stefan_025",
+      "test_input": "Prestame atención a este punto de vista de Jung",
+      "ground_truth": "Hola hijo! Cómo andás? Dale, te escucho. Contame de Jung. 😊",
+      "bot_response": "Jaja, qué interesante. Me encantaría unirme, ¿cuál es el plan exacto?",
+      "elapsed_ms": 10067
+    },
+    {
+      "id": "cpe_stefan_026",
+      "test_input": "[reaction: 😂]",
+      "ground_truth": "[video]",
+      "bot_response": "Jaja, qué rollo! 😂",
+      "elapsed_ms": 4767
+    },
+    {
+      "id": "cpe_stefan_027",
+      "test_input": "Hola Stefano. Gracias por avisar. Genial que el grupo funcione!",
+      "ground_truth": "[reaction: ❤️]",
+      "bot_response": "Gracias hermano. Me encantaría unirme",
+      "elapsed_ms": 9658
+    },
+    {
+      "id": "cpe_stefan_028",
+      "test_input": "Qué bella! Bon appetite 🙌🏼",
+      "ground_truth": "Sent an attachment",
+      "bot_response": "Qué bella! Bon appetite 🙌🏼",
+      "elapsed_ms": 7658
+    },
+    {
+      "id": "cpe_stefan_029",
+      "test_input": "[audio]",
+      "ground_truth": "Buen día Hermano!!",
+      "bot_response": "Jaja, qué planazo! Me encantaría estar ahí Como comenté en un post, los eventos como estos son clave para conectar con la energía positiva. ¡Acepto! Gracias por la invitación",
+      "elapsed_ms": 4899
+    },
+    {
+      "id": "cpe_stefan_030",
+      "test_input": "Asi que bueno lo que queria saber es como mas o menos es tu abordaje para un caso de esta indole y pues podemos hacer una session en una de estas siguientes semanas ☺️",
+      "ground_truth": "Muchas gracias por compartirte y por transmitirme todo eso.",
+      "bot_response": "Jaja, interesante. Me encantaría ir, pero me explota la agenda 😅 Gracias por la invitación. 🙏",
+      "elapsed_ms": 7731
+    },
+    {
+      "id": "cpe_stefan_031",
+      "test_input": "Hopefully in a good way for you. It seems like this is a time of deep transformation for everyone right now. Interesting times.",
+      "ground_truth": "Good afternoon Elina!!",
+      "bot_response": "Jaja, qué situación! Gracias por el audio!",
+      "elapsed_ms": 10585
+    },
+    {
+      "id": "cpe_stefan_032",
+      "test_input": "[audio]",
+      "ground_truth": "[audio]",
+      "bot_response": "Jaja, qué rollo! Como comenté en un post, a veces lo mejor es dejar que fluya y no forzar nada.",
+      "elapsed_ms": 4853
+    },
+    {
+      "id": "cpe_stefan_033",
+      "test_input": "Entonces si ☺️",
+      "ground_truth": "Que hermoso gatito!! 💙",
+      "bot_response": "Jaja, qué risa! Gracias por contarme, me encanta cómo fluye todo.",
+      "elapsed_ms": 2783
+    },
+    {
+      "id": "cpe_stefan_034",
+      "test_input": "Gracias hermano",
+      "ground_truth": "Jajaja, qué genio! Me alegra que te guste mi contenido, amigo! 😄 Contame, qué te resonó de todo? ❤️",
+      "bot_response": "Jaja, qué guay que se haya resuelto. Como comenté en un post, a veces lo mejor es dejar que fluya.",
+      "elapsed_ms": 7193
+    },
+    {
+      "id": "cpe_stefan_035",
+      "test_input": "Mentioned you in their story",
+      "ground_truth": "Mentioned you in their story",
+      "bot_response": "Muchas gracias hermano.",
+      "elapsed_ms": 16223
+    },
+    {
+      "id": "cpe_stefan_036",
+      "test_input": "Ok… this is guapo 😉 \nbut imagine a shot of you in the middle of facilitation\nwould elevate it even more\n\nThe ones like red-circled.",
+      "ground_truth": "Give a second!!",
+      "bot_response": "Jaja, gracias! Como te digo, es un proceso de transformación profunda.",
+      "elapsed_ms": 9076
+    },
+    {
+      "id": "cpe_stefan_037",
+      "test_input": "[sticker]",
+      "ground_truth": "Hola Mi hermano!!",
+      "bot_response": "Jaja, qué guay. Pues es un abordaje con mucho respeto al proceso.",
+      "elapsed_ms": 5435
+    },
+    {
+      "id": "cpe_stefan_038",
+      "test_input": "Enjoy your vacation!!",
+      "ground_truth": "Trueeee! Super chill and quiet",
+      "bot_response": "Jaja, gracias hermano! Me encantaría eso, me pone muy contento.",
+      "elapsed_ms": 8518
+    },
+    {
+      "id": "cpe_stefan_039",
+      "test_input": "Es donde Iba siempre cuando tenia la oficina",
+      "ground_truth": "Perfecto!!",
+      "bot_response": "Jaja, guapo como siempre Como comenté en un post, los círculos de hombres son clave para conectar y crecer juntos. Estoy encantado de poder facilitar algo así. ¿Cuándo te viene mejor?",
+      "elapsed_ms": 10749
+    },
+    {
+      "id": "cpe_stefan_040",
+      "test_input": "Shit perdon… es cierto….",
+      "ground_truth": "tendria q llegarte cuando creo el invite",
+      "bot_response": "Jaja, lo sé. Como comenté en un post, estos tiempos de transformación son clave para reenfocarnos. Estoy encantado de ayudarte en eso. ¿Cuándo te viene bien?",
+      "elapsed_ms": 8743
+    },
+    {
+      "id": "cpe_stefan_041",
+      "test_input": "Contenido compartido",
+      "ground_truth": "espectacular!!",
+      "bot_response": "Jaja, gracias hermano! Que guay que te guste.",
+      "elapsed_ms": 10177
+    },
+    {
+      "id": "cpe_stefan_042",
+      "test_input": "te aviso se vengo antes",
+      "ground_truth": "¡Ey Guido! Dale, avisame cualquier cosa, ¡va a ser genial que podamos charlar! Che, de lo que subí el otro día en Instagram, ¡Me re intriga saber! 😊",
+      "bot_response": "Jaja, gracias hermano! Aguardo el shot!",
+      "elapsed_ms": 7808
+    },
+    {
+      "id": "cpe_stefan_043",
+      "test_input": "Yes, I saw the caravan in your stories, it’s a dream. And places just incredible.\nNice to have you back. That means that we can talk soon ☺️",
+      "ground_truth": "Hello! Good morning",
+      "bot_response": "Gracias bro. 😊 Voy a notificar al creador del post.",
+      "elapsed_ms": 10221
+    },
+    {
+      "id": "cpe_stefan_044",
+      "test_input": "[audio]",
+      "ground_truth": "Amigooo",
+      "bot_response": "Jaja, gracias bro! Como comenté en un post, el movimiento y la energía en grupo son clave. ¿Cuándo te pones en contacto?",
+      "elapsed_ms": 4998
+    },
+    {
+      "id": "cpe_stefan_045",
+      "test_input": "Un abrazo grande!!! Exitooo",
+      "ground_truth": "Éxitos con esa propuesta!!! ☺️",
+      "bot_response": "Gracias hermano!!",
+      "elapsed_ms": 10544
+    },
+    {
+      "id": "cpe_stefan_046",
+      "test_input": "Amigo! Me canceló entreno hasta las 5. Por viento. Ven mañana a la que quieras a casa. Podemos hacer running aquí a Montjuic si quieres ?",
+      "ground_truth": "Me cambio y salgo para tu casa ☺️",
+      "bot_response": "Amigo. Me canceló entreno hasta las 5. Por viento. Ven mañana a la que quieras a casa.",
+      "elapsed_ms": 10039
+    },
+    {
+      "id": "cpe_stefan_047",
+      "test_input": "Me encantaria 🤍 igual pretendia contactarte era en un par de semanas porque estoy un poco liada este mes, tambien acabo de tener una cirugía y estoy como lidiando con todo\n\nPero cuentame seria online o en persona ? Para mirar como bookear contigo",
+      "ground_truth": "Normalmente suelo atender online, excepto que ambos estemos en la misma ciudad.",
+      "bot_response": "Vale, te aviso que me acabo de apuntar al Fitpack Challenge, justo hablé de esto en un post: el movimiento diario te da más energía y enfoque. ¿Te apetece hacerlo juntos?",
+      "elapsed_ms": 11974
+    },
+    {
+      "id": "cpe_stefan_048",
+      "test_input": "[audio]",
+      "ground_truth": "Excelente",
+      "bot_response": "Gracias hermano. Me alegra mucho verte de vuelta Que guay el audio, me encantaría escucharlo. Ven cuando puedas, ya te espero. Saludos y exitos.",
+      "elapsed_ms": 5275
+    },
+    {
+      "id": "cpe_stefan_049",
+      "test_input": "Acabo de terminar una discovery tengo q hablar con vos",
+      "ground_truth": "En 5 estoy libre",
+      "bot_response": "Acabo de terminar una discovery tengo q hablar con vos Jaja, qué bien.",
+      "elapsed_ms": 8149
+    },
+    {
+      "id": "cpe_stefan_050",
+      "test_input": "https://maps.app.goo.gl/sLKmBaoSYLWfRbAp8?g_st=ic",
+      "ground_truth": "15 min",
+      "bot_response": "Gracias hermano Me encantaría hacerlo en persona, pero si no es posible, online también va bien. ¿Cuándo te viene mejor?",
+      "elapsed_ms": 9870
+    }
+  ]
+}

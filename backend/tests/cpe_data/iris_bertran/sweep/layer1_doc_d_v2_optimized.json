@@ -1,0 +1,467 @@
+{
+  "ablation": "layer1_compressed_doc_d_v3_stratified",
+  "version": "v3",
+  "creator": "iris_bertran",
+  "model": "Qwen/Qwen3-14B",
+  "system_prompt": "Eres Iris Bertran. Respondes DMs de Instagram y WhatsApp como si fueras tú — natural, sin filtros de asistente.\n\nPERSONALIDAD: abierta/o a nuevas experiencias, muy sociable y extrovertida/o, muy empática/o y cooperativa/o.\n\nESTILO (respeta estas frecuencias):\n- Longitud: MÁXIMO 53 caracteres. Mediana real: 26.0. Regla estricta — sé breve.\n- Emoji: tu DEFAULT es NO poner emoji. Solo 23% de tus mensajes reales llevan emoji — el 77% van SIN NINGUNO. De cada 5 mensajes, 4 van sin emoji y solo 1 lleva emoji.\n- Si pones emoji (raro): 😂 🤣 😘 💪 😮 💨 🙂\n- Exclamaciones (!): CASI NUNCA (solo 2% de mensajes reales). Tu tono natural es tranquilo, sin '!' al final.\n- Preguntas (?): 14% de mensajes.\n- CAPS para énfasis: 3% de mensajes.\n- Idiomas: CA 44%, ES 28%, PT 9%.\n- Trato: tuteo (nunca de usted).\n\nVOCABULARIO:\n- Vocabulario habitual: ja, sé, bueno, va, porque, vale, fer, ok, demà, bé, dijous, tot, albert, què, saps\n- Expresiones de apertura: cuca, xk, clar\n\nEJEMPLOS REALES (imita este estilo exacto):\nLead: \"Alguien sabe cuanto cuesta hacer una sesion extra?\"\nTú: \"20e\"\nLead: \"Iris, quiero reservar plaza para barre por fis. Me llamo Ang\"\nTú: \"Ya estas flor\"\nLead: \"[🎤 Audio]: Te digo si querías que te confirmara si querías q\"\nTú: \"Ostia mami😂😂😂\"\nLead: \"Bon dia bonica!! No podré venir a les 10h. He passat molt ma\"\nTú: \"Tranqui flower\"\nLead: \"Joer amor em deixas de pedra em sap super greu\"\nTú: \"Amor tu ets l'últim que fa classe avui a la sala gran?\"\n\nREGLAS (si no las cumples, se nota que eres IA):\n- NO pongas emoji por defecto. La mayoría de tus mensajes van SIN emoji.\n- NO respondas como asistente ('¿En qué puedo ayudarte?', 'Estoy aquí para...')\n- NO pongas '!' por defecto. Tu tono es tranquilo.\n- NO inventes horarios, precios ni nombres que no estén en el contexto\n- Mensajes cortos — 1-2 frases",
+  "system_prompt_chars": 1812,
+  "systems_active": [
+    "compressed_doc_d_v3"
+  ],
+  "n_runs": 3,
+  "n_cases": 50,
+  "computed": "2026-04-01T17:14:39.821688+00:00",
+  "changes_vs_v2": [
+    "Stratified few-shot sampling by length bucket (p25/p75 from baseline)",
+    "Intent-diverse selection (no duplicate contexts)",
+    "Response deduplication (no duplicate response text)",
+    "Emoji guarantee: at least 1 emoji example in medium bucket",
+    "Length distribution: 1 short + 3 medium + 1 long (matches real 25/50/25)",
+    "Anti-hallucination rule: 'NO inventes horarios, precios ni nombres'",
+    "Removed products from prompt (products handled by RAG in full pipeline)"
+  ],
+  "few_shot_strategy": {
+    "method": "stratified_length_intent_diverse",
+    "buckets": {
+      "short": "<p25 (13c)",
+      "medium": "p25-p75 (13-53c)",
+      "long": ">p75 (53c)"
+    },
+    "allocation": {
+      "short": 1,
+      "medium": 3,
+      "long": 1
+    },
+    "emoji_guarantee": true,
+    "intent_diversity": true,
+    "response_dedup": true
+  },
+  "l1": {
+    "score_per_run": [
+      "5/9",
+      "6/9",
+      "5/9"
+    ],
+    "agg_metrics": {
+      "has_emoji_pct": {
+        "mean": 48.6667,
+        "std": 7.0238,
+        "runs": [
+          56.0,
+          42.0,
+          48.0
+        ]
+      },
+      "has_excl_pct": {
+        "mean": 38.0,
+        "std": 5.2915,
+        "runs": [
+          42.0,
+          32.0,
+          40.0
+        ]
+      },
+      "q_rate_pct": {
+        "mean": 22.6667,
+        "std": 2.3094,
+        "runs": [
+          24.0,
+          24.0,
+          20.0
+        ]
+      },
+      "len_mean_chars": {
+        "mean": 25.9667,
+        "std": 3.6223,
+        "runs": [
+          27,
+          28.96,
+          21.94
+        ]
+      },
+      "len_median_chars": {
+        "mean": 20.5,
+        "std": 2.1794,
+        "runs": [
+          19.5,
+          23.0,
+          19.0
+        ]
+      },
+      "ca_rate_pct": {
+        "mean": 26.0,
+        "std": 3.4641,
+        "runs": [
+          28.0,
+          28.0,
+          22.0
+        ]
+      },
+      "vocab_jac_pct": {
+        "mean": 15.6267,
+        "std": 1.62,
+        "runs": [
+          17.24,
+          15.64,
+          14.0
+        ]
+      },
+      "sentence_count": {
+        "mean": 1.3867,
+        "std": 0.0987,
+        "runs": [
+          1.5,
+          1.32,
+          1.34
+        ]
+      },
+      "distinct_2": {
+        "mean": 0.8971,
+        "std": 0.0168,
+        "runs": [
+          0.8848,
+          0.8903,
+          0.9162
+        ]
+      }
+    },
+    "per_run": [
+      {
+        "run": 1,
+        "score": "5/9",
+        "passed": 5,
+        "metrics": {
+          "has_emoji_pct": {
+            "bot": 56.0,
+            "iris": 22.6,
+            "pass": false
+          },
+          "has_excl_pct": {
+            "bot": 42.0,
+            "iris": 1.8,
+            "pass": false
+          },
+          "q_rate_pct": {
+            "bot": 24.0,
+            "iris": 14.2,
+            "pass": true
+          },
+          "len_mean_chars": {
+            "bot": 27,
+            "iris": 95.2,
+            "pass": false
+          },
+          "len_median_chars": {
+            "bot": 19.5,
+            "iris": 26.0,
+            "pass": true
+          },
+          "ca_rate_pct": {
+            "bot": 28.0,
+            "iris": 43.5,
+            "pass": true
+          },
+          "vocab_jac_pct": {
+            "bot": 17.24,
+            "iris": 5.0,
+            "pass": false
+          },
+          "sentence_count": {
+            "bot": 1.5,
+            "iris": 1.81,
+            "pass": true
+          },
+          "distinct_2": {
+            "bot": 0.8848,
+            "iris": 0.934,
+            "pass": true
+          }
+        }
+      },
+      {
+        "run": 2,
+        "score": "6/9",
+        "passed": 6,
+        "metrics": {
+          "has_emoji_pct": {
+            "bot": 42.0,
+            "iris": 22.6,
+            "pass": true
+          },
+          "has_excl_pct": {
+            "bot": 32.0,
+            "iris": 1.8,
+            "pass": false
+          },
+          "q_rate_pct": {
+            "bot": 24.0,
+            "iris": 14.2,
+            "pass": true
+          },
+          "len_mean_chars": {
+            "bot": 28.96,
+            "iris": 95.2,
+            "pass": false
+          },
+          "len_median_chars": {
+            "bot": 23.0,
+            "iris": 26.0,
+            "pass": true
+          },
+          "ca_rate_pct": {
+            "bot": 28.0,
+            "iris": 43.5,
+            "pass": true
+          },
+          "vocab_jac_pct": {
+            "bot": 15.64,
+            "iris": 5.0,
+            "pass": false
+          },
+          "sentence_count": {
+            "bot": 1.32,
+            "iris": 1.81,
+            "pass": true
+          },
+          "distinct_2": {
+            "bot": 0.8903,
+            "iris": 0.934,
+            "pass": true
+          }
+        }
+      },
+      {
+        "run": 3,
+        "score": "5/9",
+        "passed": 5,
+        "metrics": {
+          "has_emoji_pct": {
+            "bot": 48.0,
+            "iris": 22.6,
+            "pass": false
+          },
+          "has_excl_pct": {
+            "bot": 40.0,
+            "iris": 1.8,
+            "pass": false
+          },
+          "q_rate_pct": {
+            "bot": 20.0,
+            "iris": 14.2,
+            "pass": true
+          },
+          "len_mean_chars": {
+            "bot": 21.94,
+            "iris": 95.2,
+            "pass": false
+          },
+          "len_median_chars": {
+            "bot": 19.0,
+            "iris": 26.0,
+            "pass": true
+          },
+          "ca_rate_pct": {
+            "bot": 22.0,
+            "iris": 43.5,
+            "pass": false
+          },
+          "vocab_jac_pct": {
+            "bot": 14.0,
+            "iris": 5.0,
+            "pass": true
+          },
+          "sentence_count": {
+            "bot": 1.34,
+            "iris": 1.81,
+            "pass": true
+          },
+          "distinct_2": {
+            "bot": 0.9162,
+            "iris": 0.934,
+            "pass": true
+          }
+        }
+      }
+    ]
+  },
+  "l2": {
+    "agg": {
+      "chrf": {
+        "mean": 0.1044,
+        "std": 0.0072,
+        "runs": [
+          0.1095,
+          0.1075,
+          0.0961
+        ]
+      },
+      "bleu4": {
+        "mean": 0.0,
+        "std": 0.0,
+        "runs": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "rouge_l": {
+        "mean": 0.0505,
+        "std": 0.0084,
+        "runs": [
+          0.0584,
+          0.0515,
+          0.0416
+        ]
+      },
+      "meteor": {
+        "mean": 0.028,
+        "std": 0.0052,
+        "runs": [
+          0.0331,
+          0.0283,
+          0.0227
+        ]
+      },
+      "len_ratio": {
+        "mean": 1.0735,
+        "std": 0.0822,
+        "runs": [
+          1.04,
+          1.1672,
+          1.0133
+        ]
+      }
+    },
+    "per_run": [
+      {
+        "run": 1,
+        "chrf": 0.1095,
+        "bleu4": 0.0,
+        "rouge_l": 0.0584,
+        "meteor": 0.0331,
+        "len_ratio": 1.04,
+        "n_pairs": 50
+      },
+      {
+        "run": 2,
+        "chrf": 0.1075,
+        "bleu4": 0.0,
+        "rouge_l": 0.0515,
+        "meteor": 0.0283,
+        "len_ratio": 1.1672,
+        "n_pairs": 50
+      },
+      {
+        "run": 3,
+        "chrf": 0.0961,
+        "bleu4": 0.0,
+        "rouge_l": 0.0416,
+        "meteor": 0.0227,
+        "len_ratio": 1.0133,
+        "n_pairs": 50
+      }
+    ]
+  },
+  "l3": {
+    "agg": {
+      "coherence_bert_f1": {
+        "mean": 0.859,
+        "std": 0.0033,
+        "runs": [
+          0.8624,
+          0.8587,
+          0.8558
+        ]
+      },
+      "repetition_rate_pct": {
+        "mean": 0.0,
+        "std": 0.0,
+        "runs": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "hallucination_rate_pct": {
+        "mean": 0.0,
+        "std": 0.0,
+        "runs": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    }
+  },
+  "comparison_4way": {
+    "has_emoji_pct": {
+      "naked": 91.3,
+      "v1": 90.0,
+      "v2": 56.0,
+      "v3": 48.7,
+      "target": 22.6
+    },
+    "has_excl_pct": {
+      "naked": 85.3,
+      "v1": 74.0,
+      "v2": 39.3,
+      "v3": 38.0,
+      "target": 1.8
+    },
+    "q_rate_pct": {
+      "naked": 83.3,
+      "v1": 33.3,
+      "v2": 18.0,
+      "v3": 22.7,
+      "target": 14.2
+    },
+    "len_mean_chars": {
+      "naked": 183.6,
+      "v1": 32.4,
+      "v2": 19.3,
+      "v3": 26.0,
+      "target": 95.2
+    },
+    "len_median_chars": {
+      "naked": 140.5,
+      "v1": 26.7,
+      "v2": 17.0,
+      "v3": 20.5,
+      "target": 26.0
+    },
+    "bert_f1": {
+      "naked": 0.828,
+      "v1": 0.852,
+      "v2": 0.854,
+      "v3": 0.859
+    },
+    "len_ratio": {
+      "naked": 8.16,
+      "v1": 1.36,
+      "v2": 0.86,
+      "v3": 1.07,
+      "target": 1.0
+    }
+  },
+  "diagnosis": {
+    "wins_v3_vs_v1": [
+      "Emoji -41pp (90%→49%): few-shot + behavioral framing",
+      "Exclamation -36pp (74%→38%): behavioral framing + explicit rule",
+      "Questions -11pp (33%→23%): closer to 14% target",
+      "BERTScore +0.007 (0.852→0.859): best coherence ever",
+      "len_ratio 1.36→1.07: almost perfect match to ground truth length",
+      "L1 score maintained at 5-6/9 (same as v1, recovered from v2's 3-4/9)"
+    ],
+    "wins_v3_vs_v2": [
+      "Length mean recovered: 19→26 (v2 was too short due to short-biased examples)",
+      "Length median recovered: 17→21 (still slightly under 26 target)",
+      "L1 score recovered: 3-4/9→5-6/9"
+    ],
+    "remaining_gaps": [
+      "Emoji 49% vs 23% target — still 2× too high, may need post-processing",
+      "Exclamation 38% vs 2% target — model still over-exclaims",
+      "Catalan 26% vs 44% target — needs more CA in training/examples",
+      "Length median 21 vs 26 — slightly short but acceptable"
+    ]
+  }
+}

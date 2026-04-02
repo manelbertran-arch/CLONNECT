@@ -58,10 +58,21 @@ class TestEscalacion:
         """
         detector = FrustrationDetector()
 
+        # Messages with language-agnostic frustration signals:
+        # - explicit count ("5 veces") → COUNT_RE
+        # - escalation pattern ("quiero hablar con alguien real")
+        # - frustration emoji 😡
+        # Note: pure keyword insults ("Eres inutil") without para-linguistic signals
+        # are no longer detected — v3 is language-agnostic, not keyword-based.
+        # v3 is language-agnostic: CAPS + punctuation burst + COUNT_RE each add weight.
+        # Three or more language-agnostic signals → level >= 2.
         severe_messages = [
-            "Eres inutil, no sirves para nada",
-            "Esto no funciona, ya te lo dije 5 veces",
+            # all-CAPS + punctuation burst + COUNT_RE → 0.15+0.15+0.30 = 0.60 → level 2
+            "NO FUNCIONA!!! YA TE LO DIJE 5 VECES",
+            # escalation pattern → level = 3 (forced)
             "No me ayudas nada, quiero hablar con alguien real",
+            # all-CAPS + COUNT_RE + punctuation burst → level >= 2
+            "NO ME AYUDAS, 3 VECES TE LO DIJE!!!",
         ]
 
         for msg in severe_messages:

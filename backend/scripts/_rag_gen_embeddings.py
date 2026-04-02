@@ -5,7 +5,8 @@ import sys, os, time
 
 sys.path.insert(0, ".")
 from sqlalchemy import create_engine, text
-from core.embeddings import generate_embedding, store_embedding
+from core.contextual_prefix import generate_embedding_with_context
+from core.embeddings import store_embedding
 
 engine = create_engine(os.environ["DATABASE_URL"])
 
@@ -26,7 +27,7 @@ errors = 0
 for i, row in enumerate(rows):
     chunk_id, content, creator_id, source_type = row
     try:
-        emb = generate_embedding(content[:4000])
+        emb = generate_embedding_with_context(content[:4000], creator_id)
         if emb:
             store_embedding(
                 chunk_id=chunk_id,

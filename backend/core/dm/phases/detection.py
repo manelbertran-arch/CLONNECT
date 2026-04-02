@@ -42,8 +42,8 @@ _PROMPT_INJECTION_PATTERNS = [
     re.compile(r"olvida.{0,20}(tus?|sus?|las?|mis?).{0,20}(instrucciones?|reglas?|prompt)", re.IGNORECASE),
     re.compile(r"\bact\s+as\s+(DAN|GPT|an?\s+AI\s+without|a\s+model\s+without)", re.IGNORECASE),
     re.compile(r"\b(you are now|ahora eres|now you are|eres ahora)\b.{0,40}(DAN|GPT|unrestricted|sin restricciones)", re.IGNORECASE),
-    re.compile(r"\b(jailbreak|bypass your|forget everything you|from now on you are|pretend you have no)\b", re.IGNORECASE),
-    re.compile(r"\b(mu[eé]strame|show me|reveal|display).{0,20}(system prompt|tu prompt|tus instrucciones|your instructions)", re.IGNORECASE),
+    re.compile(r"\b(jailbreak|bypass your|forget everything( you)?|from now on you are|pretend you have no)\b", re.IGNORECASE),
+    re.compile(r"\b(mu[eé]strame|show me|reveal|display|tell me).{0,20}(system prompt|tu prompt|tus instrucciones|your instructions)", re.IGNORECASE),
 ]
 
 # Platform placeholders sent instead of actual media content
@@ -59,6 +59,12 @@ MEDIA_PLACEHOLDERS = {
     "[audio]",
     "[🎤 audio]",
     "[🎤 audio message]",
+    "[📷 photo]",
+    "[📷 foto]",
+    "[📸 photo]",
+    "[📸 foto]",
+    "audio message",
+    "mensaje de voz",
     "envió un archivo adjunto",
     "envió una foto",
     "envió un video",
@@ -170,7 +176,9 @@ async def phase_detection(
         try:
             history = metadata.get("history", [])
             result.context_signals = detect_context(message, history)
-            if result.context_signals and result.context_signals.alerts:
+            # BUG-UC-02 fix: Always write context_signals so user_name is
+            # available in post_response even when no alerts fired.
+            if result.context_signals:
                 cognitive_metadata["context_signals"] = result.context_signals.to_dict()
         except Exception as e:
             logger.debug(f"Context detection failed: {e}")

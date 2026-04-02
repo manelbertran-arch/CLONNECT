@@ -1,0 +1,402 @@
+[
+  {
+    "id": "cpe_iris_b_001",
+    "input": "Con las ganas que tenia de hacer el nuevo combo😭",
+    "bot_response": "Nena, ja està tot preparat. 😘 Vols fer la sessió de barre o reformer?",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 14039
+  },
+  {
+    "id": "cpe_iris_b_002",
+    "input": "Potser podria fer una classe d’hipopressius/estiraments?",
+    "bot_response": "Hipopresius? Jo t'ho poso a la llista.",
+    "ground_truth": "",
+    "category": "question",
+    "latency_ms": 5583
+  },
+  {
+    "id": "cpe_iris_b_003",
+    "input": "[🎤 Audio]: Vas comprar alguna cosa o què? Jo ja m’he gastat el diner, he comprat uns shots i crec que m’agafaré un bikini, però bé, encara tinc que pensar. Todia gastada, todia gastant, mare mia. Que no et preocupis, reina, que jo era més que res que vaig pensar, joder, vaig anar a saludar a tothom i després a la que vol vi, que no estuve tant. Diu, ja no està, i jo ja està preguntant. I em van dir, no, si no l’he vist, de fet vaig preguntar a la gent i tot. I em va dir, no, si no, no ho sé. I jo, pues anar. I vaig pensar que si us anava a sopar, m’enganxava amb vosaltres, saps? Perquè m’estava morint de gana i no volia estar picutejant hamburgers i patates. Que jo quan fui no hi havia nada. Després va donar-hi tot. Llavors va ser quan m’ho vaig menjar allà encullent, sense el pan, perquè hi va gruten, sí, però me’l comí. I clar, la nena, quan va arribar a casa va tornar a menjar. Perquè, obviament, jo solo amb la burger i les patates, la veritat, m’he dava mit de passar gana. I jo, que no tenia que haver sopat perquè no he dormit tres.",
+    "bot_response": "Tranqui reina, ja t’ho veig. Això de la certificació, què et cal per enviar el vídeo?",
+    "ground_truth": "",
+    "category": "audio",
+    "latency_ms": 5111
+  },
+  {
+    "id": "cpe_iris_b_004",
+    "input": "Sábado nada",
+    "bot_response": "Ja m'ho va dir. T'has de registrar a idealista?",
+    "ground_truth": "",
+    "category": "short_response",
+    "latency_ms": 4095
+  },
+  {
+    "id": "cpe_iris_b_005",
+    "input": "Per la regla",
+    "bot_response": "Ja veig que tens ganes. 😘 Per veure perfils no perds res",
+    "ground_truth": "",
+    "category": "short_response",
+    "latency_ms": 3991
+  },
+  {
+    "id": "cpe_iris_b_006",
+    "input": "😅😅 qué lindas",
+    "bot_response": "Ja veig que tens ganes de provar-ho tot. 😘 Pots fer-ho, només has de preguntar a recepció",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 3774
+  },
+  {
+    "id": "cpe_iris_b_007",
+    "input": "Me río de esto",
+    "bot_response": "Jajaja cuca, ja veig que estàs de benvinguda T’has de registrar a idealista?",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 3436
+  },
+  {
+    "id": "cpe_iris_b_008",
+    "input": "🫵🏻🫵🏻🫵🏻🚀🚀🚀",
+    "bot_response": "Jajaja cuca per què no? T’has de registrar a idealista",
+    "ground_truth": "",
+    "category": "emoji_reaction",
+    "latency_ms": 3138
+  },
+  {
+    "id": "cpe_iris_b_009",
+    "input": "[Media/Attachment]",
+    "bot_response": "Ja veig que tens gana de més. 🤣 Mires si vols fer alguna prova?",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4677
+  },
+  {
+    "id": "cpe_iris_b_010",
+    "input": "Sent a voice message",
+    "bot_response": "Ja veig que tens ganas. T’has de registrar a idealista per veure perfils",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4397
+  },
+  {
+    "id": "cpe_iris_b_011",
+    "input": "Mentioned you in their story",
+    "bot_response": "Holaaa.",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4043
+  },
+  {
+    "id": "cpe_iris_b_012",
+    "input": "[Media/Attachment]",
+    "bot_response": "Ja pots fer-ho, és el que hi ha.",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4420
+  },
+  {
+    "id": "cpe_iris_b_013",
+    "input": "que ganas tengo de la clase hoy! \npara mí el baile siempre ha sido una vía de escape y de conectar conmigo, y tus clases son perfectas pa eso♥️",
+    "bot_response": "Ja veig que tens ganas, cuca. Vas a fer la de barre o el flow?",
+    "ground_truth": "",
+    "category": "long_personal",
+    "latency_ms": 4579
+  },
+  {
+    "id": "cpe_iris_b_014",
+    "input": "perfect!",
+    "bot_response": "Daleee cuca. 😘 Que il·lusió 😘",
+    "ground_truth": "",
+    "category": "short_response",
+    "latency_ms": 3335
+  },
+  {
+    "id": "cpe_iris_b_015",
+    "input": "yo me voy a dormir nenaaaa q nos adelantan una hora esta noche",
+    "bot_response": "Nena, descansa. Que t’ho passis de mardis 😘",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4362
+  },
+  {
+    "id": "cpe_iris_b_016",
+    "input": "no me puedes dejar los domingos mami, tiene que estar mi booty a tope",
+    "bot_response": "Nena que m'alegra sentir això 🤣 Descansa i demà som 100% 💪",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4960
+  },
+  {
+    "id": "cpe_iris_b_017",
+    "input": "Sin azucar😂",
+    "bot_response": "Tiaaa ja ja ja q mola el teu missatge q mola q t'agradi el baile nos veiem demà.",
+    "ground_truth": "",
+    "category": "humor",
+    "latency_ms": 3876
+  },
+  {
+    "id": "cpe_iris_b_018",
+    "input": "Ya me has comprado el mio? 🥰",
+    "bot_response": "Ja ta. 💪 Bueno, si vols anar a la classe, ja tens el teu. 😘",
+    "ground_truth": "",
+    "category": "question",
+    "latency_ms": 5534
+  },
+  {
+    "id": "cpe_iris_b_019",
+    "input": "Os dejo aquí el drive de “ralphie choo”, tenéis aquí todo lo relacionado con el módulo, vídeos de después de clase en buena calidad, tutoriales etc.\n\nhttps://drive.google.com/drive/folders/1XBnD1D5IhAA3uIRFWgDx3pyV7EEc2aV0?usp=sharing",
+    "bot_response": "Que crack la drive. T’has de registrar a idealista?",
+    "ground_truth": "",
+    "category": "question",
+    "latency_ms": 4495
+  },
+  {
+    "id": "cpe_iris_b_020",
+    "input": "Lo disfrutará igual",
+    "bot_response": "Ja veig que et passa el temps descansa i demà t'espero amb el booty a tope",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 5056
+  },
+  {
+    "id": "cpe_iris_b_021",
+    "input": "[🏷️ Sticker]",
+    "bot_response": "Ja veig que tens el drive. Nena, que molta feina has fet. 😘",
+    "ground_truth": "",
+    "category": "short_response",
+    "latency_ms": 3477
+  },
+  {
+    "id": "cpe_iris_b_022",
+    "input": "Reinaaaa,Passam número de la teva secretaría millor😘😅😘😅 i em reservo un parell de clases+dinaret o soparet 🎊🍾🤩",
+    "bot_response": "Reinaaa, passa’m el número de la teva secretaria millor i em reservo un parell de classes + dinaret o soparet",
+    "ground_truth": "",
+    "category": "booking",
+    "latency_ms": 5455
+  },
+  {
+    "id": "cpe_iris_b_023",
+    "input": "Ok no pasa nada tu dime si puedes el lunes",
+    "bot_response": "Ja et vaig dir que sí. 😘 El lunes estic disponible. Et vaig a fer una prova?",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 6111
+  },
+  {
+    "id": "cpe_iris_b_024",
+    "input": "[audio]",
+    "bot_response": "Jajaja cuca dormir i tenir el booty a tope? T’he de deixar el drive i el dinaret? Fes-me un missatge i t’envio el link.",
+    "ground_truth": "",
+    "category": "audio",
+    "latency_ms": 3856
+  },
+  {
+    "id": "cpe_iris_b_025",
+    "input": "[reaction: ❤️]",
+    "bot_response": "Ja et vaig dir que el lunes tinc horari lliure. 😂 T’has de registrar a idealista",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 3244
+  },
+  {
+    "id": "cpe_iris_b_026",
+    "input": "yes mami són molt maques totes",
+    "bot_response": "Ja veig que estàs apuntada a tot. Vols que et reserbi les classes?",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4780
+  },
+  {
+    "id": "cpe_iris_b_027",
+    "input": "Mentioned you in their story",
+    "bot_response": "Holaaa.",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4064
+  },
+  {
+    "id": "cpe_iris_b_028",
+    "input": "tia al lado d mi cada literal o sea flipo",
+    "bot_response": "Tia al costat meu cada literal va a ser un horror",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 5271
+  },
+  {
+    "id": "cpe_iris_b_029",
+    "input": "espero que t’agradi",
+    "bot_response": "Jajaja que risa passa’m el numero de la secretaria i et reservo classes",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4474
+  },
+  {
+    "id": "cpe_iris_b_030",
+    "input": "Mentioned you in their story",
+    "bot_response": "Holaaa!",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4007
+  },
+  {
+    "id": "cpe_iris_b_031",
+    "input": "Acuérdate que la puerta es la que está atrás de la cafetería. Plaza de Charlie Ribble 1. Piso 4A.",
+    "bot_response": "Reinaaa 😂 que vaaa, ja t’he dit el numero mil vegades, tens el meu whasapp. Pregunta a la secretaria directament.",
+    "ground_truth": "",
+    "category": "long_personal",
+    "latency_ms": 4788
+  },
+  {
+    "id": "cpe_iris_b_032",
+    "input": "Verdades como templos",
+    "bot_response": "Reinaaa. 😂😂😂 Reserva per WhatsApp, te passo el número ara mateix",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 5429
+  },
+  {
+    "id": "cpe_iris_b_033",
+    "input": "Tia llamammé luego eh!!!!",
+    "bot_response": "Ja veig que t’ha cridat l’atenció . El lunes t’espero, mami",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4965
+  },
+  {
+    "id": "cpe_iris_b_034",
+    "input": "Dijous no, marxo a Ullastret",
+    "bot_response": "Tia no te vayas tan rapido. 😂",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4680
+  },
+  {
+    "id": "cpe_iris_b_035",
+    "input": "[🎬 Video]",
+    "bot_response": "Ja veig que et divertix molt. Tia cuca, no t’oblidis de trucar. 😘",
+    "ground_truth": "",
+    "category": "short_response",
+    "latency_ms": 3545
+  },
+  {
+    "id": "cpe_iris_b_036",
+    "input": "Shared a post",
+    "bot_response": "Tia cuca. 😂 Mira si vols fer alguna prova a la setmana que ve?",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 3156
+  },
+  {
+    "id": "cpe_iris_b_037",
+    "input": "Estimada Iris,\nle invitamos a descubrir los beneficios de la limpieza facial con HYDROFACIAL, un tratamiento avanzado que limpia, hidrata y revitaliza la piel en profundidad, aportando luminosidad y frescura desde la primera sesión.\n\nPromoción especial: 70€\n📅 Válida hasta el martes 31\n\nReserve su cita y disfrute de una piel más saludable y radiante.",
+    "bot_response": "Tia jajaj que gràcia Perdona que no pugui el dijous, marxo a Ullastret. Per la cara de la promo del hidrofacial?",
+    "ground_truth": "",
+    "category": "product_inquiry",
+    "latency_ms": 5512
+  },
+  {
+    "id": "cpe_iris_b_038",
+    "input": "Okkkkki",
+    "bot_response": "Tia cuca. 😘 Ja t’heu vist la foto, molt guapa",
+    "ground_truth": "",
+    "category": "short_response",
+    "latency_ms": 3638
+  },
+  {
+    "id": "cpe_iris_b_039",
+    "input": "Espero que no ho faci per nivell, que no. Perque tu estas molt per sobre de nivell, energia, tècnica…",
+    "bot_response": "Tia cuca 😂 ja t’ho vaig dir, tu ets el meu gran referent",
+    "ground_truth": "",
+    "category": "long_personal",
+    "latency_ms": 5967
+  },
+  {
+    "id": "cpe_iris_b_040",
+    "input": "[Media/Attachment]",
+    "bot_response": "Tia que em vaig anar a la cara. 😂 Té la info de la cita?",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4504
+  },
+  {
+    "id": "cpe_iris_b_041",
+    "input": "Como natanja amarilla",
+    "bot_response": "Tia cuca Ara t’has de registrar a Idealista, ja?",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4188
+  },
+  {
+    "id": "cpe_iris_b_042",
+    "input": "Holaaaa",
+    "bot_response": "Holaaaa cuca. 😘",
+    "ground_truth": "",
+    "category": "greeting",
+    "latency_ms": 2901
+  },
+  {
+    "id": "cpe_iris_b_043",
+    "input": "[🎤 Audio]: Home, si fa bo, vés-te'n a la platja. Jo podré aniré a córrer a la muntanya i pararé de comptar, perquè després tenim una calçotada i així vaig preparada. Vinga, bona nit, descansa.",
+    "bot_response": "Tia, ja t’he vist. Per què no et passis per la platja? Bona nit, descansa.",
+    "ground_truth": "",
+    "category": "audio",
+    "latency_ms": 4402
+  },
+  {
+    "id": "cpe_iris_b_044",
+    "input": "Perfecte!!",
+    "bot_response": "Perfecte. Aquesta vegada que t’has de registrar a idealista?",
+    "ground_truth": "",
+    "category": "short_response",
+    "latency_ms": 3166
+  },
+  {
+    "id": "cpe_iris_b_045",
+    "input": "Ooooo mi niña verdad ufffff todo el fin de semana fue  muy interesante ye todo como muy intenso \nLa sección es top  me gustó mucho ahora me falta la ultima etapa que es mandar mi vídeo para mí certificación \nMe tienes que echar una mano tengo que coger clases contigo 😛 \n\nYo hice online las de presencial estaban muertas ajajaja \n\n Ahora a practicar duro y parejo",
+    "bot_response": "Ja t'he dit que t'has de registrar a idealista, pero bueno, si vols fer classes amb mi, t'has de posar en contacte amb el gimnàs. T'haig d'apuntar?",
+    "ground_truth": "",
+    "category": "objection",
+    "latency_ms": 5622
+  },
+  {
+    "id": "cpe_iris_b_046",
+    "input": "[sticker]",
+    "bot_response": "Holaaa cuca. Que bonic el sticker",
+    "ground_truth": "",
+    "category": "short_response",
+    "latency_ms": 3038
+  },
+  {
+    "id": "cpe_iris_b_047",
+    "input": "Perfecte, fins demà! 😘💖",
+    "bot_response": "Perfecte, fins demà.",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 5037
+  },
+  {
+    "id": "cpe_iris_b_048",
+    "input": "[📷 Photo]",
+    "bot_response": "Perfecte. 🤣 Ja tens el vídeo? T’ajudo a enviar-ho",
+    "ground_truth": "",
+    "category": "short_response",
+    "latency_ms": 3137
+  },
+  {
+    "id": "cpe_iris_b_049",
+    "input": "Esq es pedazo de gira esta",
+    "bot_response": "Ja va a ser una gira de marras, cuca.",
+    "ground_truth": "",
+    "category": "casual",
+    "latency_ms": 4132
+  },
+  {
+    "id": "cpe_iris_b_050",
+    "input": "Val gràcies!",
+    "bot_response": "Vinc o no? 😘",
+    "ground_truth": "",
+    "category": "thanks",
+    "latency_ms": 2996
+  }
+]

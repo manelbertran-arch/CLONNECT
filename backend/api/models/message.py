@@ -112,7 +112,7 @@ class ConversationEmbedding(Base):
     Use case: User asks "What did you tell me about my business 2 months ago?"
     -> Semantic search finds relevant messages by meaning, not just recency.
 
-    NOTE: The 'embedding' column (vector(1536)) is NOT in this model because
+    NOTE: The 'embedding' column (vector(384)) is NOT in this model because
     SQLAlchemy doesn't natively support pgvector. Vector operations are done
     via raw SQL (same pattern as core/embeddings.py).
     """
@@ -131,7 +131,7 @@ class ConversationEmbedding(Base):
     message_role = Column(String(20), nullable=False)  # 'user' or 'assistant'
     content = Column(Text, nullable=False)
 
-    # Note: embedding column (vector(1536)) exists in DB but not in model
+    # Note: embedding column (vector(384)) exists in DB but not in model
     # Vector operations handled via raw SQL in semantic_memory_pgvector.py
 
     # Metadata (intent, products mentioned, etc.)

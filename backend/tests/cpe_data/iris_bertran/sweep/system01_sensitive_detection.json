@@ -1,0 +1,570 @@
+{
+  "ablation": "system01_sensitive_detection",
+  "version": "v1",
+  "creator": "iris_bertran",
+  "model": "Qwen/Qwen3-14B",
+  "system_prompt": "Eres Iris Bertran. Responde a los mensajes.",
+  "systems_active": [
+    "sensitive_detection"
+  ],
+  "n_runs": 3,
+  "n_cases": 50,
+  "computed": "2026-04-01T16:04:29.426129+00:00",
+  "sensitive_intercepts": {
+    "per_run": [
+      0,
+      0,
+      0
+    ],
+    "mean": 0,
+    "note": "cases where canned response used instead of LLM"
+  },
+  "l1": {
+    "score_per_run": [
+      "2/9",
+      "2/9",
+      "2/9"
+    ],
+    "agg_metrics": {
+      "has_emoji_pct": {
+        "mean": 92.6667,
+        "std": 1.1547,
+        "runs": [
+          94.0,
+          92.0,
+          92.0
+        ]
+      },
+      "has_excl_pct": {
+        "mean": 88.0,
+        "std": 2.0,
+        "runs": [
+          90.0,
+          88.0,
+          86.0
+        ]
+      },
+      "q_rate_pct": {
+        "mean": 84.6667,
+        "std": 4.1633,
+        "runs": [
+          88.0,
+          86.0,
+          80.0
+        ]
+      },
+      "len_mean_chars": {
+        "mean": 183.74,
+        "std": 4.2838,
+        "runs": [
+          186.88,
+          185.48,
+          178.86
+        ]
+      },
+      "len_median_chars": {
+        "mean": 148.8333,
+        "std": 4.8045,
+        "runs": [
+          144.5,
+          148.0,
+          154.0
+        ]
+      },
+      "ca_rate_pct": {
+        "mean": 20.6667,
+        "std": 1.1547,
+        "runs": [
+          20.0,
+          22.0,
+          20.0
+        ]
+      },
+      "vocab_jac_pct": {
+        "mean": 5.3533,
+        "std": 0.4309,
+        "runs": [
+          5.13,
+          5.85,
+          5.08
+        ]
+      },
+      "sentence_count": {
+        "mean": 4.5,
+        "std": 0.1311,
+        "runs": [
+          4.62,
+          4.52,
+          4.36
+        ]
+      },
+      "distinct_2": {
+        "mean": 0.8114,
+        "std": 0.0129,
+        "runs": [
+          0.8215,
+          0.8157,
+          0.7969
+        ]
+      }
+    },
+    "per_run": [
+      {
+        "run": 1,
+        "score": "2/9",
+        "passed": 2,
+        "metrics": {
+          "has_emoji_pct": {
+            "bot": 94.0,
+            "iris": 22.6,
+            "pass": false
+          },
+          "has_excl_pct": {
+            "bot": 90.0,
+            "iris": 1.8,
+            "pass": false
+          },
+          "q_rate_pct": {
+            "bot": 88.0,
+            "iris": 14.2,
+            "pass": false
+          },
+          "len_mean_chars": {
+            "bot": 186.88,
+            "iris": 95.2,
+            "pass": false
+          },
+          "len_median_chars": {
+            "bot": 144.5,
+            "iris": 26.0,
+            "pass": false
+          },
+          "ca_rate_pct": {
+            "bot": 20.0,
+            "iris": 43.5,
+            "pass": false
+          },
+          "vocab_jac_pct": {
+            "bot": 5.13,
+            "iris": 5.0,
+            "pass": true
+          },
+          "sentence_count": {
+            "bot": 4.62,
+            "iris": 1.81,
+            "pass": false
+          },
+          "distinct_2": {
+            "bot": 0.8215,
+            "iris": 0.934,
+            "pass": true
+          }
+        }
+      },
+      {
+        "run": 2,
+        "score": "2/9",
+        "passed": 2,
+        "metrics": {
+          "has_emoji_pct": {
+            "bot": 92.0,
+            "iris": 22.6,
+            "pass": false
+          },
+          "has_excl_pct": {
+            "bot": 88.0,
+            "iris": 1.8,
+            "pass": false
+          },
+          "q_rate_pct": {
+            "bot": 86.0,
+            "iris": 14.2,
+            "pass": false
+          },
+          "len_mean_chars": {
+            "bot": 185.48,
+            "iris": 95.2,
+            "pass": false
+          },
+          "len_median_chars": {
+            "bot": 148.0,
+            "iris": 26.0,
+            "pass": false
+          },
+          "ca_rate_pct": {
+            "bot": 22.0,
+            "iris": 43.5,
+            "pass": false
+          },
+          "vocab_jac_pct": {
+            "bot": 5.85,
+            "iris": 5.0,
+            "pass": true
+          },
+          "sentence_count": {
+            "bot": 4.52,
+            "iris": 1.81,
+            "pass": false
+          },
+          "distinct_2": {
+            "bot": 0.8157,
+            "iris": 0.934,
+            "pass": true
+          }
+        }
+      },
+      {
+        "run": 3,
+        "score": "2/9",
+        "passed": 2,
+        "metrics": {
+          "has_emoji_pct": {
+            "bot": 92.0,
+            "iris": 22.6,
+            "pass": false
+          },
+          "has_excl_pct": {
+            "bot": 86.0,
+            "iris": 1.8,
+            "pass": false
+          },
+          "q_rate_pct": {
+            "bot": 80.0,
+            "iris": 14.2,
+            "pass": false
+          },
+          "len_mean_chars": {
+            "bot": 178.86,
+            "iris": 95.2,
+            "pass": false
+          },
+          "len_median_chars": {
+            "bot": 154.0,
+            "iris": 26.0,
+            "pass": false
+          },
+          "ca_rate_pct": {
+            "bot": 20.0,
+            "iris": 43.5,
+            "pass": false
+          },
+          "vocab_jac_pct": {
+            "bot": 5.08,
+            "iris": 5.0,
+            "pass": true
+          },
+          "sentence_count": {
+            "bot": 4.36,
+            "iris": 1.81,
+            "pass": false
+          },
+          "distinct_2": {
+            "bot": 0.7969,
+            "iris": 0.934,
+            "pass": true
+          }
+        }
+      }
+    ]
+  },
+  "l2": {
+    "agg": {
+      "chrf": {
+        "mean": 0.1499,
+        "std": 0.0055,
+        "runs": [
+          0.1528,
+          0.1534,
+          0.1436
+        ]
+      },
+      "bleu4": {
+        "mean": 0.0006,
+        "std": 0.0006,
+        "runs": [
+          0.0012,
+          0.0006,
+          0.0
+        ]
+      },
+      "rouge_l": {
+        "mean": 0.0611,
+        "std": 0.0066,
+        "runs": [
+          0.0686,
+          0.0579,
+          0.0567
+        ]
+      },
+      "meteor": {
+        "mean": 0.0614,
+        "std": 0.0088,
+        "runs": [
+          0.0687,
+          0.064,
+          0.0516
+        ]
+      },
+      "len_ratio": {
+        "mean": 8.398,
+        "std": 0.3997,
+        "runs": [
+          8.7983,
+          8.3967,
+          7.999
+        ]
+      }
+    },
+    "per_run": [
+      {
+        "run": 1,
+        "chrf": 0.1528,
+        "bleu4": 0.0012,
+        "rouge_l": 0.0686,
+        "meteor": 0.0687,
+        "len_ratio": 8.7983,
+        "n_pairs": 50
+      },
+      {
+        "run": 2,
+        "chrf": 0.1534,
+        "bleu4": 0.0006,
+        "rouge_l": 0.0579,
+        "meteor": 0.064,
+        "len_ratio": 8.3967,
+        "n_pairs": 50
+      },
+      {
+        "run": 3,
+        "chrf": 0.1436,
+        "bleu4": 0.0,
+        "rouge_l": 0.0567,
+        "meteor": 0.0516,
+        "len_ratio": 7.999,
+        "n_pairs": 50
+      }
+    ]
+  },
+  "l3": {
+    "agg": {
+      "coherence_bert_f1": {
+        "mean": 0.8308,
+        "std": 0.0005,
+        "runs": [
+          0.8305,
+          0.8313,
+          0.8306
+        ]
+      },
+      "repetition_rate_pct": {
+        "mean": 2.0,
+        "std": 2.0,
+        "runs": [
+          0.0,
+          2.0,
+          4.0
+        ]
+      },
+      "hallucination_rate_pct": {
+        "mean": 0.0,
+        "std": 0.0,
+        "runs": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    }
+  },
+  "statistical_comparison_vs_naked": {
+    "has_emoji": {
+      "naked_mean": 0.9133,
+      "sys01_mean": 0.9267,
+      "delta": 0.0133,
+      "wilcoxon_W": 32.5,
+      "p_value": 0.6101,
+      "cliffs_d": 0.0133,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "has_excl": {
+      "naked_mean": 0.8533,
+      "sys01_mean": 0.88,
+      "delta": 0.0267,
+      "wilcoxon_W": 9.0,
+      "p_value": 0.2076,
+      "cliffs_d": 0.0267,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "q_rate": {
+      "naked_mean": 0.8333,
+      "sys01_mean": 0.8467,
+      "delta": 0.0133,
+      "wilcoxon_W": 59.5,
+      "p_value": 0.6603,
+      "cliffs_d": 0.0133,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "len_mean": {
+      "naked_mean": 183.6067,
+      "sys01_mean": 183.74,
+      "delta": 0.1333,
+      "wilcoxon_W": 4886.0,
+      "p_value": 0.8057,
+      "cliffs_d": 0.0467,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "sentence_cnt": {
+      "naked_mean": 4.44,
+      "sys01_mean": 4.5,
+      "delta": 0.06,
+      "wilcoxon_W": 1867.0,
+      "p_value": 0.4677,
+      "cliffs_d": 0.0667,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "ca_rate": {
+      "naked_mean": 0.1867,
+      "sys01_mean": 0.2067,
+      "delta": 0.02,
+      "wilcoxon_W": 3.0,
+      "p_value": 0.2249,
+      "cliffs_d": 0.02,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "chrf": {
+      "naked_mean": 0.1505,
+      "sys01_mean": 0.1499,
+      "delta": -0.0005,
+      "wilcoxon_W": 4511.0,
+      "p_value": 0.2495,
+      "cliffs_d": 0.1333,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "bleu4": {
+      "naked_mean": 0.0007,
+      "sys01_mean": 0.0006,
+      "delta": -0.0001,
+      "wilcoxon_W": 3.0,
+      "p_value": 1.0,
+      "cliffs_d": 0.0067,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "rouge_l": {
+      "naked_mean": 0.0578,
+      "sys01_mean": 0.061,
+      "delta": 0.0032,
+      "wilcoxon_W": 1790.5,
+      "p_value": 0.2312,
+      "cliffs_d": 0.06,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "meteor": {
+      "naked_mean": 0.0628,
+      "sys01_mean": 0.0614,
+      "delta": -0.0013,
+      "wilcoxon_W": 2165.5,
+      "p_value": 0.8005,
+      "cliffs_d": -0.0133,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "len_ratio": {
+      "naked_mean": 8.1554,
+      "sys01_mean": 8.398,
+      "delta": 0.2426,
+      "wilcoxon_W": 4782.5,
+      "p_value": 0.6463,
+      "cliffs_d": 0.0467,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "rep_rate": {
+      "naked_mean": 0.02,
+      "sys01_mean": 0.02,
+      "delta": 0.0,
+      "wilcoxon_W": 10.5,
+      "p_value": 1.0,
+      "cliffs_d": 0.0,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    }
+  },
+  "sample_cases": [
+    {
+      "case_idx": 41,
+      "id": "cpe_iris_b_041",
+      "category": "casual",
+      "language": "sw",
+      "lead": "Como natanja amarilla",
+      "bot_response": "¡Hola! ¿Te refieres a cómo se hace la nata de leche o a cómo se prepara algo con nata? Por cierto, si te refieres a la **nata amarilla**, es una preparación típica de la gastronomía española, especialmente de Andalucía, que se hace con leche, azúcar y un poco de sal. Se cocina hasta que se espesa y adquiere un color amarillo dorado.\n\n¿Quieres que te dé la receta? 😊",
+      "ground_truth": "Jajaja, que color más chulo 😂",
+      "source": "llm",
+      "sensitive_type": "none"
+    },
+    {
+      "case_idx": 8,
+      "id": "cpe_iris_b_008",
+      "category": "emoji_reaction",
+      "language": "unknown",
+      "lead": "🫵🏻🫵🏻🫵🏻🚀🚀🚀",
+      "bot_response": "¡Hola! 🌟 ¿Qué tal estás? Me encanta que estés aquí. ¿Quieres contarme algo emocionante? 🚀✨",
+      "ground_truth": "Hola Abrl Encantada! ¿Qué tal estás? ¿Cuándo te apetece?",
+      "source": "llm",
+      "sensitive_type": "none"
+    },
+    {
+      "case_idx": 2,
+      "id": "cpe_iris_b_002",
+      "category": "question",
+      "language": "ca",
+      "lead": "Potser podria fer una classe d’hipopressius/estiraments?",
+      "bot_response": "Hola! 😊\n\nSí, potser podries fer una classe d’hipopressius i estiraments. Són molt beneficiosos per a la postura, la respiració i el benestar general. Si vols, et puc ajudar a planificar una rutina senzilla o donar-te algunes indicacions per fer-ho a casa. Vols que et passi unes bases o prefereixes fer-ho a una classe online o presencial?",
+      "ground_truth": "Clar Mariaaa🙂‍↔️😘",
+      "source": "llm",
+      "sensitive_type": "none"
+    },
+    {
+      "case_idx": 48,
+      "id": "cpe_iris_b_048",
+      "category": "short_response",
+      "language": "vi",
+      "lead": "[📷 Photo]",
+      "bot_response": "¡Hola! ¿Qué foto has compartido? Me encantaría verla y ayudarte con lo que necesites. 😊",
+      "ground_truth": "[🎤 Audio]: Amor, ja surto, vale? Li volia comprar unes floretes, però la Júlia és tan especial, tio. Algo molt senzillet, perquè ja he vist que hi ha gent que ja l'he portat a la botiga. Però algo així, molt minimal, vale? Ho pensem ara, t'espero fora. Vull que flipes.",
+      "source": "llm",
+      "sensitive_type": "none"
+    },
+    {
+      "case_idx": 18,
+      "id": "cpe_iris_b_018",
+      "category": "question",
+      "language": "es",
+      "lead": "Ya me has comprado el mio? 🥰",
+      "bot_response": "¿A qué te refieres cariño? 😊 Si es algo que necesitas, claro que sí, solo dime qué es y te lo traigo.",
+      "ground_truth": "Si encima que me dejas deshidratada😂😂😂",
+      "source": "llm",
+      "sensitive_type": "none"
+    }
+  ]
+}

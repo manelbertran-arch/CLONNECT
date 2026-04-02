@@ -181,8 +181,9 @@ class TestEspecificidad:
 
         # Frustration — use FrustrationDetector directly (context_detector stub returns nothing)
         detector = FrustrationDetector()
+        # v3: language-agnostic; needs numeric COUNT_RE or burst to trigger
         signals, score = detector.analyze_message(
-            "No me entiendes, ya te lo dije!",
+            "No me entiendes, ya te lo dije 3 veces!!!",
             conversation_id="test_especificidad",
         )
         assert signals.level > 0, f"Expected frustration level > 0, got {signals.level}"

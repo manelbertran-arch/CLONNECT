@@ -33,6 +33,8 @@ import random
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Set, Tuple
 
+from core.emoji_utils import is_emoji_only
+
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity as sklearn_cosine_sim
@@ -442,16 +444,14 @@ class ResponseVariatorV2:
                         return "extended_confirmation", 0.90
                     # Fall through to LLM if no dedicated pool
 
-        # Emoji only
-        if all(ord(c) > 127000 or c.isspace() for c in msg):
+        # Emoji only (universal Unicode detection — handles ❤️, ✨, ZWJ sequences, etc.)
+        if is_emoji_only(msg):
             return "emoji", 0.90
 
-        # Thanks / Gratitude (v10)
+        # Thanks / Gratitude (v10) — always return "thanks" to match calibration key
         if "gracias" in msg or "thanks" in msg:
             if len(msg) < 30:
-                if "gratitude" in self.pools:
-                    return "gratitude", 0.88
-                return "thanks", 0.85
+                return "thanks", 0.88
 
         # Re-engagement → always LLM (needs personalized response)
         re_engagement = ["hace mucho", "hace tiempo", "cuánto tiempo", "cuanto tiempo",

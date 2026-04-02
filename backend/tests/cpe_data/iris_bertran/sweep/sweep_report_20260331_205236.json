@@ -1,0 +1,85 @@
+{
+  "creator": "iris_bertran",
+  "timestamp": "2026-03-31T18:52:36.478660+00:00",
+  "protocol": "additive_ablation",
+  "n_runs": 3,
+  "n_cases": 50,
+  "naked_baseline": {
+    "bertscore_f1": -0.047,
+    "chrf": 0.1643
+  },
+  "systems": [
+    {
+      "system": "compressed_doc_d",
+      "env_var": "USE_COMPRESSED_DOC_D",
+      "status": "TESTED",
+      "l2_bertscore": -0.0547,
+      "l2_delta": -0.0077,
+      "l2_p": 0.105255,
+      "l2_cliff": -0.0336,
+      "l2_cliff_mag": "negligible",
+      "l3_chrf": 0.1678,
+      "l3_delta": 0.0034,
+      "l3_p": 0.50249,
+      "l3_cliff": 0.0048,
+      "decision": "NO EFFECT"
+    },
+    {
+      "system": "few_shot",
+      "status": "NO DATA"
+    },
+    {
+      "system": "echo",
+      "env_var": "ENABLE_STYLE_ANALYZER",
+      "status": "TESTED",
+      "l2_bertscore": -0.043,
+      "l2_delta": 0.004,
+      "l2_p": 0.352175,
+      "l2_cliff": 0.0088,
+      "l2_cliff_mag": "negligible",
+      "l3_chrf": 0.1676,
+      "l3_delta": 0.0033,
+      "l3_p": 0.796131,
+      "l3_cliff": -0.0032,
+      "decision": "NO EFFECT"
+    },
+    {
+      "system": "style_normalizer",
+      "env_var": "ENABLE_STYLE_NORMALIZER",
+      "status": "TESTED",
+      "l2_bertscore": -0.0543,
+      "l2_delta": -0.0073,
+      "l2_p": 0.245131,
+      "l2_cliff": -0.028,
+      "l2_cliff_mag": "negligible",
+      "l3_chrf": 0.1678,
+      "l3_delta": 0.0035,
+      "l3_p": 0.454788,
+      "l3_cliff": 0.0024,
+      "decision": "NO EFFECT"
+    },
+    {
+      "system": "length_hints",
+      "status": "NO DATA"
+    },
+    {
+      "system": "question_hints",
+      "status": "NO DATA"
+    },
+    {
+      "system": "sbs",
+      "env_var": "ENABLE_SCORE_BEFORE_SPEAK",
+      "status": "TESTED",
+      "l2_bertscore": -0.0514,
+      "l2_delta": -0.0045,
+      "l2_p": 0.527279,
+      "l2_cliff": -0.0136,
+      "l2_cliff_mag": "negligible",
+      "l3_chrf": 0.1633,
+      "l3_delta": -0.001,
+      "l3_p": 0.716093,
+      "l3_cliff": -0.008,
+      "decision": "NO EFFECT"
+    }
+  ]
+}

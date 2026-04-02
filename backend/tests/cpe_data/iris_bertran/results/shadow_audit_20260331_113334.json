@@ -1,0 +1,140 @@
+{
+  "available": true,
+  "creator": "iris_bertran",
+  "shadow_messages": {
+    "total": 1203,
+    "by_action": [
+      {
+        "action": "resolved_externally",
+        "count": 1181,
+        "avg_confidence": 0.535,
+        "earliest": "2026-02-22T15:52:55.445719+00:00",
+        "latest": "2026-03-31T08:07:02.659968+00:00"
+      },
+      {
+        "action": "auto_discarded_deleted",
+        "count": 19,
+        "avg_confidence": 0.508,
+        "earliest": "2026-03-14T12:12:35.138881+00:00",
+        "latest": "2026-03-31T05:36:06.657399+00:00"
+      },
+      {
+        "action": "discarded",
+        "count": 2,
+        "avg_confidence": 0.558,
+        "earliest": "2026-03-14T15:30:41.994198+00:00",
+        "latest": "2026-03-14T17:08:20.409630+00:00"
+      },
+      {
+        "action": "approved",
+        "count": 1,
+        "avg_confidence": 0.7,
+        "earliest": "2026-02-22T15:36:54.570941+00:00",
+        "latest": "2026-02-22T15:36:54.570941+00:00"
+      }
+    ]
+  },
+  "preference_pairs": {
+    "total": 1838,
+    "dpo_ready": 1587,
+    "by_type": [
+      {
+        "action_type": "divergence",
+        "total": 629,
+        "active": 629
+      },
+      {
+        "action_type": "pseudo_preference",
+        "total": 499,
+        "active": 499
+      },
+      {
+        "action_type": "best_of_n_ranking",
+        "total": 459,
+        "active": 459
+      },
+      {
+        "action_type": "historical",
+        "total": 248,
+        "active": 248
+      },
+      {
+        "action_type": "discarded",
+        "total": 2,
+        "active": 2
+      },
+      {
+        "action_type": "manual_override",
+        "total": 1,
+        "active": 1
+      }
+    ]
+  },
+  "dpo_readiness": {
+    "pairs_available": 1587,
+    "sufficient_for_dpo": true,
+    "recommendation": "Ready for DPO (1587 pairs)"
+  },
+  "samples": [
+    {
+      "bot_suggestion": "reina, entesos, a les 4:30 et puc fer. No passa res, ens veiem dema cuca ❤️",
+      "creator_response": "Merciip",
+      "action": "resolved_externally",
+      "confidence": 0.49
+    },
+    {
+      "bot_suggestion": "Bon dia cuca!! 😂 Ja tens el móvil? Per què t'ho vas perdre?",
+      "creator_response": "[🏷️ Sticker]",
+      "action": "resolved_externally",
+      "confidence": 0.49
+    },
+    {
+      "bot_suggestion": "Ja veuràs, la vida es com un barre, tot es moviment i canvis T’envio un abraçada forta, crack. Bona nit, que descansis",
+      "creator_response": "No hi ha cap solució",
+      "action": "resolved_externally",
+      "confidence": 0.625
+    },
+    {
+      "bot_suggestion": "Bona nit, crack descansa tranquila, ja et veuràs amb els vidres demà",
+      "creator_response": "Que no donguis més diners a ningú",
+      "action": "resolved_externally",
+      "confidence": 0.49
+    },
+    {
+      "bot_suggestion": "Amor, no em tires ni un missatge",
+      "creator_response": "Bon dia Marc de moment no comptis amb mi, si quan estigui allà puc gestionar alguna cosa t’ho diré jo, si et va bé ok sino no passa res. Fes tranquil i queda amb qui vulguis.",
+      "action": "resolved_externally",
+      "confidence": 0.49
+    },
+    {
+      "bot_suggestion": "No he vist res, però si trobes res, digues.",
+      "creator_response": "Pero no le puede caer de la chaqueta?",
+      "action": "resolved_externally",
+      "confidence": 0.49
+    },
+    {
+      "bot_suggestion": "Irissss, SOS. dice montse si habeis encontrado un movil en la sala?",
+      "creator_response": "Kkkkkk",
+      "action": "resolved_externally",
+      "confidence": 0.625
+    },
+    {
+      "bot_suggestion": "Clica el link amor",
+      "creator_response": "Sí, Manuel, no tinc res més a fer ara que anar a copiar el clink i anar fent clic-clic. Vinga, demà serà un altre dia.",
+      "action": "resolved_externally",
+      "confidence": 0.44
+    },
+    {
+      "bot_suggestion": "Clica el link, mami va funcionar al momnet!",
+      "creator_response": "Manel, no puc entrar, no sé què és, però no puc entrar. Va, que vull arribar a casa i enviar-li un audio al Leo cagant-me'n tot i anar-me'n a dormir, que estic rebentada.",
+      "action": "resolved_externally",
+      "confidence": 0.49
+    },
+    {
+      "bot_suggestion": "Cuca no penses que t’ho vas ferir 😂 VINC SÚPER RAPID?",
+      "creator_response": "[🏷️ Sticker]",
+      "action": "resolved_externally",
+      "confidence": 0.49
+    }
+  ]
+}

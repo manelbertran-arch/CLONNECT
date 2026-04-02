@@ -1,19 +1,19 @@
-"""Test vocabulary_extractor flag in dm_agent_v2 (Step 20)."""
+"""Test vocabulary_extractor module imports and basic functionality."""
 
 
 class TestVocabularyExtractorIntegration:
-    def test_flag_exists(self):
-        from core.dm_agent_v2 import ENABLE_VOCABULARY_EXTRACTION
-
-        assert isinstance(ENABLE_VOCABULARY_EXTRACTION, bool)
-
     def test_import_works(self):
-        from services.vocabulary_extractor import VocabularyExtractor
+        from services.vocabulary_extractor import (
+            tokenize, extract_lead_vocabulary, get_top_distinctive_words,
+            STOPWORDS,
+        )
+        assert callable(tokenize)
+        assert callable(extract_lead_vocabulary)
+        assert callable(get_top_distinctive_words)
+        assert isinstance(STOPWORDS, frozenset)
 
-        assert VocabularyExtractor is not None
-
-    def test_extractor_instantiates(self):
-        from services.vocabulary_extractor import VocabularyExtractor
-
-        extractor = VocabularyExtractor()
-        assert extractor is not None
+    def test_tokenize_basic(self):
+        from services.vocabulary_extractor import tokenize
+        tokens = tokenize("Hola cuca bon dia")
+        assert isinstance(tokens, list)
+        assert "cuca" in tokens

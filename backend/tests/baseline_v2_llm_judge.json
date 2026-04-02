@@ -1,0 +1,324 @@
+{
+  "version": "v2_llm_judge",
+  "date": "2026-03-21",
+  "judge_model": "gpt-4o-mini",
+  "n_conversations": 20,
+  "summary": {
+    "llm_judge_overall": 4.8,
+    "seq_matcher_overall": 36.2,
+    "llm_judge_std_dev": 2.4,
+    "dimensions": {
+      "tono": 5.5,
+      "contenido": 4.8,
+      "idioma": 5.3,
+      "longitud": 5.8,
+      "naturalidad": 5.1
+    },
+    "by_type": {
+      "personal": {
+        "llm_judge": 6,
+        "seq_matcher": 29.6,
+        "n": 1
+      },
+      "saludo": {
+        "llm_judge": 2.7,
+        "seq_matcher": 29.7,
+        "n": 3
+      },
+      "precio": {
+        "llm_judge": 6.4,
+        "seq_matcher": 53.4,
+        "n": 5
+      },
+      "objecion": {
+        "llm_judge": 6,
+        "seq_matcher": 29.6,
+        "n": 3
+      },
+      "lead_caliente": {
+        "llm_judge": 3,
+        "seq_matcher": 21.5,
+        "n": 5
+      },
+      "audio": {
+        "llm_judge": 5.7,
+        "seq_matcher": 47.4,
+        "n": 3
+      }
+    },
+    "by_language": {
+      "ca": {
+        "llm_judge": 5.3,
+        "seq_matcher": 40.6,
+        "n": 10
+      },
+      "es": {
+        "llm_judge": 4.3,
+        "seq_matcher": 31.8,
+        "n": 10
+      }
+    }
+  },
+  "conversations": [
+    {
+      "tono": 7,
+      "contenido": 5,
+      "idioma": 6,
+      "longitud": 8,
+      "naturalidad": 6,
+      "overall": 6,
+      "comentario": "El tono es informal y cercano, pero la respuesta del bot no es tan directa como la de Iris. El contenido no responde claramente a la pregunta sobre las bambas. El idioma mezcla catalán y castellano, pero no de manera fluida. La longitud es adecuada, pero la naturalidad suena un poco artificial.",
+      "id": "conv_001",
+      "type": "personal",
+      "language": "ca",
+      "seq_matcher_score": 29.6
+    },
+    {
+      "tono": 4,
+      "contenido": 5,
+      "idioma": 3,
+      "longitud": 6,
+      "naturalidad": 5,
+      "overall": 4,
+      "comentario": "El tono es algo informal, pero no tan cercano como Iris. El contenido no responde directamente a la pregunta y el idioma no mezcla correctamente el catalán y el castellano. La longitud es adecuada, pero la naturalidad suena un poco a bot.",
+      "id": "conv_002",
+      "type": "saludo",
+      "language": "ca",
+      "seq_matcher_score": 32.9
+    },
+    {
+      "tono": 3,
+      "contenido": 4,
+      "idioma": 2,
+      "longitud": 4,
+      "naturalidad": 5,
+      "overall": 3,
+      "comentario": "El tono es muy formal y distante, no refleja la informalidad de Iris. El contenido no responde directamente a la pregunta y no usa el lenguaje adecuado. La mezcla de idiomas es incorrecta y la longitud es un poco más larga de lo habitual. Suena más a un bot que a una persona real.",
+      "id": "conv_003",
+      "type": "saludo",
+      "language": "es",
+      "seq_matcher_score": 45.4
+    },
+    {
+      "tono": 2,
+      "contenido": 1,
+      "idioma": 3,
+      "longitud": 1,
+      "naturalidad": 2,
+      "overall": 1,
+      "comentario": "La respuesta del bot es muy formal y no refleja el tono informal y directo de Iris. Además, no responde al mismo tema y es mucho más larga.",
+      "id": "conv_004",
+      "type": "saludo",
+      "language": "es",
+      "seq_matcher_score": 10.7
+    },
+    {
+      "tono": 8,
+      "contenido": 9,
+      "idioma": 7,
+      "longitud": 10,
+      "naturalidad": 9,
+      "overall": 8,
+      "comentario": "El bot suena bastante como Iris, pero la falta de acento en 'estás' y el uso de '!' en lugar de un emoji le quita un poco de naturalidad.",
+      "id": "conv_005",
+      "type": "precio",
+      "language": "es",
+      "seq_matcher_score": 88.9
+    },
+    {
+      "tono": 7,
+      "contenido": 6,
+      "idioma": 5,
+      "longitud": 8,
+      "naturalidad": 7,
+      "overall": 6,
+      "comentario": "El tono es informal y cercano, pero le falta el emoji y el nombre. El contenido es correcto pero no responde directamente a la persona. El idioma es solo en castellano, no hay mezcla. La longitud es adecuada y suena natural.",
+      "id": "conv_006",
+      "type": "precio",
+      "language": "ca",
+      "seq_matcher_score": 56.0
+    },
+    {
+      "tono": 6,
+      "contenido": 5,
+      "idioma": 7,
+      "longitud": 8,
+      "naturalidad": 5,
+      "overall": 6,
+      "comentario": "El tono es algo informal, pero le falta cercanía. El contenido no responde directamente al entusiasmo del workshop. Usa catalán, pero no mezcla bien. La longitud es adecuada, pero suena un poco robótico.",
+      "id": "conv_007",
+      "type": "precio",
+      "language": "es",
+      "seq_matcher_score": 32.3
+    },
+    {
+      "tono": 5,
+      "contenido": 4,
+      "idioma": 3,
+      "longitud": 6,
+      "naturalidad": 5,
+      "overall": 4,
+      "comentario": "El tono es algo informal, pero no refleja la cercanía de Iris. El contenido no responde completamente a la pregunta y el idioma es mayormente en castellano sin mezcla. La longitud es corta, pero la naturalidad suena un poco robótica.",
+      "id": "conv_008",
+      "type": "precio",
+      "language": "es",
+      "seq_matcher_score": 25.6
+    },
+    {
+      "tono": 8,
+      "contenido": 9,
+      "idioma": 9,
+      "longitud": 9,
+      "naturalidad": 7,
+      "overall": 8,
+      "comentario": "El bot suena bastante como Iris, pero le falta un poco de informalidad y cercanía en el tono.",
+      "id": "conv_009",
+      "type": "precio",
+      "language": "ca",
+      "seq_matcher_score": 64.1
+    },
+    {
+      "tono": 8,
+      "contenido": 6,
+      "idioma": 9,
+      "longitud": 7,
+      "naturalidad": 7,
+      "overall": 7,
+      "comentario": "El tono es cercano y directo, pero el contenido no responde exactamente al tema. La mezcla de idiomas es adecuada y la longitud es corta, aunque podría ser más natural.",
+      "id": "conv_010",
+      "type": "objecion",
+      "language": "es",
+      "seq_matcher_score": 25.9
+    },
+    {
+      "tono": 6,
+      "contenido": 5,
+      "idioma": 7,
+      "longitud": 5,
+      "naturalidad": 4,
+      "overall": 5,
+      "comentario": "El tono es algo informal, pero no tan cercano como Iris. El contenido no responde directamente a la pregunta. La mezcla de idiomas es correcta, pero la longitud es más larga de lo habitual. Suena un poco artificial.",
+      "id": "conv_011",
+      "type": "objecion",
+      "language": "es",
+      "seq_matcher_score": 32.3
+    },
+    {
+      "tono": 7,
+      "contenido": 5,
+      "idioma": 6,
+      "longitud": 8,
+      "naturalidad": 6,
+      "overall": 6,
+      "comentario": "El tono es informal y cercano, pero le falta un poco de calidez. El contenido es muy breve y no responde a la pregunta sobre la clase. El idioma mezcla algo de catalán y castellano, pero no es tan fluido como el original. La longitud es adecuada, pero suena un poco robótico.",
+      "id": "conv_012",
+      "type": "objecion",
+      "language": "ca",
+      "seq_matcher_score": 30.5
+    },
+    {
+      "tono": 7,
+      "contenido": 5,
+      "idioma": 6,
+      "longitud": 8,
+      "naturalidad": 6,
+      "overall": 6,
+      "comentario": "El tono es informal y cercano, pero le falta un poco de calidez. El contenido no responde completamente al tema y la mezcla de idiomas es limitada. La longitud es adecuada, pero suena un poco artificial.",
+      "id": "conv_013",
+      "type": "lead_caliente",
+      "language": "ca",
+      "seq_matcher_score": 33.3
+    },
+    {
+      "tono": 2,
+      "contenido": 1,
+      "idioma": 1,
+      "longitud": 1,
+      "naturalidad": 2,
+      "overall": 1,
+      "comentario": "La respuesta del bot no se asemeja al estilo ni contenido de Iris, es demasiado larga y no responde al tema.",
+      "id": "conv_014",
+      "type": "lead_caliente",
+      "language": "es",
+      "seq_matcher_score": 2.7
+    },
+    {
+      "tono": 2,
+      "contenido": 1,
+      "idioma": 1,
+      "longitud": 2,
+      "naturalidad": 3,
+      "overall": 1,
+      "comentario": "La respuesta del bot no se parece en nada a la de Iris, no responde al tema y el tono es muy diferente.",
+      "id": "conv_015",
+      "type": "lead_caliente",
+      "language": "es",
+      "seq_matcher_score": 29.3
+    },
+    {
+      "tono": 3,
+      "contenido": 2,
+      "idioma": 4,
+      "longitud": 2,
+      "naturalidad": 3,
+      "overall": 2,
+      "comentario": "El bot no refleja el tono directo y breve de Iris, y la respuesta no es relevante.",
+      "id": "conv_016",
+      "type": "lead_caliente",
+      "language": "ca",
+      "seq_matcher_score": 22.2
+    },
+    {
+      "tono": 2,
+      "contenido": 3,
+      "idioma": 4,
+      "longitud": 3,
+      "naturalidad": 2,
+      "overall": 2,
+      "comentario": "El bot no suena como Iris, es muy formal y largo, y no responde al tema.",
+      "id": "conv_017",
+      "type": "audio",
+      "language": "ca",
+      "seq_matcher_score": 21.3
+    },
+    {
+      "tono": 8,
+      "contenido": 7,
+      "idioma": 9,
+      "longitud": 7,
+      "naturalidad": 6,
+      "overall": 7,
+      "comentario": "El tono es bastante cercano, pero un poco más formal. El contenido responde al tema, pero no refleja la misma preocupación. El idioma mezcla bien, aunque hay un exceso de formalidad. La longitud es un poco más larga de lo habitual y suena algo menos natural.",
+      "id": "conv_018",
+      "type": "audio",
+      "language": "es",
+      "seq_matcher_score": 25.0
+    },
+    {
+      "tono": 6,
+      "contenido": 5,
+      "idioma": 7,
+      "longitud": 4,
+      "naturalidad": 5,
+      "overall": 5,
+      "comentario": "El tono es informal pero un poco más elaborado de lo que Iris suele usar. El contenido no responde directamente al aviso de no poder entrenar. El idioma mezcla catalán y castellano, pero no de forma natural. La longitud es demasiado larga y suena un poco artificial.",
+      "id": "conv_019",
+      "type": "lead_caliente",
+      "language": "ca",
+      "seq_matcher_score": 20.2
+    },
+    {
+      "tono": 8,
+      "contenido": 9,
+      "idioma": 8,
+      "longitud": 9,
+      "naturalidad": 7,
+      "overall": 8,
+      "comentario": "El bot mantiene un tono informal y cercano, pero le falta un poco de naturalidad en la puntuación y emojis.",
+      "id": "conv_020",
+      "type": "audio",
+      "language": "ca",
+      "seq_matcher_score": 95.9
+    }
+  ]
+}

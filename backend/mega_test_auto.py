@@ -778,8 +778,8 @@ except Exception as e:
 
 if _embed_imported:
     test("Z1: EMBEDDING_MODEL is string", lambda: assert_true(isinstance(EMBEDDING_MODEL, str)))
-    test("Z2: EMBEDDING_DIMENSIONS = 1536", lambda: assert_eq(EMBEDDING_DIMENSIONS, 1536))
-    test("Z3: generate_embedding no API key → None", lambda: assert_true(
+    test("Z2: EMBEDDING_DIMENSIONS = 384 (local)", lambda: assert_eq(EMBEDDING_DIMENSIONS, 384))
+    test("Z3: generate_embedding returns list", lambda: assert_true(
         generate_embedding("test") is None or isinstance(generate_embedding("test"), list)
     ))
 

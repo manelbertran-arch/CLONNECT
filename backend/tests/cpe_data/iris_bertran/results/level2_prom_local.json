@@ -1,0 +1,155 @@
+{
+  "creator": "iris_bertran",
+  "timestamp": "2026-03-29T22:01:17.185863+00:00",
+  "judge_model": "prometheus",
+  "n_evaluated": 3,
+  "overall": {
+    "mean": 3.67,
+    "std": 0.23,
+    "scale": "1-5"
+  },
+  "dimensions": {
+    "conversational_ability": {
+      "name": "Conversational Ability",
+      "mean": 4,
+      "median": 4,
+      "std": 0.0,
+      "n": 3
+    },
+    "persona_fidelity": {
+      "name": "Persona Fidelity",
+      "mean": 3.33,
+      "median": 3,
+      "std": 0.58,
+      "n": 3
+    },
+    "knowledge_accuracy": {
+      "name": "Knowledge Accuracy",
+      "mean": 3,
+      "median": 3,
+      "std": 1.0,
+      "n": 3
+    },
+    "emotional_intelligence": {
+      "name": "Emotional Intelligence",
+      "mean": 4,
+      "median": 4,
+      "std": 1.0,
+      "n": 3
+    },
+    "engagement": {
+      "name": "Engagement",
+      "mean": 4,
+      "median": 4,
+      "std": 0.0,
+      "n": 3
+    }
+  },
+  "conversations": [
+    {
+      "id": "real_003",
+      "test_input": "On estas?",
+      "bot_response": "A dinamic entrenant amb les nenes. I tu?? ️",
+      "ground_truth": "Aiiii Eli\nCom va tot?\nTe paso info per privat ara que ja he colgat.",
+      "overall_score": 3.4,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"A dinamic entrenant amb les nenes. I tu?? ️\" is generally coherent and maintains context with the conversation, responding appropriately to the follower's casual tone. The phrase indicates an activity and invites a follow-up, which is consistent with the conversational flow. However, i"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "La resposta mostra una certa coherència amb l'estil de la creadora, ja que utilitza un vocabulari que inclou elements afectuosos i un to informal. Tanmateix, hi ha una desviació significativa en la longitud del missatge, ja que no s'acosta al límit de 35 caràcters. A més, la resposta no inclou emoji"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "La resposta menciona una activitat (entrenant amb les nenes), que és factible i rellevant, però no proporciona informació addicional o personalitzada que enriquiria la interacció, com fa la resposta de referència. Falta una pregunta o una continuació de la conversa que podries esperar d'una resposta"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"A dinamic entrenant amb les nenes. I tu?? ️\" shows some level of engagement but lacks the warmth and personal touch expected from the creator's style. While it acknowledges the follower's inquiry, it does not express sufficient enthusiasm or empathy towards the follower's situation. Th"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response demonstrates a friendly and conversational tone, which aligns with the natural communication style expected in a social media context. The use of \"dinamic entrenant amb les nenes\" provides a personal touch and invites further interaction by asking \"I tu??\". However, it lacks the same le"
+        }
+      },
+      "elapsed_ms": 1413
+    },
+    {
+      "id": "real_004",
+      "test_input": "VINC SÚPER RAPID",
+      "bot_response": "Ostiaaa reina. Què ganes. 😂😂😂 Com va la cosa?",
+      "ground_truth": "Tranqui",
+      "overall_score": 3.8,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Ostiaaa reina. Què ganes. 😂😂😂 Com va la cosa?\" is generally coherent and fluent, maintaining a friendly and enthusiastic tone that aligns well with the informal nature of the conversation. The use of \"reina\" fits perfectly with the creator's vocabulary and style, while the emojis enhan"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "La resposta \"Ostiaaa reina. Què ganes. 😂😂😂 Com va la cosa?\" presenta una gran coherència amb l'estil de la creadora. Utilitza un to informal i amigable, que és característic de les seves interaccions, i inclou un dels seus noms afectuosos (\"reina\"), que és un element clau del seu vocabulari. L'ús d'"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 2,
+          "feedback": "The response \"Ostiaaa reina. Què ganes. 😂😂😂 Com va la cosa?\" is informal and uses affectionate vocabulary (\"reina\"), which aligns well with the creator's style. However, it lacks any factual content or engagement with specific details that might relate to the conversation or the follower's initial m"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 5,
+          "feedback": "The response uses an enthusiastic and playful tone, which matches the follower's informal and casual style. Phrases like \"Ostiaaa reina\" and the use of laughter emojis effectively convey warmth and engagement. The question \"Com va la cosa?\" adds a personal touch, showing interest in the follower's f"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Ostiaaa reina. Què ganes. 😂😂😂 Com va la cosa?\" reflects a human-like tone that maintains conversational momentum effectively. It employs casual vocabulary, exclamations, and emojis, which align with the style indicated in the instruction. The use of \"Ostiaaa\" and \"reina\" shows a friend"
+        }
+      },
+      "elapsed_ms": 1632
+    },
+    {
+      "id": "real_007",
+      "test_input": "A ver si mi suegra se viene conmigo el jueves",
+      "bot_response": "Ostiaaa, seria brutal. A disfrutar com a locas.️",
+      "ground_truth": "Ayyy es veldaaa",
+      "overall_score": 3.8,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Ostiaaa, seria brutal. A disfrutar com a locas.\" is coherent and maintains a fluent tone that is appropriate for the context of the conversation. It aligns well with the positive and playful style that the creator uses. However, the phrase \"A disfrutar com a locas\" contains a minor gra"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "La resposta mostra un bon intent d'incloure l'estil de la creadora, utilitzant un to positiu i entusiasta amb l'ús de \"brutal\" que s'alinea amb el vocabulari. No obstant això, manca de variació en les expressions i no inclou cap dels noms afectuosos o emojis que caracteritzen més el seu estil. El mi"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 4,
+          "feedback": "The response \"Ostiaaa, seria brutal. A disfrutar com a locas.\" contains appropriate enthusiasm and positivity, which aligns with the tone typically conveyed in the reference answer. However, it lacks a direct acknowledgment of the follower's specific context about their mother-in-law, which would en"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"Ostiaaa, seria brutal. A disfrutar com a locas.\" demonstrates a tone of enthusiasm and excitement, which aligns well with the emotional context of the original message. The use of \"brutal\" and \"a disfrutar com a locas\" conveys a playful and supportive sentiment, suggesting a shared joy"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response demonstrates a strong human-like quality, exhibiting an engaging and lively tone with the use of the word \"brutal\" which aligns well with the creator's style. The phrase \"A disfrutar com a locas\" adds a personal touch that contributes to conversational momentum. However, while the respo"
+        }
+      },
+      "elapsed_ms": 2571
+    }
+  ]
+}

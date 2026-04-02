@@ -1,0 +1,319 @@
+{
+  "creator": "iris_bertran",
+  "model": "Qwen/Qwen3-14B",
+  "system_prompt": "Eres Iris Bertran. Responde a los mensajes.",
+  "n_runs": 3,
+  "n_cases": 50,
+  "timestamp": "2026-03-31T19:38:54.393463+00:00",
+  "methodology": "naked_zero — no Doc D, no memory, no RAG, no history, no guardrails",
+  "papers": [
+    "PersonaGym (EMNLP 2025)",
+    "AbGen (ACL 2025)"
+  ],
+  "run_l1": [
+    {
+      "overall": 0.143,
+      "passed": 1,
+      "total": 7,
+      "n_responses": 50,
+      "bot_emoji_rate": 92.0,
+      "bot_excl_rate": 88.0,
+      "bot_q_rate": 86.0,
+      "bot_len_mean": 188.7,
+      "bot_len_median": 148.0,
+      "bot_ca_rate": 18.0,
+      "vocab_jaccard": 0.0583,
+      "details": {
+        "emoji_rate": {
+          "bot": 92.0,
+          "iris": 22.6,
+          "div": 69.4,
+          "ok": false
+        },
+        "excl_rate": {
+          "bot": 88.0,
+          "iris": 1.8,
+          "div": 86.2,
+          "ok": false
+        },
+        "q_rate": {
+          "bot": 86.0,
+          "iris": 14.2,
+          "div": 71.8,
+          "ok": false
+        },
+        "len_mean": {
+          "bot": 188.66,
+          "iris": 95.2,
+          "div": 98.17,
+          "ok": false
+        },
+        "len_median": {
+          "bot": 148.0,
+          "iris": 26.0,
+          "div": 469.23,
+          "ok": false
+        },
+        "ca_rate": {
+          "bot": 18.0,
+          "iris": 43.5,
+          "div": 25.5,
+          "ok": false
+        },
+        "vocab_jac": {
+          "bot": 5.83,
+          "iris": 5.0,
+          "div": 0.83,
+          "ok": true
+        }
+      }
+    },
+    {
+      "overall": 0.143,
+      "passed": 1,
+      "total": 7,
+      "n_responses": 50,
+      "bot_emoji_rate": 92.0,
+      "bot_excl_rate": 84.0,
+      "bot_q_rate": 80.0,
+      "bot_len_mean": 176.4,
+      "bot_len_median": 140.5,
+      "bot_ca_rate": 18.0,
+      "vocab_jaccard": 0.0533,
+      "details": {
+        "emoji_rate": {
+          "bot": 92.0,
+          "iris": 22.6,
+          "div": 69.4,
+          "ok": false
+        },
+        "excl_rate": {
+          "bot": 84.0,
+          "iris": 1.8,
+          "div": 82.2,
+          "ok": false
+        },
+        "q_rate": {
+          "bot": 80.0,
+          "iris": 14.2,
+          "div": 65.8,
+          "ok": false
+        },
+        "len_mean": {
+          "bot": 176.36,
+          "iris": 95.2,
+          "div": 85.25,
+          "ok": false
+        },
+        "len_median": {
+          "bot": 140.5,
+          "iris": 26.0,
+          "div": 440.38,
+          "ok": false
+        },
+        "ca_rate": {
+          "bot": 18.0,
+          "iris": 43.5,
+          "div": 25.5,
+          "ok": false
+        },
+        "vocab_jac": {
+          "bot": 5.33,
+          "iris": 5.0,
+          "div": 0.33,
+          "ok": true
+        }
+      }
+    },
+    {
+      "overall": 0.143,
+      "passed": 1,
+      "total": 7,
+      "n_responses": 50,
+      "bot_emoji_rate": 90.0,
+      "bot_excl_rate": 84.0,
+      "bot_q_rate": 84.0,
+      "bot_len_mean": 185.8,
+      "bot_len_median": 133.0,
+      "bot_ca_rate": 20.0,
+      "vocab_jaccard": 0.0522,
+      "details": {
+        "emoji_rate": {
+          "bot": 90.0,
+          "iris": 22.6,
+          "div": 67.4,
+          "ok": false
+        },
+        "excl_rate": {
+          "bot": 84.0,
+          "iris": 1.8,
+          "div": 82.2,
+          "ok": false
+        },
+        "q_rate": {
+          "bot": 84.0,
+          "iris": 14.2,
+          "div": 69.8,
+          "ok": false
+        },
+        "len_mean": {
+          "bot": 185.8,
+          "iris": 95.2,
+          "div": 95.17,
+          "ok": false
+        },
+        "len_median": {
+          "bot": 133.0,
+          "iris": 26.0,
+          "div": 411.54,
+          "ok": false
+        },
+        "ca_rate": {
+          "bot": 20.0,
+          "iris": 43.5,
+          "div": 23.5,
+          "ok": false
+        },
+        "vocab_jac": {
+          "bot": 5.22,
+          "iris": 5.0,
+          "div": 0.22,
+          "ok": true
+        }
+      }
+    }
+  ],
+  "run_l3": [
+    {
+      "bleu4": 0.0,
+      "rouge_l": 0.0513,
+      "chrf": 0.1473,
+      "vocab_overlap": 0.0369,
+      "n_pairs": 50
+    },
+    {
+      "bleu4": 0.0,
+      "rouge_l": 0.0601,
+      "chrf": 0.1496,
+      "vocab_overlap": 0.0422,
+      "n_pairs": 50
+    },
+    {
+      "bleu4": 0.0022,
+      "rouge_l": 0.062,
+      "chrf": 0.1545,
+      "vocab_overlap": 0.042,
+      "n_pairs": 50
+    }
+  ],
+  "aggregate": {
+    "l1_overall": {
+      "mean": 0.143,
+      "std": 0.0,
+      "runs": [
+        0.143,
+        0.143,
+        0.143
+      ]
+    },
+    "l1_bot_emoji_rate": {
+      "mean": 91.3333,
+      "std": 1.1547,
+      "runs": [
+        92.0,
+        92.0,
+        90.0
+      ]
+    },
+    "l1_bot_excl_rate": {
+      "mean": 85.3333,
+      "std": 2.3094,
+      "runs": [
+        88.0,
+        84.0,
+        84.0
+      ]
+    },
+    "l1_bot_q_rate": {
+      "mean": 83.3333,
+      "std": 3.0551,
+      "runs": [
+        86.0,
+        80.0,
+        84.0
+      ]
+    },
+    "l1_bot_len_mean": {
+      "mean": 183.6333,
+      "std": 6.4299,
+      "runs": [
+        188.7,
+        176.4,
+        185.8
+      ]
+    },
+    "l1_bot_len_median": {
+      "mean": 140.5,
+      "std": 7.5,
+      "runs": [
+        148.0,
+        140.5,
+        133.0
+      ]
+    },
+    "l1_bot_ca_rate": {
+      "mean": 18.6667,
+      "std": 1.1547,
+      "runs": [
+        18.0,
+        18.0,
+        20.0
+      ]
+    },
+    "l1_vocab_jaccard": {
+      "mean": 0.0546,
+      "std": 0.0033,
+      "runs": [
+        0.0583,
+        0.0533,
+        0.0522
+      ]
+    },
+    "l3_bleu4": {
+      "mean": 0.0007,
+      "std": 0.0013,
+      "runs": [
+        0.0,
+        0.0,
+        0.0022
+      ]
+    },
+    "l3_rouge_l": {
+      "mean": 0.0578,
+      "std": 0.0057,
+      "runs": [
+        0.0513,
+        0.0601,
+        0.062
+      ]
+    },
+    "l3_chrf": {
+      "mean": 0.1505,
+      "std": 0.0037,
+      "runs": [
+        0.1473,
+        0.1496,
+        0.1545
+      ]
+    },
+    "l3_vocab_overlap": {
+      "mean": 0.0404,
+      "std": 0.003,
+      "runs": [
+        0.0369,
+        0.0422,
+        0.042
+      ]
+    }
+  }
+}

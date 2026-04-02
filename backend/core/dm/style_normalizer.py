@@ -18,7 +18,10 @@ import random
 import re
 import unicodedata
 from pathlib import Path
+
 from typing import Optional
+
+from core.emoji_utils import is_emoji_char
 
 logger = logging.getLogger(__name__)
 
@@ -84,12 +87,7 @@ def _load_bot_natural_rates(creator_id: str) -> Optional[dict]:
 
 def _has_emoji(text: str) -> bool:
     """Check if text contains any emoji."""
-    for c in text:
-        if (unicodedata.category(c) in ('So', 'Sk')
-                or '\U0001F300' <= c <= '\U0001FAFF'
-                or '\u2600' <= c <= '\u27BF'):
-            return True
-    return False
+    return any(is_emoji_char(c) for c in text)
 
 
 def _strip_emojis(text: str, keep_n: int = 0) -> str:
@@ -102,10 +100,7 @@ def _strip_emojis(text: str, keep_n: int = 0) -> str:
     result = []
     kept = 0
     for c in text:
-        is_emoji = (unicodedata.category(c) in ('So', 'Sk')
-                    or '\U0001F300' <= c <= '\U0001FAFF'
-                    or '\u2600' <= c <= '\u27BF')
-        if is_emoji:
+        if is_emoji_char(c):
             if kept < keep_n:
                 result.append(c)
                 kept += 1

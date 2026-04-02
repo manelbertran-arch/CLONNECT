@@ -38,6 +38,11 @@ from typing import Any, Dict, List, Optional, Tuple
 REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
+# Set timeout BEFORE importing the provider (it reads env at import time via module-level call_deepinfra)
+os.environ.setdefault("DEEPINFRA_TIMEOUT", "30")
+# Disable circuit breaker for eval scripts (we handle retries manually)
+os.environ.setdefault("DEEPINFRA_CB_THRESHOLD", "999")
+
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("cpe_naked")
 logger.setLevel(logging.INFO)
@@ -349,7 +354,8 @@ async def generate_naked_run(
         await asyncio.sleep(delay)
 
     n_ok = sum(1 for r in results if r["bot_response"])
-    avg_ms = statistics.mean(r["elapsed_ms"] for r in results if r["elapsed_ms"]) if results else 0
+    ok_ms = [r["elapsed_ms"] for r in results if r["bot_response"] and r["elapsed_ms"] > 0]
+    avg_ms = statistics.mean(ok_ms) if ok_ms else 0
     print(f"  Run {run_idx} done: {n_ok}/{len(results)} OK, avg {avg_ms:.0f}ms")
     return results
 
@@ -451,8 +457,10 @@ async def main():
     sweep_dir = data_dir / "sweep"
     sweep_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load test cases
-    test_set_path = data_dir / "test_set.json"
+    # Load test cases (prefer v2 stratified if available)
+    test_set_v2 = data_dir / "test_set_v2_stratified.json"
+    test_set_v1 = data_dir / "test_set.json"
+    test_set_path = test_set_v2 if test_set_v2.exists() else test_set_v1
     if not test_set_path.exists():
         print(f"ERROR: test set not found at {test_set_path}")
         sys.exit(1)
@@ -460,7 +468,10 @@ async def main():
     with open(test_set_path) as f:
         test_set = json.load(f)
     conversations = test_set.get("conversations", [])
-    print(f"Loaded {len(conversations)} test cases for '{creator_id}'")
+    version = test_set.get("metadata", {}).get("version", "v1")
+    n_mt = sum(1 for c in conversations if c.get("is_multi_turn"))
+    print(f"Loaded {len(conversations)} test cases for '{creator_id}' "
+          f"(version={version}, multi-turn={n_mt}) from {test_set_path.name}")
 
     # Load baseline metrics (for L1 computation)
     baseline_path = data_dir / "baseline_metrics.json"
@@ -501,6 +512,13 @@ async def main():
 
         for run_idx in range(1, n_runs + 1):
             print(f"\n--- RUN {run_idx}/{n_runs} ---")
+            # Reset circuit breaker state between runs
+            try:
+                import core.providers.deepinfra_provider as _di
+                _di._deepinfra_consecutive_failures = 0
+                _di._deepinfra_circuit_open_until = 0.0
+            except Exception:
+                pass
             run_results = await generate_naked_run(
                 conversations, creator_name, model, run_idx, delay
             )

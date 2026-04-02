@@ -1,0 +1,155 @@
+{
+  "creator": "iris_bertran",
+  "timestamp": "2026-03-29T21:59:50.960877+00:00",
+  "judge_model": "gpt-4o-mini",
+  "n_evaluated": 3,
+  "overall": {
+    "mean": 3.33,
+    "std": 0.42,
+    "scale": "1-5"
+  },
+  "dimensions": {
+    "conversational_ability": {
+      "name": "Conversational Ability",
+      "mean": 3.33,
+      "median": 4,
+      "std": 1.15,
+      "n": 3
+    },
+    "persona_fidelity": {
+      "name": "Persona Fidelity",
+      "mean": 2.67,
+      "median": 3,
+      "std": 0.58,
+      "n": 3
+    },
+    "knowledge_accuracy": {
+      "name": "Knowledge Accuracy",
+      "mean": 4,
+      "median": 4,
+      "std": 0.0,
+      "n": 3
+    },
+    "emotional_intelligence": {
+      "name": "Emotional Intelligence",
+      "mean": 3.33,
+      "median": 3,
+      "std": 0.58,
+      "n": 3
+    },
+    "engagement": {
+      "name": "Engagement",
+      "mean": 3.33,
+      "median": 3,
+      "std": 0.58,
+      "n": 3
+    }
+  },
+  "conversations": [
+    {
+      "id": "real_003",
+      "test_input": "On estas?",
+      "bot_response": "A punt de tornar a casa, cuca 😂",
+      "ground_truth": "Aiiii Eli\nCom va tot?\nTe paso info per privat ara que ja he colgat.",
+      "overall_score": 3.8,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"A punt de tornar a casa, cuca 😂\" is coherent and contextually relevant, as it acknowledges the follower's previous messages and maintains a friendly tone. The use of \"cuca\" aligns with the creator's vocabulary, and the emoji adds a playful touch, consistent with the style. However, the"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "La resposta \"A punt de tornar a casa, cuca 😂\" mostra un bon ús del vocabulari característic de la creadora, incloent l'ús de \"cuca\" que és un dels seus termes afectuosos. Tanmateix, la resposta és breu i no inclou preguntes ni un to més personalitzat que podria haver millorat la connexió amb el segu"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 4,
+          "feedback": "The response \"A punt de tornar a casa, cuca 😂\" is factually correct as it indicates the speaker is about to return home, which aligns with the casual and friendly tone of the conversation. However, it lacks the engagement and additional context present in the reference answer, which includes a greet"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"A punt de tornar a casa, cuca 😂\" demonstrates a light-hearted and playful tone, which aligns well with the informal and friendly nature of the conversation. The use of \"cuca\" is consistent with the creator's vocabulary, adding a personal touch. However, while the response is warm and e"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"A punt de tornar a casa, cuca 😂\" demonstrates a friendly and casual tone, which aligns well with the conversational style expected from Iris Bertran. The use of the term \"cuca\" is consistent with her vocabulary, adding a personal touch. However, while the response is light-hearted and "
+        }
+      },
+      "elapsed_ms": 4652
+    },
+    {
+      "id": "real_004",
+      "test_input": "VINC SÚPER RAPID",
+      "bot_response": "Tranqui, ara t’ho expliqui.",
+      "ground_truth": "Tranqui",
+      "overall_score": 3.0,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 2,
+          "feedback": "The response \"Tranqui, ara t’ho expliqui.\" is partially coherent but contains noticeable inconsistencies with the conversation context. While \"tranqui\" is an appropriate informal response, the phrase \"ara t’ho expliqui\" suggests that the speaker is about to explain something, which does not align wi"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Tranqui, ara t’ho expliqui.\" shows some alignment with the creator's style, particularly in the use of the informal tone and the word \"tranqui,\" which reflects a casual and friendly demeanor. However, it lacks the vibrant vocabulary and affectionate terms typical of Iris Bertran, such "
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 4,
+          "feedback": "The response \"Tranqui, ara t’ho expliqui.\" is factually correct and aligns with the conversational context. It acknowledges the follower's message and indicates that an explanation will follow, which is appropriate given the situation. However, it does not match the brevity of the reference answer, "
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Tranqui, ara t’ho expliqui.\" demonstrates a moderate level of emotional awareness, as it acknowledges the follower's situation by using a reassuring tone. However, it lacks the warmth and empathetic engagement that would elevate it to a higher score. The phrase \"tranqui\" suggests an at"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"Tranqui, ara t’ho expliqui.\" demonstrates a conversational tone that feels human-like, as it uses informal language typical of casual interactions. However, it lacks the engaging quality and personality that would elevate it to a higher score. While it does respond to the follower's me"
+        }
+      },
+      "elapsed_ms": 4825
+    },
+    {
+      "id": "real_007",
+      "test_input": "A ver si mi suegra se viene conmigo el jueves",
+      "bot_response": "Perfecte, si ve amb tu el dijous tens plaça a barre a les 20:00. 5€. Vols que et reservi?",
+      "ground_truth": "Ayyy es veldaaa",
+      "overall_score": 3.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response is coherent and contextually relevant, addressing the follower's inquiry about their suegra coming along on Thursday. It provides clear information about the reservation details, including the time and cost, which aligns well with the conversation's flow. The phrasing is fluent, and the"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 2,
+          "feedback": "La resposta és clara i informativa, però manca de l'estil distintiu d'Iris Bertran. No utilitza cap dels seus termes afectuosos o paraules clau que caracteritzen la seva manera de comunicar-se, com \"flor\" o \"carino\". A més, la resposta és més formal i directa, cosa que no s'ajusta al to més càlid i "
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 4,
+          "feedback": "La resposta és correcta i proporciona informació clara sobre la disponibilitat i el preu, que és rellevant per a la conversa. No hi ha errors ni informació fabricada, i la pregunta final sobre la reserva és adequada i interactiva. No obstant això, la resposta és més formal i directa que l'exemple de"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response demonstrates a clear understanding of the follower's situation by providing specific details about the event and offering to reserve a spot, which shows engagement. However, it lacks the warmth and playful tone typical of Iris Bertran's style, such as using affectionate vocabulary or em"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response is clear and informative, providing specific details about the event and the cost, which is helpful for the follower. However, it lacks a personal touch and does not incorporate any of the creator's characteristic vocabulary or style, such as using affectionate terms or emojis. The tone"
+        }
+      },
+      "elapsed_ms": 6444
+    }
+  ]
+}

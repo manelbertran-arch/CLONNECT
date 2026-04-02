@@ -1,0 +1,1430 @@
+{
+  "version": "v1",
+  "created_at": "2026-03-21",
+  "description": "20 conversaciones reales de Iris para baseline Clone Score",
+  "selection_criteria": {
+    "min_turns": 4,
+    "iris_response_manual": true,
+    "no_error_messages": true,
+    "recency": "last 2 months (Jan-Mar 2026)",
+    "language_target": "60% catalan, 40% spanish",
+    "type_distribution": "precio 5, saludo 3, objecion 3, lead_caliente 5, audio 3, personal 1"
+  },
+  "conversations": [
+    {
+      "id": "conv_001",
+      "lead_id": "356d60a7-58eb-45d6-9a54-585e0df40e5a",
+      "lead_name": "34639066982",
+      "lead_status": "amigo",
+      "platform": "whatsapp",
+      "language": "ca",
+      "type": "personal",
+      "notes": "Manel - family, asking about sneakers",
+      "turns": [
+        {
+          "role": "iris",
+          "content": "Sort que la tieta va dir només les noies i no han fet postres😂😂😂la mama portava magdalenes del forn d’odena😂🤘🏾eso que me he estalviao",
+          "timestamp": "2026-03-19 22:21:50.179773+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Pero va molt marejadeta",
+          "timestamp": "2026-03-19 22:22:03.456177+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Ja tenim tasses i gots nous que li ha regalat la tieta mercé x fin🙂‍↕️🙏🏽",
+          "timestamp": "2026-03-19 22:22:39.594246+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Li vaig dir que no tenia res✌🏽😎",
+          "timestamp": "2026-03-19 22:22:48.445755+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Segur que l’has fet feliç per molt que no volgués res",
+          "timestamp": "2026-03-19 22:25:38.429748+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Li has fet el dia",
+          "timestamp": "2026-03-19 22:25:49.261294+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Ay mi vida, qué dices! 🩷 Me alegro un montón. Un abrazo enorme. 😘",
+          "timestamp": "2026-03-19 22:27:15.434687+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[📷 Photo]",
+          "timestamp": "2026-03-21 10:51:23.169253+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "demà tenim reserva al casinet a les 14:15h no hi havia lloc a la terrassa els gossos s’hauràn de quedar a casa percert serem 4 la mama ha invitat a la Magda",
+          "timestamp": "2026-03-21 16:18:50.006557+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "iris les bambes que tenia de correr a calafell potser que les agaféssis pesant que me les havia deixat o algo?¿",
+          "timestamp": "2026-03-21 16:41:13.321368+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "que no les trobo",
+          "timestamp": "2026-03-21 16:41:16.763873+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Ay, Manel! Qué lío con las bambas. 😣 ¿Seguro que no las dejaste en casa?",
+          "timestamp": "2026-03-21 16:42:09.889468+00:00"
+        }
+      ],
+      "test_input": "que no les trobo",
+      "ground_truth": "Ay, Manel! Qué lío con las bambas. 😣 ¿Seguro que no las dejaste en casa?",
+      "ground_truth_timestamp": "2026-03-21 16:42:09.889468+00:00"
+    },
+    {
+      "id": "conv_002",
+      "lead_id": "e8362408-ddfa-4e36-a981-8567101335c1",
+      "lead_name": "Irene Cia",
+      "lead_status": "caliente",
+      "platform": "whatsapp",
+      "language": "ca",
+      "type": "saludo",
+      "notes": "Irene Cia - reacting to photos",
+      "turns": [
+        {
+          "role": "iris",
+          "content": "Nada! 😊",
+          "timestamp": "2026-03-11 07:25:16.113918+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[📷 Photo]",
+          "timestamp": "2026-03-15 21:07:01.035650+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "🤍😻",
+          "timestamp": "2026-03-15 21:07:48.860934+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Que wapussss",
+          "timestamp": "2026-03-15 21:07:49.519807+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "😍🥳",
+          "timestamp": "2026-03-15 21:10:42.143740+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Que wapussss",
+          "timestamp": "2026-03-15 21:11:02.194243+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Gràciesss🩷🩷🩷",
+          "timestamp": "2026-03-15 21:11:08.717755+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "😍😍😍",
+          "timestamp": "2026-03-15 21:12:03.507929+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[🏷️ Sticker]",
+          "timestamp": "2026-03-15 22:21:50.347074+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "❤️❤️❤️",
+          "timestamp": "2026-03-15 23:14:32.707090+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "❤️❤️",
+          "timestamp": "2026-03-16 05:58:28.418396+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Mare meva Irene! Quina gràcia!! 😍 Com estàs, guapa?",
+          "timestamp": "2026-03-16 05:59:24.756789+00:00"
+        }
+      ],
+      "test_input": "❤️❤️",
+      "ground_truth": "Mare meva Irene! Quina gràcia!! 😍 Com estàs, guapa?",
+      "ground_truth_timestamp": "2026-03-16 05:59:24.756789+00:00"
+    },
+    {
+      "id": "conv_003",
+      "lead_id": "705befa5-34f4-4796-961b-981721d3d767",
+      "lead_name": "Emiliano Ojeda",
+      "lead_status": "amigo",
+      "platform": "instagram",
+      "language": "es",
+      "type": "saludo",
+      "notes": "Emiliano - IG friend catching up",
+      "turns": [
+        {
+          "role": "lead",
+          "content": "❤️",
+          "timestamp": "2026-03-19 14:49:27.659821+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Sent a voice message",
+          "timestamp": "2026-03-19 14:49:41.139145+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Brutaaal😂😂😂😂😂 el pasito de lado🥳🥳",
+          "timestamp": "2026-03-20 19:34:25.495348+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "❤️",
+          "timestamp": "2026-03-20 19:41:04.839927+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Jejejej lindos pasos",
+          "timestamp": "2026-03-20 19:41:30.084778+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Sent a photo",
+          "timestamp": "2026-03-20 19:41:30.084778+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "😝",
+          "timestamp": "2026-03-20 19:41:58.039263+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Sent a photo",
+          "timestamp": "2026-03-21 13:18:21.023478+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Buenos días🐠🌈",
+          "timestamp": "2026-03-21 13:18:32.437730+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Aca por bajar, me vine a buenos aires unos dias",
+          "timestamp": "2026-03-21 14:02:33.680503+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Daleee! Que haces babyyyy? 😘 Que fuerteee!",
+          "timestamp": "2026-03-21 14:02:33.680503+00:00"
+        }
+      ],
+      "test_input": "Aca por bajar, me vine a buenos aires unos dias",
+      "ground_truth": "Daleee! Que haces babyyyy? 😘 Que fuerteee!",
+      "ground_truth_timestamp": "2026-03-21 14:02:33.680503+00:00"
+    },
+    {
+      "id": "conv_004",
+      "lead_id": "cf0a8e41-9469-4f7f-b4a0-22f4df62ae1b",
+      "lead_name": "ericadelo",
+      "lead_status": "amigo",
+      "platform": "instagram",
+      "language": "es",
+      "type": "saludo",
+      "notes": "Ericadelo - IG friend reacting",
+      "turns": [
+        {
+          "role": "iris",
+          "content": "Yeaaahh",
+          "timestamp": "2026-03-18 12:17:53.257385+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Waooo està rodant moltbeeeee ho acabo de mirar",
+          "timestamp": "2026-03-18 12:17:54.695940+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Hoy muero no estudiadoo nada🫠🫠🫠",
+          "timestamp": "2026-03-18 12:18:01.318465+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Te la deixo quan vulguis mamasita",
+          "timestamp": "2026-03-18 12:18:03.116647+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Primer momento de 15’ de descanso desde las 6:30🥹🥹🤘🏾",
+          "timestamp": "2026-03-18 12:18:14.716960+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Ai nena jo igual avui tic a manresa i ko",
+          "timestamp": "2026-03-18 12:36:04+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Puaghhh es veritat avui examen troncaaaaa",
+          "timestamp": "2026-03-18 12:36:12+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Dalo todo",
+          "timestamp": "2026-03-18 12:36:13+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "❤️‍🔥❤️‍🔥❤️‍🔥❤️‍🔥",
+          "timestamp": "2026-03-19 06:02:36.078252+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Ostiaaa😂😂😂",
+          "timestamp": "2026-03-19 06:02:36.078252+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Sent an attachment",
+          "timestamp": "2026-03-19 09:46:14.556771+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Ostiaaa😂😂😂",
+          "timestamp": "2026-03-19 09:49:29.996343+00:00"
+        }
+      ],
+      "test_input": "Sent an attachment",
+      "ground_truth": "Ostiaaa😂😂😂",
+      "ground_truth_timestamp": "2026-03-19 09:49:29.996343+00:00"
+    },
+    {
+      "id": "conv_005",
+      "lead_id": "8a7c2000-b9d8-4ff8-be1c-926c4d3fda7e",
+      "lead_name": "anmar_au",
+      "lead_status": "amigo",
+      "platform": "instagram",
+      "language": "es",
+      "type": "precio",
+      "notes": "Angelina - reserve barre class",
+      "turns": [
+        {
+          "role": "lead",
+          "content": "Angelina Aumala si",
+          "timestamp": "2026-03-07 22:03:28+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Gracias",
+          "timestamp": "2026-03-07 22:03:32+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Hasta mañana",
+          "timestamp": "2026-03-07 22:03:36+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Aaa ok😂😂😂",
+          "timestamp": "2026-03-07 22:03:38+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Había cogido el nombre de instagram",
+          "timestamp": "2026-03-07 22:03:48+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Perdona",
+          "timestamp": "2026-03-07 22:03:50+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Angelina Marcela, de ahí el Anmar",
+          "timestamp": "2026-03-07 22:03:54+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Normal",
+          "timestamp": "2026-03-07 22:04:03+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Angelina pues  apuntada",
+          "timestamp": "2026-03-07 22:04:08+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Merci guapa",
+          "timestamp": "2026-03-07 22:04:13+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Iris, quiero reservar plaza para barre por fis.\nMe llamo Angelina \nGracias",
+          "timestamp": "2026-03-19 18:36:50+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Ya estás flor",
+          "timestamp": "2026-03-19 20:59:47.600268+00:00"
+        }
+      ],
+      "test_input": "Iris, quiero reservar plaza para barre por fis.\nMe llamo Angelina \nGracias",
+      "ground_truth": "Ya estás flor",
+      "ground_truth_timestamp": "2026-03-19 20:59:47.600268+00:00"
+    },
+    {
+      "id": "conv_006",
+      "lead_id": "f04f0408-0381-4494-8e44-37e339c4b45e",
+      "lead_name": "Iolanda Garrido Zapata",
+      "lead_status": "amigo",
+      "platform": "instagram",
+      "language": "ca",
+      "type": "precio",
+      "notes": "Iolanda - reformer info request",
+      "turns": [
+        {
+          "role": "lead",
+          "content": "Mentioned you in their story",
+          "timestamp": "2021-11-02 18:54:06+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[Media/Attachment]",
+          "timestamp": "2025-09-29 13:05:07+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Flor ara estic a bcn, escriu-me demà xk avui arribaré molt tard i sino m’escrius ni m’enrecordaré ok🥹",
+          "timestamp": "2026-03-18 15:20:31.862348+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Bona tarda Iris!!!!   M,agradaria poguer parlar amb tú i m,imformesis de les clases de reformer!!!",
+          "timestamp": "2026-03-18 15:20:31.862348+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "O aconsellar-los en el je podria fer en el meu estat i edad!!!!",
+          "timestamp": "2026-03-18 15:21:48.281024+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Sóc la Iolanda les treballava a ca l'alemany!!",
+          "timestamp": "2026-03-18 15:22:55.392337+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Flor ara estic a bcn, escriu-me demà xk avui arribaré molt tard i sino m’escrius ni m’enrecordaré ok🥹",
+          "timestamp": "2026-03-18 16:19:49.777860+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Hola Iolanda! 😊",
+          "timestamp": "2026-03-18 20:12:22.929153+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Ok",
+          "timestamp": "2026-03-18 20:12:22.929153+00:00"
+        }
+      ],
+      "test_input": "Ok",
+      "ground_truth": "Hola Iolanda! 😊",
+      "ground_truth_timestamp": "2026-03-18 20:12:22.929153+00:00"
+    },
+    {
+      "id": "conv_007",
+      "lead_id": "5f3c097b-4f91-4d2a-835f-deaff8c6f0a3",
+      "lead_name": "Albert Sala",
+      "lead_status": "caliente",
+      "platform": "whatsapp",
+      "language": "es",
+      "type": "precio",
+      "notes": "Albert Sala - workshop info",
+      "turns": [
+        {
+          "role": "iris",
+          "content": "[🏷️ Sticker]",
+          "timestamp": "2026-03-11 23:20:07.021381+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Hola chicxs💛*El workshop se realizará este sábado 21.03 de 14.00h a 16.00h y será impartido por Tamara Arruti.*\n\nOs recordamos que, si queréis asistir, debéis avisar por privado a este número para que podamos teneros en cuenta https://www.instagram.com/tamaraarruti?igsh=MWxqbzViMTM2Y2M4Mw==",
+          "timestamp": "2026-03-16 16:42:40.184925+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Nos vemos mañana *miércoles 18.03*, en el horario de *17.30h a 19.30h*🫂\n\nOs dejo el enlace para abrir la puerta de entrada:\nhttps://docs.google.com/document/d/16q47UYLdRdYF5KBBnpdSePNfROwe_ZdW/edit?usp=drivesdk&ouid=100996112409432303735&rtpof=true&sd=true",
+          "timestamp": "2026-03-17 15:34:15.049659+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Hola Albert! 😊 Qué te ha parecido el contenido? ✌🏽",
+          "timestamp": "2026-03-17 15:35:36.575370+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Arribo tard avui😭🙏🏻",
+          "timestamp": "2026-03-18 16:22:24.801907+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "jo no sé si arribo que han robat cable a montcada i reixach i portem 40 minuts parats 🙏🏻🙏🏻",
+          "timestamp": "2026-03-18 16:23:09.700441+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[📷 Photo]",
+          "timestamp": "2026-03-18 22:37:49.199748+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "https://www.instagram.com/reel/DIgiw2rI_T9/?igsh=MTI1bTdqcnlkdGN3ZA==",
+          "timestamp": "2026-03-19 06:51:15.353762+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Este sábado viene Tamara a dar workshop en la formación de 14h a 16h, entra en el precio chicxs, los que os apuntéis avisar a @193162379284699",
+          "timestamp": "2026-03-19 06:51:15.647274+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Hola Albert! 😊 El workshop de Tamara es este sábado de 14h a 16h y ya está incluido en el precio de la formación. ¿Te animas? ✌🏽",
+          "timestamp": "2026-03-19 06:52:10.434604+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Nos vemos mañana *21.03* para el workshop con Tamara🌟, de *14:00h a 16:00h.*\n\nAquí os dejo el enlace para abrir la puerta de entrada:\nhttps://docs.google.com/document/d/16q47UYLdRdYF5KBBnpdSePNfROwe_ZdW/edit?usp=drivesdk&ouid=100996112409432303735&rtpof=true&sd=true",
+          "timestamp": "2026-03-20 12:48:47.535907+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Hola Albert! 😊 Qué bien que te animas al workshop!",
+          "timestamp": "2026-03-20 12:49:07.930988+00:00"
+        }
+      ],
+      "test_input": "Nos vemos mañana *21.03* para el workshop con Tamara🌟, de *14:00h a 16:00h.*\n\nAquí os dejo el enlace para abrir la puerta de entrada:\nhttps://docs.google.com/document/d/16q47UYLdRdYF5KBBnpdSePNfROwe_ZdW/edit?usp=drivesdk&ouid=100996112409432303735&rtpof=true&sd=true",
+      "ground_truth": "Hola Albert! 😊 Qué bien que te animas al workshop!",
+      "ground_truth_timestamp": "2026-03-20 12:49:07.930988+00:00"
+    },
+    {
+      "id": "conv_008",
+      "lead_id": "600fa15c-ffe1-47a1-bb77-981ef7598eb9",
+      "lead_name": "N ú r i A",
+      "lead_status": "amigo",
+      "platform": "whatsapp",
+      "language": "es",
+      "type": "precio",
+      "notes": "Nuria - scheduling class at 13:00",
+      "turns": [
+        {
+          "role": "lead",
+          "content": "tinc una companya que vindrà al twerk",
+          "timestamp": "2026-03-10 09:04:32+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[🏷️ Sticker]",
+          "timestamp": "2026-03-10 09:05:37.228479+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[sticker]",
+          "timestamp": "2026-03-10 11:54:31+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "De verdaaa?😂",
+          "timestamp": "2026-03-10 11:54:40+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "ji",
+          "timestamp": "2026-03-10 11:56:12+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "mami demà no podré venir",
+          "timestamp": "2026-03-15 06:46:10.451849+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[reaction: 👍]",
+          "timestamp": "2026-03-15 07:16:17+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "si se't anula la de última hora del matí me dises que potser arribaria a temps",
+          "timestamp": "2026-03-15 07:20:54.589598+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Cariño, avui ja ho tenim tot ple. Si cau alguna cosa t'aviso! 💪❤️",
+          "timestamp": "2026-03-15 07:21:52.462891+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[🎤 Audio]: Cáñez, ¿cuál es el abril? ¿Cuál es el día de la semana? ¿A las 12 o a las 1?",
+          "timestamp": "2026-03-16 08:05:00.542381+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "abril a les 13:00",
+          "timestamp": "2026-03-16 08:06:41.555319+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂",
+          "timestamp": "2026-03-16 08:07:01.210277+00:00"
+        }
+      ],
+      "test_input": "abril a les 13:00",
+      "ground_truth": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂",
+      "ground_truth_timestamp": "2026-03-16 08:07:01.210277+00:00"
+    },
+    {
+      "id": "conv_009",
+      "lead_id": "c9a93563-be70-4445-b9f4-7cc3e2d743c9",
+      "lead_name": "Eli",
+      "lead_status": "amigo",
+      "platform": "whatsapp",
+      "language": "ca",
+      "type": "precio",
+      "notes": "Eli - barre slot & payment",
+      "turns": [
+        {
+          "role": "lead",
+          "content": "Qe per cert n he anat a pagar🤦🏽‍♀️🤦🏽‍♀️",
+          "timestamp": "2026-03-21 10:21:53.783356+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Vaig fer app qe nomes em vaig apuntar",
+          "timestamp": "2026-03-21 10:22:06.727234+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Si digamm el nom",
+          "timestamp": "2026-03-21 10:22:53.640299+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Selene",
+          "timestamp": "2026-03-21 12:30:08.982713+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "He posat amuga Eli",
+          "timestamp": "2026-03-21 12:30:20.658970+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Ja tik fora",
+          "timestamp": "2026-03-21 12:35:57.920931+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "🩷",
+          "timestamp": "2026-03-21 12:35:59.916445+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Moltes grcaies amoret",
+          "timestamp": "2026-03-21 13:00:38.268847+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Fins demà!!",
+          "timestamp": "2026-03-21 13:00:46.171795+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Aiii Eli! 🥰 Cómo va todo?? Te paso info por privado ahora que ya he colgado.",
+          "timestamp": "2026-03-21 13:01:26.826273+00:00"
+        }
+      ],
+      "test_input": "Fins demà!!",
+      "ground_truth": "Aiii Eli! 🥰 Cómo va todo?? Te paso info por privado ahora que ya he colgado.",
+      "ground_truth_timestamp": "2026-03-21 13:01:26.826273+00:00"
+    },
+    {
+      "id": "conv_010",
+      "lead_id": "65126c66-965c-4f44-8c3d-5cc0e75a5789",
+      "lead_name": "Cariana Morello",
+      "lead_status": "caliente",
+      "platform": "whatsapp",
+      "language": "es",
+      "type": "objecion",
+      "notes": "Cariana - leaving classes but wants to come back",
+      "turns": [
+        {
+          "role": "iris",
+          "content": "Nos vamos hacer una de lapsos el sábado a las 12:30 de cycling",
+          "timestamp": "2026-03-12 15:51:10+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "?",
+          "timestamp": "2026-03-12 15:51:16+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[sticker]",
+          "timestamp": "2026-03-12 15:51:18+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "¡Hola Mami! viene un amigo mañana a casa y se queda este finde; y compartiré con él el sábado.",
+          "timestamp": "2026-03-12 16:48:00+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Bueno, informarte que finalmente me di de baja de albert; haré un stop al menos hasta junio que termine con mi presentación de Ballet. Así que a partir del mes que viene tendré más tiempo para entrenar, que me lo necesitaré.",
+          "timestamp": "2026-03-12 16:48:20+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Espero que me pases los zooms y los vídeos🥹🥹🥹 corazón revuelto; pero en parte sé que lo necesito.",
+          "timestamp": "2026-03-12 16:49:23+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "A sacar mi carnet; a entrenar y hacer algunas opens, sobretodo de heels.",
+          "timestamp": "2026-03-12 16:50:19+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[📷 Photo]",
+          "timestamp": "2026-03-12 16:51:21.405208+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[image]",
+          "timestamp": "2026-03-12 16:52:13+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "A la noche te contesto🥹❤️‍🩹",
+          "timestamp": "2026-03-12 16:52:22+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Okiii; todo bien. Lo estoy asimilando tranqui; es solo una pausa. Volveré🥹🫶🏻",
+          "timestamp": "2026-03-12 16:55:11+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Amor, me alegro un montón de que lo estés asimilando bien. 🥰 ¡Ya verás qué bien te sienta!",
+          "timestamp": "2026-03-12 16:55:29.649529+00:00"
+        }
+      ],
+      "test_input": "Okiii; todo bien. Lo estoy asimilando tranqui; es solo una pausa. Volveré🥹🫶🏻",
+      "ground_truth": "Amor, me alegro un montón de que lo estés asimilando bien. 🥰 ¡Ya verás qué bien te sienta!",
+      "ground_truth_timestamp": "2026-03-12 16:55:29.649529+00:00"
+    },
+    {
+      "id": "conv_011",
+      "lead_id": "0e386e03-79fe-44e7-93da-793239bbc828",
+      "lead_name": "Nerea ",
+      "lead_status": "amigo",
+      "platform": "whatsapp",
+      "language": "es",
+      "type": "objecion",
+      "notes": "Nerea - schedule conflict",
+      "turns": [
+        {
+          "role": "iris",
+          "content": "X la mańana barre?",
+          "timestamp": "2026-03-18 12:37:49.057345+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Siempre hay",
+          "timestamp": "2026-03-18 12:49:16.275382+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "X la mañana sería",
+          "timestamp": "2026-03-18 12:50:22.102191+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[reaction: 👍]",
+          "timestamp": "2026-03-18 12:58:21+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "La resonancia de schumann es la vibración de la tierra, escúchalo con los ojos cerrados y respirando hondo… es totalmente maravilloso y curativo.\nAhora que estás a momentos fluyendo con la vibración de la tierra escúchalo y  relaja…",
+          "timestamp": "2026-03-18 18:28:52.387388+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "No estoy loca , totalmente cuerda.",
+          "timestamp": "2026-03-18 18:28:53.026799+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "💚❤️",
+          "timestamp": "2026-03-18 18:28:53.233966+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "https://youtu.be/BTBs0BGi_1s?is=6aRwfJU4CwQ_k-Yv",
+          "timestamp": "2026-03-18 18:28:53.963326+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Me he tenido que ir me han llamado de curro y había pagado !",
+          "timestamp": "2026-03-19 08:32:25.591271+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Me han dado invitación para otra clase",
+          "timestamp": "2026-03-19 08:32:57.349294+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Ay, mi vida, qué lío! 🫠 Entonces, ¿al final vas a la otra clase o te quedas a la de barre? 😘",
+          "timestamp": "2026-03-19 08:33:46.845419+00:00"
+        }
+      ],
+      "test_input": "Me han dado invitación para otra clase",
+      "ground_truth": "Ay, mi vida, qué lío! 🫠 Entonces, ¿al final vas a la otra clase o te quedas a la de barre? 😘",
+      "ground_truth_timestamp": "2026-03-19 08:33:46.845419+00:00"
+    },
+    {
+      "id": "conv_012",
+      "lead_id": "d1bb5a48-6d3b-4f59-91a3-0a9afadf46bc",
+      "lead_name": "Marta",
+      "lead_status": "caliente",
+      "platform": "whatsapp",
+      "language": "ca",
+      "type": "objecion",
+      "notes": "Marta - schedule flexibility",
+      "turns": [
+        {
+          "role": "lead",
+          "content": "Demà ok 👍",
+          "timestamp": "2026-03-02 10:55:46+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Iris guapa, demà podria venir a les 13?\nTens algú abans meu?\nHaig de portar el meu fill a l’aeroport. \nSi no es possible vindré a les 13:30 en punt i marxaré abans.\nMerci! 🌈🥰",
+          "timestamp": "2026-03-08 20:12:09+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "I tant",
+          "timestamp": "2026-03-08 20:12:26.644147+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[sticker]",
+          "timestamp": "2026-03-08 20:18:28+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Que bé!! Mil gràcies! 👌💃🏻\nFarem la reformer com l’altre dia, ok?\nMerci! 💖😘",
+          "timestamp": "2026-03-08 20:21:15+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[reaction: ❤️]",
+          "timestamp": "2026-03-08 20:49:27+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Iris reina, quan puguis passa’m el contacte de la maquilladora professional 💖",
+          "timestamp": "2026-03-17 11:47:55.952010+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "https://www.instagram.com/sorayafersa?igsh=OTEyNXBpbmFlazll",
+          "timestamp": "2026-03-17 11:48:18.773411+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Gràcies preciosa!! 😍😍💖💖",
+          "timestamp": "2026-03-17 14:15:38.559841+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Hola Marta! De res, guapa! 🥰 Sempre que puguis i vulguis, aquí estic! Què et va semblar la classe d'ahir? 😊",
+          "timestamp": "2026-03-17 14:15:52.586925+00:00"
+        }
+      ],
+      "test_input": "Gràcies preciosa!! 😍😍💖💖",
+      "ground_truth": "Hola Marta! De res, guapa! 🥰 Sempre que puguis i vulguis, aquí estic! Què et va semblar la classe d'ahir? 😊",
+      "ground_truth_timestamp": "2026-03-17 14:15:52.586925+00:00"
+    },
+    {
+      "id": "conv_013",
+      "lead_id": "03753146-44d9-4eb7-9090-5f0b6e6286be",
+      "lead_name": "Alba Hervàs",
+      "lead_status": "caliente",
+      "platform": "whatsapp",
+      "language": "ca",
+      "type": "lead_caliente",
+      "notes": "Alba Hervas - scheduling barre",
+      "turns": [
+        {
+          "role": "lead",
+          "content": "Jijiji",
+          "timestamp": "2026-03-12 09:53:00.912306+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Jajaja, qué risa me da tu comentario del aparcamiento, bro. 😂",
+          "timestamp": "2026-03-12 09:53:46.619199+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Alba demà podem fer a les 11:00 sino hauré de cancelar entreno🥹ho sento",
+          "timestamp": "2026-03-15 15:17:07.855441+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "No sé si li pots preguntar al massatge que tens fer-ho una hora més tard sino ho sento🥹🥹🥹",
+          "timestamp": "2026-03-15 15:25:33.755257+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Iris! No puc! No pateixis!!!",
+          "timestamp": "2026-03-15 17:45:22.826404+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Ens veiem dimarts😘😘😘",
+          "timestamp": "2026-03-15 17:45:33.466235+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[reaction: ❤️]",
+          "timestamp": "2026-03-15 21:39:26+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Bon dia cuca!\n\nDijous vindre a barre!\n\nSi pots omplir la meva hora d'aquest dijous a les 11h genial! Sinó estirem!\n\n\nDiga'm ok! 😘",
+          "timestamp": "2026-03-16 07:01:19.856135+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Està omplerta l’únic que jo hagués fet reformer cuca🩷",
+          "timestamp": "2026-03-16 07:02:14.332019+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Oqqq?",
+          "timestamp": "2026-03-16 17:19:56.681743+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Hola bro! Com va tot? 🥰 Que moltes ganes de barre dijous! 💪",
+          "timestamp": "2026-03-16 17:20:10.946617+00:00"
+        }
+      ],
+      "test_input": "Oqqq?",
+      "ground_truth": "Hola bro! Com va tot? 🥰 Que moltes ganes de barre dijous! 💪",
+      "ground_truth_timestamp": "2026-03-16 17:20:10.946617+00:00"
+    },
+    {
+      "id": "conv_014",
+      "lead_id": "bfadbe38-4b4a-4c5d-98f2-c9d4ee8863ef",
+      "lead_name": "Alba",
+      "lead_status": "caliente",
+      "platform": "whatsapp",
+      "language": "es",
+      "type": "lead_caliente",
+      "notes": "Alba - post-class thanks",
+      "turns": [
+        {
+          "role": "iris",
+          "content": "Perfesssto😂😂😂✌🏽🩷",
+          "timestamp": "2026-03-17 14:12:55.882671+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Grazzie mille pel radiopatio",
+          "timestamp": "2026-03-17 14:13:02.430822+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[reaction: ❤️]",
+          "timestamp": "2026-03-17 14:16:01+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Farem reformer, divendres barre",
+          "timestamp": "2026-03-18 08:48:20.202227+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Xk estic kao🫠",
+          "timestamp": "2026-03-18 08:48:27.159998+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Així que keep calm",
+          "timestamp": "2026-03-18 08:48:33.032696+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "M’agrada keep calm",
+          "timestamp": "2026-03-18 08:49:23.985143+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Ja estic més relaxada 😂😂",
+          "timestamp": "2026-03-18 08:49:37.470896+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Jajajaja, me alegro, cariño! Qué bien que ya estés más tranquila. 👍",
+          "timestamp": "2026-03-18 08:50:20.577494+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Reina dilluns Nooooo \nNo puc no tinc el David 🙏🏻🙏🏻\nSorry \nEns veiem dimecres",
+          "timestamp": "2026-03-20 17:04:33.591294+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Gràcies Per la clase d’avui \nI Per la paciencia ❤️🫶🏻",
+          "timestamp": "2026-03-20 17:04:48.660726+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "De nada, cariño. ❤️ Me alegro que te gustara. 😘",
+          "timestamp": "2026-03-20 17:05:41.234484+00:00"
+        }
+      ],
+      "test_input": "Gràcies Per la clase d’avui \nI Per la paciencia ❤️🫶🏻",
+      "ground_truth": "De nada, cariño. ❤️ Me alegro que te gustara. 😘",
+      "ground_truth_timestamp": "2026-03-20 17:05:41.234484+00:00"
+    },
+    {
+      "id": "conv_015",
+      "lead_id": "48e69654-82ea-44dd-8101-d10565bacfe6",
+      "lead_name": "Tania",
+      "lead_status": "amigo",
+      "platform": "whatsapp",
+      "language": "es",
+      "type": "lead_caliente",
+      "notes": "Tania - scheduling",
+      "turns": [
+        {
+          "role": "iris",
+          "content": "Mañana a las 8:45 tiene que estar lista ok",
+          "timestamp": "2026-03-20 18:42:48.915452+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Si me lo ha dicho",
+          "timestamp": "2026-03-20 18:43:00.346193+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Le diré Andrea que la pase a buscar",
+          "timestamp": "2026-03-20 18:43:02.179202+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Vale sino la llevo yo",
+          "timestamp": "2026-03-20 18:43:09.217452+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Que vaaa si tiene que venir Andrea tia no le viene de aqui",
+          "timestamp": "2026-03-20 18:43:16.646518+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Pásame la dirección y la llevo",
+          "timestamp": "2026-03-20 18:43:20.133034+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Que vaaa si tiene que venir Andrea tia no le viene de aqui",
+          "timestamp": "2026-03-20 18:43:35.670520+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Tu desconecta",
+          "timestamp": "2026-03-20 18:43:39.320481+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Tengo trabajo por la tarde y iré a comprar unas placas para el piso 🤯 al mediodía",
+          "timestamp": "2026-03-20 18:44:09.107690+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Que vendrás el domingo que es el últimooo",
+          "timestamp": "2026-03-20 18:45:14.013972+00:00"
+        }
+      ],
+      "test_input": "Tengo trabajo por la tarde y iré a comprar unas placas para el piso 🤯 al mediodía",
+      "ground_truth": "Que vendrás el domingo que es el últimooo",
+      "ground_truth_timestamp": "2026-03-20 18:50:33.241022+00:00"
+    },
+    {
+      "id": "conv_016",
+      "lead_id": "72e24413-79c5-4ddf-a001-be1e98baa0aa",
+      "lead_name": "Andrea",
+      "lead_status": "caliente",
+      "platform": "whatsapp",
+      "language": "ca",
+      "type": "lead_caliente",
+      "notes": "Andrea - rushing to class",
+      "turns": [
+        {
+          "role": "lead",
+          "content": "Babyy",
+          "timestamp": "2026-03-20 17:22:06.977091+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Plego 21:30 vale",
+          "timestamp": "2026-03-20 17:22:07.352532+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Trigo 5 min en arribar a casa teva 🫶🏻",
+          "timestamp": "2026-03-20 17:22:07.408810+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Hem quedat al dinamic",
+          "timestamp": "2026-03-20 17:23:01.283805+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Ah vale okeii",
+          "timestamp": "2026-03-20 17:29:32.733829+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Que no vens?",
+          "timestamp": "2026-03-20 17:29:45.342203+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[🎤 Audio]: Iris, en canvi, ja veig que a les se'ns mor una senyora i no puguem marxar abans.",
+          "timestamp": "2026-03-20 21:05:05.222587+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "VINC SÚPER RAPID",
+          "timestamp": "2026-03-20 21:05:30.365164+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Tranqui",
+          "timestamp": "2026-03-20 21:06:11.190430+00:00"
+        }
+      ],
+      "test_input": "VINC SÚPER RAPID",
+      "ground_truth": "Tranqui",
+      "ground_truth_timestamp": "2026-03-20 21:09:45.209170+00:00"
+    },
+    {
+      "id": "conv_017",
+      "lead_id": "9ea8bea9-863f-4a01-869a-81d5d27966a3",
+      "lead_name": "Sònia",
+      "lead_status": "caliente",
+      "platform": "whatsapp",
+      "language": "ca",
+      "type": "audio",
+      "notes": "Sonia - audio about collaboration",
+      "turns": [
+        {
+          "role": "iris",
+          "content": "[🎤 Audio]: Carinyo, que pots acceptar la col·lap del dinàmic, per favor, de Zumba, si no estàs durmiendo de los top. No ho sé, tio, estic fent una merda.",
+          "timestamp": "2026-03-19 21:00:27.535710+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[🎤 Audio]: Sònia, carinyo, t'ha arribat la col·laboració del dinàmic? El Toni em va dir que acceptés la col·laboració, perquè si no, no rutlla igual. Normalment s'han d'acceptar, perquè quan tardes ja un dia, tot va més lent.\n\nPerò em va dir: \"Iris, no he vist res\". Normalment ella no mira les xarxes. Li vaig dir a Sònia: \"No, Sònia estarà dormint, perquè ella és com una princesita, a les 8 ja se'n va a dormir\".\n\nDigue'm si t'ha arribat bé la col·laboració, com va fer l'Erica. Jo crec que sí, perquè dic que el dinàmic està esperant la col·laboració. Un petó, ens veiem després.",
+          "timestamp": "2026-03-20 06:42:03.522774+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[🎤 Audio]: Per cert, estic molt millor de les cervicals. De com estava ahir, que estava fatal. Gràcies, ara m'he de prendre el dolor stop.",
+          "timestamp": "2026-03-20 06:42:15.633910+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[🎤 Audio]: Reina, la col·laboració te la vaig acceptar. En Pic vas penjar el vídeo i ho vaig veure potser cinc minuts després, que va ser quan et vaig posar el m'agrada i el comentari des de dinàmic.",
+          "timestamp": "2026-03-20 06:46:07.682684+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Guaaaii!! 🥰🥰",
+          "timestamp": "2026-03-20 06:47:05.833430+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[🎤 Audio]: Reina, mil disculpes. Ara ho he revisat i vaig acceptar l'etiqueta. Després he vist allò de la col·laboració, em pensava que anava tot lligat. Ara mateix t'ho he acabat de fer, allò de la col·laboració. Però ja et dic, l'etiqueta la vaig fer la nit, perquè sé que et vaig fer els likes.",
+          "timestamp": "2026-03-20 06:49:00.731968+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[🎤 Audio]: Tia, és que no entenia res. Si ha posat dinàmica esport, a mi em va bé i tot, ho ha vist. Perquè a vegades sé que te'n vas a dormir abans i que no passa res, per això li vaig dir al Toni.\n\nI l'etiqueta, no sé què és l'etiqueta, l'etiquetar-te, no? A la 15 o a la 30 directa ja estàs. I ja està, no passa res. No, perquè a vegades dic que no surtin el de la col·lapse, saps què vull dir? I ja està, carinyo, no passa res.",
+          "timestamp": "2026-03-20 06:49:51.535470+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Siii sorryyy!! 🙏🏼",
+          "timestamp": "2026-03-20 06:58:54.680035+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Per la propera ja ho sabré",
+          "timestamp": "2026-03-20 06:59:00.755956+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[🏷️ Sticker]",
+          "timestamp": "2026-03-20 06:59:15.956068+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Jajaja, ¡qué bueno! 😂 Me alegro que todo se haya solucionado, Sònia. ¡Un abrazo! 😘",
+          "timestamp": "2026-03-20 06:59:43.589735+00:00"
+        }
+      ],
+      "test_input": "[🏷️ Sticker]",
+      "ground_truth": "Jajaja, ¡qué bueno! 😂 Me alegro que todo se haya solucionado, Sònia. ¡Un abrazo! 😘",
+      "ground_truth_timestamp": "2026-03-20 06:59:43.589735+00:00"
+    },
+    {
+      "id": "conv_018",
+      "lead_id": "5e1b8d08-2b2c-473c-b503-96fb86cfd0c7",
+      "lead_name": "Monica🌸",
+      "lead_status": "amigo",
+      "platform": "whatsapp",
+      "language": "es",
+      "type": "audio",
+      "notes": "Monica - audio reaction to news",
+      "turns": [
+        {
+          "role": "lead",
+          "content": "Dijous 100%",
+          "timestamp": "2026-03-10 17:23:04+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[🎤 Audio]: Tío, de verdad, hoy que soy cuatro gatos, hostia puta, tío Pues nada, otra menos, no pasa nada",
+          "timestamp": "2026-03-10 17:23:24.787133+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[audio]",
+          "timestamp": "2026-03-10 17:23:35+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[audio]",
+          "timestamp": "2026-03-10 17:44:35+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[🏷️ Sticker]",
+          "timestamp": "2026-03-10 17:45:16.808060+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[sticker]",
+          "timestamp": "2026-03-10 21:25:27+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[🎤 Audio]: ¡Uah! Luego te lo explico bien. Fui a buscar la plancha a \"A Cada Roger\" y me dijeron: \"¡Ay! ¡Ahora trabajaré por el Dinámico!\". No lo sabía. Me dijeron: \"¡Ah! ¡Mira tú qué bien!\".\n\nVeo que lo llevará el Toni. Él ha abierto diciendo que quiere que le lleve todo el tema de los vídeos. Todavía había de pasar el precio, eh. Pero me he quedado flipando. Me sorprende, te lo quería comentar.\n\nDigo: \"Gracias, Toni, tío\". No me has contratado mientras he estado contigo, y ahora que no estoy, ¿me lo hará el puto gimnasio? Que no pasa nada, eh. Pero me ha sobrado. Me ha sobrado mucho.",
+          "timestamp": "2026-03-18 20:36:01.249073+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Wstic flipant",
+          "timestamp": "2026-03-18 20:36:23.483954+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[🎤 Audio]: Estoy saliendo. Ahora voy a hacer el coche de Barna. Vaya pibe, madre mía. Estoy flipando, porque no sabía nada. El Tani no me ha dicho nada. El otro día nos quejábamos del Nil. ¿Qué representa? ¿Que han puteado por el Nil? No entiendo nada. Vale. \n\nMalapela. Moni y yo no hemos creado palabras con Roger desde que... desde el estero que me vas a enviar. No me he puesto en contacto con él, cariño. No tengo ni idea de su vida. Se me cae una mica la cara de vergüenza, porque, a ver, yo qué sé. También podría haber dicho que no sé, pero claro, nena, yo voy con ti. \n\nNo he visto ningún video, porque estoy con la Erika. Hoy he ido fatal. He tenido un tirón en los cervicales a mitad del examen, he vuelto a repetir y he vuelto fatal. Pero es igual, ahora vengo de la Axos. He llevado al hermano, se ha pasado pipa, que lo necesitaba, porque aquí también está en proceso de separación. \n\nVoy a hacer una recadida y, así que nada, ahora estoy guay, porque ya he acabado la clase, he desconectado y he hecho lo que tenía que hacer. Hoy había dormido muy poco, y cuando no dormimos es una mierda. ¿Mañana te becas o no?",
+          "timestamp": "2026-03-18 20:40:38.876238+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[🎤 Audio]: ¡Hustia! Me ha sorprendido, no me lo esperaba. Pensaba que era un rollo de estar todo el día en el gimnasio, desconectando y sin pensar. Pero bueno, por los vídeos que hagas, tampoco pasa nada.\n\n¿Ya notabas que te quedaba clavada la cervical? Joder, tío, qué putada. Si no vas a descansar, olvídate.\n\nHoy duerme, descansa, desconecta. Si has hecho la clase, ya te han ido bien, seguro. Y cuando quieras venir a verme a Pibonacos de Barcelona, me parece perfecto. Es un planazo estupendo. Cuando queráis, vigilar la carretera, ¿vale?\n\nY mañana, en principio, si todo va bien, creo que sí, vengo a Hipopilates y Barre. Tengo ganas porque hace mucho que no vengo a Barre.",
+          "timestamp": "2026-03-18 20:45:38.972176+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+          "timestamp": "2026-03-18 20:45:56.404137+00:00"
+        }
+      ],
+      "test_input": "[🎤 Audio]: ¡Hustia! Me ha sorprendido, no me lo esperaba. Pensaba que era un rollo de estar todo el día en el gimnasio, desconectando y sin pensar. Pero bueno, por los vídeos que hagas, tampoco pasa nada.\n\n¿Ya notabas que te quedaba clavada la cervical? Joder, tío, qué putada. Si no vas a descansar, olvídate.\n\nHoy duerme, descansa, desconecta. Si has hecho la clase, ya te han ido bien, seguro. Y cuando quieras venir a verme a Pibonacos de Barcelona, me parece perfecto. Es un planazo estupendo. Cuando queráis, vigilar la carretera, ¿vale?\n\nY mañana, en principio, si todo va bien, creo que sí, vengo a Hipopilates y Barre. Tengo ganas porque hace mucho que no vengo a Barre.",
+      "ground_truth": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+      "ground_truth_timestamp": "2026-03-18 20:45:56.404137+00:00"
+    },
+    {
+      "id": "conv_019",
+      "lead_id": "899a2d72-4006-43f6-a4ea-ab698d060a4c",
+      "lead_name": "Gemma",
+      "lead_status": "amigo",
+      "platform": "whatsapp",
+      "language": "ca",
+      "type": "lead_caliente",
+      "notes": "Gemma - canceling but staying engaged",
+      "turns": [
+        {
+          "role": "lead",
+          "content": "Massa tute aquests dies",
+          "timestamp": "2026-03-09 11:09:18+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "L’Albert esperant la teva visita",
+          "timestamp": "2026-03-09 11:10:25.754274+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[reaction: 👏]",
+          "timestamp": "2026-03-09 11:10:49+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "L’Albert esperant la teva visita",
+          "timestamp": "2026-03-09 12:06:58+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Espavila",
+          "timestamp": "2026-03-09 12:07:02+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[audio]",
+          "timestamp": "2026-03-11 11:32:24+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[🏷️ Sticker]",
+          "timestamp": "2026-03-11 11:33:10.787305+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[sticker]",
+          "timestamp": "2026-03-11 15:15:21+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Bon dia!!! Dema tampoc vinc, estic molt millor, pero dema tinc dia de fer gestions…🙏",
+          "timestamp": "2026-03-16 10:42:00.185828+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Dijous no podrem fer entreno aviso😘",
+          "timestamp": "2026-03-16 10:42:20.320597+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "[reaction: 👍]",
+          "timestamp": "2026-03-16 13:05:12+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Dijous no podrem fer entreno aviso😘",
+          "timestamp": "2026-03-16 21:21:05.352012+00:00"
+        }
+      ],
+      "test_input": "Bon dia!!! Dema tampoc vinc, estic molt millor, pero dema tinc dia de fer gestions…🙏",
+      "ground_truth": "Dijous no podrem fer entreno aviso😘",
+      "ground_truth_timestamp": "2026-03-16 21:21:05.352012+00:00"
+    },
+    {
+      "id": "conv_020",
+      "lead_id": "2f033c17-975d-4067-a8ce-3fa75fd23fd5",
+      "lead_name": "Mar",
+      "lead_status": "caliente",
+      "platform": "whatsapp",
+      "language": "ca",
+      "type": "audio",
+      "notes": "Mar - audio message gratitude",
+      "turns": [
+        {
+          "role": "lead",
+          "content": "Ànims tieta!",
+          "timestamp": "2026-03-18 09:18:44.764841+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "😘😍",
+          "timestamp": "2026-03-18 09:27:59.622759+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Millor el cumple!!!😂😂",
+          "timestamp": "2026-03-18 10:22:19.386237+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[🎬 Video]",
+          "timestamp": "2026-03-19 09:21:12.174672+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Felicitats Mama",
+          "timestamp": "2026-03-19 09:29:51.616013+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Felicitats tietaaaaa",
+          "timestamp": "2026-03-19 10:25:49.126611+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Per molts anys, María Josefa.",
+          "timestamp": "2026-03-19 10:27:32.326822+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "felicitaaats",
+          "timestamp": "2026-03-19 10:37:00.539577+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "feliç sant tieta guapaaa 💞",
+          "timestamp": "2026-03-19 10:47:45.203783+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "Feliçitats germaneta postiza 😉\nQue pasis un bon día \n🥂🥂🥂",
+          "timestamp": "2026-03-19 13:35:04.405361+00:00"
+        },
+        {
+          "role": "lead",
+          "content": "[🎤 Audio]: Muchísimas gracias, family. Os estimo, os estimo y os estimo. Vale, que vayamos cumpliendo años y santos.",
+          "timestamp": "2026-03-19 16:09:38.626887+00:00"
+        },
+        {
+          "role": "iris",
+          "content": "Oleeeeee nen! Que te cuento? 🥹 Com va tot per allà?",
+          "timestamp": "2026-03-19 16:10:20.827586+00:00"
+        }
+      ],
+      "test_input": "[🎤 Audio]: Muchísimas gracias, family. Os estimo, os estimo y os estimo. Vale, que vayamos cumpliendo años y santos.",
+      "ground_truth": "Oleeeeee nen! Que te cuento? 🥹 Com va tot per allà?",
+      "ground_truth_timestamp": "2026-03-19 16:10:20.827586+00:00"
+    }
+  ]
+}

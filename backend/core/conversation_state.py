@@ -32,8 +32,12 @@ class ConversationPhase(Enum):
 
 
 @dataclass
-class UserContext:
-    """Contexto acumulado del usuario."""
+class SalesFunnelContext:
+    """Sales funnel context accumulated from conversation.
+
+    Renamed from UserContext to avoid collision with
+    core.user_context_loader.UserContext (BUG-UC-03).
+    """
     name: Optional[str] = None
     situation: Optional[str] = None          # "madre de 3", "trabaja mucho"
     goal: Optional[str] = None               # "bajar peso", "mas energia"
@@ -65,7 +69,7 @@ class ConversationState:
     follower_id: str
     creator_id: str
     phase: ConversationPhase = ConversationPhase.INICIO
-    context: UserContext = field(default_factory=UserContext)
+    context: SalesFunnelContext = field(default_factory=SalesFunnelContext)
     message_count: int = 0
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -161,9 +165,9 @@ FASE: ESCALAR - Tu objetivo es pasar a humano.
                 ).first()
 
                 if db_state:
-                    # Reconstruct UserContext from JSON
+                    # Reconstruct SalesFunnelContext from JSON
                     context_data = db_state.context or {}
-                    user_context = UserContext(
+                    user_context = SalesFunnelContext(
                         name=context_data.get('name'),
                         situation=context_data.get('situation'),
                         goal=context_data.get('goal'),
@@ -209,7 +213,7 @@ FASE: ESCALAR - Tu objetivo es pasar a humano.
                     ConversationStateDB.follower_id == state.follower_id
                 ).first()
 
-                # Serialize UserContext to dict
+                # Serialize SalesFunnelContext to dict
                 context_dict = {
                     'name': state.context.name,
                     'situation': state.context.situation,
@@ -300,56 +304,64 @@ FASE: ESCALAR - Tu objetivo es pasar a humano.
         return state
 
     def _extract_context(self, state: ConversationState, message: str) -> None:
-        """Extrae informacion del usuario."""
+        """Extract user context from message — universal, niche-agnostic.
+
+        Instead of hardcoded health/fitness keywords, extracts:
+        - Age (multilingual regex: ES/CA/EN)
+        - Name (when user self-identifies)
+        - Topics mentioned (accumulated from each message as-is)
+        """
+        import re
         msg = message.lower()
 
-        # Situacion personal
-        if any(w in msg for w in ["hijo", "hija", "nino", "madre", "padre", "familia"]):
-            if state.context.situation:
-                if "hijos" not in state.context.situation:
-                    state.context.situation += ", tiene hijos"
-            else:
-                state.context.situation = "tiene hijos"
+        # Age extraction (ES: "tengo 30 años", CA: "tinc 30 anys", EN: "I'm 30 years old")
+        age_patterns = [
+            r'(?:tengo|soy de)\s+(\d{2,3})\s*(?:años|anos)',
+            r'(?:tinc|faig)\s+(\d{2,3})\s*anys',
+            r"(?:i'?m|i am|i'm)\s+(\d{2,3})\s*(?:years?\s*old)?",
+        ]
+        for pattern in age_patterns:
+            age_match = re.search(pattern, msg)
+            if age_match:
+                age = age_match.group(1)
+                age_info = f"{age} años"
+                if state.context.situation:
+                    if "años" not in state.context.situation and "anys" not in state.context.situation:
+                        state.context.situation += f", {age_info}"
+                else:
+                    state.context.situation = age_info
+                break
 
-        if any(w in msg for w in ["trabajo", "oficina", "viajo", "ocupado", "ocupada", "enfermera", "enfermero", "medico", "doctor"]):
-            if state.context.situation:
-                if "trabaja" not in state.context.situation:
-                    state.context.situation += ", trabaja mucho"
-            else:
-                state.context.situation = "trabaja mucho"
+        # Name extraction (ES: "me llamo X", "soy X", CA: "em dic X", EN: "my name is X")
+        name_patterns = [
+            r'(?:me llamo|soy|mi nombre es)\s+([a-záéíóúñ]+)',
+            r'(?:em dic|sóc)\s+([a-záéíóúñàèòç]+)',
+            r"(?:my name is|i'?m|call me)\s+([a-z]+)",
+        ]
+        if not state.context.name:
+            for pattern in name_patterns:
+                name_match = re.search(pattern, message, re.IGNORECASE)
+                if name_match:
+                    # Capitalize properly regardless of input case
+                    state.context.name = name_match.group(1).capitalize()
+                    break
 
-        # Edad/salud
-        import re
-        age_match = re.search(r'(?:tengo|soy de)\s+(\d{2,3})\s*(?:años|anos)', msg)
-        if age_match:
-            age = age_match.group(1)
-            age_info = f"{age} años"
-            if state.context.situation:
-                if "años" not in state.context.situation:
-                    state.context.situation += f", {age_info}"
-            else:
-                state.context.situation = age_info
+        # Goal extraction: accumulate what the user explicitly wants (niche-agnostic)
+        goal_patterns = [
+            r'(?:quiero|necesito|busco|me gustaria|me gustaría)\s+(.{5,60}?)(?:[.,!?]|$)',
+            r'(?:vull|necessito|busco|m\'agradaria)\s+(.{5,60}?)(?:[.,!?]|$)',
+            r'(?:i want|i need|looking for|i\'d like)\s+(.{5,60}?)(?:[.,!?]|$)',
+        ]
+        if not state.context.goal:
+            for pattern in goal_patterns:
+                goal_match = re.search(pattern, msg)
+                if goal_match:
+                    state.context.goal = goal_match.group(1).strip()
+                    break
 
-        # Objetivos
-        if any(w in msg for w in ["bajar", "adelgazar", "peso", "perder peso"]):
-            state.context.goal = "bajar de peso"
-        elif any(w in msg for w in ["musculo", "fuerza", "tonificar"]):
-            state.context.goal = "ganar musculo"
-        elif any(w in msg for w in ["energia", "cansad", "agotad"]):
-            state.context.goal = "mas energia"
-        elif any(w in msg for w in ["salud", "sano", "saludable"]):
-            state.context.goal = "mejorar salud"
-
-        # Restricciones
-        if any(w in msg for w in ["tiempo", "minutos", "ocupad", "rapido"]):
-            if "poco tiempo" not in state.context.constraints:
-                state.context.constraints.append("poco tiempo")
-        if any(w in msg for w in ["dinero", "caro", "presupuesto", "costoso"]):
-            if "presupuesto limitado" not in state.context.constraints:
-                state.context.constraints.append("presupuesto limitado")
-        if any(w in msg for w in ["lesion", "dolor", "rodilla", "espalda"]):
-            if "limitacion fisica" not in state.context.constraints:
-                state.context.constraints.append("limitacion fisica")
+        # BUG-UC-09 fix: Cap situation string to avoid unbounded growth
+        if state.context.situation and len(state.context.situation) > 200:
+            state.context.situation = state.context.situation[:200]
 
     def _determine_transition(self, state: ConversationState, intent: str, message: str) -> Optional[ConversationPhase]:
         """Determina si hay transicion de fase."""
@@ -449,6 +461,9 @@ FASE: ESCALAR - Tu objetivo es pasar a humano.
 
         return "\n".join(parts)
 
+
+# Backward compat alias (BUG-UC-03) — tests import UserContext by name
+UserContext = SalesFunnelContext
 
 # Singleton
 _state_manager: Optional[StateManager] = None

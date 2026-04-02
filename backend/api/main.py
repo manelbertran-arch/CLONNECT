@@ -212,6 +212,7 @@ from api.routers import (
     debug,
     dm,
     events,
+    feedback,
     gdpr,
     health,
     ingestion_v2,
@@ -284,6 +285,7 @@ app.include_router(metrics.router)
 app.include_router(events.router)
 app.include_router(unified_leads.router)
 app.include_router(clone_score.router)
+app.include_router(feedback.router)
 app.include_router(memory.router)
 app.include_router(auth_router)
 # AUTHENTICATION

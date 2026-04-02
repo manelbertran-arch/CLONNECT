@@ -1,0 +1,1800 @@
+{
+  "creator": "iris_bertran",
+  "timestamp": "2026-03-30T08:43:01.570265+00:00",
+  "judge_model": "gpt-4o",
+  "n_evaluated": 50,
+  "overall": {
+    "mean": 3.23,
+    "std": 0.58,
+    "scale": "1-5"
+  },
+  "dimensions": {
+    "conversational_ability": {
+      "name": "Conversational Ability",
+      "mean": 3.32,
+      "median": 3.0,
+      "std": 0.77,
+      "n": 50
+    },
+    "persona_fidelity": {
+      "name": "Persona Fidelity",
+      "mean": 3.08,
+      "median": 3.0,
+      "std": 0.9,
+      "n": 50
+    },
+    "knowledge_accuracy": {
+      "name": "Knowledge Accuracy",
+      "mean": 2.98,
+      "median": 3.0,
+      "std": 0.47,
+      "n": 50
+    },
+    "emotional_intelligence": {
+      "name": "Emotional Intelligence",
+      "mean": 3,
+      "median": 3.0,
+      "std": 0.97,
+      "n": 50
+    },
+    "engagement": {
+      "name": "Engagement",
+      "mean": 3.78,
+      "median": 4.0,
+      "std": 0.74,
+      "n": 50
+    }
+  },
+  "conversations": [
+    {
+      "id": "cpe_iris_b_001",
+      "test_input": "",
+      "bot_response": "Ja veig que t'ho estas currant cuca",
+      "ground_truth": "",
+      "overall_score": 3.4,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Ja veig que t'ho estas currant cuca\" is coherent and fluent. It uses the vocabulary typical of Iris Bertran, specifically the word \"cuca,\" which aligns with the context provided. The response is consistent with the style and tone expected from Iris Bertran, as it is concise and friendl"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Ja veig que t'ho estas currant cuca\" demonstrates a partial alignment with Iris Bertran's style. It uses the vocabulary word \"cuca,\" which is part of Iris's known vocabulary, indicating some recognition of her speech patterns. However, the response lacks the typical emoji usage and doe"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Ja veig que t'ho estas currant cuca\" does not contain any factual information or claims that could be evaluated for accuracy or hallucination. It is a general statement of encouragement and does not introduce any facts that could be incorrect or fabricated. Therefore, it does not meet "
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Ja veig que t'ho estas currant cuca\" demonstrates an adequate level of emotional awareness. It acknowledges the effort of the follower with a friendly tone, using the term \"cuca,\" which aligns with Iris Bertran's vocabulary. However, it lacks the depth of empathy or warmth that would e"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Ja veig que t'ho estas currant cuca\" demonstrates a natural and human-like tone, using vocabulary consistent with Iris Bertran's style, such as \"cuca.\" It feels engaging and adds a personal touch, which aligns with the criteria for a higher score. However, while it is friendly and ackn"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_002",
+      "test_input": "",
+      "bot_response": "Ja veus que tens ganes. Què et vols fer exactament?",
+      "ground_truth": "",
+      "overall_score": 3.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Ja veus que tens ganes. Què et vols fer exactament?\" is generally coherent and fluent. It maintains a conversational tone and is contextually consistent with the style of Iris Bertran, as it includes a question, which aligns with the 19% question style. However, it lacks the use of spe"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Ja veus que tens ganes. Què et vols fer exactament?\" does not fully align with Iris Bertran's distinctive style. While the response is in Catalan, which matches the language used by Iris, it lacks the specific vocabulary and pet names such as \"cuca,\" \"reina,\" or \"nena\" that are charact"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Ja veus que tens ganes. Què et vols fer exactament?\" does not contain any factual information or fabricated facts. It is a question that seeks to engage the follower in conversation, which aligns with the style of Iris Bertran. However, since there is no reference answer provided, it i"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Ja veus que tens ganes. Què et vols fer exactament?\" demonstrates adequate emotional awareness. It acknowledges the follower's potential excitement or interest but does not convey a strong emotional tone. The response is neither particularly warm nor cold, and it lacks the playful or a"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Ja veus que tens ganes. Què et vols fer exactament?\" demonstrates a natural tone and engages with the follower by asking a question, which helps to maintain conversational momentum. However, it lacks the distinct personality and vocabulary typical of Iris Bertran, such as the use of af"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_003",
+      "test_input": "",
+      "bot_response": "Ja veus que no estic per res, però si vols fer alguna classe, digues.",
+      "ground_truth": "",
+      "overall_score": 2.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Ja veus que no estic per res, però si vols fer alguna classe, digues.\" is generally coherent and grammatically correct. However, it lacks the personal touch and vocabulary typical of Iris Bertran's style, such as using affectionate terms or emojis. Additionally, it does not align well "
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 1,
+          "feedback": "The response lacks the distinctive vocabulary and tone associated with Iris Bertran. It does not incorporate any of the specific words or pet names like \"cuca,\" \"nena,\" or \"guapa\" that are characteristic of Iris's style. Additionally, the response is straightforward and lacks the emotional warmth or"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 2,
+          "feedback": "The response \"Ja veus que no estic per res, però si vols fer alguna classe, digues.\" does not contain any factual information or specific content that can be evaluated for factual accuracy. It is a vague and evasive response that does not align with the style or vocabulary of Iris Bertran as describ"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 2,
+          "feedback": "The response \"Ja veus que no estic per res, però si vols fer alguna classe, digues.\" lacks emotional engagement and does not align with the style and vocabulary typical of Iris Bertran. It does not incorporate any of the characteristic terms or emojis that Iris would typically use, nor does it refle"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"Ja veus que no estic per res, però si vols fer alguna classe, digues.\" demonstrates a natural tone and feels human-like. However, it is somewhat passive as it does not significantly advance the conversation or add much personality. While it offers a suggestion for a class, it lacks the"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_004",
+      "test_input": "",
+      "bot_response": "Ja veus que tens ganas de començar. 🫠 Així que potser un dia de hipopressius i estiraments?",
+      "ground_truth": "",
+      "overall_score": 3.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Ja veus que tens ganas de començar. 🫠 Així que potser un dia de hipopressius i estiraments?\" is generally coherent and fluent. It maintains a conversational tone and includes an emoji, aligning with Iris Bertran's style. However, it lacks the specific vocabulary and style elements such"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Ja veus que tens ganas de començar. 🫠 Així que potser un dia de hipopressius i estiraments?\" partially aligns with the creator's style. It includes an emoji, which is consistent with the creator's usage, but the overall emoji usage is lower than the expected 30%. The message length is "
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Ja veus que tens ganas de començar. 🫠 Així que potser un dia de hipopressius i estiraments?\" does not contain any factual errors or fabricated information. However, it lacks specific factual content that would be present in a reference answer scoring a 5. The response is more of a sugg"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Ja veus que tens ganas de començar. 🫠 Així que potser un dia de hipopressius i estiraments?\" demonstrates a moderate level of emotional awareness. It acknowledges the enthusiasm or readiness implied in the message, suggesting an activity that aligns with the perceived mood. However, it"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Ja veus que tens ganas de començar. 🫠 Així que potser un dia de hipopressius i estiraments?\" demonstrates a natural and engaging tone. It includes an emoji, which aligns with the style of Iris Bertran, and suggests an activity, thereby moving the conversation forward. The response feel"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_005",
+      "test_input": "",
+      "bot_response": "Ja, jo també tinc un bikini que em vaig comprar i encara no el he posat 😘 Però ara no tens cap classe d’hipopressius, però potser podries fer barre o zumba?",
+      "ground_truth": "",
+      "overall_score": 3.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response is generally coherent and fluent, maintaining a conversational tone. It includes a personal anecdote about owning a bikini, which adds a personal touch and aligns with the informal style expected from Iris Bertran. However, the response introduces a topic about classes like \"hipopressiu"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response demonstrates some alignment with Iris Bertran's style, particularly in the use of emojis and the conversational tone. However, it lacks the distinctive vocabulary that Iris typically uses, such as \"cuca,\" \"reina,\" or \"nena.\" The message length is appropriate, but the response does not f"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response does not contain any fabricated facts or incorrect information. However, it lacks specific factual content that would be present in a reference answer scoring a 5. The response is more conversational and does not provide detailed factual information that could be compared to a reference"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response demonstrates a moderate level of emotional awareness. It acknowledges the context by sharing a personal anecdote about owning a bikini, which adds a relatable touch. However, it lacks a deeper empathetic engagement or warmth that would be expected from Iris Bertran's style. The suggesti"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response provided is engaging and human-like, as it includes a personal anecdote about owning a bikini and not having worn it yet, which adds a relatable and personal touch. The use of the emoji 😘 contributes to a friendly and informal tone, aligning with the style of Iris Bertran. Additionally,"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_006",
+      "test_input": "",
+      "bot_response": "Ja te’n vaig dir, el combo del dimarts es de 5€, el de hipopresius és gratis si fas el sunday bonus. Vols que t’hi apuntem?",
+      "ground_truth": "",
+      "overall_score": 2.0,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 1,
+          "feedback": "The response provided is not coherent or contextually consistent with the given task description. The message discusses a pricing and scheduling detail about a \"combo del dimarts\" and \"hipopresius,\" which does not align with the context of Iris Bertran's style or vocabulary. There is no indication t"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 1,
+          "feedback": "The response does not align well with Iris Bertran's speech patterns, tone, vocabulary, or behavioral style. It lacks the distinctive vocabulary such as \"cuca,\" \"reina,\" \"nena,\" and others that are characteristic of Iris. Additionally, the response does not incorporate any emojis, which are a signif"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 4,
+          "feedback": "The response provides specific factual information about the pricing of a combo and a bonus offer, which suggests a level of detail that is factually correct. However, without a reference answer to compare against, it is challenging to determine if there are any omissions or if the information is co"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 1,
+          "feedback": "The response provided does not demonstrate any emotional perception or empathetic engagement. It is a factual statement about a pricing offer and does not align with the emotional or stylistic elements expected from Iris Bertran. The response lacks warmth, concern, or enthusiasm, and does not incorp"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response provided does not align well with the persona of Iris Bertran as described in the context. It lacks the use of the specific vocabulary and style that characterizes Iris, such as the use of affectionate terms or emojis. The response is informative but does not engage with the follower in"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_007",
+      "test_input": "",
+      "bot_response": "Ja veus, no t’has de preocupar, cuca. Pots fer la classe d’hipopressius, és molt relax.",
+      "ground_truth": "",
+      "overall_score": 3.4,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Ja veus, no t’has de preocupar, cuca. Pots fer la classe d’hipopressius, és molt relax.\" is generally coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"cuca,\" and maintains a friendly and reassuring tone. However, there is no specific context provid"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Ja veus, no t’has de preocupar, cuca. Pots fer la classe d’hipopressius, és molt relax.\" demonstrates a partial alignment with Iris Bertran's style. The use of the word \"cuca\" aligns with the creator's vocabulary, which is a positive aspect. However, the response lacks the characterist"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response does not contain any fabricated facts or incorrect information. It provides a suggestion for an activity, which is factually correct and aligns with the context of relaxation. However, since there is no reference answer to compare for completeness, it is difficult to determine if there "
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response demonstrates an adequate level of emotional awareness. It uses the term \"cuca,\" which aligns with Iris Bertran's vocabulary, and suggests a relaxing activity, indicating a positive and supportive tone. However, it lacks the depth of empathy and warmth that would be expected for a higher"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Ja veus, no t’has de preocupar, cuca. Pots fer la classe d’hipopressius, és molt relax.\" demonstrates a natural and human-like tone, using vocabulary consistent with Iris Bertran's style, such as \"cuca.\" The message is engaging and adds a personal touch, which aligns with the conversat"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_008",
+      "test_input": "",
+      "bot_response": "Ja pots fer-ho. 🤣 Vols que et digui què et recomano?",
+      "ground_truth": "",
+      "overall_score": 2.8,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Ja pots fer-ho. 🤣 Vols que et digui què et recomano?\" is generally coherent and fluent. It maintains a conversational tone and includes an emoji, which aligns with the style of Iris Bertran. However, the response lacks specific context or a clear connection to the follower's message, a"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Ja pots fer-ho. 🤣 Vols que et digui què et recomano?\" partially aligns with Iris Bertran's style. It includes an emoji, which is consistent with the 30% emoji usage in Iris's style. However, the response lacks the specific vocabulary that Iris typically uses, such as \"cuca,\" \"reina,\" o"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 2,
+          "feedback": "The response \"Ja pots fer-ho. 🤣 Vols que et digui què et recomano?\" does not contain any factual information or specific content that can be evaluated for accuracy or completeness. It is a general and vague statement without any factual claims or details. Therefore, it does not meet the criteria for"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 2,
+          "feedback": "[Does the response show appropriate emotional perception and empathetic engagement?] The response \"Ja pots fer-ho. 🤣 Vols que et digui què et recomano?\" lacks context and emotional engagement. It does not acknowledge any emotional tone or context from the follower's message, as there is no message p"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Ja pots fer-ho. 🤣 Vols que et digui què et recomano?\" demonstrates a natural tone and includes an emoji, which aligns with Iris Bertran's style of using emojis frequently. The response is engaging and adds a personal touch by asking a question, which helps to move the conversation forw"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_009",
+      "test_input": "",
+      "bot_response": "T’has de registrar a idealista, ja te’n vaig parlar, nena. I si vols fer alguna prova?",
+      "ground_truth": "",
+      "overall_score": 2.8,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"T’has de registrar a idealista, ja te’n vaig parlar, nena. I si vols fer alguna prova?\" is generally coherent and fluent. It uses the vocabulary term \"nena,\" which aligns with the style of Iris Bertran. However, the response does not fully align with the context of a follower sending a"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"T’has de registrar a idealista, ja te’n vaig parlar, nena. I si vols fer alguna prova?\" shows some alignment with Iris Bertran's style, particularly in the use of the word \"nena,\" which is part of the creator's vocabulary. However, the response lacks the characteristic emoji usage and "
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"T’has de registrar a idealista, ja te’n vaig parlar, nena. I si vols fer alguna prova?\" does not contain any fabricated facts or incorrect information. However, it lacks specific factual content that would be present in a reference answer scoring a 5. The response is straightforward an"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 2,
+          "feedback": "The response \"T’has de registrar a idealista, ja te’n vaig parlar, nena. I si vols fer alguna prova?\" does not demonstrate a clear understanding of the emotional context or engagement with the follower. The message seems to focus on a practical suggestion without any emotional warmth or empathy. It "
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"T’has de registrar a idealista, ja te’n vaig parlar, nena. I si vols fer alguna prova?\" demonstrates a natural tone and incorporates some of the vocabulary typical of Iris Bertran, such as \"nena.\" However, it does not significantly advance the conversation or add much personality beyon"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_010",
+      "test_input": "",
+      "bot_response": "va a saludar i ja es va anar",
+      "ground_truth": "",
+      "overall_score": 2.0,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 2,
+          "feedback": "The response \"va a saludar i ja es va anar\" is partially coherent but contains noticeable inconsistencies or awkward phrasing. The sentence structure is somewhat awkward and does not align well with the style and vocabulary expected from Iris Bertran. The response lacks the characteristic vocabulary"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 1,
+          "feedback": "The response \"va a saludar i ja es va anar\" does not align well with the creator's speech patterns, tone, vocabulary, or behavioral style. It lacks the distinctive vocabulary such as \"cuca,\" \"reina,\" or \"nena,\" and does not incorporate any emojis, which are a significant part of Iris Bertran's style"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"va a saludar i ja es va anar\" does not contain any factual information or specific content that can be evaluated for accuracy or completeness. It is a vague statement that does not provide any factual details or context related to the instruction or the persona of Iris Bertran. Therefo"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 1,
+          "feedback": "The response \"va a saludar i ja es va anar\" lacks any emotional engagement or empathetic connection. It does not acknowledge any emotional context or sentiment from the follower's message, which is crucial for a response from Iris Bertran, who is known for her warm and engaging style. The response i"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"va a saludar i ja es va anar\" lacks engagement and does not advance the conversation. It is a passive statement that does not add personality or maintain conversational momentum. The response does not incorporate any of the vocabulary or style elements associated with Iris Bertran, suc"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_011",
+      "test_input": "",
+      "bot_response": "Ja et vaig dir que el combo de domingue es el millor.",
+      "ground_truth": "",
+      "overall_score": 2.4,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Ja et vaig dir que el combo de domingue es el millor.\" is generally coherent and fluent. However, it lacks context and does not align with the style or vocabulary typical of Iris Bertran. The response does not incorporate any of the specific vocabulary or stylistic elements such as emo"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 2,
+          "feedback": "The response \"Ja et vaig dir que el combo de domingue es el millor.\" does not fully align with Iris Bertran's distinctive style. While it is in Catalan, which matches the language Iris uses, it lacks the characteristic vocabulary such as \"cuca,\" \"nena,\" or \"guapa,\" and does not include any emojis, w"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Ja et vaig dir que el combo de domingue es el millor.\" does not contain any factual inaccuracies or fabricated information. However, it lacks specific factual content that would be expected in a complete response. The statement is more of a personal opinion or a casual remark rather th"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 1,
+          "feedback": "The response \"Ja et vaig dir que el combo de domingue es el millor.\" does not demonstrate any emotional perception or empathetic engagement. It lacks any indication of understanding or responding to the emotional context of the follower's message, as there is no message provided to respond to. The r"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"Ja et vaig dir que el combo de domingue es el millor.\" maintains a natural tone and feels human-like, as it reflects a casual and personal style of communication. However, it is somewhat passive and does not actively advance the conversation or add significant personality. It acknowled"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_012",
+      "test_input": "",
+      "bot_response": "T’has de registrar a idealista, t’ho digo perquè em va dir un amic que va fer una prova i li va anar molt bé.",
+      "ground_truth": "",
+      "overall_score": 2.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"T’has de registrar a idealista, t’ho digo perquè em va dir un amic que va fer una prova i li va anar molt bé.\" is generally coherent and fluent. However, it lacks alignment with the context provided for Iris Bertran. The response does not incorporate any of the specific vocabulary or s"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 1,
+          "feedback": "The response \"T’has de registrar a idealista, t’ho digo perquè em va dir un amic que va fer una prova i li va anar molt bé.\" does not align well with the creator's speech patterns, tone, vocabulary, or behavioral style. It lacks the distinctive vocabulary such as \"cuca,\" \"reina,\" \"nena,\" and others "
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"T’has de registrar a idealista, t’ho digo perquè em va dir un amic que va fer una prova i li va anar molt bé.\" does not contain any fabricated facts or incorrect information. However, it lacks specific factual content that would be expected in a complete response. The response does not"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 1,
+          "feedback": "The response \"T’has de registrar a idealista, t’ho digo perquè em va dir un amic que va fer una prova i li va anar molt bé.\" does not demonstrate any emotional perception or empathetic engagement. It is a factual statement about registering on a website, which lacks any emotional tone or engagement "
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"T’has de registrar a idealista, t’ho digo perquè em va dir un amic que va fer una prova i li va anar molt bé.\" does not align well with the criteria for a high score. It lacks the personal touch and vocabulary typical of Iris Bertran, such as terms like \"cuca,\" \"reina,\" or \"nena.\" Addi"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_013",
+      "test_input": "",
+      "bot_response": "Ja t’entenc. El baile és el millor refugi. Vols fer alguna prova?",
+      "ground_truth": "",
+      "overall_score": 3.4,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Ja t’entenc. El baile és el millor refugi. Vols fer alguna prova?\" is generally coherent and fluent. It maintains a conversational tone and is contextually consistent with the style of Iris Bertran, using a casual and friendly approach. However, it lacks the specific vocabulary and sty"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Ja t’entenc. El baile és el millor refugi. Vols fer alguna prova?\" shows some alignment with the creator's style but lacks several key elements. The vocabulary used does not incorporate any of the specific terms like \"cuca,\" \"nena,\" or \"guapa\" that are characteristic of Iris Bertran. A"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Ja t’entenc. El baile és el millor refugi. Vols fer alguna prova?\" does not contain any factual errors or fabricated information. It is a general statement about dance being a refuge, which is a subjective opinion rather than a factual claim. However, the response lacks specific factua"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "[Does the response show appropriate emotional perception and empathetic engagement?] The response \"Ja t’entenc. El baile és el millor refugi. Vols fer alguna prova?\" demonstrates adequate emotional awareness. It acknowledges the emotional context by understanding and agreeing with the sentiment that"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Ja t’entenc. El baile és el millor refugi. Vols fer alguna prova?\" demonstrates a natural tone and maintains a conversational flow. It acknowledges the follower's message and introduces a new topic by asking a question, which helps to advance the conversation. The use of Catalan langua"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_014",
+      "test_input": "",
+      "bot_response": "Perfecte cuca. 🫶 Ho t'has de passar molt bé avui 😘",
+      "ground_truth": "",
+      "overall_score": 3.8,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Perfecte cuca. 🫶 Ho t'has de passar molt bé avui 😘\" is coherent and fluent. It aligns well with the context provided about Iris Bertran, using vocabulary such as \"cuca\" and including emojis, which matches the style of Iris Bertran. The response is consistent with the conversation conte"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Perfecte cuca. 🫶 Ho t'has de passar molt bé avui 😘\" demonstrates a strong alignment with the creator's style. It uses the vocabulary \"cuca,\" which is consistent with Iris Bertran's known lexicon. The inclusion of emojis aligns with the creator's style, as emojis are used in 30% of her "
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Perfecte cuca. 🫶 Ho t'has de passar molt bé avui 😘\" does not contain any factual information or potential for hallucination, as it is a general, supportive statement. It aligns with the style and vocabulary of Iris Bertran, using terms like \"cuca\" and emojis, which are consistent with "
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"Perfecte cuca. 🫶 Ho t'has de passar molt bé avui 😘\" demonstrates an emotionally perceptive engagement. The use of affectionate terms like \"cuca\" and the inclusion of emojis convey warmth and friendliness, aligning well with the style and vocabulary of Iris Bertran. The response is play"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Perfecte cuca. 🫶 Ho t'has de passar molt bé avui 😘\" demonstrates a natural and human-like tone, incorporating elements of Iris Bertran's vocabulary such as \"cuca\" and using emojis, which aligns with the style of the creator. The response is engaging and adds a personal touch, which hel"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_015",
+      "test_input": "",
+      "bot_response": "Nena. Que descanses guapa, que te lo curras 💪 nos vemos mañana",
+      "ground_truth": "",
+      "overall_score": 4.0,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 5,
+          "feedback": "The response \"Nena. Que descanses guapa, que te lo curras 💪 nos vemos mañana\" is coherent and fluent. It aligns well with the context provided about Iris Bertran's style and vocabulary. The use of terms like \"nena\" and \"guapa\" fits the vocabulary list, and the inclusion of an emoji is consistent wit"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Nena. Que descanses guapa, que te lo curras 💪 nos vemos mañana\" demonstrates a strong alignment with Iris Bertran's style. It uses vocabulary typical of Iris, such as \"nena\" and \"guapa,\" and includes an emoji, which is consistent with the 30% emoji usage in her style. The tone is frien"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Nena. Que descanses guapa, que te lo curras 💪 nos vemos mañana\" does not contain any factual information or claims that could be evaluated for accuracy. It is a casual, friendly message that aligns with the style and vocabulary of Iris Bertran, using terms like \"nena\" and \"guapa,\" and "
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"Nena. Que descanses guapa, que te lo curras 💪 nos vemos mañana\" demonstrates a good level of emotional perception and empathetic engagement. The use of affectionate terms like \"nena\" and \"guapa\" aligns well with the vocabulary associated with Iris Bertran, indicating warmth and familia"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Nena. Que descanses guapa, que te lo curras 💪 nos vemos mañana\" effectively uses the vocabulary typical of Iris Bertran, such as \"nena\" and \"guapa,\" which aligns with the context provided. The inclusion of an emoji adds a personal touch, consistent with the style of using emojis 30% of"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_016",
+      "test_input": "",
+      "bot_response": "Jajaja no me dejes sin booty. 🤣 T’has de dormir cuca, que anem d’hora. 😘",
+      "ground_truth": "",
+      "overall_score": 4.0,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Jajaja no me dejes sin booty. 🤣 T’has de dormir cuca, que anem d’hora. 😘\" is generally coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"cuca,\" and includes emojis, aligning with the style's 30% emoji usage. However, the phrase \"no me dejes sin boot"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Jajaja no me dejes sin booty. 🤣 T’has de dormir cuca, que anem d’hora. 😘\" demonstrates a strong alignment with Iris Bertran's style. It incorporates the use of emojis, which is consistent with the 30% emoji usage noted in the style guide. The vocabulary includes \"cuca,\" which is part o"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response does not contain any factual information or fabricated facts, as it is a casual and humorous reply. It does not present any factual errors or hallucinations. However, it lacks specific factual content, as there is no reference answer to compare it against for completeness. The response "
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"Jajaja no me dejes sin booty. 🤣 T’has de dormir cuca, que anem d’hora. 😘\" demonstrates a playful and affectionate tone, which aligns well with the vocabulary and style associated with Iris Bertran. The use of emojis and terms like \"cuca\" adds to the warmth and playfulness, showing an u"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 5,
+          "feedback": "The response \"Jajaja no me dejes sin booty. 🤣 T’has de dormir cuca, que anem d’hora. 😘\" is engaging and human-like. It incorporates humor and emojis, which align with Iris Bertran's style, and uses vocabulary such as \"cuca\" that fits the context. The response is proactive and adds personality, movin"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_017",
+      "test_input": "",
+      "bot_response": "Amor, ja t'has de dormir? 😂 Que t'ho passis de maredeter",
+      "ground_truth": "",
+      "overall_score": 3.6,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Amor, ja t'has de dormir? 😂 Que t'ho passis de maredeter\" is generally coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"Amor,\" and includes an emoji, aligning with the expected style. However, the phrase \"Que t'ho passis de maredeter\" seems slightl"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Amor, ja t'has de dormir? 😂 Que t'ho passis de maredeter\" demonstrates some alignment with Iris Bertran's style, but not completely. The use of \"Amor\" aligns with the creator's vocabulary, and the inclusion of an emoji is consistent with the 30% emoji usage. However, the message length"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Amor, ja t'has de dormir? 😂 Que t'ho passis de maredeter\" does not contain any factual information or claims that could be evaluated for accuracy or hallucination. It is a casual, conversational message that aligns with the style and vocabulary of Iris Bertran, using terms like \"Amor\" "
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"Amor, ja t'has de dormir? 😂 Que t'ho passis de maredeter\" demonstrates a playful and affectionate tone, which aligns well with the vocabulary and style associated with Iris Bertran. The use of \"Amor\" and the emoji adds warmth and playfulness, which is consistent with the creator's typi"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Amor, ja t'has de dormir? 😂 Que t'ho passis de maredeter\" demonstrates a natural and engaging tone, incorporating humor and a playful emoji, which aligns well with the style and vocabulary of Iris Bertran. The use of \"Amor\" and the emoji adds a personal touch, making it feel human-like"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_018",
+      "test_input": "",
+      "bot_response": "ja ja ja, que feliç que t’ho passis bé. dormi bé flor, que t’has de despertar a tope",
+      "ground_truth": "",
+      "overall_score": 3.6,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"ja ja ja, que feliç que t’ho passis bé. dormi bé flor, que t’has de despertar a tope\" is generally coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"flor,\" and maintains a friendly and informal tone. However, there is no prior conversation context p"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"ja ja ja, que feliç que t’ho passis bé. dormi bé flor, que t’has de despertar a tope\" demonstrates a partial alignment with Iris Bertran's style. The use of \"flor\" aligns with the creator's vocabulary, and the tone is friendly and informal, which is consistent with Iris's style. Howeve"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response does not contain any factual information or fabricated facts, as it is a general, friendly message. It does not include specific factual content that could be compared to a reference answer. Therefore, it does not meet the criteria for a higher score that requires specific factual conte"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"ja ja ja, que feliç que t’ho passis bé. dormi bé flor, que t’has de despertar a tope\" demonstrates an emotionally perceptive engagement. The use of \"ja ja ja\" conveys a playful and light-hearted tone, which aligns well with the context of someone having a good time. The phrase \"dormi b"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"ja ja ja, que feliç que t’ho passis bé. dormi bé flor, que t’has de despertar a tope\" demonstrates a natural and engaging tone. It uses informal language and includes a laugh (\"ja ja ja\"), which adds a human-like quality. The use of \"flor\" aligns with Iris Bertran's vocabulary, enhanci"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_019",
+      "test_input": "",
+      "bot_response": "Que mola la confianza. T’has de dormir guapa, descansa. Domings no me podes deixar, tens el booty per a mi Ja te l’he comprat, ja veuràs",
+      "ground_truth": "",
+      "overall_score": 3.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 2,
+          "feedback": "The response \"Que mola la confianza. T’has de dormir guapa, descansa. Domings no me podes deixar, tens el booty per a mi Ja te l’he comprat, ja veuràs\" demonstrates a level of coherence and fluency, but there are noticeable inconsistencies and awkward phrasing. The response starts with a comment on "
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Que mola la confianza. T’has de dormir guapa, descansa. Domings no me podes deixar, tens el booty per a mi Ja te l’he comprat, ja veuràs\" partially aligns with Iris Bertran's style. It uses some of the vocabulary typical of Iris, such as \"guapa,\" and the informal, friendly tone is pres"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response does not contain any factual information or specific content that can be evaluated for factual accuracy. It is more of a casual, conversational message rather than one that provides factual details. Therefore, it does not meet the criteria for factual content as outlined in the rubric. "
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Que mola la confianza. T’has de dormir guapa, descansa. Domings no me podes deixar, tens el booty per a mi Ja te l’he comprat, ja veuràs\" demonstrates a mix of playful and caring tones, which aligns with the vocabulary and style of Iris Bertran. The use of terms like \"guapa\" and the pl"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 5,
+          "feedback": "The response \"Que mola la confianza. T’has de dormir guapa, descansa. Domings no me podes deixar, tens el booty per a mi Ja te l’he comprat, ja veuràs\" demonstrates a natural and engaging tone. It incorporates informal language and expressions that align with the vocabulary and style of Iris Bertran"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_020",
+      "test_input": "",
+      "bot_response": "Ja veig que tens ganas. 😘 Que bonic que diguis això. Siuu, no et deixaré els domingos, el booty ha de estar a tope. 💪 Que dolç que ets, nenaaaa ❤️",
+      "ground_truth": "",
+      "overall_score": 4.0,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response is generally coherent and fluent, maintaining a conversational tone that aligns with the style of Iris Bertran. It uses vocabulary consistent with the context, such as \"nena\" and emojis, which are characteristic of Iris's communication style. However, there is a slight inconsistency in "
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response demonstrates a strong alignment with Iris Bertran's style, incorporating several elements of her vocabulary such as \"nena\" and using emojis effectively, which is consistent with the 30% emoji usage noted in the style guide. The tone is casual and affectionate, matching the creator's typ"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response does not contain any factual inaccuracies or fabricated information. It maintains a conversational tone consistent with the style of Iris Bertran, using vocabulary such as \"nena\" and emojis, which aligns with the context provided. However, the response lacks specific factual content tha"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response demonstrates a good level of emotional perception and empathetic engagement. It uses playful language and emojis, which aligns with the style of Iris Bertran. The use of terms like \"nenaaaa\" and emojis such as \"😘\" and \"❤️\" adds warmth and playfulness, which is appropriate given the cont"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 5,
+          "feedback": "The response effectively captures a human-like tone and maintains conversational momentum. It uses informal language and emojis, which aligns with the style of Iris Bertran. The response is engaging and adds personality by acknowledging the follower's enthusiasm and responding with humor and affecti"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_021",
+      "test_input": "",
+      "bot_response": "nena te veo mañana. que descanses, cuca",
+      "ground_truth": "",
+      "overall_score": 3.4,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"nena te veo mañana. que descanses, cuca\" is coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"nena\" and \"cuca,\" which aligns well with the context provided. The message is clear and maintains a friendly tone, which is appropriate for the persona of "
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"nena te veo mañana. que descanses, cuca\" demonstrates a strong alignment with Iris Bertran's style. It incorporates the vocabulary typical of Iris, using terms like \"nena\" and \"cuca,\" which are consistent with the creator's known lexicon. The tone is informal and friendly, matching the"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"nena te veo mañana. que descanses, cuca\" does not contain any factual information or claims that could be evaluated for accuracy or hallucination. It is a simple, friendly message that aligns with the vocabulary and style of Iris Bertran, using terms like \"nena\" and \"cuca.\" However, si"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"nena te veo mañana. que descanses, cuca\" demonstrates an adequate level of emotional awareness. It uses terms from Iris Bertran's vocabulary, such as \"nena\" and \"cuca,\" which aligns with her style. The message is friendly and casual, suggesting a warm tone, but it does not exhibit a de"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"nena te veo mañana. que descanses, cuca\" demonstrates a natural and human-like tone, using vocabulary consistent with Iris Bertran's style, such as \"nena\" and \"cuca.\" The message is casual and friendly, fitting the persona's conversational style. However, it is somewhat passive as it d"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_022",
+      "test_input": "",
+      "bot_response": "Reinaaaa, ja te l'he passat. Vols fer classes amb mi?",
+      "ground_truth": "",
+      "overall_score": 4.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Reinaaaa, ja te l'he passat. Vols fer classes amb mi?\" is coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"Reinaaaa,\" and maintains a friendly and engaging tone. The response is contextually consistent, as it implies a continuation of a conversatio"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Reinaaaa, ja te l'he passat. Vols fer classes amb mi?\" demonstrates a strong alignment with Iris Bertran's style. The use of \"Reinaaaa\" aligns well with the creator's vocabulary, which includes terms like \"reina\" and other affectionate expressions. The message length is appropriate, an"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 5,
+          "feedback": "The response \"Reinaaaa, ja te l'he passat. Vols fer classes amb mi?\" does not contain any factual inaccuracies or fabricated information. It is a straightforward and casual message that aligns with the style and vocabulary of Iris Bertran. However, since there is no reference answer provided, it is "
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"Reinaaaa, ja te l'he passat. Vols fer classes amb mi?\" demonstrates a good level of emotional perception and empathetic engagement. The use of \"Reinaaaa\" aligns with the vocabulary and style of Iris Bertran, showing warmth and familiarity. The offer to take classes together adds a pers"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Reinaaaa, ja te l'he passat. Vols fer classes amb mi?\" effectively uses the vocabulary typical of Iris Bertran, such as \"Reinaaaa,\" which adds a personal and human touch. The use of informal language and the inclusion of a question helps to maintain conversational momentum and engage t"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_023",
+      "test_input": "",
+      "bot_response": "Que rica nena. 😂 Pues ja tens el teu booty a tope per la nit. Descansa i veu si pots el lunes",
+      "ground_truth": "",
+      "overall_score": 3.6,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Que rica nena. 😂 Pues ja tens el teu booty a tope per la nit. Descansa i veu si pots el lunes\" is generally coherent and fluent. It uses a mix of languages, which is consistent with the style of Iris Bertran, and includes an emoji, aligning with the vocabulary and style. However, there"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Que rica nena. 😂 Pues ja tens el teu booty a tope per la nit. Descansa i veu si pots el lunes\" demonstrates several elements of Iris Bertran's style. It uses the vocabulary \"nena,\" which aligns with the creator's known terms. The inclusion of an emoji (😂) matches the 30% emoji usage ch"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Que rica nena. 😂 Pues ja tens el teu booty a tope per la nit. Descansa i veu si pots el lunes\" does not contain any factual information or claims that could be evaluated for accuracy. It is a casual, informal message that aligns with the style and vocabulary of Iris Bertran, but it doe"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"Que rica nena. 😂 Pues ja tens el teu booty a tope per la nit. Descansa i veu si pots el lunes\" demonstrates a playful and casual tone, which aligns with the vocabulary and style associated with Iris Bertran. The use of \"nena\" and the emoji fits the creator's style, and the message main"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Que rica nena. 😂 Pues ja tens el teu booty a tope per la nit. Descansa i veu si pots el lunes\" demonstrates a natural and engaging tone, incorporating humor and personality with the use of emojis and informal language. It aligns well with the vocabulary and style associated with Iris B"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_024",
+      "test_input": "",
+      "bot_response": "Ja veig que tens el drive 😂😂 Dormi bé nena, i demà estarem fortíssimes. 💪 Que rica tens amb això de les classes 😘",
+      "ground_truth": "",
+      "overall_score": 4.0,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response is generally coherent and fluent, maintaining a friendly and casual tone consistent with the style of Iris Bertran. It uses vocabulary such as \"nena\" and emojis, aligning with the creator's style. However, there is a slight inconsistency in the phrase \"Que rica tens amb això de les clas"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response demonstrates a strong alignment with Iris Bertran's style. It incorporates several elements from her vocabulary, such as \"nena\" and \"rica,\" and uses emojis effectively, which is consistent with the 30% emoji usage noted in the style guide. The tone is casual and friendly, matching the c"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response does not contain any factual errors or fabricated information. It is consistent with the style and vocabulary of Iris Bertran, using terms like \"nena\" and emojis, which align with the context provided. However, the response lacks specific factual content that might be present in a refer"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response demonstrates a good level of emotional perception and empathetic engagement. It uses playful language and emojis, which aligns with the style and vocabulary of Iris Bertran. The use of terms like \"nena\" and emojis such as \"😂😂\" and \"😘\" adds warmth and playfulness, which is appropriate fo"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 5,
+          "feedback": "The response \"Ja veig que tens el drive 😂😂 Dormi bé nena, i demà estarem fortíssimes. 💪 Que rica tens amb això de les classes 😘\" demonstrates a human-like and engaging tone. It incorporates humor and emojis, aligning with Iris Bertran's style, and uses informal, affectionate language such as \"nena\" "
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_025",
+      "test_input": "",
+      "bot_response": "T’has de registrar a idealista i mira si tens alguna duda",
+      "ground_truth": "",
+      "overall_score": 1.8,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 2,
+          "feedback": "The response \"T’has de registrar a idealista i mira si tens alguna duda\" is partially coherent but contains noticeable inconsistencies with the context provided. The response does not align with the style and vocabulary typical of Iris Bertran, as it lacks the informal, affectionate tone and vocabul"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 1,
+          "feedback": "The response \"T’has de registrar a idealista i mira si tens alguna duda\" does not align well with Iris Bertran's distinctive style. It lacks the personalized vocabulary such as \"cuca,\" \"reina,\" or \"nena,\" and does not incorporate any emojis, which are a significant part of Iris's communication style"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"T’has de registrar a idealista i mira si tens alguna duda\" does not contain any fabricated facts or incorrect information. However, it lacks specific factual content that would be expected in a complete response. The instruction does not provide a reference answer, but the response doe"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 1,
+          "feedback": "The response \"T’has de registrar a idealista i mira si tens alguna duda\" lacks emotional perception and empathetic engagement. It is a straightforward, practical suggestion without any emotional tone or warmth. The response does not acknowledge any emotional context or attempt to engage with the fol"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 2,
+          "feedback": "The response \"T’has de registrar a idealista i mira si tens alguna duda\" lacks the personal touch and conversational style expected from Iris Bertran. It is direct and instructional, which makes it feel somewhat robotic and passive. It does not incorporate any of the vocabulary or stylistic elements"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_026",
+      "test_input": "",
+      "bot_response": "Ja veig que tens el booty a tope 😂 T'has de registrar a idealista per veure perfils, ja?",
+      "ground_truth": "",
+      "overall_score": 3.0,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Ja veig que tens el booty a tope 😂 T'has de registrar a idealista per veure perfils, ja?\" is generally coherent and fluent. It maintains a casual and playful tone, which aligns with the style of Iris Bertran. However, there is a slight inconsistency in the context, as the response seem"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Ja veig que tens el booty a tope 😂 T'has de registrar a idealista per veure perfils, ja?\" partially aligns with Iris Bertran's style. It includes an emoji, which is consistent with the 30% emoji usage in Iris's style. The tone is casual and playful, which matches the creator's tone. Ho"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Ja veig que tens el booty a tope 😂 T'has de registrar a idealista per veure perfils, ja?\" does not contain any factual inaccuracies or fabricated information. However, it lacks specific factual content that would be expected in a complete response. The mention of \"idealista\" is a factu"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 2,
+          "feedback": "[Does the response show appropriate emotional perception and empathetic engagement?] The response \"Ja veig que tens el booty a tope 😂 T'has de registrar a idealista per veure perfils, ja?\" does not clearly demonstrate an understanding of the emotional context or engagement with the follower. The mes"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Ja veig que tens el booty a tope 😂 T'has de registrar a idealista per veure perfils, ja?\" demonstrates a natural and engaging tone, incorporating humor and a playful emoji, which aligns with the style of Iris Bertran. The use of casual language and the inclusion of a question help to m"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_027",
+      "test_input": "",
+      "bot_response": "Reinaaaa, passa’m el número de la teva secretaria millor i em reservo un parell de classes + dinaret o soparet",
+      "ground_truth": "",
+      "overall_score": 3.8,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Reinaaaa, passa’m el número de la teva secretaria millor i em reservo un parell de classes + dinaret o soparet\" is generally coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"Reinaaaa,\" and maintains a friendly and informal tone. However, there is a"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Reinaaaa, passa’m el número de la teva secretaria millor i em reservo un parell de classes + dinaret o soparet\" demonstrates a strong alignment with the creator's style. The use of \"Reinaaaa\" aligns with the vocabulary typical of Iris Bertran, incorporating affectionate terms. The tone"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Reinaaaa, passa’m el número de la teva secretaria millor i em reservo un parell de classes + dinaret o soparet\" does not contain any factual information or specific details that could be evaluated for accuracy or completeness. It is a casual and informal message that does not provide a"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"Reinaaaa, passa’m el número de la teva secretaria millor i em reservo un parell de classes + dinaret o soparet\" demonstrates a playful and warm tone, which aligns well with the vocabulary and style associated with Iris Bertran. The use of \"Reinaaaa\" and the suggestion of arranging clas"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 5,
+          "feedback": "The response \"Reinaaaa, passa’m el número de la teva secretaria millor i em reservo un parell de classes + dinaret o soparet\" effectively captures a human-like tone and maintains conversational momentum. The use of informal language and terms like \"Reinaaaa\" aligns well with the vocabulary and style"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_028",
+      "test_input": "",
+      "bot_response": "Tia al costat meu cada literal? No t’has de preocupar, tinc el control.",
+      "ground_truth": "",
+      "overall_score": 3.4,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Tia al costat meu cada literal? No t’has de preocupar, tinc el control.\" is generally coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"Tia,\" and maintains a conversational tone. However, the phrase \"al costat meu cada literal?\" is slightly awkward "
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Tia al costat meu cada literal? No t’has de preocupar, tinc el control.\" demonstrates a partial alignment with Iris Bertran's style. The use of \"Tia\" aligns with the creator's vocabulary, which includes informal and affectionate terms. However, the response lacks the characteristic emo"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Tia al costat meu cada literal? No t’has de preocupar, tinc el control.\" does not contain any factual errors or fabricated information. However, it lacks specific factual content that might be expected in a more complete response. The response is more conversational and does not provid"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"Tia al costat meu cada literal? No t’has de preocupar, tinc el control.\" demonstrates a level of emotional awareness and engagement. The use of \"Tia\" aligns with the vocabulary and style of Iris Bertran, suggesting a casual and familiar tone. The phrase \"No t’has de preocupar, tinc el "
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Tia al costat meu cada literal? No t’has de preocupar, tinc el control.\" demonstrates a natural and human-like tone, using informal language and vocabulary consistent with the style of Iris Bertran. The use of \"Tia\" aligns with the vocabulary provided, and the response maintains a conv"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_029",
+      "test_input": "",
+      "bot_response": "Ja veig que et passa per la cuca va a ser una flama",
+      "ground_truth": "",
+      "overall_score": 2.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 2,
+          "feedback": "The response \"Ja veig que et passa per la cuca va a ser una flama\" is partially coherent but contains noticeable inconsistencies or awkward phrasing. The phrase \"et passa per la cuca\" seems to attempt to incorporate the vocabulary associated with Iris Bertran, but the overall sentence lacks clarity "
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 2,
+          "feedback": "The response \"Ja veig que et passa per la cuca va a ser una flama\" partially aligns with Iris Bertran's style. It uses the word \"cuca,\" which is part of Iris's vocabulary, indicating some alignment with her speech patterns. However, the response lacks the use of emojis, which are a significant part "
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Ja veig que et passa per la cuca va a ser una flama\" does not contain any factual information or specific content that can be evaluated for factual accuracy. It is a vague statement that does not provide any concrete details or facts. According to the rubric, a score of 3 is appropriat"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 1,
+          "feedback": "The response \"Ja veig que et passa per la cuca va a ser una flama\" does not clearly demonstrate an understanding of the emotional context or engage empathetically with the follower. The phrase seems somewhat cryptic and lacks a clear emotional tone, making it difficult to ascertain whether it is war"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"Ja veig que et passa per la cuca va a ser una flama\" demonstrates a natural tone and uses vocabulary consistent with Iris Bertran's style, such as \"cuca.\" However, it does not significantly advance the conversation or add much personality beyond the initial statement. While it avoids r"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_030",
+      "test_input": "",
+      "bot_response": "Ja em vaig a emborrachar per tu, reina. 🤣",
+      "ground_truth": "",
+      "overall_score": 3.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Ja em vaig a emborrachar per tu, reina. 🤣\" is generally coherent and fluent. It uses the vocabulary \"reina,\" which aligns with the style and context of Iris Bertran. The inclusion of an emoji is consistent with the style, which includes 30% emoji usage. However, the response does not f"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Ja em vaig a emborrachar per tu, reina. 🤣\" demonstrates some alignment with Iris Bertran's style, particularly in the use of the word \"reina,\" which is part of the creator's vocabulary. The inclusion of an emoji also aligns with the creator's style, as emojis are used in 30% of her res"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Ja em vaig a emborrachar per tu, reina. 🤣\" does not contain any factual information or claims that could be evaluated for accuracy. It is a casual, humorous statement that aligns with the informal and affectionate style of Iris Bertran, using vocabulary such as \"reina\" and including an"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"Ja em vaig a emborrachar per tu, reina. 🤣\" demonstrates a playful and light-hearted tone, which aligns with the vocabulary and style associated with Iris Bertran. The use of \"reina\" and the emoji adds a personal and humorous touch, suggesting a friendly and informal interaction. Howeve"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"Ja em vaig a emborrachar per tu, reina. 🤣\" demonstrates a natural and human-like tone, incorporating informal language and an emoji, which aligns with the style and vocabulary of Iris Bertran. The use of \"reina\" fits well with the given vocabulary, and the inclusion of humor with the e"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_031",
+      "test_input": "",
+      "bot_response": "Ja ja ja 😂😂 q reserba d'aquesta cuca. 🥂 Són les 10:30 de diumenge, te la reserbo. 💪",
+      "ground_truth": "",
+      "overall_score": 3.4,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Ja ja ja 😂😂 q reserba d'aquesta cuca. 🥂 Són les 10:30 de diumenge, te la reserbo. 💪\" is generally coherent and fluent. It uses emojis effectively, aligning with the style of Iris Bertran, and incorporates vocabulary such as \"cuca,\" which is consistent with the given context. However, t"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Ja ja ja 😂😂 q reserba d'aquesta cuca. 🥂 Són les 10:30 de diumenge, te la reserbo. 💪\" demonstrates several elements of Iris Bertran's style. It includes emojis, which align with the 30% emoji usage characteristic of Iris. The vocabulary includes \"cuca,\" which is part of Iris's known voc"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response does not contain any factual information or claims that could be evaluated for accuracy or correctness. It is a casual, humorous message that does not present any facts or data that could be incorrect or fabricated. Therefore, it does not meet the criteria for factual content as outline"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Ja ja ja 😂😂 q reserba d'aquesta cuca. 🥂 Són les 10:30 de diumenge, te la reserbo. 💪\" demonstrates a playful and light-hearted tone, which aligns with the vocabulary and style associated with Iris Bertran. The use of emojis and informal language fits well with the creator's typical comm"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Ja ja ja 😂😂 q reserba d'aquesta cuca. 🥂 Són les 10:30 de diumenge, te la reserbo. 💪\" demonstrates a natural and engaging tone, incorporating humor and emojis, which aligns well with the style and vocabulary of Iris Bertran. The use of emojis and informal language contributes to a human"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_032",
+      "test_input": "",
+      "bot_response": "Reinaaa 😂😂👏👏 que crack. T’has de registrar a idealista",
+      "ground_truth": "",
+      "overall_score": 4.0,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Reinaaa 😂😂👏👏 que crack. T’has de registrar a idealista\" is generally coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"Reinaaa\" and includes emojis, aligning with the style's emoji usage. The response is contextually consistent, as it maintains a ca"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Reinaaa 😂😂👏👏 que crack. T’has de registrar a idealista\" demonstrates a strong alignment with Iris Bertran's style. The use of \"Reinaaa\" aligns with the creator's vocabulary, and the inclusion of emojis (😂😂👏👏) matches the high emoji usage characteristic of Iris's responses. The tone is "
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Reinaaa 😂😂👏👏 que crack. T’has de registrar a idealista\" does not contain any factual inaccuracies or fabricated information. It is a casual and humorous suggestion for the follower to register on Idealista, which is a real estate website. However, the response lacks specific factual co"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "[Does the response show appropriate emotional perception and empathetic engagement?] The response \"Reinaaa 😂😂👏👏 que crack. T’has de registrar a idealista\" demonstrates a playful and enthusiastic tone, which aligns well with the vocabulary and style of Iris Bertran. The use of emojis and informal lan"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 5,
+          "feedback": "The response \"Reinaaa 😂😂👏👏 que crack. T’has de registrar a idealista\" demonstrates a human-like and engaging tone. The use of informal language and emojis aligns well with the style and vocabulary associated with Iris Bertran, such as \"Reinaaa\" and the use of emojis, which matches the 30% emoji usag"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_033",
+      "test_input": "",
+      "bot_response": "Tia ja vaig per alli, mira si vols fer alguna prova?",
+      "ground_truth": "",
+      "overall_score": 3.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Tia ja vaig per alli, mira si vols fer alguna prova?\" is generally coherent and fluent. It uses the vocabulary typical of Iris Bertran, such as \"Tia,\" which aligns with the context provided. However, the response seems slightly out of context as it suggests a physical action (\"ja vaig "
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Tia ja vaig per alli, mira si vols fer alguna prova?\" demonstrates some alignment with Iris Bertran's style, particularly in the use of the word \"Tia,\" which is part of the creator's vocabulary. However, the response lacks the use of emojis, which are a significant part of Iris's commu"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Tia ja vaig per alli, mira si vols fer alguna prova?\" does not contain any factual information or claims that could be evaluated for accuracy or hallucination. It is a casual, conversational statement that does not present any facts or data. Therefore, it does not meet the criteria for"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Tia ja vaig per alli, mira si vols fer alguna prova?\" demonstrates a moderate level of emotional awareness. It uses the term \"Tia,\" which aligns with the vocabulary Iris Bertran might use, indicating some level of familiarity and warmth. However, the response lacks a clear emotional en"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Tia ja vaig per alli, mira si vols fer alguna prova?\" demonstrates a natural and human-like tone, using informal language consistent with the vocabulary and style associated with Iris Bertran. The use of \"Tia\" aligns with the casual and friendly tone expected from Iris. However, while "
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_034",
+      "test_input": "",
+      "bot_response": "Tia. Uf, que guapa ets. 🩷 Dijous no? Pues avui o demà",
+      "ground_truth": "",
+      "overall_score": 3.6,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Tia. Uf, que guapa ets. 🩷 Dijous no? Pues avui o demà\" is generally coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"tia\" and \"guapa,\" and includes an emoji, aligning with the expected style. However, the response lacks a clear connection to any sp"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Tia. Uf, que guapa ets. 🩷 Dijous no? Pues avui o demà\" demonstrates a strong alignment with Iris Bertran's style. The use of the word \"Tia\" and the compliment \"que guapa ets\" are consistent with the vocabulary Iris uses, such as \"tia\" and \"guapa.\" The inclusion of an emoji aligns with "
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response does not contain any factual inaccuracies or fabricated information. It is a casual and friendly message that aligns with the style and vocabulary of Iris Bertran. However, it lacks specific factual content or context that might be present in a reference answer. The response is more of "
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"Tia. Uf, que guapa ets. 🩷 Dijous no? Pues avui o demà\" demonstrates a good level of emotional awareness and engagement. The use of \"Tia\" and \"Uf, que guapa ets\" aligns with the vocabulary and style of Iris Bertran, showing a friendly and warm tone. The inclusion of an emoji adds to the"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Tia. Uf, que guapa ets. 🩷 Dijous no? Pues avui o demà\" demonstrates a natural and engaging tone, incorporating elements of Iris Bertran's vocabulary and style. The use of \"Tia\" and \"Uf, que guapa ets\" aligns well with the informal and affectionate language typical of Iris. The inclusio"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_035",
+      "test_input": "",
+      "bot_response": "Tia cuca flipas amb la porta? 😂",
+      "ground_truth": "",
+      "overall_score": 3.4,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Tia cuca flipas amb la porta? 😂\" is generally coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"tia\" and \"cuca,\" and includes an emoji, aligning with the expected style. However, the response seems slightly out of context as there is no prior conver"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Tia cuca flipas amb la porta? 😂\" demonstrates a strong alignment with the creator's style. It uses the vocabulary \"tia\" and \"cuca,\" which are part of Iris Bertran's known lexicon. The inclusion of an emoji aligns with the creator's style, which includes a 30% emoji usage. The message l"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Tia cuca flipas amb la porta? 😂\" does not contain any factual information or claims that could be evaluated for accuracy. It is a casual, informal expression that aligns with the vocabulary and style of Iris Bertran, but it does not provide any factual content to assess against the rub"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Tia cuca flipas amb la porta? 😂\" demonstrates a playful and casual tone, which aligns with the vocabulary and style associated with Iris Bertran. The use of \"Tia cuca\" and the emoji adds a light-hearted and friendly touch, suggesting an attempt to engage in a humorous or informal manne"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Tia cuca flipas amb la porta? 😂\" effectively captures a human-like tone and aligns well with the vocabulary and style associated with Iris Bertran. The use of informal language and an emoji contributes to a natural and engaging interaction. The phrase \"Tia cuca\" is consistent with the "
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_036",
+      "test_input": "",
+      "bot_response": "Tia crack. 😂 No t'oblidi la porta",
+      "ground_truth": "",
+      "overall_score": 3.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Tia crack. 😂 No t'oblidi la porta\" is generally coherent and fluent. It uses the vocabulary typical of Iris Bertran, such as \"tia,\" and includes an emoji, aligning with the style of using emojis 30% of the time. The response is contextually consistent with the informal and friendly ton"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Tia crack. 😂 No t'oblidi la porta\" demonstrates a partial alignment with Iris Bertran's style. The use of \"Tia\" aligns with the creator's vocabulary, and the inclusion of an emoji is consistent with the high emoji usage in Iris's style. However, the response is quite short compared to "
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Tia crack. 😂 No t'oblidi la porta\" does not contain any factual information or claims that could be evaluated for accuracy or hallucination. It is a casual, informal message that aligns with the style and vocabulary of Iris Bertran, using terms like \"Tia\" and including an emoji, which "
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Tia crack. 😂 No t'oblidi la porta\" demonstrates a playful and casual tone, which aligns with the vocabulary and style associated with Iris Bertran. The use of \"Tia crack\" and the laughing emoji suggests a friendly and light-hearted interaction, which is consistent with the creator's st"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"Tia crack. 😂 No t'oblidi la porta\" demonstrates a natural and human-like tone, using informal language and an emoji, which aligns with the style of Iris Bertran. The use of \"Tia crack\" adds personality and fits well with the vocabulary Iris is known for. However, while the response is "
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_037",
+      "test_input": "",
+      "bot_response": "Tia guapa. El Hydrofacial son un retoxo, ja? 70€ per una cara de flor. T'has de registrar a Idealista o on?",
+      "ground_truth": "",
+      "overall_score": 3.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Tia guapa. El Hydrofacial son un retoxo, ja? 70€ per una cara de flor. T'has de registrar a Idealista o on?\" is generally coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"tia guapa\" and \"cara de flor.\" However, there is a slight inconsistency in th"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Tia guapa. El Hydrofacial son un retoxo, ja? 70€ per una cara de flor. T'has de registrar a Idealista o on?\" demonstrates a strong alignment with Iris Bertran's style. It uses vocabulary such as \"tia\" and \"guapa,\" which are consistent with the creator's known vocabulary. The tone is ca"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 1,
+          "feedback": "The response mentions \"El Hydrofacial son un retoxo, ja? 70€ per una cara de flor,\" which implies a price for a Hydrofacial treatment. Without a reference answer to compare, it's challenging to determine if this price is accurate or if Iris Bertran would have this specific knowledge. Additionally, t"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "[Does the response show appropriate emotional perception and empathetic engagement?] The response uses some of the vocabulary typical of Iris Bertran, such as \"tia\" and \"guapa,\" which aligns with the creator's style. However, the message seems to lack a clear emotional context or engagement with the"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 5,
+          "feedback": "The response \"Tia guapa. El Hydrofacial son un retoxo, ja? 70€ per una cara de flor. T'has de registrar a Idealista o on?\" demonstrates a human-like and engaging tone. It uses informal language and vocabulary consistent with Iris Bertran's style, such as \"Tia guapa\" and \"cara de flor,\" which aligns "
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_038",
+      "test_input": "",
+      "bot_response": "Ja vaig veure el teu missatge. Nena, m'agrada molt",
+      "ground_truth": "",
+      "overall_score": 3.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Ja vaig veure el teu missatge. Nena, m'agrada molt\" is generally coherent and fluent. It uses the vocabulary \"nena,\" which aligns with the style and context of Iris Bertran. However, the response is somewhat brief and lacks the characteristic use of emojis and the median length of 35 c"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Ja vaig veure el teu missatge. Nena, m'agrada molt\" partially aligns with Iris Bertran's style. It uses the term \"nena,\" which is part of Iris's vocabulary, indicating some recognition of her speech patterns. However, the response lacks the typical length and emoji usage that are chara"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Ja vaig veure el teu missatge. Nena, m'agrada molt\" does not contain any fabricated facts or incorrect information. It is a simple acknowledgment of having seen the message and expresses liking, which aligns with the style and vocabulary of Iris Bertran. However, the response lacks spe"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Ja vaig veure el teu missatge. Nena, m'agrada molt\" demonstrates adequate emotional awareness. It acknowledges the message and uses a term of endearment \"Nena,\" which aligns with Iris Bertran's vocabulary. However, the response lacks the depth of emotional engagement and warmth that wo"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"Ja vaig veure el teu missatge. Nena, m'agrada molt\" demonstrates a natural tone and uses vocabulary consistent with Iris Bertran's style, such as \"nena.\" However, it is somewhat passive and does not significantly advance the conversation. While it acknowledges the message, it lacks the"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_039",
+      "test_input": "",
+      "bot_response": "Tia, ja t’he vist, moltes gràcies per recordar-me. 😘",
+      "ground_truth": "",
+      "overall_score": 3.6,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Tia, ja t’he vist, moltes gràcies per recordar-me. 😘\" is coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"Tia\" and includes an emoji, aligning with the style's 30% emoji usage. The response is contextually consistent, as it acknowledges a previous "
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Tia, ja t’he vist, moltes gràcies per recordar-me. 😘\" demonstrates a strong alignment with Iris Bertran's style. It uses the vocabulary \"Tia,\" which is consistent with the creator's known vocabulary. The inclusion of an emoji aligns with the 30% emoji usage characteristic of Iris's sty"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Tia, ja t’he vist, moltes gràcies per recordar-me. 😘\" does not contain any fabricated facts or incorrect information. It is a simple acknowledgment and expression of gratitude, which aligns with the style and vocabulary of Iris Bertran. However, since there is no reference answer provi"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Tia, ja t’he vist, moltes gràcies per recordar-me. 😘\" demonstrates an adequate level of emotional awareness. The use of \"Tia\" and the emoji adds a touch of warmth and familiarity, aligning with Iris Bertran's style. However, the response lacks the depth of empathy or emotional engageme"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Tia, ja t’he vist, moltes gràcies per recordar-me. 😘\" demonstrates a natural and human-like tone, using informal language and an emoji, which aligns with the style of Iris Bertran. The use of \"Tia\" and the emoji adds a personal touch, making it feel engaging and friendly. However, whil"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_040",
+      "test_input": "",
+      "bot_response": "Tia que crack el video. Ja m'agradaria veure el teu rostre amb aquesta energia. 😂",
+      "ground_truth": "",
+      "overall_score": 3.8,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Tia que crack el video. Ja m'agradaria veure el teu rostre amb aquesta energia. 😂\" is coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"Tia\" and includes an emoji, aligning with the 30% emoji usage. The response is contextually consistent, as it com"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Tia que crack el video. Ja m'agradaria veure el teu rostre amb aquesta energia. 😂\" demonstrates a strong alignment with the creator's style. It uses the vocabulary \"tia\" and includes an emoji, which is consistent with the creator's known usage of emojis at a rate of 30%. The tone is ca"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response does not contain any factual inaccuracies or fabricated information. It is a casual and friendly comment that aligns with the style and vocabulary of Iris Bertran. However, it does not provide any specific factual content or detailed information that could be compared to a reference ans"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"Tia que crack el video. Ja m'agradaria veure el teu rostre amb aquesta energia. 😂\" demonstrates an emotionally perceptive engagement. The use of \"Tia\" aligns with Iris Bertran's vocabulary, and the playful tone with the emoji reflects enthusiasm and warmth, which is appropriate for the"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Tia que crack el video. Ja m'agradaria veure el teu rostre amb aquesta energia. 😂\" effectively captures a human-like tone and maintains conversational momentum. It uses informal language and emojis, which align with the style and vocabulary of Iris Bertran. The use of \"Tia\" and the emo"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_041",
+      "test_input": "",
+      "bot_response": "Tia, ja tens el camí clar. Vale, el hidrofacial. 70€? Per què no ho fas si t'agrada?",
+      "ground_truth": "",
+      "overall_score": 3.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Tia, ja tens el camí clar. Vale, el hidrofacial. 70€? Per què no ho fas si t'agrada?\" is generally coherent and fluent. It uses vocabulary consistent with Iris Bertran's style, such as \"Tia,\" and maintains a conversational tone. However, there is a slight inconsistency in the context, "
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Tia, ja tens el camí clar. Vale, el hidrofacial. 70€? Per què no ho fas si t'agrada?\" partially aligns with Iris Bertran's style. It uses the term \"Tia,\" which is part of Iris's vocabulary, and the informal tone is consistent with her style. However, the response lacks the use of emoji"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Tia, ja tens el camí clar. Vale, el hidrofacial. 70€? Per què no ho fas si t'agrada?\" does not contain any fabricated facts or incorrect information. However, it lacks specific factual content that would be present in a reference answer scoring a 5. The response mentions a price of 70€"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "[Does the response show appropriate emotional perception and empathetic engagement?] The response \"Tia, ja tens el camí clar. Vale, el hidrofacial. 70€? Per què no ho fas si t'agrada?\" demonstrates a moderate level of emotional awareness. It acknowledges the context by addressing the person as \"Tia\""
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Tia, ja tens el camí clar. Vale, el hidrofacial. 70€? Per què no ho fas si t'agrada?\" demonstrates a natural and engaging tone, using informal language and vocabulary consistent with the style of Iris Bertran. The use of \"Tia\" and the casual mention of the price and suggestion to pursu"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_042",
+      "test_input": "",
+      "bot_response": "Tiaaaa. 😘",
+      "ground_truth": "",
+      "overall_score": 3.6,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Tiaaaa. 😘\" is coherent and contextually consistent with the style and vocabulary of Iris Bertran. The use of \"Tiaaaa\" aligns with the vocabulary provided, and the inclusion of an emoji fits the style, which includes a high percentage of emoji usage. The response is brief, which is cons"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Tiaaaa. 😘\" aligns with Iris Bertran's style in several ways. The use of \"Tiaaaa\" matches the vocabulary typical of Iris, as \"tia\" is one of the words listed in her vocabulary. The inclusion of an emoji also aligns with the creator's style, as emojis are used in 30% of her responses. Ho"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Tiaaaa. 😘\" does not contain any factual information or content that could be evaluated for factual accuracy. It is a simple, informal greeting with an emoji, which aligns with the style and vocabulary of Iris Bertran. However, since the rubric focuses on factual content, this response "
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response \"Tiaaaa. 😘\" demonstrates a level of emotional awareness that aligns with the style and vocabulary of Iris Bertran. The use of \"Tiaaaa\" and the emoji \"😘\" conveys a friendly and affectionate tone, which is consistent with the vocabulary and style expected from Iris. However, the response "
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"Tiaaaa. 😘\" is brief and uses informal language, which aligns with the vocabulary and style of Iris Bertran. The use of \"Tiaaaa\" and the emoji adds a personal touch, making it feel human-like and engaging. However, the response is quite passive and does not advance the conversation or a"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_043",
+      "test_input": "",
+      "bot_response": "Tia, quin regalada la teva veu. Però si t'has de anar a la platja, millor el teu money, ja tens el teu exercici. T’has de registrar a Idealista?",
+      "ground_truth": "",
+      "overall_score": 2.8,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 2,
+          "feedback": "The response \"Tia, quin regalada la teva veu. Però si t'has de anar a la platja, millor el teu money, ja tens el teu exercici. T’has de registrar a Idealista?\" demonstrates partial coherence but contains noticeable inconsistencies and awkward phrasing. The initial compliment about the voice is coher"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response uses some vocabulary that aligns with Iris Bertran's style, such as \"Tia\" and \"regalada,\" which are consistent with the creator's vocabulary. However, the response lacks the use of emojis, which are a significant part of Iris's communication style (30% emoji usage). Additionally, the me"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response does not contain any factual inaccuracies or fabricated information. However, it does not provide specific factual content that would be expected in a complete response. The mention of \"Idealista\" seems out of context and does not align with the typical vocabulary or style of Iris Bertr"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response demonstrates a playful and casual tone, which aligns with the vocabulary and style associated with Iris Bertran. However, the emotional engagement is somewhat scattered. The initial compliment about the voice is positive, but the transition to discussing money and exercise feels disjoin"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response demonstrates a natural tone and includes some personality, particularly with the use of informal language and expressions like \"Tia\" and \"quin regalada la teva veu.\" However, it lacks a clear advancement of the conversation. The mention of \"Idealista\" seems somewhat out of context and d"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_044",
+      "test_input": "",
+      "bot_response": "Perfecte. 😘 A veure què tens per demà?",
+      "ground_truth": "",
+      "overall_score": 3.4,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Perfecte. 😘 A veure què tens per demà?\" is coherent and fluent. It aligns with the context of Iris Bertran's style, using a short, friendly, and engaging tone. The use of an emoji is consistent with the style, which includes a 30% emoji usage. The response is contextually consistent, a"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Perfecte. 😘 A veure què tens per demà?\" demonstrates some alignment with Iris Bertran's style, particularly in the use of an emoji, which is a characteristic feature of her communication style. However, the response lacks the distinctive vocabulary that Iris typically uses, such as \"cu"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Perfecte. 😘 A veure què tens per demà?\" does not contain any factual errors or fabricated information. It is a general and open-ended response that does not provide specific factual content, but it does not require factual content based on the instruction. The response is consistent wi"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Perfecte. 😘 A veure què tens per demà?\" demonstrates an adequate level of emotional awareness. It is neither overly warm nor cold, and it maintains a neutral tone. The use of the emoji adds a slight touch of warmth, but the response lacks the depth of empathy or emotional engagement th"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Perfecte. 😘 A veure què tens per demà?\" demonstrates a natural and human-like tone, incorporating an emoji which aligns with Iris Bertran's style. The use of \"Perfecte\" and the emoji adds a personal touch, making it feel engaging. However, while it does maintain conversational momentum"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_045",
+      "test_input": "",
+      "bot_response": "Ooooo mi niña verdad ufffff todo el fin de semana fue muy interesante ye todo como muy intenso La sección es top me gustó mucho ahora me falta la ultima etapa que es mandar mi vídeo para mí certificación Me tienes que echar una mano tengo que coger clases contigo Yo hice online las de presencial estaban muertas ajajaja Ahora a practicar duro y parejo",
+      "ground_truth": "",
+      "overall_score": 3.0,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response is generally coherent and fluent, with a clear narrative about the weekend and the certification process. However, it lacks some consistency with the context of Iris Bertran's style and vocabulary. The response does not incorporate any of the specific vocabulary or stylistic elements ty"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response to evaluate shows some alignment with the creator's style, particularly in its informal and conversational tone. However, it lacks the specific vocabulary that Iris Bertran is known for, such as \"cuca,\" \"reina,\" or \"nena.\" Additionally, the response does not include any emojis, which ar"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response does not contain any fabricated facts or incorrect information. However, it lacks specific factual content that would be expected in a complete response. The message is more of a personal reflection and request for help rather than providing factual information. There are no obvious fac"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "[Does the response show appropriate emotional perception and empathetic engagement?] The response demonstrates a moderate level of emotional awareness. It acknowledges the intensity and interest of the weekend, which suggests some understanding of the emotional context. However, it lacks the warmth,"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response demonstrates a natural tone and includes personal experiences, which adds a human-like quality. However, it lacks elements that would actively advance the conversation, such as asking questions or making comments that invite further interaction. While it is engaging and personal, it doe"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_046",
+      "test_input": "",
+      "bot_response": "Nena, m'has fet gràcia",
+      "ground_truth": "",
+      "overall_score": 3.2,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response \"Nena, m'has fet gràcia\" is coherent and fluent. It uses the vocabulary typical of Iris Bertran, specifically the word \"nena,\" which aligns with the context provided. The response is consistent with the style of Iris Bertran, as it is concise and informal. However, it lacks the use of e"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Nena, m'has fet gràcia\" uses the term \"nena,\" which is part of Iris Bertran's vocabulary, indicating some alignment with the creator's style. However, the response is quite short and lacks the median length of 35 characters typical of Iris's responses. Additionally, there is no use of "
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Nena, m'has fet gràcia\" does not contain any factual information or claims that could be evaluated for accuracy or hallucination. It is a simple, personal expression without any factual content. According to the rubric, a score of 3 is appropriate as there are no obvious errors, but it"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Nena, m'has fet gràcia\" demonstrates a level of emotional awareness and engagement. The use of \"Nena\" aligns with the vocabulary typical of Iris Bertran, suggesting a friendly and familiar tone. However, the response is quite brief and lacks depth in emotional engagement. It acknowledg"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"Nena, m'has fet gràcia\" is brief and uses a term from Iris Bertran's vocabulary, \"nena,\" which adds a personal touch. However, it does not advance the conversation or add any additional personality or engagement. It feels natural but is somewhat passive, as it acknowledges the follower"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_047",
+      "test_input": "",
+      "bot_response": "Daleee. Nos vemos pronto.",
+      "ground_truth": "",
+      "overall_score": 2.8,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Daleee. Nos vemos pronto.\" is generally coherent and fluent. However, it lacks the specific vocabulary and stylistic elements characteristic of Iris Bertran, such as the use of affectionate terms or emojis. While it is contextually consistent in terms of being a casual and friendly res"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Daleee. Nos vemos pronto.\" shows some alignment with the creator's style, particularly in its informal and friendly tone. However, it lacks the distinctive vocabulary that Iris Bertran typically uses, such as \"cuca,\" \"nena,\" or \"guapa.\" Additionally, the response does not include any e"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Daleee. Nos vemos pronto.\" does not contain any factual information or specific content that could be evaluated for factual accuracy. It is a generic statement that neither includes nor omits factual details. Therefore, it does not meet the criteria for factual content as outlined in t"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 2,
+          "feedback": "[Does the response show appropriate emotional perception and empathetic engagement?] The response \"Daleee. Nos vemos pronto.\" lacks emotional depth and does not demonstrate a strong connection to the emotional context of the message. It is a generic and somewhat mechanical response that does not ref"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"Daleee. Nos vemos pronto.\" is brief and uses a casual, human-like tone, which aligns with the style of Iris Bertran. However, it does not significantly advance the conversation or add much personality beyond the casual agreement to meet soon. While it avoids robotic or formulaic langua"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_048",
+      "test_input": "",
+      "bot_response": "Nena, que crack has estat. ❤️ T’has de preparar per la calçotada? 😘 Ja t’ho veig amb la certificació a punt. 💪",
+      "ground_truth": "",
+      "overall_score": 4.0,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 4,
+          "feedback": "The response is coherent and fluent, using vocabulary consistent with Iris Bertran's style, such as \"nena\" and emojis. It maintains a friendly and engaging tone, which aligns with the context provided. The response also includes a question, which is a characteristic of Iris's style. There are no not"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 4,
+          "feedback": "The response \"Nena, que crack has estat. ❤️ T’has de preparar per la calçotada? 😘 Ja t’ho veig amb la certificació a punt. 💪\" demonstrates a strong alignment with Iris Bertran's style. It effectively uses the vocabulary typical of Iris, such as \"nena\" and includes emojis, which are a significant par"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response does not contain any factual inaccuracies or fabricated information. It is consistent with the style and vocabulary of Iris Bertran, using terms like \"nena\" and including emojis, which aligns with the context provided. However, the response does not include specific factual content that"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 4,
+          "feedback": "The response demonstrates a good level of emotional perception and empathetic engagement. The use of affectionate terms like \"nena\" and emojis such as the heart and kiss emoji contribute to a warm and friendly tone. The message also includes a playful question about preparing for a \"calçotada,\" whic"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 5,
+          "feedback": "The response \"Nena, que crack has estat. ❤️ T’has de preparar per la calçotada? 😘 Ja t’ho veig amb la certificació a punt. 💪\" effectively captures a human-like tone and maintains conversational momentum. It uses informal and affectionate language consistent with the vocabulary and style of Iris Bert"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_049",
+      "test_input": "",
+      "bot_response": "Ostiaaa ja veig que et va molt be",
+      "ground_truth": "",
+      "overall_score": 3.0,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Ostiaaa ja veig que et va molt be\" is generally coherent and fluent. It uses informal language consistent with the style of Iris Bertran, including the use of an exclamation (\"Ostiaaa\") which aligns with the casual and expressive tone expected. However, the response lacks the use of sp"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 3,
+          "feedback": "The response \"Ostiaaa ja veig que et va molt be\" partially aligns with Iris Bertran's style. It uses informal language and an exclamation, which fits the creator's tone. However, it lacks the use of specific vocabulary such as \"cuca,\" \"nena,\" or \"guapa,\" and does not include any emojis, which are a "
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Ostiaaa ja veig que et va molt be\" does not contain any factual information or specific content that can be evaluated for accuracy or completeness. It is a general statement that does not provide any factual details or context. Therefore, it does not meet the criteria for factual accur"
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Ostiaaa ja veig que et va molt be\" demonstrates a level of emotional awareness and engagement. The use of \"Ostiaaa\" suggests a casual and familiar tone, which aligns with the style of Iris Bertran. However, the response lacks the depth of empathy and warmth that would be expected for a"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 3,
+          "feedback": "The response \"Ostiaaa ja veig que et va molt be\" demonstrates a natural and human-like tone, using informal language typical of casual conversation. The use of \"Ostiaaa\" adds a personal touch and aligns with the vocabulary style of Iris Bertran. However, while the response is engaging, it does not s"
+        }
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_iris_b_050",
+      "test_input": "",
+      "bot_response": "Cuca, amb prou feines vaig entendre res Vols fer classes amb mi?",
+      "ground_truth": "",
+      "overall_score": 3.0,
+      "dimensions": {
+        "conversational_ability": {
+          "dimension": "conversational_ability",
+          "score": 3,
+          "feedback": "The response \"Cuca, amb prou feines vaig entendre res Vols fer classes amb mi?\" is generally coherent and fluent. It uses the vocabulary typical of Iris Bertran, such as \"Cuca,\" which aligns with the context provided. The response also maintains a conversational tone and includes a question, which i"
+        },
+        "persona_fidelity": {
+          "dimension": "persona_fidelity",
+          "score": 2,
+          "feedback": "The response \"Cuca, amb prou feines vaig entendre res Vols fer classes amb mi?\" partially aligns with Iris Bertran's style. It uses the term \"cuca,\" which is part of Iris's vocabulary, indicating some recognition of her speech patterns. However, the response lacks the characteristic emoji usage, whi"
+        },
+        "knowledge_accuracy": {
+          "dimension": "knowledge_accuracy",
+          "score": 3,
+          "feedback": "The response \"Cuca, amb prou feines vaig entendre res Vols fer classes amb mi?\" does not contain any factual information or fabricated facts. It is a personal and informal response that aligns with the style and vocabulary of Iris Bertran. However, since there is no reference answer provided, it is "
+        },
+        "emotional_intelligence": {
+          "dimension": "emotional_intelligence",
+          "score": 3,
+          "feedback": "The response \"Cuca, amb prou feines vaig entendre res Vols fer classes amb mi?\" demonstrates a moderate level of emotional awareness. The use of \"Cuca\" aligns with the vocabulary Iris Bertran might use, suggesting some familiarity and warmth. However, the response lacks depth in emotional engagement"
+        },
+        "engagement": {
+          "dimension": "engagement",
+          "score": 4,
+          "feedback": "The response \"Cuca, amb prou feines vaig entendre res Vols fer classes amb mi?\" demonstrates a natural and engaging tone. It uses the vocabulary typical of Iris Bertran, such as \"Cuca,\" which aligns with the context provided. The response is proactive and adds personality by suggesting a follow-up a"
+        }
+      },
+      "elapsed_ms": 0
+    }
+  ]
+}

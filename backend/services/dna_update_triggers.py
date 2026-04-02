@@ -37,14 +37,22 @@ def schedule_dna_update(
         True if scheduled successfully
     """
     def run_update():
-        try:
-            from services.relationship_dna_service import get_dna_service
+        for attempt in range(2):
+            try:
+                from services.relationship_dna_service import get_dna_service
 
-            service = get_dna_service()
-            service.analyze_and_update_dna(creator_id, follower_id, messages)
-            logger.info(f"Background DNA update completed for {creator_id}/{follower_id}")
-        except Exception as e:
-            logger.error(f"Background DNA update failed: {e}")
+                service = get_dna_service()
+                service.analyze_and_update_dna(creator_id, follower_id, messages)
+                logger.info(f"Background DNA update completed for {creator_id}/{follower_id}")
+                return
+            except Exception as e:
+                logger.error(
+                    f"Background DNA update failed (attempt {attempt + 1}/2) "
+                    f"for {creator_id}/{follower_id}: {e}"
+                )
+                if attempt == 0:
+                    import time
+                    time.sleep(2)
 
     thread = threading.Thread(target=run_update, daemon=True)
     thread.start()

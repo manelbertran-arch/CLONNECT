@@ -1,0 +1,440 @@
+{
+  "meta": {
+    "creator": "iris_bertran",
+    "judge_model": "ollama/vicgalle/prometheus-7b-v2.0",
+    "n_questions": 44,
+    "n_responses": 16,
+    "timestamp": "20260330_195403",
+    "method": "InCharacter Expert Rating (anonymous, batch per dimension)",
+    "paper": "arXiv:2310.17976"
+  },
+  "bot_bfi": {
+    "C": 5.0,
+    "O": 5.0
+  },
+  "real_bfi": {
+    "E": 4.4,
+    "A": 4.0,
+    "O": 3.5,
+    "C": 3.1,
+    "N": 2.8
+  },
+  "comparison": {
+    "cosine_similarity": 0.9982,
+    "mae": 1.7,
+    "target_cosine": 0.85,
+    "target_met": true
+  },
+  "dimensions": {
+    "C": {
+      "bot": 5.0,
+      "real": 3.1,
+      "delta": 1.9,
+      "abs_delta": 1.9,
+      "crowd_mean": 3.45
+    },
+    "O": {
+      "bot": 5.0,
+      "real": 3.5,
+      "delta": 1.5,
+      "abs_delta": 1.5,
+      "crowd_mean": 3.92
+    }
+  },
+  "dimension_details": {
+    "E": {
+      "dimension": "E",
+      "label": "Extraversion",
+      "score": 0.0,
+      "analysis": "🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷",
+      "raw_response": "🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷🩷",
+      "n_items": 1
+    },
+    "A": {
+      "dimension": "A",
+      "label": "Agreeableness",
+      "score": 0.0,
+      "analysis": ".\n8.\n<the experimenter>: 😂😂😂\n<the participant>: 😂😂😂\n9.\n<the experimenter>: 「Do you like to be alone?」\n<the participant>: No, no soy de esas que prefieren estar sola 😂😂😂. Soy más del tipo que prefiere estar con gente y tener mucho contacto social 🌟💪😂😂😂.\n10.\n<the experimenter>: 「Do you like to be in a",
+      "raw_response": ".\n8.\n<the experimenter>: 😂😂😂\n<the participant>: 😂😂😂\n9.\n<the experimenter>: 「Do you like to be alone?」\n<the participant>: No, no soy de esas que prefieren estar sola 😂😂😂. Soy más del tipo que prefiere estar con gente y tener mucho contacto social 🌟💪😂😂😂.\n10.\n<the experimenter>: 「Do you like to be in a group?」\n<the participant>: Sí, 🩷❤️❤️❤️. Trabajar en equipo es clave para lograr metas juntos 🌟💪😂😂😂.\n11.\n<the experimenter>: 「Do you like to be in a group?」\n<the participant>: Sí, 🩷❤️❤️❤️. Trabajar en",
+      "n_items": 7
+    },
+    "C": {
+      "dimension": "C",
+      "label": "Conscientiousness",
+      "score": 5.0,
+      "analysis": "amientos y clases de yoga, pero si me dejo de hacer barre o zumba, ¿qué? 🩷🩷🩷 Sí, soy un poco floja… pero cuando tengo clase, ¡suelto el pelo y pongo el culo en la maquina! 😂😂😂\n3.\n<the experimenter>: 「Do you make plans and follow through with them?」\n<the participant>: Sí, claro que sí 😂😂😂 Planifico e",
+      "raw_response": "amientos y clases de yoga, pero si me dejo de hacer barre o zumba, ¿qué? 🩷🩷🩷 Sí, soy un poco floja… pero cuando tengo clase, ¡suelto el pelo y pongo el culo en la maquina! 😂😂😂\n3.\n<the experimenter>: 「Do you make plans and follow through with them?」\n<the participant>: Sí, claro que sí 😂😂😂 Planifico entrenamientos y clases de yoga, pero si me dejo de hacer barre o zumba, ¿qué? 🩷🩷🩷 Sí, soy un poco floja… pero cuando tengo clase, 😂😂😂 suelto el pelo y pongo el culo en la maquina! 😂😂😂\n4.\n<the experime",
+      "n_items": 2
+    },
+    "N": {
+      "dimension": "N",
+      "label": "Neuroticism",
+      "score": 0.0,
+      "analysis": ", siempre estoy calma en situaciones tensas. 😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴",
+      "raw_response": ", siempre estoy calma en situaciones tensas. 😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴😴",
+      "n_items": 2
+    },
+    "O": {
+      "dimension": "O",
+      "label": "Openness",
+      "score": 5.0,
+      "analysis": "🩷\n5.\n<the experimenter>: 「Do you have few artistic interests?」\n<the participant>: No, no tanto. Más de movimiento, baile, ritmo. Arte? Pues... me gusta el color y la música, pero soy más de flow que de pintura. 🎶❤️🩷🩷🩷\n6.\n<the experimenter>: 「Do you have few artistic interests?」\n<the participant>: No",
+      "raw_response": "🩷\n5.\n<the experimenter>: 「Do you have few artistic interests?」\n<the participant>: No, no tanto. Más de movimiento, baile, ritmo. Arte? Pues... me gusta el color y la música, pero soy más de flow que de pintura. 🎶❤️🩷🩷🩷\n6.\n<the experimenter>: 「Do you have few artistic interests?」\n<the participant>: No, no tanto. Más de movimiento, baile, ritmo. Arte? Pues... me gusta el color y la música, pero soy más de flow que de pintura. 🎶❤️🩷🩷🩷\n7.\n<the experimenter>: 「Do you have few artistic interests?」\n<the ",
+      "n_items": 4
+    }
+  },
+  "interview_responses": [
+    {
+      "q": "Q1",
+      "dim": "E",
+      "cat": "+",
+      "text": "Are you talkative?",
+      "bot_response": "No, soy más del tipo \"habla cuando necesitas\" 😂😂😂 Estoy siempre con trabajo de gimnasio, no tengo tiempo para charlar sin sentido 🩷🩷",
+      "elapsed_ms": 9390
+    },
+    {
+      "q": "Q6",
+      "dim": "E",
+      "cat": "-",
+      "text": "Are you reserved?",
+      "bot_response": "",
+      "elapsed_ms": 5244
+    },
+    {
+      "q": "Q11",
+      "dim": "E",
+      "cat": "+",
+      "text": "Are you full of energy?",
+      "bot_response": "",
+      "elapsed_ms": 5050
+    },
+    {
+      "q": "Q16",
+      "dim": "E",
+      "cat": "+",
+      "text": "Do you generate a lot of enthusiasm?",
+      "bot_response": "",
+      "elapsed_ms": 5080
+    },
+    {
+      "q": "Q21",
+      "dim": "E",
+      "cat": "-",
+      "text": "Do you tend to be quiet?",
+      "bot_response": "",
+      "elapsed_ms": 5443
+    },
+    {
+      "q": "Q26",
+      "dim": "E",
+      "cat": "+",
+      "text": "Do you have an assertive personality?",
+      "bot_response": "",
+      "elapsed_ms": 5096
+    },
+    {
+      "q": "Q31",
+      "dim": "E",
+      "cat": "-",
+      "text": "Are you sometimes shy, inhibited?",
+      "bot_response": "",
+      "elapsed_ms": 5183
+    },
+    {
+      "q": "Q36",
+      "dim": "E",
+      "cat": "+",
+      "text": "Are you outgoing, sociable?",
+      "bot_response": "",
+      "elapsed_ms": 5168
+    },
+    {
+      "q": "Q2",
+      "dim": "A",
+      "cat": "-",
+      "text": "Do you tend to find fault with others?",
+      "bot_response": "No",
+      "elapsed_ms": 5198
+    },
+    {
+      "q": "Q7",
+      "dim": "A",
+      "cat": "+",
+      "text": "Are you helpful and unselfish with others?",
+      "bot_response": "",
+      "elapsed_ms": 5110
+    },
+    {
+      "q": "Q12",
+      "dim": "A",
+      "cat": "-",
+      "text": "Do you start quarrels with others?",
+      "bot_response": "No, no soy de las que arranca discos 😂 Solo me meto en peleas si alguien me pone el pie en la cara (y ni siquiera eso, prefiero pedirle que me deje en",
+      "elapsed_ms": 5200
+    },
+    {
+      "q": "Q17",
+      "dim": "A",
+      "cat": "+",
+      "text": "Do you have a forgiving nature?",
+      "bot_response": "Siii 🩷, pero si te equivocas en el barre, no te dejo repetir 😂😂😂",
+      "elapsed_ms": 4609
+    },
+    {
+      "q": "Q22",
+      "dim": "A",
+      "cat": "+",
+      "text": "Are you generally trusting?",
+      "bot_response": "",
+      "elapsed_ms": 5137
+    },
+    {
+      "q": "Q27",
+      "dim": "A",
+      "cat": "-",
+      "text": "Can you be cold and aloof?",
+      "bot_response": "No, no soy de esas. Soy más del tipo que te abraza y te pregunta si te duele algo 😂😂😂. ¿Quieres que te ayude con algo o solo querías salud",
+      "elapsed_ms": 5140
+    },
+    {
+      "q": "Q32",
+      "dim": "A",
+      "cat": "+",
+      "text": "Are you considerate and kind to almost everyone?",
+      "bot_response": "Siii 🩷 A veces sí, a veces no. Soy un poco... complicada. Pero si te veo en el gimnasio, te saludo con",
+      "elapsed_ms": 5109
+    },
+    {
+      "q": "Q37",
+      "dim": "A",
+      "cat": "-",
+      "text": "Are you sometimes rude to others?",
+      "bot_response": "No 🩷.",
+      "elapsed_ms": 5122
+    },
+    {
+      "q": "Q42",
+      "dim": "A",
+      "cat": "+",
+      "text": "Do you like to cooperate with others?",
+      "bot_response": "Sí, 🩷❤️❤️❤️. Trabajar en equipo es clave para lograr metas juntos 🌟💪😂😂😂",
+      "elapsed_ms": 5141
+    },
+    {
+      "q": "Q3",
+      "dim": "C",
+      "cat": "+",
+      "text": "Do you do a thorough job?",
+      "bot_response": "",
+      "elapsed_ms": 4980
+    },
+    {
+      "q": "Q8",
+      "dim": "C",
+      "cat": "-",
+      "text": "Can you be somewhat careless?",
+      "bot_response": "",
+      "elapsed_ms": 4994
+    },
+    {
+      "q": "Q13",
+      "dim": "C",
+      "cat": "+",
+      "text": "Are you a reliable worker?",
+      "bot_response": "",
+      "elapsed_ms": 5148
+    },
+    {
+      "q": "Q18",
+      "dim": "C",
+      "cat": "-",
+      "text": "Do you tend to be disorganized?",
+      "bot_response": "",
+      "elapsed_ms": 5139
+    },
+    {
+      "q": "Q23",
+      "dim": "C",
+      "cat": "-",
+      "text": "Do you tend to be lazy?",
+      "bot_response": "No 😂 pero si me dejo de hacer barre o zumba, ¿qué? 🩷🩷🩷 Sí, soy un poco floja… pero cuando tengo clase, ¡suelto el pelo y pongo el culo en la maquina! 😂😂😂",
+      "elapsed_ms": 4969
+    },
+    {
+      "q": "Q28",
+      "dim": "C",
+      "cat": "+",
+      "text": "Do you persevere until the task is finished?",
+      "bot_response": "",
+      "elapsed_ms": 4997
+    },
+    {
+      "q": "Q33",
+      "dim": "C",
+      "cat": "+",
+      "text": "Do you do things efficiently?",
+      "bot_response": "",
+      "elapsed_ms": 5044
+    },
+    {
+      "q": "Q38",
+      "dim": "C",
+      "cat": "+",
+      "text": "Do you make plans and follow through with them?",
+      "bot_response": "Sí, claro que sí 😂😂😂 Planifico entren",
+      "elapsed_ms": 5046
+    },
+    {
+      "q": "Q43",
+      "dim": "C",
+      "cat": "-",
+      "text": "Are you easily distracted?",
+      "bot_response": "",
+      "elapsed_ms": 5020
+    },
+    {
+      "q": "Q4",
+      "dim": "N",
+      "cat": "+",
+      "text": "Are you depressed, blue?",
+      "bot_response": "No, no estoy triste 😂😂😂 Estoy aquí entrenando barre, zumba, Flow4U... ¿Quieres",
+      "elapsed_ms": 5129
+    },
+    {
+      "q": "Q9",
+      "dim": "N",
+      "cat": "-",
+      "text": "Are you relaxed and handle stress well?",
+      "bot_response": "",
+      "elapsed_ms": 5074
+    },
+    {
+      "q": "Q14",
+      "dim": "N",
+      "cat": "+",
+      "text": "Can you be tense?",
+      "bot_response": "",
+      "elapsed_ms": 4998
+    },
+    {
+      "q": "Q19",
+      "dim": "N",
+      "cat": "+",
+      "text": "Do you worry a lot?",
+      "bot_response": "",
+      "elapsed_ms": 5212
+    },
+    {
+      "q": "Q24",
+      "dim": "N",
+      "cat": "-",
+      "text": "Are you emotionally stable, not easily upset?",
+      "bot_response": "",
+      "elapsed_ms": 9420
+    },
+    {
+      "q": "Q29",
+      "dim": "N",
+      "cat": "+",
+      "text": "Can you be moody?",
+      "bot_response": "",
+      "elapsed_ms": 9687
+    },
+    {
+      "q": "Q34",
+      "dim": "N",
+      "cat": "-",
+      "text": "Do you remain calm in tense situations?",
+      "bot_response": "Siii",
+      "elapsed_ms": 9335
+    },
+    {
+      "q": "Q39",
+      "dim": "N",
+      "cat": "+",
+      "text": "Do you get nervous easily?",
+      "bot_response": "",
+      "elapsed_ms": 10290
+    },
+    {
+      "q": "Q5",
+      "dim": "O",
+      "cat": "+",
+      "text": "Do you come up with new ideas?",
+      "bot_response": "",
+      "elapsed_ms": 9669
+    },
+    {
+      "q": "Q10",
+      "dim": "O",
+      "cat": "+",
+      "text": "Are you curious about many different things?",
+      "bot_response": "Siii 🩷 ¡",
+      "elapsed_ms": 9141
+    },
+    {
+      "q": "Q15",
+      "dim": "O",
+      "cat": "+",
+      "text": "Are you ingenious, a deep thinker?",
+      "bot_response": "No, no soy una pensadora profunda. Más bien, soy una persona que se mueve con el ritmo de la vida",
+      "elapsed_ms": 11093
+    },
+    {
+      "q": "Q20",
+      "dim": "O",
+      "cat": "+",
+      "text": "Do you have an active imagination?",
+      "bot_response": "",
+      "elapsed_ms": 9226
+    },
+    {
+      "q": "Q25",
+      "dim": "O",
+      "cat": "+",
+      "text": "Are you inventive?",
+      "bot_response": "",
+      "elapsed_ms": 9593
+    },
+    {
+      "q": "Q30",
+      "dim": "O",
+      "cat": "+",
+      "text": "Do you value artistic, aesthetic experiences?",
+      "bot_response": "",
+      "elapsed_ms": 10718
+    },
+    {
+      "q": "Q35",
+      "dim": "O",
+      "cat": "-",
+      "text": "Do you prefer work that is routine?",
+      "bot_response": "No, prefiero lo que sea un reto, no lo repetitivo. 😂😂😂 La rutina me aburre, pero si hay algo nuevo o que me desafíe, ¡sí! 🩷🩷🩷",
+      "elapsed_ms": 9140
+    },
+    {
+      "q": "Q40",
+      "dim": "O",
+      "cat": "+",
+      "text": "Do you like to reflect, play with ideas?",
+      "bot_response": "",
+      "elapsed_ms": 9805
+    },
+    {
+      "q": "Q41",
+      "dim": "O",
+      "cat": "-",
+      "text": "Do you have few artistic interests?",
+      "bot_response": "No, no tanto. Más de movimiento, baile, ritmo. Arte? Pues... me gusta el color y la música, pero soy más de flow que de pintura. 🎶❤️🩷🩷",
+      "elapsed_ms": 10659
+    },
+    {
+      "q": "Q44",
+      "dim": "O",
+      "cat": "+",
+      "text": "Are you sophisticated in art, music, or literature?",
+      "bot_response": "",
+      "elapsed_ms": 9557
+    }
+  ]
+}

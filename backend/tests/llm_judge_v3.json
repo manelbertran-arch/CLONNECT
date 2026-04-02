@@ -1,0 +1,384 @@
+{
+  "version": "v3",
+  "date": "2026-03-21",
+  "judge_model": "gemini-2.5-flash-lite",
+  "results": {
+    "overall_llm_judge": 5.7,
+    "by_type": {
+      "personal": 4.0,
+      "saludo": 5.3,
+      "precio": 6.1,
+      "objecion": 6.0,
+      "lead_caliente": 5.5,
+      "audio": 6.4
+    },
+    "by_language": {
+      "ca": 5.0,
+      "es": 6.5
+    },
+    "n_conversations": 20,
+    "n_errors": 0
+  },
+  "conversations": [
+    {
+      "id": "conv_001",
+      "type": "personal",
+      "language": "ca",
+      "bot_response": "Cariño, no te preocupes, si no los encuentras, te ayudo yo",
+      "ground_truth": "Ay, Manel! Qué lío con las bambas. 😣 ¿Seguro que no las dejaste en casa?",
+      "sequence_matcher_score": 33.8,
+      "llm_judge_score": 4.0,
+      "llm_judge_detail": {
+        "score": 4.0,
+        "tono": 5,
+        "idioma": 3,
+        "contenido": 6,
+        "longitud": 3,
+        "emojis": 1,
+        "comentario": "El bot usa un apodo cariñoso pero el tono general es demasiado genérico. La respuesta real de Iris es más específica y personal al mencionar las 'bambas' y preguntar si las dejó en casa, mientras que el bot es vago. El idioma debería ser catalán (ca), pero el bot responde en español. El uso de emojis es nulo en el bot, cuando Iris usa uno."
+      }
+    },
+    {
+      "id": "conv_002",
+      "type": "saludo",
+      "language": "ca",
+      "bot_response": "Hola Irene  Què tal",
+      "ground_truth": "Mare meva Irene! Quina gràcia!! 😍 Com estàs, guapa?",
+      "sequence_matcher_score": 37.1,
+      "llm_judge_score": 2.5,
+      "llm_judge_detail": {
+        "score": 2.5,
+        "tono": 2,
+        "idioma": 1,
+        "contenido": 3,
+        "longitud": 2,
+        "emojis": 1,
+        "comentario": "El bot falla en tono, idioma (esperaba catalán), emojis y longitud. El saludo es demasiado genérico."
+      }
+    },
+    {
+      "id": "conv_003",
+      "type": "saludo",
+      "language": "es",
+      "bot_response": "Emiii que haces por aqui? Que te trae por Buenos Aires?",
+      "ground_truth": "Daleee! Que haces babyyyy? 😘 Que fuerteee!",
+      "sequence_matcher_score": 45.4,
+      "llm_judge_score": 6.5,
+      "llm_judge_detail": {
+        "score": 6.5,
+        "tono": 7,
+        "idioma": 10,
+        "contenido": 8,
+        "longitud": 6,
+        "emojis": 4,
+        "comentario": "El bot captura el tono cariñoso y directo, pero le faltan los apodos y emojis característicos de Iris. La longitud es un poco corta. El idioma es correcto."
+      }
+    },
+    {
+      "id": "conv_004",
+      "type": "saludo",
+      "language": "es",
+      "bot_response": "Ostiaaaa ericadelo, no me ha llegado nada 🫠 Escribemelo porfa 🩷",
+      "ground_truth": "Ostiaaa😂😂😂",
+      "sequence_matcher_score": 19.2,
+      "llm_judge_score": 7.0,
+      "llm_judge_detail": {
+        "score": 7.0,
+        "tono": 8,
+        "idioma": 9,
+        "contenido": 7,
+        "longitud": 6,
+        "emojis": 7,
+        "comentario": "El tono es muy cercano, aunque le falta un apodo cariñoso. El idioma es correcto y el contenido relevante. La longitud es un poco más larga de lo que Iris diría en respuesta a un mensaje simple. Los emojis son correctos pero podrían ser más variados."
+      }
+    },
+    {
+      "id": "conv_005",
+      "type": "precio",
+      "language": "es",
+      "bot_response": "Hola Angelina! Siii, clar que si T'apunto! Quants dies vols venir a la setmana",
+      "ground_truth": "Ya estás flor",
+      "sequence_matcher_score": 19.8,
+      "llm_judge_score": 6.5,
+      "llm_judge_detail": {
+        "score": 6.5,
+        "tono": 7,
+        "idioma": 4,
+        "contenido": 8,
+        "longitud": 6,
+        "emojis": 5,
+        "comentario": "El tono es cariñoso pero el idioma mezcla catalán y español sin motivo y no es el que se esperaba. Falta su estilo de apodos. El contenido es correcto y los emojis son escasos."
+      }
+    },
+    {
+      "id": "conv_006",
+      "type": "precio",
+      "language": "ca",
+      "bot_response": "Moltbe",
+      "ground_truth": "Hola Iolanda! 😊",
+      "sequence_matcher_score": 19.0,
+      "llm_judge_score": 3.0,
+      "llm_judge_detail": {
+        "score": 3.0,
+        "tono": 2,
+        "idioma": 1,
+        "contenido": 1,
+        "longitud": 1,
+        "emojis": 1,
+        "comentario": "El bot usa catalán pero el tono es muy seco y no hay emojis ni apelativos cariñosos. La respuesta es extremadamente corta e irrelevante."
+      }
+    },
+    {
+      "id": "conv_007",
+      "type": "precio",
+      "language": "es",
+      "bot_response": "Perfecte Albert  Ja ho tinc tot apunt. Gràcies x el link!",
+      "ground_truth": "Hola Albert! 😊 Qué bien que te animas al workshop!",
+      "sequence_matcher_score": 28.0,
+      "llm_judge_score": 6.8,
+      "llm_judge_detail": {
+        "score": 6.8,
+        "tono": 7,
+        "idioma": 3,
+        "contenido": 8,
+        "longitud": 7,
+        "emojis": 5,
+        "comentario": "El bot usa catalán cuando se esperaba español, lo que es un error importante dado que Iris es bilingüe pero el mensaje es en español y la instrucción es clara. El tono y el contenido son buenos, pero el idioma y los emojis no encajan con el estilo de Iris. La longitud es aceptable."
+      }
+    },
+    {
+      "id": "conv_008",
+      "type": "precio",
+      "language": "es",
+      "bot_response": "Abril, cariño, ¿qué pasa",
+      "ground_truth": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂",
+      "sequence_matcher_score": 46.9,
+      "llm_judge_score": 6.5,
+      "llm_judge_detail": {
+        "score": 6.5,
+        "tono": 7,
+        "idioma": 10,
+        "contenido": 7,
+        "longitud": 5,
+        "emojis": 4,
+        "comentario": "El bot captura el tono cariñoso y directo, pero la longitud es muy corta y faltan emojis y el code-switching que caracterizan a Iris."
+      }
+    },
+    {
+      "id": "conv_009",
+      "type": "precio",
+      "language": "ca",
+      "bot_response": "Aiii Eli  Cómo va todo? Te paso info por privado ahora que ya he colgad",
+      "ground_truth": "Aiii Eli! 🥰 Cómo va todo?? Te paso info por privado ahora que ya he colgado.",
+      "sequence_matcher_score": 96.6,
+      "llm_judge_score": 7.5,
+      "llm_judge_detail": {
+        "score": 7.5,
+        "tono": 9,
+        "idioma": 9,
+        "contenido": 8,
+        "longitud": 7,
+        "emojis": 5,
+        "comentario": "El tono y el contenido son muy buenos, capturando la cercanía y la prontitud. El idioma es correcto. Falta un emoji para ser más fiel y la longitud es un poco menor."
+      }
+    },
+    {
+      "id": "conv_010",
+      "type": "objecion",
+      "language": "es",
+      "bot_response": "Babyyyy, me alegro que te lo tomes con calma Cuando quieras aquí estoy, amor Un besito enorme guapa!",
+      "ground_truth": "Amor, me alegro un montón de que lo estés asimilando bien. 🥰 ¡Ya verás qué bien te sienta!",
+      "sequence_matcher_score": 45.3,
+      "llm_judge_score": 7.2,
+      "llm_judge_detail": {
+        "score": 7.2,
+        "tono": 8,
+        "idioma": 10,
+        "contenido": 7,
+        "longitud": 6,
+        "emojis": 5,
+        "comentario": "El bot captura bien el tono cariñoso y directo de Iris, utilizando apodos como 'Babyyyy' y 'amor'. El idioma es correcto. El contenido es relevante al asegurar su disponibilidad. Sin embargo, la longitud es un poco menor a la de Iris y el uso de emojis es más limitado y menos espontáneo."
+      }
+    },
+    {
+      "id": "conv_011",
+      "type": "objecion",
+      "language": "es",
+      "bot_response": "Que guayyy amorrr A q hora es?",
+      "ground_truth": "Ay, mi vida, qué lío! 🫠 Entonces, ¿al final vas a la otra clase o te quedas a la de barre? 😘",
+      "sequence_matcher_score": 18.0,
+      "llm_judge_score": 7.2,
+      "llm_judge_detail": {
+        "score": 7.2,
+        "tono": 8,
+        "idioma": 10,
+        "contenido": 7,
+        "longitud": 6,
+        "emojis": 5,
+        "comentario": "El tono es muy cercano y cariñoso, usa bien el 'amorrr'. El idioma es correcto. El contenido es relevante pero un poco más directo y corto de lo que Iris suele ser. Le faltan emojis y un poco más de elaboración en su respuesta."
+      }
+    },
+    {
+      "id": "conv_012",
+      "type": "objecion",
+      "language": "ca",
+      "bot_response": "De res cuca",
+      "ground_truth": "Hola Marta! De res, guapa! 🥰 Sempre que puguis i vulguis, aquí estic! Què et va semblar la classe d'ahir? 😊",
+      "sequence_matcher_score": 15.3,
+      "llm_judge_score": 3.5,
+      "llm_judge_detail": {
+        "score": 3.5,
+        "tono": 4,
+        "idioma": 5,
+        "contenido": 3,
+        "longitud": 2,
+        "emojis": 1,
+        "comentario": "El bot usa un apodo cariñoso y el idioma correcto, pero la respuesta es demasiado corta y carece de la calidez y el estilo de Iris. No pregunta nada de vuelta como ella lo haría."
+      }
+    },
+    {
+      "id": "conv_013",
+      "type": "lead_caliente",
+      "language": "ca",
+      "bot_response": "Oqqq bro 😂😂😂 Com va tot?",
+      "ground_truth": "Hola bro! Com va tot? 🥰 Que moltes ganes de barre dijous! 💪",
+      "sequence_matcher_score": 41.0,
+      "llm_judge_score": 7.2,
+      "llm_judge_detail": {
+        "score": 7.2,
+        "tono": 8,
+        "idioma": 7,
+        "contenido": 8,
+        "longitud": 6,
+        "emojis": 5,
+        "comentario": "El bot capta el tono cariñoso y directo, y usa emojis de forma similar. El idioma es correcto, pero la longitud podría ser un poco mayor para reflejar mejor el estilo de Iris. La repetición de 'Oqqq' no es necesario."
+      }
+    },
+    {
+      "id": "conv_014",
+      "type": "lead_caliente",
+      "language": "es",
+      "bot_response": "A ti, cariño  Me alegro que te gustara, reina!",
+      "ground_truth": "De nada, cariño. ❤️ Me alegro que te gustara. 😘",
+      "sequence_matcher_score": 77.4,
+      "llm_judge_score": 8.5,
+      "llm_judge_detail": {
+        "score": 8.5,
+        "tono": 10,
+        "idioma": 10,
+        "contenido": 9,
+        "longitud": 9,
+        "emojis": 7,
+        "comentario": "El bot capta muy bien el tono cariñoso y directo de Iris. El uso de 'cariño' y 'reina' es perfecto. La respuesta es relevante y concisa. El único punto de mejora sería añadir algún emoji más para igualar la frecuencia de Iris, aunque la respuesta sigue siendo excelente."
+      }
+    },
+    {
+      "id": "conv_015",
+      "type": "lead_caliente",
+      "language": "es",
+      "bot_response": "Ay mi amor, qué pena lo del perrito. 😔 Te mando un abrazo enorme, compa. ❤️",
+      "ground_truth": "Que vendrás el domingo que es el últimooo",
+      "sequence_matcher_score": 29.3,
+      "llm_judge_score": 1.0,
+      "llm_judge_detail": {
+        "score": 1.0,
+        "tono": 1,
+        "idioma": 1,
+        "contenido": 1,
+        "longitud": 1,
+        "emojis": 1,
+        "comentario": "El BOT ignora completamente el mensaje del lead y responde con algo totalmente ajeno al contexto. No hay ninguna similitud con la respuesta REAL de Iris."
+      }
+    },
+    {
+      "id": "conv_016",
+      "type": "lead_caliente",
+      "language": "ca",
+      "bot_response": "Andreaaa Que bueno que te interese VINC SÚPER RAPID! Cuéntame, qué te ha llamado la atención?",
+      "ground_truth": "Tranqui",
+      "sequence_matcher_score": 10.0,
+      "llm_judge_score": 6.5,
+      "llm_judge_detail": {
+        "score": 6.5,
+        "tono": 7,
+        "idioma": 7,
+        "contenido": 7,
+        "longitud": 6,
+        "emojis": 5,
+        "comentario": "El bot usa un tono cariñoso y directo, pero le faltan los apodos y el code-switching. El idioma es incorrecto, espera catalán y responde en español. La longitud es un poco más larga de lo esperado. El uso de emojis es aceptable pero podría ser más vibrante."
+      }
+    },
+    {
+      "id": "conv_017",
+      "type": "audio",
+      "language": "ca",
+      "bot_response": "Jajajajajajajaja",
+      "ground_truth": "Jajaja, ¡qué bueno! 😂 Me alegro que todo se haya solucionado, Sònia. ¡Un abrazo! 😘",
+      "sequence_matcher_score": 22.4,
+      "llm_judge_score": 6.5,
+      "llm_judge_detail": {
+        "score": 6.5,
+        "tono": 7,
+        "idioma": 10,
+        "contenido": 5,
+        "longitud": 3,
+        "emojis": 3,
+        "comentario": "El bot captura la risa inicial y el idioma, pero falta la calidez y los emojis que caracterizan a Iris. El contenido es demasiado escueto."
+      }
+    },
+    {
+      "id": "conv_018",
+      "type": "audio",
+      "language": "es",
+      "bot_response": "Ostiaaa amor, sí, lo de la cervical es un rollo. Descansa hoy, que te lo mereces. Y claro que sí, Pibonacos de Barcelona será un planazo!!",
+      "ground_truth": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+      "sequence_matcher_score": 33.9,
+      "llm_judge_score": 7.8,
+      "llm_judge_detail": {
+        "score": 7.8,
+        "tono": 8,
+        "idioma": 10,
+        "contenido": 7,
+        "longitud": 7,
+        "emojis": 5,
+        "comentario": "El bot captura bien el tono y el idioma, pero le falta un poco más de extensión y emojis para ser perfecto. El uso de 'Ostiaaa amor' es muy acertado."
+      }
+    },
+    {
+      "id": "conv_019",
+      "type": "lead_caliente",
+      "language": "ca",
+      "bot_response": "Aww cariño, me alegro q estés mejor  que vaya bien con las gestiones, guapa",
+      "ground_truth": "Dijous no podrem fer entreno aviso😘",
+      "sequence_matcher_score": 10.9,
+      "llm_judge_score": 4.2,
+      "llm_judge_detail": {
+        "score": 4.2,
+        "tono": 5,
+        "idioma": 2,
+        "contenido": 6,
+        "longitud": 3,
+        "emojis": 3,
+        "comentario": "El tono es cariñoso pero el idioma esperado era catalán y el bot responde en español. La longitud y el uso de emojis no son representativos. El contenido es relevante pero genérico."
+      }
+    },
+    {
+      "id": "conv_020",
+      "type": "audio",
+      "language": "ca",
+      "bot_response": "Mar!!  Que et va cridar l'atenció",
+      "ground_truth": "Oleeeeee nen! Que te cuento? 🥹 Com va tot per allà?",
+      "sequence_matcher_score": 35.7,
+      "llm_judge_score": 5.0,
+      "llm_judge_detail": {
+        "score": 5.0,
+        "tono": 6,
+        "idioma": 1,
+        "contenido": 3,
+        "longitud": 2,
+        "emojis": 2,
+        "comentario": "El bot intenta ser informal pero falla en el tono y la relevancia. El idioma es correcto pero la respuesta es demasiado corta y carece de emojis. El uso del apodo 'Mar' es bueno pero no es suficiente para capturar la voz de Iris."
+      }
+    }
+  ]
+}

@@ -186,7 +186,7 @@ class MemoryEngine:
     # ─────────────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _resolve_creator_uuid(creator_id: str) -> str:
+    async def _resolve_creator_uuid(creator_id: str) -> str:
         """Return the DB UUID for a creator, resolving slug names if needed."""
         try:
             uuid.UUID(creator_id)
@@ -194,10 +194,9 @@ class MemoryEngine:
         except (ValueError, AttributeError):
             pass
         # Slug path: look up by name
-        try:
+        def _lookup():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             try:
                 row = session.execute(
@@ -208,11 +207,16 @@ class MemoryEngine:
                     return str(row[0])
             finally:
                 session.close()
+            return None
+        try:
+            result = await asyncio.to_thread(_lookup)
+            if result:
+                return result
         except Exception as e:
             logger.debug("[MemoryEngine] _resolve_creator_uuid failed for %s: %s", creator_id, e)
-        return creator_id  # Fall back (will fail at DB layer with a clear error)
+        return creator_id
 
-    def _resolve_lead_uuid(self, creator_uuid: str, lead_id: str) -> str:
+    async def _resolve_lead_uuid(self, creator_uuid: str, lead_id: str) -> str:
         """Return the DB UUID for a lead, resolving platform_user_id if needed."""
         try:
             uuid.UUID(lead_id)
@@ -220,10 +224,9 @@ class MemoryEngine:
         except (ValueError, AttributeError):
             pass
         # platform_user_id path: look up by creator + platform_user_id
-        try:
+        def _lookup():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             try:
                 row = session.execute(
@@ -245,9 +248,14 @@ class MemoryEngine:
                     return str(row[0])
             finally:
                 session.close()
+            return None
+        try:
+            result = await asyncio.to_thread(_lookup)
+            if result:
+                return result
         except Exception as e:
             logger.debug("[MemoryEngine] _resolve_lead_uuid failed for %s: %s", lead_id, e)
-        return lead_id  # Fall back (will fail at DB layer with a clear error)
+        return lead_id
 
     # ─────────────────────────────────────────────────────────────────────
     # PUBLIC: add() — Extract and store facts from conversation
@@ -275,8 +283,8 @@ class MemoryEngine:
         if not ENABLE_MEMORY_ENGINE:
             return []
 
-        creator_id = self._resolve_creator_uuid(creator_id)
-        lead_id = self._resolve_lead_uuid(creator_id, lead_id)
+        creator_id = await self._resolve_creator_uuid(creator_id)
+        lead_id = await self._resolve_lead_uuid(creator_id, lead_id)
 
         try:
             formatted_msgs = self._format_messages_for_llm(conversation_messages)
@@ -341,6 +349,13 @@ class MemoryEngine:
             cache_key = f"{creator_id}:{lead_id}"
             _recall_cache.pop(cache_key, None)
 
+            # OPT-1: Auto-trigger COMEDY compression when fact count exceeds threshold
+            if stored_memories:
+                all_facts = await self._get_existing_active_facts(creator_id, lead_id)
+                real_facts = [f for f in all_facts if f.fact_type != "compressed_memo"]
+                if len(real_facts) >= MEMO_COMPRESSION_THRESHOLD:
+                    asyncio.create_task(self.compress_lead_memory(creator_id, lead_id))
+
             return stored_memories
 
         except Exception as e:
@@ -362,7 +377,7 @@ class MemoryEngine:
         if not ENABLE_MEMORY_ENGINE:
             return []
 
-        creator_id = self._resolve_creator_uuid(creator_id)
+        creator_id = await self._resolve_creator_uuid(creator_id)
 
         try:
             query_embedding = await self._generate_embedding(query)
@@ -400,8 +415,8 @@ class MemoryEngine:
         if not ENABLE_MEMORY_ENGINE:
             return ""
 
-        creator_id = self._resolve_creator_uuid(creator_id)
-        lead_id = self._resolve_lead_uuid(creator_id, lead_id)
+        creator_id = await self._resolve_creator_uuid(creator_id)
+        lead_id = await self._resolve_lead_uuid(creator_id, lead_id)
         cache_key = f"{creator_id}:{lead_id}"
         cached = _recall_cache.get(cache_key)
         if cached is not None:
@@ -446,8 +461,8 @@ class MemoryEngine:
         precomputed_sentiment: Optional[str] = None,
     ) -> Optional[ConversationSummaryData]:
         """Generate and store a conversation summary."""
-        creator_id = self._resolve_creator_uuid(creator_id)
-        lead_id = self._resolve_lead_uuid(creator_id, lead_id)
+        creator_id = await self._resolve_creator_uuid(creator_id)
+        lead_id = await self._resolve_lead_uuid(creator_id, lead_id)
         try:
             summary_text = precomputed_summary
             key_topics = precomputed_topics or []
@@ -503,8 +518,8 @@ class MemoryEngine:
         Stores the memo as fact_type='compressed_memo' in lead_memories.
         Returns the memo text, or None if not enough facts to compress.
         """
-        creator_id = self._resolve_creator_uuid(creator_id)
-        lead_id = self._resolve_lead_uuid(creator_id, lead_id)
+        creator_id = await self._resolve_creator_uuid(creator_id)
+        lead_id = await self._resolve_lead_uuid(creator_id, lead_id)
 
         try:
             all_facts = await self._get_existing_active_facts(creator_id, lead_id)
@@ -568,10 +583,9 @@ class MemoryEngine:
 
     async def _deactivate_old_memos(self, creator_id: str, lead_id: str) -> None:
         """Deactivate existing compressed_memo entries for a lead."""
-        try:
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             try:
                 session.execute(
@@ -587,6 +601,8 @@ class MemoryEngine:
                 session.commit()
             finally:
                 session.close()
+        try:
+            await asyncio.to_thread(_sync)
         except Exception as e:
             logger.error("[MemoryEngine] _deactivate_old_memos() failed: %s", e)
 
@@ -655,14 +671,12 @@ class MemoryEngine:
 
     async def forget_lead(self, creator_id: str, lead_id: str) -> int:
         """Delete ALL memories for a specific lead (GDPR right to erasure)."""
-        creator_id = self._resolve_creator_uuid(creator_id)
-        try:
+        creator_id = await self._resolve_creator_uuid(creator_id)
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             total_deleted = 0
-
             try:
                 result1 = session.execute(
                     text(
@@ -673,7 +687,6 @@ class MemoryEngine:
                     {"cid": creator_id, "lid": lead_id},
                 )
                 total_deleted += result1.rowcount
-
                 result2 = session.execute(
                     text(
                         "DELETE FROM conversation_summaries "
@@ -683,23 +696,18 @@ class MemoryEngine:
                     {"cid": creator_id, "lid": lead_id},
                 )
                 total_deleted += result2.rowcount
-
                 session.commit()
                 logger.info(
                     "[MemoryEngine] GDPR forget: deleted %d records for lead=%s",
-                    total_deleted,
-                    lead_id[:8],
+                    total_deleted, lead_id[:8],
                 )
-
                 cache_key = f"{creator_id}:{lead_id}"
                 _recall_cache.pop(cache_key, None)
-                _recall_cache_ts.pop(cache_key, None)
-
                 return total_deleted
-
             finally:
                 session.close()
-
+        try:
+            return await asyncio.to_thread(_sync)
         except Exception as e:
             logger.error("[MemoryEngine] forget_lead() failed: %s", e, exc_info=True)
             return 0
@@ -722,13 +730,11 @@ class MemoryEngine:
         # Expire temporal facts first (independent of Ebbinghaus)
         temporal_expired = await self._expire_temporal_facts()
 
-        try:
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             deactivated = temporal_expired
-
             try:
                 rows = session.execute(
                     text(
@@ -740,31 +746,23 @@ class MemoryEngine:
                     ),
                     {"cid": creator_id},
                 ).fetchall()
-
                 now = datetime.now(timezone.utc)
                 ids_to_deactivate = []
-
                 for row in rows:
                     mem_id = str(row[0])
                     confidence = float(row[1]) if row[1] else 0.7
                     times_accessed = int(row[2]) if row[2] else 0
                     last_accessed = row[3] or row[4]
-
                     if last_accessed is None:
                         continue
-
                     if last_accessed.tzinfo is None:
                         last_accessed = last_accessed.replace(tzinfo=timezone.utc)
-
                     days_since = (now - last_accessed).total_seconds() / 86400.0
                     half_life = DECAY_HALF_LIFE_BASE_DAYS * (1 + times_accessed)
-
                     decay_factor = math.exp(-0.693 * days_since / half_life)
                     effective_confidence = confidence * decay_factor
-
                     if effective_confidence < DECAY_THRESHOLD:
                         ids_to_deactivate.append(mem_id)
-
                 if ids_to_deactivate:
                     for mem_id in ids_to_deactivate:
                         session.execute(
@@ -775,19 +773,16 @@ class MemoryEngine:
                             {"mid": mem_id},
                         )
                     session.commit()
-                    deactivated = len(ids_to_deactivate)
-
+                    deactivated += len(ids_to_deactivate)
                 logger.info(
                     "[MemoryEngine] decay: checked %d memories, deactivated %d for creator=%s",
-                    len(rows),
-                    deactivated,
-                    creator_id[:8],
+                    len(rows), deactivated, creator_id[:8],
                 )
                 return deactivated
-
             finally:
                 session.close()
-
+        try:
+            return await asyncio.to_thread(_sync)
         except Exception as e:
             logger.error("[MemoryEngine] decay_memories() failed: %s", e, exc_info=True)
             return 0
@@ -949,18 +944,15 @@ class MemoryEngine:
         source_type: str,
     ) -> Optional[LeadMemory]:
         """Store a single fact in lead_memories with optional embedding."""
-        try:
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             try:
                 fact_id = str(uuid.uuid4())
-
                 if embedding:
                     validated_floats = [float(v) for v in embedding]
                     embedding_str = "[" + ",".join(str(x) for x in validated_floats) + "]"
-
                     session.execute(
                         text(
                             "INSERT INTO lead_memories "
@@ -972,17 +964,9 @@ class MemoryEngine:
                             ":ftype, :ftext, CAST(:embedding AS vector), :conf, "
                             "CAST(:smid AS uuid), :stype, NOW(), NOW())"
                         ),
-                        {
-                            "id": fact_id,
-                            "cid": creator_id,
-                            "lid": lead_id,
-                            "ftype": fact_type,
-                            "ftext": fact_text,
-                            "embedding": embedding_str,
-                            "conf": confidence,
-                            "smid": source_message_id,
-                            "stype": source_type,
-                        },
+                        {"id": fact_id, "cid": creator_id, "lid": lead_id,
+                         "ftype": fact_type, "ftext": fact_text, "embedding": embedding_str,
+                         "conf": confidence, "smid": source_message_id, "stype": source_type},
                     )
                 else:
                     session.execute(
@@ -996,35 +980,21 @@ class MemoryEngine:
                             ":ftype, :ftext, :conf, "
                             "CAST(:smid AS uuid), :stype, NOW(), NOW())"
                         ),
-                        {
-                            "id": fact_id,
-                            "cid": creator_id,
-                            "lid": lead_id,
-                            "ftype": fact_type,
-                            "ftext": fact_text,
-                            "conf": confidence,
-                            "smid": source_message_id,
-                            "stype": source_type,
-                        },
+                        {"id": fact_id, "cid": creator_id, "lid": lead_id,
+                         "ftype": fact_type, "ftext": fact_text,
+                         "conf": confidence, "smid": source_message_id, "stype": source_type},
                     )
-
                 session.commit()
-
                 return LeadMemory(
-                    id=fact_id,
-                    creator_id=creator_id,
-                    lead_id=lead_id,
-                    fact_type=fact_type,
-                    fact_text=fact_text,
-                    confidence=confidence,
-                    source_message_id=source_message_id,
-                    source_type=source_type,
+                    id=fact_id, creator_id=creator_id, lead_id=lead_id,
+                    fact_type=fact_type, fact_text=fact_text, confidence=confidence,
+                    source_message_id=source_message_id, source_type=source_type,
                     created_at=datetime.now(timezone.utc),
                 )
-
             finally:
                 session.close()
-
+        try:
+            return await asyncio.to_thread(_sync)
         except Exception as e:
             logger.error("[MemoryEngine] _store_fact() failed: %s", e, exc_info=True)
             return None
@@ -1037,63 +1007,60 @@ class MemoryEngine:
         top_k: int,
         min_similarity: float,
     ) -> List[LeadMemory]:
-        """Semantic search via pgvector cosine similarity."""
-        try:
+        """Semantic search via pgvector cosine similarity with temporal decay.
+
+        O2 optimization (THEANINE NAACL 2025, Memobase 2025): final ranking
+        blends semantic similarity (70%) with recency (30%) over a 90-day
+        window.  This prevents stale-but-semantically-similar facts from
+        burying recent relevant ones.
+
+        Formula: score = sim * (0.7 + 0.3 * max(0, 1 - age_days/90))
+        """
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
+            validated_floats = [float(v) for v in query_embedding]
+            embedding_str = "[" + ",".join(str(x) for x in validated_floats) + "]"
             session = SessionLocal()
             try:
-                validated_floats = [float(v) for v in query_embedding]
-                embedding_str = "[" + ",".join(str(x) for x in validated_floats) + "]"
-
                 rows = session.execute(
                     text(
                         "SELECT id, creator_id, lead_id, fact_type, fact_text, "
                         "confidence, source_type, times_accessed, "
                         "last_accessed_at, created_at, "
-                        "1 - (fact_embedding <=> CAST(:query AS vector)) as similarity "
+                        "(1 - (fact_embedding <=> CAST(:query AS vector))) "
+                        "  * (0.7 + 0.3 * GREATEST(0, "
+                        "      1.0 - EXTRACT(EPOCH FROM (NOW() - created_at)) "
+                        "             / (90 * 86400))) "
+                        "  AS similarity "
                         "FROM lead_memories "
                         "WHERE creator_id = CAST(:cid AS uuid) "
                         "AND lead_id = CAST(:lid AS uuid) "
                         "AND is_active = true "
                         "AND fact_embedding IS NOT NULL "
                         "AND 1 - (fact_embedding <=> CAST(:query AS vector)) >= :min_sim "
-                        "ORDER BY fact_embedding <=> CAST(:query AS vector) "
+                        "ORDER BY similarity DESC "
                         "LIMIT :top_k"
                     ),
-                    {
-                        "query": embedding_str,
-                        "cid": creator_id,
-                        "lid": lead_id,
-                        "min_sim": min_similarity,
-                        "top_k": top_k,
-                    },
+                    {"query": embedding_str, "cid": creator_id, "lid": lead_id,
+                     "min_sim": min_similarity, "top_k": top_k},
                 ).fetchall()
-
-                results = []
-                for row in rows:
-                    results.append(
-                        LeadMemory(
-                            id=str(row[0]),
-                            creator_id=str(row[1]),
-                            lead_id=str(row[2]),
-                            fact_type=row[3],
-                            fact_text=row[4],
-                            confidence=float(row[5]) if row[5] else 0.7,
-                            source_type=row[6] or "extracted",
-                            times_accessed=int(row[7]) if row[7] else 0,
-                            last_accessed_at=row[8],
-                            created_at=row[9],
-                            similarity=float(row[10]) if row[10] else 0.0,
-                        )
+                return [
+                    LeadMemory(
+                        id=str(row[0]), creator_id=str(row[1]), lead_id=str(row[2]),
+                        fact_type=row[3], fact_text=row[4],
+                        confidence=float(row[5]) if row[5] else 0.7,
+                        source_type=row[6] or "extracted",
+                        times_accessed=int(row[7]) if row[7] else 0,
+                        last_accessed_at=row[8], created_at=row[9],
+                        similarity=float(row[10]) if row[10] else 0.0,
                     )
-
-                return results
-
+                    for row in rows
+                ]
             finally:
                 session.close()
-
+        try:
+            return await asyncio.to_thread(_sync)
         except Exception as e:
             logger.error("[MemoryEngine] _pgvector_search() failed: %s", e, exc_info=True)
             return []
@@ -1102,10 +1069,9 @@ class MemoryEngine:
         self, creator_id: str, lead_id: str
     ) -> List[LeadMemory]:
         """Get all active facts for a lead (for conflict resolution)."""
-        try:
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             try:
                 rows = session.execute(
@@ -1119,37 +1085,50 @@ class MemoryEngine:
                     ),
                     {"cid": creator_id, "lid": lead_id},
                 ).fetchall()
-
                 return [
                     LeadMemory(
-                        id=str(row[0]),
-                        creator_id=creator_id,
-                        lead_id=lead_id,
-                        fact_type=row[1],
-                        fact_text=row[2],
-                        confidence=float(row[3]) if row[3] else 0.7,
-                        created_at=row[4],
+                        id=str(row[0]), creator_id=creator_id, lead_id=lead_id,
+                        fact_type=row[1], fact_text=row[2],
+                        confidence=float(row[3]) if row[3] else 0.7, created_at=row[4],
                     )
                     for row in rows
                 ]
-
             finally:
                 session.close()
-
+        try:
+            return await asyncio.to_thread(_sync)
         except Exception as e:
             logger.error("[MemoryEngine] _get_existing_active_facts() failed: %s", e)
             return []
 
+    # O1 (Memobase/RMM): Type-priority weights for non-semantic fallback.
+    # Commitments and personal info are more actionable than generic topics.
+    _FALLBACK_TYPE_WEIGHT = {
+        "commitment": 4,
+        "personal_info": 3,
+        "preference": 2,
+        "objection": 2,
+        "purchase_history": 2,
+        "topic": 1,
+        "compressed_memo": 5,
+    }
+
     async def _get_recent_facts(
         self, creator_id: str, lead_id: str, limit: int
     ) -> List[LeadMemory]:
-        """Fallback: get most recent active facts (no semantic search)."""
-        try:
+        """Fallback: get active facts weighted by type priority + recency.
+
+        O1 optimization (Memobase, 2025): instead of pure recency, fetch a
+        wider set and re-rank by type_weight * recency_decay * confidence.
+        This ensures commitments and personal info surface even when
+        embedding search is unavailable (e.g. OpenAI 429).
+        """
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             try:
+                # Fetch 3x limit to allow re-ranking
                 rows = session.execute(
                     text(
                         "SELECT id, creator_id, lead_id, fact_type, fact_text, "
@@ -1162,38 +1141,39 @@ class MemoryEngine:
                         "ORDER BY created_at DESC "
                         "LIMIT :limit"
                     ),
-                    {"cid": creator_id, "lid": lead_id, "limit": limit},
+                    {"cid": creator_id, "lid": lead_id, "limit": limit * 3},
                 ).fetchall()
-
-                return [
-                    LeadMemory(
-                        id=str(row[0]),
-                        creator_id=str(row[1]),
-                        lead_id=str(row[2]),
-                        fact_type=row[3],
-                        fact_text=row[4],
+                now = datetime.now(timezone.utc)
+                scored = []
+                for row in rows:
+                    mem = LeadMemory(
+                        id=str(row[0]), creator_id=str(row[1]), lead_id=str(row[2]),
+                        fact_type=row[3], fact_text=row[4],
                         confidence=float(row[5]) if row[5] else 0.7,
                         source_type=row[6] or "extracted",
                         times_accessed=int(row[7]) if row[7] else 0,
-                        last_accessed_at=row[8],
-                        created_at=row[9],
+                        last_accessed_at=row[8], created_at=row[9],
                     )
-                    for row in rows
-                ]
-
+                    type_w = self._FALLBACK_TYPE_WEIGHT.get(mem.fact_type, 1)
+                    age_days = max(0.1, (now - (mem.created_at or now).replace(tzinfo=timezone.utc if (mem.created_at and mem.created_at.tzinfo is None) else (mem.created_at.tzinfo if mem.created_at else timezone.utc))).total_seconds() / 86400)
+                    recency = 1.0 / (1.0 + age_days / 30.0)  # half-score at 30 days
+                    score = type_w * recency * mem.confidence
+                    scored.append((score, mem))
+                scored.sort(key=lambda x: -x[0])
+                return [mem for _, mem in scored[:limit]]
             finally:
                 session.close()
-
+        try:
+            return await asyncio.to_thread(_sync)
         except Exception as e:
             logger.error("[MemoryEngine] _get_recent_facts() failed: %s", e)
             return []
 
     async def _update_access_counters(self, memory_ids: List[str]) -> None:
         """Increment times_accessed and update last_accessed_at."""
-        try:
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             try:
                 for mem_id in memory_ids:
@@ -1210,16 +1190,16 @@ class MemoryEngine:
                 session.commit()
             finally:
                 session.close()
-
+        try:
+            await asyncio.to_thread(_sync)
         except Exception as e:
             logger.debug("[MemoryEngine] _update_access_counters() failed: %s", e)
 
     async def _supersede_fact(self, old_fact_id: str, new_fact_id: Optional[str]) -> None:
         """Deactivate an old fact and link to its replacement."""
-        try:
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             try:
                 if new_fact_id:
@@ -1245,7 +1225,8 @@ class MemoryEngine:
                 session.commit()
             finally:
                 session.close()
-
+        try:
+            await asyncio.to_thread(_sync)
         except Exception as e:
             logger.debug("[MemoryEngine] _supersede_fact() failed: %s", e)
 
@@ -1262,13 +1243,11 @@ class MemoryEngine:
         Returns dict with id, text, distance if found within threshold, else None.
         Threshold 0.15 cosine distance ≈ 0.85 cosine similarity.
         """
-        try:
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             validated = [float(v) for v in embedding]
             emb_str = "[" + ",".join(str(x) for x in validated) + "]"
-
             session = SessionLocal()
             try:
                 row = session.execute(
@@ -1286,22 +1265,22 @@ class MemoryEngine:
                     ),
                     {"emb": emb_str, "cid": creator_id, "lid": lead_id, "ftype": fact_type},
                 ).fetchone()
-
                 if row and row[2] < threshold:
                     return {"id": str(row[0]), "text": row[1], "distance": row[2]}
                 return None
             finally:
                 session.close()
+        try:
+            return await asyncio.to_thread(_sync)
         except Exception as e:
             logger.debug("[MemoryEngine] _find_similar_fact_by_embedding() failed: %s", e)
             return None
 
     async def _refresh_fact_timestamp(self, fact_id: str) -> None:
         """Refresh updated_at on an existing fact (dedup touch)."""
-        try:
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             try:
                 session.execute(
@@ -1316,15 +1295,16 @@ class MemoryEngine:
                 session.commit()
             finally:
                 session.close()
+        try:
+            await asyncio.to_thread(_sync)
         except Exception as e:
             logger.debug("[MemoryEngine] _refresh_fact_timestamp() failed: %s", e)
 
     async def _expire_temporal_facts(self) -> int:
         """Deactivate temporal facts older than TTL. Called from decay_memories()."""
-        try:
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             try:
                 result = session.execute(
@@ -1351,6 +1331,8 @@ class MemoryEngine:
                 return expired
             finally:
                 session.close()
+        try:
+            return await asyncio.to_thread(_sync)
         except Exception as e:
             logger.error("[MemoryEngine] _expire_temporal_facts() failed: %s", e)
             return 0
@@ -1366,14 +1348,12 @@ class MemoryEngine:
         message_count: int,
     ) -> Optional[ConversationSummaryData]:
         """Store a conversation summary in the DB."""
-        try:
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             try:
                 summary_id = str(uuid.uuid4())
-
                 session.execute(
                     text(
                         "INSERT INTO conversation_summaries "
@@ -1385,34 +1365,22 @@ class MemoryEngine:
                         ":summary, CAST(:topics AS jsonb), CAST(:commits AS jsonb), "
                         ":sentiment, :count, NOW(), NOW())"
                     ),
-                    {
-                        "id": summary_id,
-                        "cid": creator_id,
-                        "lid": lead_id,
-                        "summary": summary_text,
-                        "topics": json.dumps(key_topics),
-                        "commits": json.dumps(commitments_made),
-                        "sentiment": sentiment,
-                        "count": message_count,
-                    },
+                    {"id": summary_id, "cid": creator_id, "lid": lead_id,
+                     "summary": summary_text, "topics": json.dumps(key_topics),
+                     "commits": json.dumps(commitments_made),
+                     "sentiment": sentiment, "count": message_count},
                 )
                 session.commit()
-
                 return ConversationSummaryData(
-                    id=summary_id,
-                    creator_id=creator_id,
-                    lead_id=lead_id,
-                    summary_text=summary_text,
-                    key_topics=key_topics,
-                    commitments_made=commitments_made,
-                    sentiment=sentiment,
-                    message_count=message_count,
-                    created_at=datetime.now(timezone.utc),
+                    id=summary_id, creator_id=creator_id, lead_id=lead_id,
+                    summary_text=summary_text, key_topics=key_topics,
+                    commitments_made=commitments_made, sentiment=sentiment,
+                    message_count=message_count, created_at=datetime.now(timezone.utc),
                 )
-
             finally:
                 session.close()
-
+        try:
+            return await asyncio.to_thread(_sync)
         except Exception as e:
             logger.error("[MemoryEngine] _store_summary() failed: %s", e, exc_info=True)
             return None
@@ -1421,10 +1389,9 @@ class MemoryEngine:
         self, creator_id: str, lead_id: str
     ) -> Optional[ConversationSummaryData]:
         """Get the most recent conversation summary for a lead."""
-        try:
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             try:
                 row = session.execute(
@@ -1438,25 +1405,18 @@ class MemoryEngine:
                     ),
                     {"cid": creator_id, "lid": lead_id},
                 ).fetchone()
-
                 if not row:
                     return None
-
                 return ConversationSummaryData(
-                    id=str(row[0]),
-                    creator_id=creator_id,
-                    lead_id=lead_id,
-                    summary_text=row[1],
-                    key_topics=row[2] or [],
-                    commitments_made=row[3] or [],
-                    sentiment=row[4] or "neutral",
-                    message_count=row[5] or 0,
-                    created_at=row[6],
+                    id=str(row[0]), creator_id=creator_id, lead_id=lead_id,
+                    summary_text=row[1], key_topics=row[2] or [],
+                    commitments_made=row[3] or [], sentiment=row[4] or "neutral",
+                    message_count=row[5] or 0, created_at=row[6],
                 )
-
             finally:
                 session.close()
-
+        try:
+            return await asyncio.to_thread(_sync)
         except Exception as e:
             logger.error("[MemoryEngine] _get_latest_summary() failed: %s", e)
             return None
@@ -1465,10 +1425,9 @@ class MemoryEngine:
         self, creator_id: str, lead_id: str
     ) -> Optional[LeadMemory]:
         """Get the active compressed memo for a lead, if one exists."""
-        try:
+        def _sync():
             from api.database import SessionLocal
             from sqlalchemy import text
-
             session = SessionLocal()
             try:
                 row = session.execute(
@@ -1483,23 +1442,17 @@ class MemoryEngine:
                     ),
                     {"cid": creator_id, "lid": lead_id},
                 ).fetchone()
-
                 if not row:
                     return None
-
                 return LeadMemory(
-                    id=str(row[0]),
-                    creator_id=creator_id,
-                    lead_id=lead_id,
-                    fact_type="compressed_memo",
-                    fact_text=row[1],
-                    confidence=1.0,
-                    created_at=row[2],
+                    id=str(row[0]), creator_id=creator_id, lead_id=lead_id,
+                    fact_type="compressed_memo", fact_text=row[1],
+                    confidence=1.0, created_at=row[2],
                 )
-
             finally:
                 session.close()
-
+        try:
+            return await asyncio.to_thread(_sync)
         except Exception as e:
             logger.error("[MemoryEngine] _get_compressed_memo() failed: %s", e)
             return None
@@ -1520,77 +1473,160 @@ class MemoryEngine:
             lines.append(f"{label}: {content}")
         return "\n".join(lines)
 
+    @staticmethod
+    def _dedup_facts(facts: List[LeadMemory], threshold: float = 0.6) -> List[LeadMemory]:
+        """O3 (Mem0/MemOS): Remove near-duplicate facts using Jaccard similarity.
+
+        When the same fact is extracted multiple times with slightly different
+        wording, keep only the most recent version.  Threshold 0.6 catches
+        paraphrases like 'Le gusta el yoga' / 'Le interesa el yoga'.
+        """
+        if len(facts) <= 1:
+            return facts
+        kept: List[LeadMemory] = []
+        for fact in facts:
+            words_new = set(fact.fact_text.lower().split())
+            is_dup = False
+            for existing in kept:
+                words_old = set(existing.fact_text.lower().split())
+                union = words_new | words_old
+                if not union:
+                    continue
+                jaccard = len(words_new & words_old) / len(union)
+                if jaccard >= threshold and fact.fact_type == existing.fact_type:
+                    is_dup = True
+                    break
+            if not is_dup:
+                kept.append(fact)
+        return kept
+
+    # ------------------------------------------------------------------
+    # Memory formatting v3 — bulleted list (mem0 pattern, Zep pattern)
+    #
+    # Research: mem0 (25K stars), Zep, Letta all use bulleted/labeled
+    # lists, NOT key=value.  Mem0 paper (2025): k=1-2 memories optimal,
+    # k>2 negates selective benefits.  MRPrompt (2026): explicit usage
+    # protocol required.  SeCom (ICLR 2025): compression-as-denoising.
+    # ------------------------------------------------------------------
+
+    # Name-detection heuristics for personal_info facts (universal, not
+    # hardcoded to any language).  Patterns: "se llama X", "nombre: X",
+    # "apodo X", "llamado/a X", "identificado/a como X".
+    # Note: trigger keywords are case-insensitive but name capture requires
+    # a capitalized first letter to avoid matching common nouns.
+    _NAME_PATTERNS = re.compile(
+        r"(?i:se llama|nombre[:\s]+|apodo[:\s]*|"
+        r"llamad[oa]\s+|identificad[oa]\s+(?:como\s+))\s*"
+        r"['\"]?([A-ZÁÉÍÓÚÑÇ][a-záéíóúñç]+(?:\s+[A-ZÁÉÍÓÚÑÇ][a-záéíóúñç]+)?)",
+    )
+
+    def _extract_lead_name(self, facts: List["LeadMemory"]) -> Optional[str]:
+        """Extract lead's name from personal_info facts (universal regex)."""
+        for f in facts:
+            if f.fact_type != "personal_info":
+                continue
+            m = self._NAME_PATTERNS.search(f.fact_text)
+            if m:
+                return m.group(1).strip()
+        return None
+
+    def _fact_to_bullet(self, fact: "LeadMemory") -> str:
+        """Convert a LeadMemory fact to a compact bulleted line.
+
+        Format follows mem0 pattern: `- {fact_text}`
+        with [PENDIENTE] suffix for commitments (Zep temporal-flag pattern).
+        """
+        text = fact.fact_text.strip()[:100]
+        suffix = " [PENDIENTE]" if fact.fact_type == "commitment" else ""
+        return f"- {text}{suffix}"
+
     def _format_memory_section(
         self,
         facts: List[LeadMemory],
         summary: Optional[ConversationSummaryData],
-        max_chars: int = 3000,
+        max_chars: int = 600,
     ) -> str:
-        """Format memories into the prompt section (max ~750 tokens / 3000 chars).
+        """Format memories as bulleted list with explicit usage protocol.
 
-        Prefers compressed narrative memo (COMEDY-style) over individual facts
-        when available, falling back to fact list for leads without a memo.
+        Research-backed v3 redesign:
+        - mem0 (2025): bulleted list `- fact` is production standard
+        - Zep (2025): XML-tagged facts with timestamps
+        - MRPrompt (2026): explicit 4-stage usage protocol required
+        - Mem0 paper: k≤2 retrieved memories optimal, k>2 hurts
+        - SeCom (ICLR 2025): compression as denoising
+        - LangChain EntityMemory: separate name extraction
+        - Context Rot (Chroma 2025): focused 300 tokens >> 113K tokens
+
+        Output format:
+            <memoria>
+            Nombre: Cuca
+            - Fact 1
+            - Fact 2 [PENDIENTE]
+            Último tema: resumen
+            </memoria>
+            Instrucción: Responde usando la info de <memoria>. No la repitas textual.
         """
         if not facts and not summary:
             return ""
 
-        lines = ["=== MEMORIA DEL LEAD ==="]
+        MAX_FACTS = 5  # Mem0 paper: k>2 hurts; we allow up to 5 for commitments
+        lines: list[str] = ["<memoria>"]
 
-        # Check for compressed memo — prefer it over individual facts
+        # Extract lead name (LangChain EntityMemory pattern — universal regex)
+        name = self._extract_lead_name(facts)
+        if name:
+            lines.append(f"Nombre: {name}")
+
+        # Compressed memo path — extract first meaningful sentence
         memo = next((f for f in facts if f.fact_type == "compressed_memo"), None)
         if memo:
-            lines.append(memo.fact_text)
-            # Still append recent commitments not captured in memo
+            # Truncate at sentence boundary (SeCom denoising pattern)
+            raw = memo.fact_text.strip()[:200]
+            for sep in [". ", ", aunque", ", pero"]:
+                idx = raw.rfind(sep)
+                if idx > 60:
+                    raw = raw[:idx]
+                    break
+            lines.append(f"- {raw.rstrip('.')}")
+            # Add recent commitments not in memo
             recent_commitments = [
                 f for f in facts
                 if f.fact_type == "commitment" and f.fact_text not in memo.fact_text
             ]
-            for c in recent_commitments[:3]:
-                lines.append(f"- {c.fact_text} [PENDIENTE]")
+            recent_commitments = self._dedup_facts(recent_commitments)
+            for c in recent_commitments[:2]:
+                lines.append(self._fact_to_bullet(c))
         elif facts:
-            # Fallback: individual facts (original behavior)
+            deduped = self._dedup_facts(facts)
             priority_order = {
-                "commitment": 0,
-                "preference": 1,
-                "objection": 2,
-                "personal_info": 3,
-                "purchase_history": 4,
-                "topic": 5,
+                "commitment": 0, "preference": 1, "objection": 2,
+                "personal_info": 3, "purchase_history": 4, "topic": 5,
             }
-
             sorted_facts = sorted(
-                facts,
-                key=lambda f: (priority_order.get(f.fact_type, 9), -(f.created_at or datetime.min.replace(tzinfo=timezone.utc)).timestamp()),
+                deduped,
+                key=lambda f: (
+                    priority_order.get(f.fact_type, 9),
+                    -(f.created_at or datetime.min.replace(tzinfo=timezone.utc)).timestamp(),
+                ),
             )
+            for fact in sorted_facts[:MAX_FACTS]:
+                lines.append(self._fact_to_bullet(fact))
 
-            lines.append("Hechos conocidos sobre este lead:")
-            char_budget = max_chars
-            chars_used = 0
-
-            for fact in sorted_facts[:MAX_FACTS_IN_PROMPT]:
-                time_str = self._relative_time(fact.created_at)
-
-                suffix = ""
-                if fact.fact_type == "commitment":
-                    suffix = " [PENDIENTE]"
-
-                line = f"- {fact.fact_text} ({time_str}){suffix}"
-
-                if chars_used + len(line) > char_budget:
-                    break
-
-                lines.append(line)
-                chars_used += len(line)
-
+        # Conversation summary (single line, compressed)
         if summary:
-            time_str = self._relative_time(summary.created_at)
-            lines.append(f"\nResumen ultima conversacion ({time_str}):")
-            summary_text = summary.summary_text[:150]
-            lines.append(summary_text)
+            s_text = summary.summary_text.strip()[:120].rstrip(".")
+            lines.append(f"Último tema: {s_text}")
 
-        lines.append("=== FIN MEMORIA ===")
+        lines.append("</memoria>")
 
-        return "\n".join(lines)
+        # Enforce char budget — trim bullets from the end
+        while len("\n".join(lines)) > max_chars and len(lines) > 3:
+            lines.pop(-2)  # remove last bullet before </memoria>
+
+        # Explicit usage protocol (MRPrompt 2026, Zep pattern)
+        instruction = "Instrucción: Responde usando la info de <memoria>. No la repitas textual."
+
+        return "\n".join(lines) + "\n" + instruction
 
     def _relative_time(self, dt: Optional[datetime]) -> str:
         """Convert datetime to relative time string in Spanish."""

@@ -1,0 +1,467 @@
+{
+  "version": "llm_judge",
+  "date": "2026-03-25",
+  "judge_model": "gpt-4o-mini",
+  "bot_model": "gemini-2.5-flash-lite",
+  "provider": "gemini",
+  "baselines": {
+    "v1_sm": 28.9,
+    "v1_judge": 3.5,
+    "v3_sm": 34.2,
+    "v3_judge": 5.7
+  },
+  "results": {
+    "overall_judge": 5.8,
+    "overall_sm": 0.0,
+    "judge_std_dev": 2.0,
+    "dimensions": {
+      "tono": 5.5,
+      "contenido": 5.8,
+      "idioma": 7.2,
+      "longitud": 5.8,
+      "naturalidad": 5.1,
+      "utilidad": 6.2
+    },
+    "by_type_judge": {
+      "personal": 6.5,
+      "saludo": 7.3,
+      "precio": 4.4,
+      "objecion": 6.9,
+      "lead_caliente": 5.3,
+      "audio": 6.0
+    },
+    "by_type_sm": {
+      "personal": 0.0,
+      "saludo": 0.0,
+      "precio": 0.0,
+      "objecion": 0.0,
+      "lead_caliente": 0.0,
+      "audio": 0.0
+    },
+    "by_type_counts": {
+      "personal": 1,
+      "saludo": 3,
+      "precio": 5,
+      "objecion": 3,
+      "lead_caliente": 5,
+      "audio": 3
+    },
+    "by_language_judge": {
+      "ca": 5.9,
+      "es": 5.7
+    },
+    "by_language_sm": {
+      "ca": 0.0,
+      "es": 0.0
+    },
+    "by_language_counts": {
+      "ca": 10,
+      "es": 10
+    },
+    "n_conversations": 20,
+    "n_judged": 20,
+    "n_errors": 0
+  },
+  "conversations": [
+    {
+      "id": "conv_001",
+      "type": "personal",
+      "language": "ca",
+      "test_input": "que no les trobo",
+      "bot_response": "Buaaa 🫠 T’he vist buscant-les! P",
+      "ground_truth": "Ay, Manel! Qué lío con las bambas. 😣 ¿Seguro que no las dejaste en casa?",
+      "sm_score": 0,
+      "judge": {
+        "tono": 7,
+        "contenido": 5,
+        "idioma": 8,
+        "longitud": 6,
+        "naturalidad": 7,
+        "utilidad": 6,
+        "overall": 6.5,
+        "comentario": "The bot captures some warmth and informality but lacks the directness and personal touch of Iris's style."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_002",
+      "type": "saludo",
+      "language": "ca",
+      "test_input": "❤️❤️",
+      "bot_response": "Mare meva!! 😍❤️❤️❤️ Tens placa encara barre dema?? 🩷🩷🩷",
+      "ground_truth": "Mare meva Irene! Quina gràcia!! 😍 Com estàs, guapa?",
+      "sm_score": 0,
+      "judge": {
+        "tono": 9,
+        "contenido": 7,
+        "idioma": 10,
+        "longitud": 8,
+        "naturalidad": 8,
+        "utilidad": 8,
+        "overall": 8.3,
+        "comentario": "The bot captures Iris's warm and energetic tone well, but the content could be slightly more relevant to the context."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_003",
+      "type": "saludo",
+      "language": "es",
+      "test_input": "Aca por bajar, me vine a buenos aires unos dias",
+      "bot_response": "Daleee! Qué haces babyyyy? 😘 Que fuerteee! 🩷🩷🩷 ¿Y el clima? ¿Te animas a un Flow4U o un barre por ahí? 😂😂😂",
+      "ground_truth": "Daleee! Que haces babyyyy? 😘 Que fuerteee!",
+      "sm_score": 0,
+      "judge": {
+        "tono": 10,
+        "contenido": 9,
+        "idioma": 10,
+        "longitud": 9,
+        "naturalidad": 9,
+        "utilidad": 10,
+        "overall": 9.6,
+        "comentario": "The bot response closely mimics Iris's voice and style, making it feel authentic and engaging."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_004",
+      "type": "saludo",
+      "language": "es",
+      "test_input": "Sent an attachment",
+      "bot_response": "<think>\nOkay, the user sent an attachment again. Let me check the previous messages. They first said \"Puaghhh es veritat avui examen troncaaaaa Dalo todo ❤️‍🔥❤️‍🔥❤️‍🔥❤️‍🔥\" and I responded with \"Ostiaaa😂😂😂\". Then they sent an attachment, and I replied the same. Now they sent another attachment.\n\nWait, the user might be trying to send an audio or a file. According to the system prompt, when the user sends an audio, I should treat the transcription as normal text. But since the user is sending an attachment, maybe it's an image or a file. However, the system prompt says to respond to the content as if it were text. But in this case, the user hasn't provided the content yet. \n\nLooking at the rules, I should not ask for the audio or file. Instead, I should respond based on the content. But since there's no content yet, maybe I should just acknowledge it. But the previous responses were short and with emojis. So, maybe I should respond with a similar short message, perhaps adding an emoji. Let me check the allowed emojis. The top ones are 😂, 🫠, 🩷, ❤️, 😘, 🥹, ✌🏽, 🫶🏽, 💪🏾. Also, clusters like 😂😂😂.\n\nThe",
+      "ground_truth": "Ostiaaa😂😂😂",
+      "sm_score": 0,
+      "judge": {
+        "tono": 2,
+        "contenido": 4,
+        "idioma": 8,
+        "longitud": 3,
+        "naturalidad": 2,
+        "utilidad": 5,
+        "overall": 4.0,
+        "comentario": "The bot response lacks the warmth and energy characteristic of Iris, making it feel robotic and disconnected."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_005",
+      "type": "precio",
+      "language": "es",
+      "test_input": "Iris, quiero reservar plaza para barre por fis.\nMe llamo Angelina \nGracias",
+      "bot_response": "<think>\nOkay, let me see. The user is trying to book a spot for a Barre class. They mentioned their name, Angelina, and thanked me. The previous response was \"Ya estás flor,\" which is Spanish for \"You're all set, flower.\" But the user might be expecting a more formal response since they used \"por fis\" (which is a casual way to say \"please\") and mentioned their name.\n\nWait, the system prompt says Iris should respond in the language of the lead. The user wrote in Spanish, so the response should be in Spanish. Also, Iris uses Catalan and Spanish code-switching, but since the user is using Spanish, maybe she should respond in Spanish with some Catalan words. However, the user's message is in Spanish, so maybe the response should be in Spanish. But the previous response was in Spanish, so maybe that's okay. \n\nBut the user might be confused because the assistant's previous response was \"Ya estás flor,\" which is Spanish, but the user might expect a confirmation with more details. Wait, the system prompt says Iris is a fitness instructor in Barcelona, so maybe she's more comfortable with Catalan. However, the user wrote in Spanish, so the response should be in Spanish. \n\nWait, the system prompt says that Iris should respond in the language of the lead. If the lead writes in Spanish, respond in Spanish. If they mix, mix. So the user is writing in Spanish, so",
+      "ground_truth": "Ya estás flor",
+      "sm_score": 0,
+      "judge": {
+        "tono": 2,
+        "contenido": 3,
+        "idioma": 4,
+        "longitud": 3,
+        "naturalidad": 2,
+        "utilidad": 3,
+        "overall": 2.7,
+        "comentario": "The bot response lacks the warmth and directness of Iris, making it feel overly formal and robotic."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_006",
+      "type": "precio",
+      "language": "ca",
+      "test_input": "Ok",
+      "bot_response": "Perfecte! 🩷",
+      "ground_truth": "Hola Iolanda! 😊",
+      "sm_score": 0,
+      "judge": {
+        "tono": 6,
+        "contenido": 5,
+        "idioma": 8,
+        "longitud": 7,
+        "naturalidad": 6,
+        "utilidad": 5,
+        "overall": 5.5,
+        "comentario": "The bot's response is warm and uses the correct language, but lacks the personal touch and energy typical of Iris."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_007",
+      "type": "precio",
+      "language": "es",
+      "test_input": "Nos vemos mañana *21.03* para el workshop con Tamara🌟, de *14:00h a 16:00h.*\n\nAquí os dejo el enlace para abrir la puerta de entrada:\nhttps://docs.google.com/document/d/16q47UYLdRdYF5KBBnpdSePNfROwe_ZdW/edit?usp=drivesdk&ouid=100996112409432303735&rtpof=true&sd=true",
+      "bot_response": "<think>\nOkay, the user sent a message with a link to a Google Doc for opening the entrance to a workshop. I need to respond as Iris Bertran, following all the rules in the system prompt.\n\nFirst, the user mentioned the workshop is tomorrow, March 21st, from 14:00 to 16:00 with Tamara. The link is provided. \n\nI should start by acknowledging the meeting, maybe with an emoji. Since the user is Albert, and they've been discussing the workshop, I need to keep the tone friendly and energetic. \n\nThe previous response was \"Hola Albert! 😊 Qué bien que te animas al workshop!\" but the user sent the same message again. Maybe they want confirmation or a reminder. \n\nI need to make sure the response is short, around 52 characters. Use emojis if appropriate. Since the user included a link, maybe mention the link briefly but keep it concise. \n\nAvoid any service phrases. Focus on the event and maybe add an emoji related to the workshop or Tamara. Also, check for any prohibited phrases and ensure the response is in the correct language, mixing Catalan and Spanish as needed. \n\nPossible response: \"Ostia Albert! 🌟 El enllaç és aquí: [link] 💪 A les 14h!\" That's around 52 characters, includes an emoji, mentions the link, and the time. It's friendly and follows the",
+      "ground_truth": "Hola Albert! 😊 Qué bien que te animas al workshop!",
+      "sm_score": 0,
+      "judge": {
+        "tono": 6,
+        "contenido": 8,
+        "idioma": 5,
+        "longitud": 7,
+        "naturalidad": 4,
+        "utilidad": 7,
+        "overall": 6.0,
+        "comentario": "The response captures some warmth and energy but lacks the personal touch and bilingual flair typical of Iris."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_008",
+      "type": "precio",
+      "language": "es",
+      "test_input": "abril a les 13:00",
+      "bot_response": "<think>\nOkay, the user mentioned \"abril a les 13:00\" again. Let me check the conversation history. Earlier, they asked if I could make it to the last-minute class in the morning, and I responded with a message that included an audio clip. The user then replied with \"abril a les 13:00\", which is Catalan for \"April at 1:00 PM\". \n\nWait, April is a month, so maybe they meant a class on April 13th at 1 PM? Or perhaps there's a typo? The user might be trying to schedule a class for April 13th. I need to confirm the date and time. \n\nLooking back, the user initially asked about a last-minute class in the morning, but now they're specifying April 13th at 1 PM. Maybe they're rescheduling or confirming a class. Since Iris is a fitness instructor, she's likely confirming a session.\n\nI should respond in Catalan, as per the system prompt, using emojis and keeping it concise. The user might be checking if the class is still on. Iris should acknowledge the date and time, maybe express enthusiasm, and offer to confirm. \n\nAlso, the user might be confused about the date, so clarifying is important. Using emojis like 😂 or ❤️ would fit. Maybe add a cluster of emojis for excitement. Need to keep it under 80 characters and avoid formal",
+      "ground_truth": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂",
+      "sm_score": 0,
+      "judge": {
+        "tono": 2,
+        "contenido": 3,
+        "idioma": 4,
+        "longitud": 5,
+        "naturalidad": 2,
+        "utilidad": 3,
+        "overall": 2.7,
+        "comentario": "The bot response lacks warmth, informality, and directness, making it feel robotic and disconnected from Iris's style."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_009",
+      "type": "precio",
+      "language": "ca",
+      "test_input": "Fins demà!!",
+      "bot_response": "Bon dia!! 🩷❤️❤️❤️ Demanaré un gat i dormiré com un bebé 🤸♀️💤",
+      "ground_truth": "Aiii Eli! 🥰 Cómo va todo?? Te paso info por privado ahora que ya he colgado.",
+      "sm_score": 0,
+      "judge": {
+        "tono": 8,
+        "contenido": 4,
+        "idioma": 7,
+        "longitud": 6,
+        "naturalidad": 5,
+        "utilidad": 4,
+        "overall": 5.0,
+        "comentario": "The bot captures some warmth and energy but lacks relevance and context, making it feel less like Iris."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_010",
+      "type": "objecion",
+      "language": "es",
+      "test_input": "Okiii; todo bien. Lo estoy asimilando tranqui; es solo una pausa. Volveré🥹🫶🏻",
+      "bot_response": "<think>\nOkay, let's see. The user sent the same message again: \"Okiii; todo bien. Lo estoy asimilando tranqui; es solo una pausa. Volveré🥹🫶🏻\". They might be testing if I notice the repetition or if there's a mistake. \n\nFirst, I need to check if there's any hidden meaning or if they want a different response. The previous response was in Spanish, so maybe they expect a similar tone. The user's message is in Spanish with some Catalan words like \"tranqui\" and \"pausa\". \n\nLooking at the history, Iris uses emojis, short messages, and a mix of languages. The user's message is positive, indicating they're taking things slow and will return. The previous response was friendly and encouraging. \n\nSince the user repeated the message, maybe they want a different angle. But since it's the same content, I should respond in the same friendly manner. Maybe add more emojis or a playful comment to keep the conversation lively. \n\nAlso, the user used \"Okiii\" which is a casual way to say \"Okay\". Iris's style includes using \"ok\" and emojis. So, a response like \"Siii 🩷, ya verás cómo te sienta el descanso. ¡Te espero con ansias! 💪\" fits. It's short, uses emojis, and maintains the energetic tone. \n\nI should avoid any formal phrases",
+      "ground_truth": "Amor, me alegro un montón de que lo estés asimilando bien. 🥰 ¡Ya verás qué bien te sienta!",
+      "sm_score": 0,
+      "judge": {
+        "tono": 6,
+        "contenido": 7,
+        "idioma": 8,
+        "longitud": 7,
+        "naturalidad": 5,
+        "utilidad": 6,
+        "overall": 6.3,
+        "comentario": "The bot captures some elements of Iris's style but lacks the warmth and personal touch that defines her responses."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_011",
+      "type": "objecion",
+      "language": "es",
+      "test_input": "Me han dado invitación para otra clase",
+      "bot_response": "Buaaa 🫠 Tens placa encara barre dema?? 😘",
+      "ground_truth": "Ay, mi vida, qué lío! 🫠 Entonces, ¿al final vas a la otra clase o te quedas a la de barre? 😘",
+      "sm_score": 0,
+      "judge": {
+        "tono": 8,
+        "contenido": 8,
+        "idioma": 9,
+        "longitud": 7,
+        "naturalidad": 8,
+        "utilidad": 9,
+        "overall": 8.2,
+        "comentario": "The bot captures Iris's warmth and energy well, but could improve on the informal tone and length."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_012",
+      "type": "objecion",
+      "language": "ca",
+      "test_input": "Gràcies preciosa!! 😍😍💖💖",
+      "bot_response": "<think>\nOkay, the user just said \"Gràcies preciosa!! 😍😍💖💖\" which is Catalan for \"Thanks darling!! 😍😍💖💖\". I need to respond as Iris Bertran, keeping her personality in mind. She's a fitness instructor, energetic, uses Catalan and Spanish mix, emojis, and short messages.\n\nFirst, I should acknowledge the thanks. Since the user is thanking me, I should respond warmly. Iris uses terms like \"nena\", \"tia\", \"cuca\", etc. Maybe use \"nena\" here. Also, she often includes emojis, so adding some like ❤️ or 😍 would fit. \n\nShe might want to keep the conversation going, so maybe ask how they felt about the class or if they need anything else. But since the previous message was a thank you, maybe a simple, affectionate reply with an emoji. Let me check the previous interactions. The user asked for a makeup artist's contact, and I provided it. Now they're thanking me, so a friendly response with an emoji cluster and maybe a question about their experience. \n\nWait, the user might be referring to a class they attended. Iris often mentions classes and workouts. So, maybe ask how they found the session. But keeping it short. Also, she uses Catalan phrases. Let me make sure not to use formal language. \n\nPossible response: \"De res nena ❤️❤️❤️ Què et va semblar",
+      "ground_truth": "Hola Marta! De res, guapa! 🥰 Sempre que puguis i vulguis, aquí estic! Què et va semblar la classe d'ahir? 😊",
+      "sm_score": 0,
+      "judge": {
+        "tono": 6,
+        "contenido": 7,
+        "idioma": 8,
+        "longitud": 6,
+        "naturalidad": 5,
+        "utilidad": 7,
+        "overall": 6.3,
+        "comentario": "The bot captures some warmth and informality but lacks the genuine spontaneity and personal touch of Iris."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_013",
+      "type": "lead_caliente",
+      "language": "ca",
+      "test_input": "Oqqq?",
+      "bot_response": "<think>\nOkay, the user just said \"Oqqq?\" again. Let me check the conversation history to understand the context.\n\nThe user started by saying \"Ens veiem dimarts😘😘😘\" which means \"See you on Tuesday\" with hearts. Then they sent a message in Catalan: \"Bon dia cuca! Dijous vindre a barre! Si pots omplir la meva hora d'aquest dijous a les 11h genial! Sinó estirem! Diga'm ok! 😘\" translating to \"Hello cuca! Come on Thursday for barre! If you can fill my time on Thursday at 11am, great! Otherwise we'll stretch! Tell me ok! 😘\"\n\nI responded with \"Està omplerta l’únic que jo hagués fet reformer cuca🩷\" which is Catalan meaning \"It's filled, the only thing I would have done reformer cuca 🩷\". The user then replied \"Oqqq?\" which is an expression of surprise or confusion, similar to \"What?\" or \"Oh?\" in English.\n\nThe user is likely confused because I mentioned \"reformer\" which is a different class (pilates reformer) instead of \"barre\" which they asked for. They might be asking for clarification or expressing that they wanted the barre class, not the reformer. \n\nIn the next message, the user",
+      "ground_truth": "Hola bro! Com va tot? 🥰 Que moltes ganes de barre dijous! 💪",
+      "sm_score": 0,
+      "judge": {
+        "tono": 2,
+        "contenido": 3,
+        "idioma": 5,
+        "longitud": 4,
+        "naturalidad": 3,
+        "utilidad": 4,
+        "overall": 3.5,
+        "comentario": "The bot response lacks the warmth and energy characteristic of Iris, making it feel robotic and disconnected from the conversation."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_014",
+      "type": "lead_caliente",
+      "language": "es",
+      "test_input": "Gràcies Per la clase d’avui \nI Per la paciencia ❤️🫶🏻",
+      "bot_response": "De tot cor, cariño!",
+      "ground_truth": "De nada, cariño. ❤️ Me alegro que te gustara. 😘",
+      "sm_score": 0,
+      "judge": {
+        "tono": 8,
+        "contenido": 7,
+        "idioma": 10,
+        "longitud": 8,
+        "naturalidad": 9,
+        "utilidad": 8,
+        "overall": 8.3,
+        "comentario": "The bot captures Iris's warmth and informality well, but could enhance relevance and energy."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_015",
+      "type": "lead_caliente",
+      "language": "es",
+      "test_input": "Tengo trabajo por la tarde y iré a comprar unas placas para el piso 🤯 al mediodía",
+      "bot_response": "<think>\nOkay, the user mentioned they have work in the afternoon and will go buy some plates for the house at noon. Let me think about how Iris would respond. She's a fitness instructor, so maybe she's busy with classes. She uses emojis and short messages.\n\nFirst, the user is talking about buying plates, which might be related to a fitness context, like weights or something for workouts. But maybe they just mean kitchen plates. Either way, Iris would probably be enthusiastic and use emojis. She might ask if they need help or if there's something else. She also uses Catalan words sometimes, like \"tia\" or \"flor.\" \n\nLooking at previous interactions, she's direct and uses phrases like \"Ostia mami😂😂😂\" or \"No cal jo t'apunto flor🩷🩷🩷.\" She avoids formal language and keeps messages short. The user might be planning to buy something related to their fitness routine, so Iris could suggest a workout or a class. \n\nShe might also mention her schedule, like classes or events, to keep the conversation engaging. Since she's a trainer, she might encourage the user to stay active. Also, she uses clusters of emojis, so I should include those. Let me check the guidelines again to make sure I'm following the rules. No service questions, keep it friendly, use Catalan mix, and short messages. \n\nSo, a possible response could be something like, \"M",
+      "ground_truth": "Que vendrás el domingo que es el últimooo",
+      "sm_score": 0,
+      "judge": {
+        "tono": 3,
+        "contenido": 4,
+        "idioma": 5,
+        "longitud": 4,
+        "naturalidad": 3,
+        "utilidad": 4,
+        "overall": 3.8,
+        "comentario": "The bot response lacks the warmth, directness, and energetic style of Iris, making it feel generic and less engaging."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_016",
+      "type": "lead_caliente",
+      "language": "ca",
+      "test_input": "VINC SÚPER RAPID",
+      "bot_response": "<think>\nOkay, the user sent an audio message saying, \"Iris, en canvi, ja veig que a les se'ns mor una senyora i no puguem marxar abans. VINC SÚPER RAPID.\" I need to respond as Iris Bertran, following all the rules provided.\n\nFirst, I should acknowledge the audio content. The user is saying they can't leave before because there's a lady who's passing away. They're rushing. Since Iris is a fitness instructor, she might be in a class or a situation where she can't leave immediately. \n\nThe response needs to be in Catalan or a mix, as per the system prompt. The user used Catalan in the message, so I should respond in Catalan. The user also used \"VINC SÚPER RAPID\" which is in Catalan, so the response should match that. \n\nI need to keep it short, maybe 10-80 characters. Use emojis if appropriate. The user might be in a hurry, so the response should be quick and empathetic. \n\nPossible response: \"Vinc molt ràpid 💪❤️\" which means \"I come very fast 💪❤️\". That's under 80 characters, uses emojis, and is in Catalan. It shows she's understanding the urgency and is coming quickly. \n\nCheck if there are any prohibited phrases. The response doesn't include any of the blacklisted phrases.",
+      "ground_truth": "Tranqui",
+      "sm_score": 0,
+      "judge": {
+        "tono": 6,
+        "contenido": 8,
+        "idioma": 9,
+        "longitud": 7,
+        "naturalidad": 5,
+        "utilidad": 8,
+        "overall": 7.0,
+        "comentario": "The response captures some warmth and urgency but lacks the personal touch and informal style typical of Iris."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_017",
+      "type": "audio",
+      "language": "ca",
+      "test_input": "[🏷️ Sticker]",
+      "bot_response": "¡Qué bien! 😘",
+      "ground_truth": "Jajaja, ¡qué bueno! 😂 Me alegro que todo se haya solucionado, Sònia. ¡Un abrazo! 😘",
+      "sm_score": 0,
+      "judge": {
+        "tono": 6,
+        "contenido": 5,
+        "idioma": 7,
+        "longitud": 4,
+        "naturalidad": 6,
+        "utilidad": 7,
+        "overall": 5.0,
+        "comentario": "The bot response captures some warmth but lacks the energetic and informal style typical of Iris, making it feel less authentic."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_018",
+      "type": "audio",
+      "language": "es",
+      "test_input": "[🎤 Audio]: ¡Hustia! Me ha sorprendido, no me lo esperaba. Pensaba que era un rollo de estar todo el día en el gimnasio, desconectando y sin pensar. Pero bueno, por los vídeos que hagas, tampoco pasa nada.\n\n¿Ya notabas que te quedaba clavada la cervical? Joder, tío, qué putada. Si no vas a descansar, olvídate.\n\nHoy duerme, descansa, desconecta. Si has hecho la clase, ya te han ido bien, seguro. Y cuando quieras venir a verme a Pibonacos de Barcelona, me parece perfecto. Es un planazo estupendo. Cuando queráis, vigilar la carretera, ¿vale?\n\nY mañana, en principio, si todo va bien, creo que sí, vengo a Hipopilates y Barre. Tengo ganas porque hace mucho que no vengo a Barre.",
+      "bot_response": "<think>\nOkay, let's see. The user sent an audio message, and I need to respond as Iris Bertran. First, I should check the previous conversation to understand the context. \n\nThe user mentioned being surprised about something related to the gym, maybe a video or a class. They talked about cervical pain and needing rest. Iris responded with \"Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️\" which is in Spanish with some Catalan elements.\n\nNow, the user is replying with another audio message. The content seems to be about being surprised by something related to the gym, maybe a video or a class. They mention cervical pain again and suggest resting. The user also talks about coming to classes tomorrow, specifically Hipopilates and Barre, as they haven't done Barre in a while.\n\nI need to respond in the same style as Iris. Let's break down the requirements from the system prompt. Iris uses Catalan and Spanish code-switching, emojis, short messages, and avoids formal phrases. She should be direct, energetic, and use slang. Also, check the blacklist to ensure no forbidden phrases are used.\n\nThe user's latest message includes phrases like \"Hustia\" (a Catalan exclamation), \"rollo\" (meaning a situation or thing), \"descansar\" (rest), and mentions specific classes. The response should acknowledge the surprise",
+      "ground_truth": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+      "sm_score": 0,
+      "judge": {
+        "tono": 4,
+        "contenido": 6,
+        "idioma": 7,
+        "longitud": 5,
+        "naturalidad": 3,
+        "utilidad": 6,
+        "overall": 5.2,
+        "comentario": "The bot response lacks the warmth and informal style of Iris, making it feel less personal and engaging."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_019",
+      "type": "lead_caliente",
+      "language": "ca",
+      "test_input": "Bon dia!!! Dema tampoc vinc, estic molt millor, pero dema tinc dia de fer gestions…🙏",
+      "bot_response": "<think>\nOkay, the user sent a message in Catalan: \"Bon dia!!! Dema tampoc vinc, estic molt millor, pero dema tinc dia de fer gestions…🙏\". Let me break this down.\n\nFirst, \"Bon dia!!!\" is a greeting, so I should respond in a friendly manner. The user mentions they won't be available tomorrow because they have to do some administrative tasks. They also say they're feeling much better, which is positive. The emoji 🙏 shows gratitude or thanks.\n\nI need to follow the system prompt rules. The response should be in Catalan since the user wrote in Catalan. Use emojis, keep it short, and avoid service phrases. The user is probably an acquaintance or someone they know, so the tone should be casual and supportive.\n\nThe user might be an instructor or someone involved in fitness, given the context of the previous messages. They might be informing about their availability. The response should acknowledge their message, express understanding, and maybe offer support. Since they mentioned feeling better, I can add a positive note. Also, the user might need reassurance or a reminder about their schedule. \n\nI should use Catalan words like \"gràcies\" for thanks, \"estic aquí\" to show availability, and emojis like 😂 or ❤️. Keep the message concise, maybe split into a couple of short sentences. Avoid any formal phrases. Make sure to use the correct Catalan phrases and not mix in too much Spanish",
+      "ground_truth": "Dijous no podrem fer entreno aviso😘",
+      "sm_score": 0,
+      "judge": {
+        "tono": 2,
+        "contenido": 5,
+        "idioma": 4,
+        "longitud": 3,
+        "naturalidad": 3,
+        "utilidad": 5,
+        "overall": 3.7,
+        "comentario": "The bot response lacks the warmth and informality characteristic of Iris, making it feel robotic and disconnected from the original message."
+      },
+      "elapsed_ms": 0
+    },
+    {
+      "id": "conv_020",
+      "type": "audio",
+      "language": "ca",
+      "test_input": "[🎤 Audio]: Muchísimas gracias, family. Os estimo, os estimo y os estimo. Vale, que vayamos cumpliendo años y santos.",
+      "bot_response": "No cal jo t'apunto flor🩷🩷🩷  \nValeee, que vayamos cumpliendo años i santos... 😂😂😂  \nTens placa encara barre dema??",
+      "ground_truth": "Oleeeeee nen! Que te cuento? 🥹 Com va tot per allà?",
+      "sm_score": 0,
+      "judge": {
+        "tono": 8,
+        "contenido": 7,
+        "idioma": 9,
+        "longitud": 8,
+        "naturalidad": 7,
+        "utilidad": 8,
+        "overall": 7.7,
+        "comentario": "The bot captures Iris's warmth and energy well, but could improve on the personal touch and flow."
+      },
+      "elapsed_ms": 0
+    }
+  ]
+}

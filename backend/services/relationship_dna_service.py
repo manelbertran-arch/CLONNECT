@@ -13,6 +13,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
+from core.cache import BoundedTTLCache
 from services.bot_instructions_generator import BotInstructionsGenerator
 from services.relationship_dna_repository import (
     create_relationship_dna,
@@ -36,7 +37,7 @@ class RelationshipDNAService:
     def __init__(self):
         """Initialize the service."""
         self._instructions_generator = BotInstructionsGenerator()
-        self._cache: Dict[str, Dict] = {}  # Simple in-memory cache
+        self._cache = BoundedTTLCache(max_size=500, ttl_seconds=300)
 
     def get_dna_for_lead(self, creator_id: str, follower_id: str) -> Optional[Dict]:
         """Get DNA for a lead if it exists.
@@ -51,14 +52,15 @@ class RelationshipDNAService:
         cache_key = f"{creator_id}:{follower_id}"
 
         # Check cache first
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached
 
         # Load from database
         dna = get_relationship_dna(creator_id, follower_id)
 
         if dna:
-            self._cache[cache_key] = dna
+            self._cache.set(cache_key, dna)
 
         return dna
 
@@ -88,7 +90,7 @@ class RelationshipDNAService:
 
         if dna:
             cache_key = f"{creator_id}:{follower_id}"
-            self._cache[cache_key] = dna
+            self._cache.set(cache_key, dna)
 
         return dna
 
@@ -159,8 +161,7 @@ class RelationshipDNAService:
 
         # Invalidate cache
         cache_key = f"{creator_id}:{follower_id}"
-        if cache_key in self._cache:
-            del self._cache[cache_key]
+        self._cache.pop(cache_key)
 
         return result
 
@@ -184,6 +185,7 @@ class RelationshipDNAService:
             Updated DNA dict
         """
         from services.relationship_analyzer import RelationshipAnalyzer
+        from services.vocabulary_extractor import build_global_corpus
 
         analyzer = RelationshipAnalyzer()
 
@@ -196,8 +198,15 @@ class RelationshipDNAService:
         ):
             return existing
 
+        # Build global corpus for TF-IDF distinctiveness
+        global_vocab, total_leads, leads_per_word = build_global_corpus(creator_id)
+
         # Run full analysis
-        analysis = analyzer.analyze(creator_id, follower_id, messages)
+        analysis = analyzer.analyze(
+            creator_id, follower_id, messages,
+            global_vocab=global_vocab, total_leads=total_leads,
+            leads_per_word=leads_per_word,
+        )
 
         if not existing:
             # Create new DNA
@@ -240,8 +249,7 @@ class RelationshipDNAService:
 
         # Invalidate cache
         cache_key = f"{creator_id}:{follower_id}"
-        if cache_key in self._cache:
-            del self._cache[cache_key]
+        self._cache.pop(cache_key)
 
         return dna
 
@@ -254,15 +262,10 @@ class RelationshipDNAService:
         """
         if creator_id and follower_id:
             cache_key = f"{creator_id}:{follower_id}"
-            if cache_key in self._cache:
-                del self._cache[cache_key]
-        elif creator_id:
-            keys_to_delete = [
-                k for k in self._cache.keys() if k.startswith(f"{creator_id}:")
-            ]
-            for k in keys_to_delete:
-                del self._cache[k]
+            self._cache.pop(cache_key)
         else:
+            # BoundedTTLCache doesn't support prefix iteration;
+            # clear all entries (rare operation, acceptable).
             self._cache.clear()
 
 

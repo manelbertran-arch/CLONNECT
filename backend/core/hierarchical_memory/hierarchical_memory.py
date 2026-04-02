@@ -145,16 +145,26 @@ class HierarchicalMemoryManager:
 
         return "\n\n".join(sections)
 
+    # BUG-EP-10 fix: Stopwords to filter from keyword overlap (ES/CA/EN/IT)
+    _L2_STOPWORDS = frozenset({
+        "de", "la", "el", "en", "que", "un", "una", "los", "las", "del", "al",
+        "es", "por", "con", "para", "se", "su", "no", "lo", "le", "ya", "pero",
+        "como", "más", "muy", "o", "me", "mi", "te", "tu", "si", "yo",
+        "the", "a", "an", "is", "in", "on", "to", "and", "or", "of", "it",
+        "di", "il", "che", "per", "non", "sono", "come", "anche",
+        "i", "he", "she", "we", "you", "they", "this", "that",
+    })
+
     def _score_l2_relevance(self, message: str):
-        """Score Level 2 memories by keyword overlap with the message."""
+        """Score Level 2 memories by keyword overlap with the message (stopwords filtered)."""
         if not self._l2 or not message:
             return []
 
-        msg_words = set(message.lower().split())
+        msg_words = set(message.lower().split()) - self._L2_STOPWORDS
         scored = []
         for mem in self._l2:
             mem_text = mem.get("memory", "") + " " + mem.get("topic", "") + " " + mem.get("pattern", "")
-            mem_words = set(mem_text.lower().split())
+            mem_words = set(mem_text.lower().split()) - self._L2_STOPWORDS
             overlap = len(msg_words & mem_words)
             scored.append((mem, overlap))
 
@@ -172,3 +182,19 @@ class HierarchicalMemoryManager:
             "level2_topics": len({m.get("topic", "") for m in self._l2}),
             "level3_types": len({m.get("type", "") for m in self._l3}),
         }
+
+
+# BUG-EP-08 fix: Cached factory — avoid re-reading JSONL from disk on every message.
+from core.cache import BoundedTTLCache
+
+_hmm_cache: BoundedTTLCache = BoundedTTLCache(max_size=50, ttl_seconds=300)
+
+
+def get_hierarchical_memory(creator_id: str) -> HierarchicalMemoryManager:
+    """Get or create a cached HierarchicalMemoryManager for a creator."""
+    cached = _hmm_cache.get(creator_id)
+    if cached is not None:
+        return cached
+    hmm = HierarchicalMemoryManager(creator_id)
+    _hmm_cache.set(creator_id, hmm)
+    return hmm

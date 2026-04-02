@@ -1,0 +1,182 @@
+[
+  {
+    "conv_id": "conv_001",
+    "type": "personal",
+    "language": "ca",
+    "test_input": "que no les trobo",
+    "response": "Ostia! 😬 No les has guardat a l'armari?  \nSi no, les busquem a la zona de vestuari.  \nSi no, pots provar a preguntar a les altres bambes?  \n¡Mira, que no es tan difícil! 🩷",
+    "ground_truth": "Ay, Manel! Qué lío con las bambas. 😣 ¿Seguro que no las dejaste en casa?",
+    "tokens": 3009
+  },
+  {
+    "conv_id": "conv_002",
+    "type": "saludo",
+    "language": "ca",
+    "test_input": "❤️❤️",
+    "response": "Mola! ❤️",
+    "ground_truth": "Mare meva Irene! Quina gràcia!! 😍 Com estàs, guapa?",
+    "tokens": 2871
+  },
+  {
+    "conv_id": "conv_003",
+    "type": "saludo",
+    "language": "es",
+    "test_input": "Aca por bajar, me vine a buenos aires unos dias",
+    "response": "",
+    "ground_truth": "Daleee! Que haces babyyyy? 😘 Que fuerteee!",
+    "tokens": 2980
+  },
+  {
+    "conv_id": "conv_004",
+    "type": "saludo",
+    "language": "es",
+    "test_input": "Sent an attachment",
+    "response": "Ostiaaa 😂😂😂",
+    "ground_truth": "Ostiaaa😂😂😂",
+    "tokens": 2823
+  },
+  {
+    "conv_id": "conv_005",
+    "type": "precio",
+    "language": "es",
+    "test_input": "Iris, quiero reservar plaza para barre por fis.\nMe llamo Angelina \nGracias",
+    "response": "",
+    "ground_truth": "Ya estás flor",
+    "tokens": 2980
+  },
+  {
+    "conv_id": "conv_006",
+    "type": "precio",
+    "language": "ca",
+    "test_input": "Ok",
+    "response": "",
+    "ground_truth": "Hola Iolanda! 😊",
+    "tokens": 3024
+  },
+  {
+    "conv_id": "conv_007",
+    "type": "precio",
+    "language": "es",
+    "test_input": "Nos vemos mañana *21.03* para el workshop con Tamara🌟, de *14:00h a 16:00h.*\n\nAquí os dejo el enlace para abrir la puerta de entrada:\nhttps://docs.google.com/document/d/16q47UYLdRdYF5KBBnpdSePNfROwe_ZdW/edit?usp=drivesdk&ouid=100996112409432303735&rtpof=true&sd=true",
+    "response": "¡Genial! Nos vemos mañana 🚪",
+    "ground_truth": "Hola Albert! 😊 Qué bien que te animas al workshop!",
+    "tokens": 3089
+  },
+  {
+    "conv_id": "conv_008",
+    "type": "precio",
+    "language": "es",
+    "test_input": "abril a les 13:00",
+    "response": "Ok, t'apunto a les 13:00 d'abril. Nos veiem! 🩷💪",
+    "ground_truth": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂",
+    "tokens": 2890
+  },
+  {
+    "conv_id": "conv_009",
+    "type": "precio",
+    "language": "ca",
+    "test_input": "Fins demà!!",
+    "response": "Fins demà, cuca! 🩷",
+    "ground_truth": "Aiii Eli! 🥰 Cómo va todo?? Te paso info por privado ahora que ya he colgado.",
+    "tokens": 2750
+  },
+  {
+    "conv_id": "conv_010",
+    "type": "objecion",
+    "language": "es",
+    "test_input": "Okiii; todo bien. Lo estoy asimilando tranqui; es solo una pausa. Volveré🥹🫶🏻",
+    "response": "Perfecte, t'espera la classe! 💪🏾🩷",
+    "ground_truth": "Amor, me alegro un montón de que lo estés asimilando bien. 🥰 ¡Ya verás qué bien te sienta!",
+    "tokens": 2981
+  },
+  {
+    "conv_id": "conv_011",
+    "type": "objecion",
+    "language": "es",
+    "test_input": "Me han dado invitación para otra clase",
+    "response": "¡Genial! ¿A qué hora es la invitada? 🩷",
+    "ground_truth": "Ay, mi vida, qué lío! 🫠 Entonces, ¿al final vas a la otra clase o te quedas a la de barre? 😘",
+    "tokens": 2971
+  },
+  {
+    "conv_id": "conv_012",
+    "type": "objecion",
+    "language": "ca",
+    "test_input": "Gràcies preciosa!! 😍😍💖💖",
+    "response": "De res, guapa! 😍💖",
+    "ground_truth": "Hola Marta! De res, guapa! 🥰 Sempre que puguis i vulguis, aquí estic! Què et va semblar la classe d'ahir? 😊",
+    "tokens": 2985
+  },
+  {
+    "conv_id": "conv_013",
+    "type": "lead_caliente",
+    "language": "ca",
+    "test_input": "Oqqq?",
+    "response": "Què vols? 🩷",
+    "ground_truth": "Hola bro! Com va tot? 🥰 Que moltes ganes de barre dijous! 💪",
+    "tokens": 3018
+  },
+  {
+    "conv_id": "conv_014",
+    "type": "lead_caliente",
+    "language": "es",
+    "test_input": "Gràcies Per la clase d’avui \nI Per la paciencia ❤️🫶🏻",
+    "response": "",
+    "ground_truth": "De nada, cariño. ❤️ Me alegro que te gustara. 😘",
+    "tokens": 3033
+  },
+  {
+    "conv_id": "conv_015",
+    "type": "lead_caliente",
+    "language": "es",
+    "test_input": "Tengo trabajo por la tarde y iré a comprar unas placas para el piso 🤯 al mediodía",
+    "response": "Carrer de la Sagrera, 27, 08780 Igualada  \nQue vagi bé, a la hora que vulguis 🩷",
+    "ground_truth": "Que vendrás el domingo que es el últimooo",
+    "tokens": 2978
+  },
+  {
+    "conv_id": "conv_016",
+    "type": "lead_caliente",
+    "language": "ca",
+    "test_input": "VINC SÚPER RAPID",
+    "response": "Oka, llego en 5 min 😂😂😂",
+    "ground_truth": "Tranqui",
+    "tokens": 2883
+  },
+  {
+    "conv_id": "conv_017",
+    "type": "audio",
+    "language": "ca",
+    "test_input": "[🏷️ Sticker]",
+    "response": "Ostiaaa 😂😂😂",
+    "ground_truth": "Jajaja, ¡qué bueno! 😂 Me alegro que todo se haya solucionado, Sònia. ¡Un abrazo! 😘",
+    "tokens": 3044
+  },
+  {
+    "conv_id": "conv_018",
+    "type": "audio",
+    "language": "es",
+    "test_input": "[🎤 Audio]: ¡Hustia! Me ha sorprendido, no me lo esperaba. Pensaba que era un rollo de estar todo el día en el gimnasio, desconectando y sin pensar. Pero bueno, por los vídeos que hagas, tampoco pasa nada.\n\n¿Ya notabas que te quedaba clavada la cervical? Joder, tío, qué putada. Si no vas a descansar, olvídate.\n\nHoy duerme, descansa, desconecta. Si has hecho la clase, ya te han ido bien, seguro. Y cuando quieras venir a verme a Pibonacos de Barcelona, me parece perfecto. Es un planazo estupendo. Cuando queráis, vigilar la carretera, ¿vale?\n\nY mañana, en principio, si todo va bien, creo que sí, vengo a Hipopilates y Barre. Tengo ganas porque hace mucho que no vengo a Barre.",
+    "response": "Brutal, mola 😂",
+    "ground_truth": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+    "tokens": 3705
+  },
+  {
+    "conv_id": "conv_019",
+    "type": "lead_caliente",
+    "language": "ca",
+    "test_input": "Bon dia!!! Dema tampoc vinc, estic molt millor, pero dema tinc dia de fer gestions…🙏",
+    "response": "Top, que descansis! Anem quan tornis 💪🏾",
+    "ground_truth": "Dijous no podrem fer entreno aviso😘",
+    "tokens": 2917
+  },
+  {
+    "conv_id": "conv_020",
+    "type": "audio",
+    "language": "ca",
+    "test_input": "[🎤 Audio]: Muchísimas gracias, family. Os estimo, os estimo y os estimo. Vale, que vayamos cumpliendo años y santos.",
+    "response": "",
+    "ground_truth": "Oleeeeee nen! Que te cuento? 🥹 Com va tot per allà?",
+    "tokens": 3054
+  }
+]

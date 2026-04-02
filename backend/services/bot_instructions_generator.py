@@ -78,29 +78,13 @@ class BotInstructionsGenerator:
         base = BASE_INSTRUCTIONS.get(relationship_type, BASE_INSTRUCTIONS[RelationshipType.DESCONOCIDO.value])
         instructions.append(base)
 
-        # 2. Vocabulary to use
-        vocabulary_uses = dna_data.get("vocabulary_uses", [])
-        if vocabulary_uses:
-            words = ", ".join(vocabulary_uses[:5])
-            instructions.append(f"USA estas palabras: {words}.")
+        # 2-3. Vocabulary uses/avoids: injected directly by
+        # dm_agent_context_integration._format_dna_for_prompt (lines 190-196)
+        # to avoid duplication in the prompt. Not repeated here.
 
-        # 3. Vocabulary to avoid
-        vocabulary_avoids = dna_data.get("vocabulary_avoids", [])
-        if vocabulary_avoids:
-            words = ", ".join(vocabulary_avoids[:5])
-            instructions.append(f"EVITA estas palabras: {words}.")
-
-        # 4. Emojis
-        emojis = dna_data.get("emojis", [])
-        if emojis:
-            emoji_str = " ".join(emojis[:5])
-            instructions.append(f"Emojis apropiados: {emoji_str}")
-
-        # 5. Recurring topics
-        topics = dna_data.get("recurring_topics", [])
-        if topics:
-            topic_str = ", ".join(topics[:3])
-            instructions.append(f"Temas que puedes mencionar: {topic_str}.")
+        # 4-5. Emojis and topics: injected directly by
+        # dm_agent_context_integration._format_dna_for_prompt (lines 199-210)
+        # to avoid duplication in the prompt. Not repeated here.
 
         # 6. Golden examples
         golden_examples = dna_data.get("golden_examples", [])

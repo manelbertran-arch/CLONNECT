@@ -5,11 +5,13 @@ Mejora la precisión del RAG reordenando resultados con un modelo
 que evalúa query+documento juntos (más preciso que embeddings separados).
 
 Providers:
-  - "local" (default): sentence-transformers CrossEncoder (ms-marco-MiniLM-L6-v2)
-    - FREE, runs locally, ~100-200ms latency
+  - "local" (default): sentence-transformers CrossEncoder
+    Model: nreimers/mmarco-mMiniLMv2-L12-H384-v1 (multilingual CA/ES/EN/IT/PT)
+    - FREE, runs locally, ~30-100ms for ≤12 pairs
+    - 117.6M params, ~926MB RAM
     - Requires: pip install sentence-transformers
   - "cohere": Cohere Rerank API (rerank-v3.5)
-    - Better quality, ~200-400ms latency, paid API
+    - Better quality, ~200-400ms latency, paid API (~$1/1k queries)
     - Requires: COHERE_API_KEY env var
     - NOT ACTIVATED — skeleton only, needs testing before production use
 
@@ -23,8 +25,7 @@ from typing import List, Dict, Any, Optional
 logger = logging.getLogger("clonnect.reranker")
 
 # Feature flag para activar/desactivar
-# Default: FALSE - Railway can timeout downloading models on cold start
-# Set ENABLE_RERANKING=true in env vars once models are cached
+# Default: TRUE — model loads in background (warmup_reranker_background)
 ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "true").lower() == "true"
 
 # Reranker provider: "local" (free, sentence-transformers) or "cohere" (paid API)
@@ -94,6 +95,9 @@ def _rerank_cohere(
     Cohere rerank-v3.5: ~200-400ms, better quality than local cross-encoder.
     Pricing: ~$1/1000 searches (check cohere.com/pricing).
     """
+    if not docs:
+        return []
+
     if not COHERE_API_KEY:
         logger.warning("COHERE_API_KEY not set, falling back to local reranker")
         return _rerank_local(query, docs, top_k, text_key)
@@ -122,13 +126,16 @@ def _rerank_cohere(
         reranked_docs = []
         for result in data.get("results", []):
             idx = result["index"]
+            if idx >= len(docs):
+                continue
             doc_copy = docs[idx].copy()
             doc_copy["rerank_score"] = float(result["relevance_score"])
             doc_copy["reranker"] = "cohere"
             reranked_docs.append(doc_copy)
 
         reranked_docs.sort(key=lambda x: x["rerank_score"], reverse=True)
-        logger.debug(f"Cohere reranked {len(docs)} docs (top: {reranked_docs[0]['rerank_score']:.3f})")
+        if reranked_docs:
+            logger.debug(f"Cohere reranked {len(docs)} docs (top: {reranked_docs[0]['rerank_score']:.3f})")
         return reranked_docs[:top_k] if top_k else reranked_docs
 
     except Exception as e:
@@ -142,7 +149,10 @@ def _rerank_local(
     top_k: Optional[int] = None,
     text_key: str = "content",
 ) -> List[Dict[str, Any]]:
-    """Rerank using local Cross-Encoder model (ms-marco-MiniLM-L6-v2)."""
+    """Rerank using local Cross-Encoder model (mmarco-mMiniLMv2-L12-H384-v1)."""
+    if not docs:
+        return []
+
     reranker = get_reranker()
     if not reranker:
         logger.warning("Reranker not available, returning docs as-is")
@@ -159,7 +169,8 @@ def _rerank_local(
         reranked_docs.append(doc_copy)
 
     reranked_docs.sort(key=lambda x: x["rerank_score"], reverse=True)
-    logger.debug(f"Local reranked {len(docs)} docs (top: {reranked_docs[0]['rerank_score']:.3f})")
+    if reranked_docs:
+        logger.debug(f"Local reranked {len(docs)} docs (top: {reranked_docs[0]['rerank_score']:.3f})")
     return reranked_docs[:top_k] if top_k else reranked_docs
 
 

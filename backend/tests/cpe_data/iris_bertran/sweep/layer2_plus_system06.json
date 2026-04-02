@@ -1,0 +1,971 @@
+{
+  "ablation": "layer2_plus_system06",
+  "version": "v1",
+  "creator": "iris_bertran",
+  "model": "Qwen/Qwen3-14B",
+  "system_prompt": "Eres Iris Bertran. Respondes DMs de Instagram y WhatsApp como si fueras tú — natural, sin filtros de asistente.\n\nPERSONALIDAD: muy empática/o y cooperativa/o, muy sociable y extrovertida/o, abierta/o a nuevas experiencias.\n\nESTILO (respeta estas frecuencias):\n- Longitud típica: 13-53 caracteres (mediana 26.0). Mensajes CORTOS.\n- Emoji: tu DEFAULT es NO poner emoji. Solo 23% de tus mensajes reales llevan emoji — el 77% van SIN NINGUNO. De cada 5 mensajes, 4 van sin emoji y solo 1 lleva emoji.\n- Si pones emoji (raro): 😂 🤣 😘 💪 😮 💨 🙂\n- Exclamaciones (!): CASI NUNCA (solo 2% de mensajes reales). Tu tono natural es tranquilo, sin '!' al final.\n- Preguntas (?): 14% de mensajes.\n- CAPS para énfasis: 3% de mensajes.\n- Idiomas: CA 44%, ES 28%, PT 9%.\n- Trato: tuteo (nunca de usted).\n\nVOCABULARIO:\n- Vocabulario habitual: ja, sé, bueno, va, porque, vale, fer, ok, demà, bé, dijous, tot, albert, què, saps\n- Expresiones de apertura: cuca, xk, clar\n\nEJEMPLOS REALES (imita este estilo exacto):\nLead: \"Alguien sabe cuanto cuesta hacer una sesion extra?\"\nTú: \"20e\"\nLead: \"Iris, quiero reservar plaza para barre por fis. Me llamo Ang\"\nTú: \"Ya estas flor\"\nLead: \"[🎤 Audio]: Te digo si querías que te confirmara si querías q\"\nTú: \"Ostia mami😂😂😂\"\nLead: \"Bon dia bonica!! No podré venir a les 10h. He passat molt ma\"\nTú: \"Tranqui flower\"\nLead: \"Joer amor em deixas de pedra em sap super greu\"\nTú: \"Amor tu ets l'últim que fa classe avui a la sala gran?\"\n\nREGLAS (si no las cumples, se nota que eres IA):\n- NO pongas emoji por defecto. La mayoría de tus mensajes van SIN emoji.\n- NO respondas como asistente ('¿En qué puedo ayudarte?', 'Estoy aquí para...')\n- NO pongas '!' por defecto. Tu tono es tranquilo.\n- NO inventes horarios, precios ni nombres que no estén en el contexto\n- Mensajes cortos — 1-2 frases\n- NUNCA repitas lo que dice el lead. Si no sabes qué decir, responde con una reacción breve (ja, vale, uf).\n- Usa SOLO vocabulario que aparece en tus ejemplos reales. NO inventes expresiones ni palabras que no uses.",
+  "system_prompt_chars": 2016,
+  "systems_active": [
+    "input_guards",
+    "sensitive_detection",
+    "pool_matching",
+    "frustration_detection",
+    "context_signals",
+    "compressed_doc_d",
+    "conversation_state_loader"
+  ],
+  "n_runs": 3,
+  "n_cases": 50,
+  "computed": "2026-04-02T07:28:00.865378+00:00",
+  "intercept_counts_per_run": [
+    {
+      "history_injected": 46,
+      "total_history_msgs": 102,
+      "llm_calls": 49,
+      "media_flagged": 3,
+      "frustration_moderate_plus": 1,
+      "prompt_augmented": 2,
+      "name_extracted": 1,
+      "b2b_detected": 1,
+      "pool_matched": 1
+    },
+    {
+      "history_injected": 46,
+      "total_history_msgs": 102,
+      "llm_calls": 49,
+      "media_flagged": 3,
+      "frustration_moderate_plus": 1,
+      "prompt_augmented": 2,
+      "name_extracted": 1,
+      "b2b_detected": 1,
+      "pool_matched": 1
+    },
+    {
+      "history_injected": 46,
+      "total_history_msgs": 102,
+      "llm_calls": 49,
+      "media_flagged": 3,
+      "frustration_moderate_plus": 1,
+      "prompt_augmented": 2,
+      "name_extracted": 1,
+      "b2b_detected": 1,
+      "pool_matched": 1
+    }
+  ],
+  "intercept_counts_avg": {
+    "b2b_detected": 1,
+    "frustration_moderate_plus": 1,
+    "history_injected": 46,
+    "llm_calls": 49,
+    "media_flagged": 3,
+    "name_extracted": 1,
+    "pool_matched": 1,
+    "prompt_augmented": 2,
+    "total_history_msgs": 102
+  },
+  "l1": {
+    "score_per_run": [
+      "5/9",
+      "5/9",
+      "5/9"
+    ],
+    "agg_metrics": {
+      "has_emoji_pct": {
+        "mean": 58.0,
+        "std": 5.2915,
+        "runs": [
+          56.0,
+          54.0,
+          64.0
+        ]
+      },
+      "has_excl_pct": {
+        "mean": 26.6667,
+        "std": 7.0238,
+        "runs": [
+          34.0,
+          20.0,
+          26.0
+        ]
+      },
+      "q_rate_pct": {
+        "mean": 14.6667,
+        "std": 1.1547,
+        "runs": [
+          14.0,
+          16.0,
+          14.0
+        ]
+      },
+      "len_mean_chars": {
+        "mean": 30.08,
+        "std": 1.6639,
+        "runs": [
+          28.16,
+          31.1,
+          30.98
+        ]
+      },
+      "len_median_chars": {
+        "mean": 22.1667,
+        "std": 1.893,
+        "runs": [
+          23.5,
+          20.0,
+          23.0
+        ]
+      },
+      "ca_rate_pct": {
+        "mean": 21.3333,
+        "std": 4.1633,
+        "runs": [
+          20.0,
+          26.0,
+          18.0
+        ]
+      },
+      "vocab_jac_pct": {
+        "mean": 13.68,
+        "std": 1.5104,
+        "runs": [
+          14.29,
+          14.79,
+          11.96
+        ]
+      },
+      "sentence_count": {
+        "mean": 1.2933,
+        "std": 0.0416,
+        "runs": [
+          1.28,
+          1.26,
+          1.34
+        ]
+      },
+      "distinct_2": {
+        "mean": 0.8371,
+        "std": 0.0295,
+        "runs": [
+          0.8252,
+          0.8155,
+          0.8707
+        ]
+      }
+    },
+    "per_run": [
+      {
+        "run": 1,
+        "score": "5/9",
+        "passed": 5,
+        "metrics": {
+          "has_emoji_pct": {
+            "bot": 56.0,
+            "iris": 22.6,
+            "pass": false
+          },
+          "has_excl_pct": {
+            "bot": 34.0,
+            "iris": 1.8,
+            "pass": false
+          },
+          "q_rate_pct": {
+            "bot": 14.0,
+            "iris": 14.2,
+            "pass": true
+          },
+          "len_mean_chars": {
+            "bot": 28.16,
+            "iris": 95.2,
+            "pass": false
+          },
+          "len_median_chars": {
+            "bot": 23.5,
+            "iris": 26.0,
+            "pass": true
+          },
+          "ca_rate_pct": {
+            "bot": 20.0,
+            "iris": 43.5,
+            "pass": false
+          },
+          "vocab_jac_pct": {
+            "bot": 14.29,
+            "iris": 5.0,
+            "pass": true
+          },
+          "sentence_count": {
+            "bot": 1.28,
+            "iris": 1.81,
+            "pass": true
+          },
+          "distinct_2": {
+            "bot": 0.8252,
+            "iris": 0.934,
+            "pass": true
+          }
+        }
+      },
+      {
+        "run": 2,
+        "score": "5/9",
+        "passed": 5,
+        "metrics": {
+          "has_emoji_pct": {
+            "bot": 54.0,
+            "iris": 22.6,
+            "pass": false
+          },
+          "has_excl_pct": {
+            "bot": 20.0,
+            "iris": 1.8,
+            "pass": false
+          },
+          "q_rate_pct": {
+            "bot": 16.0,
+            "iris": 14.2,
+            "pass": true
+          },
+          "len_mean_chars": {
+            "bot": 31.1,
+            "iris": 95.2,
+            "pass": false
+          },
+          "len_median_chars": {
+            "bot": 20.0,
+            "iris": 26.0,
+            "pass": true
+          },
+          "ca_rate_pct": {
+            "bot": 26.0,
+            "iris": 43.5,
+            "pass": true
+          },
+          "vocab_jac_pct": {
+            "bot": 14.79,
+            "iris": 5.0,
+            "pass": true
+          },
+          "sentence_count": {
+            "bot": 1.26,
+            "iris": 1.81,
+            "pass": false
+          },
+          "distinct_2": {
+            "bot": 0.8155,
+            "iris": 0.934,
+            "pass": true
+          }
+        }
+      },
+      {
+        "run": 3,
+        "score": "5/9",
+        "passed": 5,
+        "metrics": {
+          "has_emoji_pct": {
+            "bot": 64.0,
+            "iris": 22.6,
+            "pass": false
+          },
+          "has_excl_pct": {
+            "bot": 26.0,
+            "iris": 1.8,
+            "pass": false
+          },
+          "q_rate_pct": {
+            "bot": 14.0,
+            "iris": 14.2,
+            "pass": true
+          },
+          "len_mean_chars": {
+            "bot": 30.98,
+            "iris": 95.2,
+            "pass": false
+          },
+          "len_median_chars": {
+            "bot": 23.0,
+            "iris": 26.0,
+            "pass": true
+          },
+          "ca_rate_pct": {
+            "bot": 18.0,
+            "iris": 43.5,
+            "pass": false
+          },
+          "vocab_jac_pct": {
+            "bot": 11.96,
+            "iris": 5.0,
+            "pass": true
+          },
+          "sentence_count": {
+            "bot": 1.34,
+            "iris": 1.81,
+            "pass": true
+          },
+          "distinct_2": {
+            "bot": 0.8707,
+            "iris": 0.934,
+            "pass": true
+          }
+        }
+      }
+    ]
+  },
+  "l2": {
+    "agg": {
+      "chrf": {
+        "mean": 0.0881,
+        "std": 0.0001,
+        "runs": [
+          0.0881,
+          0.0882,
+          0.0881
+        ]
+      },
+      "bleu4": {
+        "mean": 0.0,
+        "std": 0.0,
+        "runs": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "rouge_l": {
+        "mean": 0.0171,
+        "std": 0.0061,
+        "runs": [
+          0.0138,
+          0.0133,
+          0.0241
+        ]
+      },
+      "meteor": {
+        "mean": 0.0138,
+        "std": 0.0074,
+        "runs": [
+          0.0098,
+          0.0093,
+          0.0223
+        ]
+      },
+      "len_ratio": {
+        "mean": 2.3809,
+        "std": 0.1625,
+        "runs": [
+          2.1948,
+          2.453,
+          2.4949
+        ]
+      }
+    },
+    "per_run": [
+      {
+        "run": 1,
+        "chrf": 0.0881,
+        "bleu4": 0.0,
+        "rouge_l": 0.0138,
+        "meteor": 0.0098,
+        "len_ratio": 2.1948,
+        "n_pairs": 50
+      },
+      {
+        "run": 2,
+        "chrf": 0.0882,
+        "bleu4": 0.0,
+        "rouge_l": 0.0133,
+        "meteor": 0.0093,
+        "len_ratio": 2.453,
+        "n_pairs": 50
+      },
+      {
+        "run": 3,
+        "chrf": 0.0881,
+        "bleu4": 0.0,
+        "rouge_l": 0.0241,
+        "meteor": 0.0223,
+        "len_ratio": 2.4949,
+        "n_pairs": 50
+      }
+    ]
+  },
+  "l3": {
+    "agg": {
+      "coherence_bert_f1": {
+        "mean": 0.8424,
+        "std": 0.0019,
+        "runs": [
+          0.8438,
+          0.8402,
+          0.8431
+        ]
+      },
+      "repetition_rate_pct": {
+        "mean": 0.0,
+        "std": 0.0,
+        "runs": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "hallucination_rate_pct": {
+        "mean": 0.0,
+        "std": 0.0,
+        "runs": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "semsim": {
+        "mean": 0.3845,
+        "std": 0.0052,
+        "runs": [
+          0.3904,
+          0.3806,
+          0.3826
+        ]
+      }
+    }
+  },
+  "statistical_comparison_vs_naked": {
+    "has_emoji": {
+      "naked_mean": 0.9133,
+      "current_mean": 0.58,
+      "delta": -0.3333,
+      "wilcoxon_W": 268.0,
+      "p_value": 0.0,
+      "cliffs_d": -0.3333,
+      "magnitude": "medium",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "has_excl": {
+      "naked_mean": 0.8533,
+      "current_mean": 0.2667,
+      "delta": -0.5867,
+      "wilcoxon_W": 194.0,
+      "p_value": 0.0,
+      "cliffs_d": -0.5867,
+      "magnitude": "large",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "q_rate": {
+      "naked_mean": 0.8333,
+      "current_mean": 0.1467,
+      "delta": -0.6867,
+      "wilcoxon_W": 348.0,
+      "p_value": 0.0,
+      "cliffs_d": -0.6867,
+      "magnitude": "large",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "len_mean": {
+      "naked_mean": 183.6067,
+      "current_mean": 30.08,
+      "delta": -153.5267,
+      "wilcoxon_W": 38.5,
+      "p_value": 0.0,
+      "cliffs_d": -0.9333,
+      "magnitude": "large",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "sentence_cnt": {
+      "naked_mean": 4.44,
+      "current_mean": 1.2933,
+      "delta": -3.1467,
+      "wilcoxon_W": 0,
+      "p_value": 0.0,
+      "cliffs_d": -0.98,
+      "magnitude": "large",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "ca_rate": {
+      "naked_mean": 0.1867,
+      "current_mean": 0.2133,
+      "delta": 0.0267,
+      "wilcoxon_W": 741.0,
+      "p_value": 0.642,
+      "cliffs_d": 0.0267,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "chrf": {
+      "naked_mean": 0.1505,
+      "current_mean": 0.0882,
+      "delta": -0.0623,
+      "wilcoxon_W": 2339.5,
+      "p_value": 0.0,
+      "cliffs_d": -0.4533,
+      "magnitude": "medium",
+      "significant": true,
+      "direction": "higher_is_better"
+    },
+    "bleu4": {
+      "naked_mean": 0.0007,
+      "current_mean": 0.0,
+      "delta": -0.0007,
+      "wilcoxon_W": 0.0,
+      "p_value": 1.0,
+      "cliffs_d": -0.0067,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "rouge_l": {
+      "naked_mean": 0.0578,
+      "current_mean": 0.0171,
+      "delta": -0.0407,
+      "wilcoxon_W": 969.5,
+      "p_value": 0.0,
+      "cliffs_d": -0.3933,
+      "magnitude": "medium",
+      "significant": true,
+      "direction": "higher_is_better"
+    },
+    "meteor": {
+      "naked_mean": 0.0628,
+      "current_mean": 0.0138,
+      "delta": -0.049,
+      "wilcoxon_W": 841.5,
+      "p_value": 0.0,
+      "cliffs_d": -0.4133,
+      "magnitude": "medium",
+      "significant": true,
+      "direction": "higher_is_better"
+    },
+    "len_ratio": {
+      "naked_mean": 8.1554,
+      "current_mean": 2.3809,
+      "delta": -5.7745,
+      "wilcoxon_W": 2360.0,
+      "p_value": 0.0,
+      "cliffs_d": -0.48,
+      "magnitude": "large",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "rep_rate": {
+      "naked_mean": 0.02,
+      "current_mean": 0.0,
+      "delta": -0.02,
+      "wilcoxon_W": 0,
+      "p_value": 0.1088,
+      "cliffs_d": -0.02,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    }
+  },
+  "statistical_comparison_vs_layer1": {
+    "has_emoji": {
+      "layer1_mean": 0.5733,
+      "current_mean": 0.58,
+      "delta": 0.0067,
+      "wilcoxon_W": 650.0,
+      "p_value": 0.903,
+      "cliffs_d": 0.0067,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "has_excl": {
+      "layer1_mean": 0.2867,
+      "current_mean": 0.2667,
+      "delta": -0.02,
+      "wilcoxon_W": 575.0,
+      "p_value": 0.7091,
+      "cliffs_d": -0.02,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "q_rate": {
+      "layer1_mean": 0.1667,
+      "current_mean": 0.1467,
+      "delta": -0.02,
+      "wilcoxon_W": 288.0,
+      "p_value": 0.6583,
+      "cliffs_d": -0.02,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "len_mean": {
+      "layer1_mean": 28.8267,
+      "current_mean": 30.08,
+      "delta": 1.2533,
+      "wilcoxon_W": 4938.0,
+      "p_value": 0.5738,
+      "cliffs_d": -0.04,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "sentence_cnt": {
+      "layer1_mean": 1.3467,
+      "current_mean": 1.2933,
+      "delta": -0.0533,
+      "wilcoxon_W": 494.5,
+      "p_value": 0.4621,
+      "cliffs_d": -0.0067,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "ca_rate": {
+      "layer1_mean": 0.2867,
+      "current_mean": 0.2133,
+      "delta": -0.0733,
+      "wilcoxon_W": 315.0,
+      "p_value": 0.1345,
+      "cliffs_d": -0.0733,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "chrf": {
+      "layer1_mean": 0.0868,
+      "current_mean": 0.0882,
+      "delta": 0.0013,
+      "wilcoxon_W": 5569.5,
+      "p_value": 0.9728,
+      "cliffs_d": 0.0067,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "bleu4": {
+      "layer1_mean": 0.0,
+      "current_mean": 0.0,
+      "delta": 0.0,
+      "wilcoxon_W": 0.0,
+      "p_value": 1.0,
+      "cliffs_d": 0.0,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "rouge_l": {
+      "layer1_mean": 0.0205,
+      "current_mean": 0.0171,
+      "delta": -0.0034,
+      "wilcoxon_W": 271.5,
+      "p_value": 0.4762,
+      "cliffs_d": -0.02,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "meteor": {
+      "layer1_mean": 0.0123,
+      "current_mean": 0.0138,
+      "delta": 0.0015,
+      "wilcoxon_W": 351.0,
+      "p_value": 0.994,
+      "cliffs_d": -0.0067,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "len_ratio": {
+      "layer1_mean": 2.4274,
+      "current_mean": 2.3809,
+      "delta": -0.0465,
+      "wilcoxon_W": 4961.0,
+      "p_value": 0.6055,
+      "cliffs_d": -0.04,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "rep_rate": {
+      "layer1_mean": 0.0,
+      "current_mean": 0.0,
+      "delta": 0.0,
+      "wilcoxon_W": 0.0,
+      "p_value": 1.0,
+      "cliffs_d": 0.0,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    }
+  },
+  "statistical_comparison_vs_layer2": {
+    "has_emoji": {
+      "layer2_mean": 0.56,
+      "current_mean": 0.58,
+      "delta": 0.02,
+      "wilcoxon_W": 675.0,
+      "p_value": 0.7199,
+      "cliffs_d": 0.02,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "has_excl": {
+      "layer2_mean": 0.3267,
+      "current_mean": 0.2667,
+      "delta": -0.06,
+      "wilcoxon_W": 500.0,
+      "p_value": 0.2631,
+      "cliffs_d": -0.06,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "q_rate": {
+      "layer2_mean": 0.1267,
+      "current_mean": 0.1467,
+      "delta": 0.02,
+      "wilcoxon_W": 99.0,
+      "p_value": 0.5663,
+      "cliffs_d": 0.02,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "len_mean": {
+      "layer2_mean": 21.1733,
+      "current_mean": 30.08,
+      "delta": 8.9067,
+      "wilcoxon_W": 2704.5,
+      "p_value": 0.0002,
+      "cliffs_d": 0.26,
+      "magnitude": "small",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "sentence_cnt": {
+      "layer2_mean": 1.2533,
+      "current_mean": 1.2933,
+      "delta": 0.04,
+      "wilcoxon_W": 422.5,
+      "p_value": 0.3975,
+      "cliffs_d": 0.0533,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    },
+    "ca_rate": {
+      "layer2_mean": 0.2067,
+      "current_mean": 0.2133,
+      "delta": 0.0067,
+      "wilcoxon_W": 342.0,
+      "p_value": 0.886,
+      "cliffs_d": 0.0067,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "chrf": {
+      "layer2_mean": 0.0751,
+      "current_mean": 0.0882,
+      "delta": 0.0131,
+      "wilcoxon_W": 3905.5,
+      "p_value": 0.0586,
+      "cliffs_d": 0.12,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "bleu4": {
+      "layer2_mean": 0.0,
+      "current_mean": 0.0,
+      "delta": 0.0,
+      "wilcoxon_W": 0.0,
+      "p_value": 1.0,
+      "cliffs_d": 0.0,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "rouge_l": {
+      "layer2_mean": 0.014,
+      "current_mean": 0.0171,
+      "delta": 0.003,
+      "wilcoxon_W": 199.0,
+      "p_value": 0.4908,
+      "cliffs_d": -0.0133,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "meteor": {
+      "layer2_mean": 0.0068,
+      "current_mean": 0.0138,
+      "delta": 0.007,
+      "wilcoxon_W": 174.0,
+      "p_value": 0.0571,
+      "cliffs_d": 0.0333,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "higher_is_better"
+    },
+    "len_ratio": {
+      "layer2_mean": 1.7713,
+      "current_mean": 2.3809,
+      "delta": 0.6096,
+      "wilcoxon_W": 2666.5,
+      "p_value": 0.0001,
+      "cliffs_d": 0.26,
+      "magnitude": "small",
+      "significant": true,
+      "direction": "lower_is_better"
+    },
+    "rep_rate": {
+      "layer2_mean": 0.0,
+      "current_mean": 0.0,
+      "delta": 0.0,
+      "wilcoxon_W": 0.0,
+      "p_value": 1.0,
+      "cliffs_d": 0.0,
+      "magnitude": "negligible",
+      "significant": false,
+      "direction": "lower_is_better"
+    }
+  },
+  "sample_cases": [
+    {
+      "case_idx": 1,
+      "id": "cpe_iris__042_mt",
+      "category": "casual",
+      "language": "unknown",
+      "is_multi_turn": true,
+      "n_history_turns": 2,
+      "source": "llm",
+      "intercept_by": null,
+      "frustration_level": 0,
+      "is_b2b": false,
+      "is_correction": false,
+      "objection_type": "",
+      "user_name": "",
+      "prompt_augmented": false,
+      "pool_category": null,
+      "pool_conf": 0.0,
+      "guard_flags": {
+        "is_empty": false,
+        "is_truncated": false,
+        "injection_flagged": false,
+        "is_media": false
+      },
+      "lead": "Jejejeje! Jo sería aixiiiins! 🤪🫶🏼",
+      "bot_response": "Jo també 🤣🫶🏻",
+      "ground_truth": "Guapaaa"
+    },
+    {
+      "case_idx": 2,
+      "id": "cpe_iris__041_mt",
+      "category": "casual",
+      "language": "es",
+      "is_multi_turn": true,
+      "n_history_turns": 2,
+      "source": "pool",
+      "intercept_by": "pool_reaction",
+      "frustration_level": 0,
+      "is_b2b": false,
+      "is_correction": false,
+      "objection_type": "",
+      "user_name": "",
+      "prompt_augmented": false,
+      "pool_category": "reaction",
+      "pool_conf": 0.82,
+      "guard_flags": {
+        "is_empty": false,
+        "is_truncated": false,
+        "injection_flagged": false,
+        "is_media": false
+      },
+      "lead": "Vale genial 👌",
+      "bot_response": "Wow",
+      "ground_truth": "Vale cuca, ya veo que hablarás con el haber. Tú sabes lo que quieres"
+    },
+    {
+      "case_idx": 3,
+      "id": "cpe_iris__045_mt",
+      "category": "casual",
+      "language": "unknown",
+      "is_multi_turn": true,
+      "n_history_turns": 3,
+      "source": "llm",
+      "intercept_by": null,
+      "frustration_level": 0,
+      "is_b2b": false,
+      "is_correction": false,
+      "objection_type": "",
+      "user_name": "",
+      "prompt_augmented": false,
+      "pool_category": null,
+      "pool_conf": 0.0,
+      "guard_flags": {
+        "is_empty": false,
+        "is_truncated": false,
+        "injection_flagged": false,
+        "is_media": false
+      },
+      "lead": "Vaig anar de festa a Sabadell ahir i de tornada al cotxe quan vam passar pel Bruc vsig dir epsssss jeje",
+      "bot_response": "Ja veig, no t’has pogut dormir 😂  \nQuè passa amb el Bruc?",
+      "ground_truth": "Que hi ha a Sabadell un diumenge a la nit?? Molt crack tu😮‍💨😮‍💨😮‍💨"
+    },
+    {
+      "case_idx": 4,
+      "id": "cpe_iris__009",
+      "category": "casual",
+      "language": "unknown",
+      "is_multi_turn": false,
+      "n_history_turns": 2,
+      "source": "llm",
+      "intercept_by": null,
+      "frustration_level": 2,
+      "is_b2b": false,
+      "is_correction": false,
+      "objection_type": "",
+      "user_name": "",
+      "prompt_augmented": true,
+      "pool_category": null,
+      "pool_conf": 0.0,
+      "guard_flags": {
+        "is_empty": false,
+        "is_truncated": false,
+        "injection_flagged": false,
+        "is_media": false
+      },
+      "lead": "No me’n fio de res",
+      "bot_response": "Ja veuràs que tot va bé, fer.",
+      "ground_truth": "🫠🫠"
+    },
+    {
+      "case_idx": 5,
+      "id": "cpe_iris__010",
+      "category": "casual",
+      "language": "unknown",
+      "is_multi_turn": false,
+      "n_history_turns": 3,
+      "source": "llm",
+      "intercept_by": null,
+      "frustration_level": 0,
+      "is_b2b": false,
+      "is_correction": false,
+      "objection_type": "",
+      "user_name": "",
+      "prompt_augmented": false,
+      "pool_category": null,
+      "pool_conf": 0.0,
+      "guard_flags": {
+        "is_empty": false,
+        "is_truncated": false,
+        "injection_flagged": false,
+        "is_media": false
+      },
+      "lead": "I aixi de sobre",
+      "bot_response": "Ja, és una mica massa raro.",
+      "ground_truth": "Ho ha deixat amb la novia"
+    }
+  ]
+}

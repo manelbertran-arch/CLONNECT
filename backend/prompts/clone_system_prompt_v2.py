@@ -16,6 +16,8 @@ Este prompt es UNIVERSAL - funciona con cualquier creador inyectando sus métric
 from dataclasses import dataclass
 from typing import List
 
+from core.emoji_utils import count_emojis as _count_emojis
+
 
 @dataclass
 class CreatorMetrics:
@@ -180,37 +182,17 @@ DESPEDIDA: → "Un abrazo!" "Hablamos!" 5-20 chars.
 # MÉTRICAS DE STEFAN (default)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-STEFAN_METRICS = CreatorMetrics(
-    name="Stefan",
-    avg_length=27.4,
-    median_length=22.0,
-    question_rate=0.10,
-    emoji_rate=0.22,
-    avg_emojis_per_msg=0.3,
-    uses_period=False,
-    period_rate=0.011,
-    exclamation_rate=0.15,
-    common_phrases=["Dale!", "Gracias hermano!", "Un abrazo!", "Jaja", "Genial!"],
-    vocabulary=["bro", "hermano", "crack", "dale", "genial"],
-    tone_words=["bro", "hermano", "crack", "tío"],
-    elaborates_on_emotion=True,
-    elaborates_on_questions=False,
-    uses_dry_responses=True,
-    dry_response_rate=0.15,
-)
-
-
-def get_stefan_prompt(relationship_context: str = "") -> str:
-    """Obtiene el prompt optimizado para Stefan."""
-    base = build_clone_system_prompt(STEFAN_METRICS, relationship_context)
-    guidelines = build_response_guidelines(STEFAN_METRICS)
-    return base + guidelines
-
-
 def extract_creator_metrics(creator_id: str, messages: list) -> CreatorMetrics:
-    """Extrae métricas de los mensajes de un creador."""
+    """Extrae métricas de los mensajes de un creador.
+
+    Vocabulary is data-mined from real messages — zero hardcoding.
+    """
     if not messages:
-        return STEFAN_METRICS
+        raise ValueError(
+            "No messages provided — cannot extract metrics without data"
+        )
+
+    from services.vocabulary_extractor import get_top_distinctive_words
 
     lengths = [len(m) for m in messages]
     avg_length = sum(lengths) / len(lengths)
@@ -220,8 +202,7 @@ def extract_creator_metrics(creator_id: str, messages: list) -> CreatorMetrics:
     questions = sum(1 for m in messages if "?" in m)
     question_rate = questions / len(messages)
 
-    def count_emojis(text):
-        return sum(1 for c in text if ord(c) > 127000)
+    count_emojis = _count_emojis
 
     msgs_with_emoji = sum(1 for m in messages if count_emojis(m) > 0)
     emoji_rate = msgs_with_emoji / len(messages)
@@ -237,8 +218,8 @@ def extract_creator_metrics(creator_id: str, messages: list) -> CreatorMetrics:
     dry_count = sum(1 for m in messages if m.lower().strip() in dry_responses or len(m) < 8)
     dry_rate = dry_count / len(messages)
 
-    common_words = ["bro", "hermano", "crack", "tío", "amigo", "genial", "dale", "perfecto"]
-    found_words = [w for w in common_words if any(w in m.lower() for m in messages)]
+    # Data-mined vocabulary: extract from real messages, not hardcoded lists
+    found_words = get_top_distinctive_words(messages, top_n=8, min_freq=2)
 
     return CreatorMetrics(
         name="Creator",

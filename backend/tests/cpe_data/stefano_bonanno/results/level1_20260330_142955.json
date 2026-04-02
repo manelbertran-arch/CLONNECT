@@ -1,0 +1,523 @@
+{
+  "creator": "stefano_bonanno",
+  "timestamp": "2026-03-30T12:29:55.079822+00:00",
+  "test_set": "/Users/manelbertranluque/Clonnect/backend/tests/cpe_data/stefano_bonanno/test_set.json",
+  "n_test_cases": 50,
+  "creator_baseline": {
+    "n": 50,
+    "length": {
+      "mean": 50.1,
+      "median": 20.5,
+      "std": 138.5
+    },
+    "word_count": {
+      "mean": 8.6,
+      "median": 3.0,
+      "std": 24.4
+    },
+    "emoji_count": {
+      "mean": 0.3,
+      "median": 0.0,
+      "std": 0.5
+    },
+    "question_count": {
+      "mean": 0.3,
+      "median": 0.0,
+      "std": 0.7
+    },
+    "exclamation_count": {
+      "mean": 1,
+      "median": 1.0,
+      "std": 1.0
+    },
+    "uppercase_ratio": {
+      "mean": 0.1,
+      "median": 0.1,
+      "std": 0.1
+    },
+    "sentence_count": {
+      "mean": 2.3,
+      "median": 2.0,
+      "std": 2.4
+    },
+    "avg_word_length": {
+      "mean": 5.1,
+      "median": 4.9,
+      "std": 1.6
+    },
+    "has_emoji": {
+      "pct": 32.0
+    },
+    "has_question": {
+      "pct": 18.0
+    },
+    "has_exclamation": {
+      "pct": 56.0
+    },
+    "language_distribution": {
+      "es": 100.0
+    },
+    "vocabulary_size": 235
+  },
+  "metrics": {
+    "length": {
+      "creator_mean": 50.1,
+      "creator_median": 20.5,
+      "bot_mean": 75,
+      "bot_median": 75.0,
+      "divergence_pct": 49.7,
+      "flag": true,
+      "interpretation": "Bot length is 50% higher than creator"
+    },
+    "word_count": {
+      "creator_mean": 8.6,
+      "creator_median": 3.0,
+      "bot_mean": 13,
+      "bot_median": 13.0,
+      "divergence_pct": 51.2,
+      "flag": true,
+      "interpretation": "Bot word_count is 51% higher than creator"
+    },
+    "emoji_count": {
+      "creator_mean": 0.3,
+      "creator_median": 0.0,
+      "bot_mean": 0,
+      "bot_median": 0.0,
+      "divergence_pct": 100.0,
+      "flag": true,
+      "interpretation": "Bot emoji_count is 100% lower than creator"
+    },
+    "question_count": {
+      "creator_mean": 0.3,
+      "creator_median": 0.0,
+      "bot_mean": 0,
+      "bot_median": 0.0,
+      "divergence_pct": 100.0,
+      "flag": true,
+      "interpretation": "Bot question_count is 100% lower than creator"
+    },
+    "exclamation_count": {
+      "creator_mean": 1,
+      "creator_median": 1.0,
+      "bot_mean": 0,
+      "bot_median": 0.0,
+      "divergence_pct": 100.0,
+      "flag": true,
+      "interpretation": "Bot exclamation_count is 100% lower than creator"
+    },
+    "uppercase_ratio": {
+      "creator_mean": 0.1,
+      "creator_median": 0.1,
+      "bot_mean": 0.0,
+      "bot_median": 0.0,
+      "divergence_pct": 100.0,
+      "flag": true,
+      "interpretation": "Bot uppercase_ratio is 100% lower than creator"
+    },
+    "sentence_count": {
+      "creator_mean": 2.3,
+      "creator_median": 2.0,
+      "bot_mean": 3,
+      "bot_median": 3.0,
+      "divergence_pct": 30.4,
+      "flag": true,
+      "interpretation": "Bot sentence_count is 30% higher than creator"
+    },
+    "avg_word_length": {
+      "creator_mean": 5.1,
+      "creator_median": 4.9,
+      "bot_mean": 4.6,
+      "bot_median": 4.6,
+      "divergence_pct": 9.8,
+      "flag": false,
+      "interpretation": "Within 30% tolerance"
+    },
+    "has_emoji": {
+      "creator_pct": 32.0,
+      "bot_pct": 0.0,
+      "divergence_pp": 32.0,
+      "flag": true
+    },
+    "has_question": {
+      "creator_pct": 18.0,
+      "bot_pct": 0.0,
+      "divergence_pp": 18.0,
+      "flag": false
+    },
+    "has_exclamation": {
+      "creator_pct": 56.0,
+      "bot_pct": 0.0,
+      "divergence_pp": 56.0,
+      "flag": true
+    },
+    "language_distribution": {
+      "creator": {
+        "es": 100.0
+      },
+      "bot": {
+        "es": 100.0
+      }
+    },
+    "vocabulary_overlap": {
+      "jaccard": 0.025,
+      "creator_vocab_size": 235,
+      "bot_vocab_size": 13,
+      "flag": true
+    }
+  },
+  "flags_count": 10,
+  "total_metrics": 12,
+  "overall_quantitative_match": 0.17,
+  "conversations": [
+    {
+      "id": "cpe_stefan_001",
+      "test_input": "Dale un beso de mi parte",
+      "ground_truth": "Daleee! Un beso grande para vos también Nadia! 💙",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 44
+    },
+    {
+      "id": "cpe_stefan_002",
+      "test_input": "[image]",
+      "ground_truth": "Buen día!",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 1
+    },
+    {
+      "id": "cpe_stefan_003",
+      "test_input": "Mentioned you in their story",
+      "ground_truth": "Poniéndolo en práctica 🧘🏽",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_004",
+      "test_input": "Holaaaa",
+      "ground_truth": "Hola!!!",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_005",
+      "test_input": "Hola Stefano!! Me escribí a las 16:30 yo 😅",
+      "ground_truth": "no te llego un mail con la notificación?",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_006",
+      "test_input": "[audio]",
+      "ground_truth": "[audio]",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_007",
+      "test_input": "Es por acá 👈🏼",
+      "ground_truth": "Mentioned you in their story",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_008",
+      "test_input": "Buenos días! Si no he empezado 🥹 estaba con el chico y no sabía gestionar el despertarme así temprano. Hoy busco otro momento y intento de solucionarlo con el 🤗",
+      "ground_truth": "Hola Alessandra! 😊 Que te llamo la atencion?",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 1
+    },
+    {
+      "id": "cpe_stefan_009",
+      "test_input": "[🎤 Audio]: Hola Estefano, buenos días.\n\n¿Qué tal el trícolo de ayer? ¿Cuántos hombres había?\n\nMe apunto al próximo, supongo que es cada mes. Seguro que me apunto con antelación.\n\nVi tu catálogo de servicios en WhatsApp y estaba curioso de saber qué ofrece y cómo está estructurado. Me estoy intentando meter en este mundo. Antes era informático, biólogo, científico, pero este año quiero dedicarme más a las cosas de wellness.\n\nQuería ver cómo funciona para los que tienen éxito. Me gustaría escuchar más de lo que haces.\n\nEspero que un día pueda pasar por Barcelona, tomamos un café y nos conocemos mejor.\n\nQue tengáis un día muy lindo. Estamos en contacto. Hasta luego.",
+      "ground_truth": "[🎤 Audio]: Hola Grant, ¿cómo estás? Buen día. Bueno, gracias por tu mensaje. Sí, mi idea es mantener los círculos online cada 15 días. Es un poco la idea, pero bueno, no hay nada confirmado. Estoy ahora haciendo el branding porque vamos a lanzar una marca relacionada a esto. O sea, círculos como una base, pero luego hay un proyecto de masculinidad que bueno, cuando nos encontremos te contaré más. Y bueno, mi servicio, yo soy coach y terapeuta. Hago sesiones de hipnosis, de reprogramación y acompaño procesos de transformación. Así que bueno, es un poco mi servicio. Tengo clientes en todo el mundo, en Latinoamérica, en España, en Italia. Así que bueno, eso es lo que hago como mi trabajo principal. Pero bueno, cuando estés en Barcelona avísame cuándo venís y si querés tomamos un café, nos conocemos y charlamos más. Y te aviso cuando haya el próximo círculo, en principios de 15 días, que lo vamos a avisar por el grupo. Así que nada, te mando un abrazo grande. Que estés bien.",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 2
+    },
+    {
+      "id": "cpe_stefan_010",
+      "test_input": "Ciao Stefano 😊\nHai eventi in programma per il 4 e 5 Aprile a Barcellona? Sarò in Spagna e mi piacerebbe partecipare ad un tuo evento..\nGrazie!",
+      "ground_truth": "Ciao Arianna! Cómo estás?",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 1
+    },
+    {
+      "id": "cpe_stefan_011",
+      "test_input": "Claro!, hablamos para la próxima semana si quieres",
+      "ground_truth": "Si dale!",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_012",
+      "test_input": "toallas",
+      "ground_truth": "Buenooo",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_013",
+      "test_input": "Hola Stefano buenos días mañana martes si puedo venir  tengo libre 15;30",
+      "ground_truth": "Hola Dora!",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_014",
+      "test_input": "No quiero decir Londres ! Por si el fisco lo mira haha",
+      "ground_truth": "Está perfecto",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_015",
+      "test_input": "🔥 my god",
+      "ground_truth": "Jajaja qué grande!! Contame,",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_016",
+      "test_input": "Mentioned you in their story",
+      "ground_truth": "Hola hermano!! 👋 Qué onda?? Contame, qué te trae por acá??",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_017",
+      "test_input": "Besito 😚",
+      "ground_truth": "[audio]",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_018",
+      "test_input": "Sent an attachment",
+      "ground_truth": "Hola Joshua! Que te llamo la atencion?",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_019",
+      "test_input": "Perfecto, me lo miro todo esta noche o mañana",
+      "ground_truth": "Genial!! 👍",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_020",
+      "test_input": "Ciao Stefano, \nFor March 1st\n\nTantra temple finishes at 6 pm and we will head to Stefania's Awaken anniversary evening around 8 pm, maybe after a dinner with Henk & Cindy (creators of wildflow sober rave events - I actually wanted to introduce you guys)\n\nStefania told me that she would love to see you there as a guest if u like. Would you join us?\n\nI hope you enjoy the snow fully! 🏂🏂",
+      "ground_truth": "Hello Inci!",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 2
+    },
+    {
+      "id": "cpe_stefan_021",
+      "test_input": "Hecho está ❤️",
+      "ground_truth": "Jajaja\nQué grande Mariana!!\nMe encanta tu energía! 😊",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_022",
+      "test_input": "[audio]",
+      "ground_truth": "estoy en call",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_023",
+      "test_input": "Mentioned you in their story",
+      "ground_truth": "Hola, qué bueno que te conectás! 😀 Contame, qué te trae por acá??",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_024",
+      "test_input": "Pero resulta que le escribí al señor con este que no quería laburar más, para decirle que estaba de vuelta y me pidió que lo llame.. la cosa es que lo llame y me dijo que se había encontrado muy bien con la chica que me cubrió cuando no estuve y que va a seguir con ella. Así que tema cerrado",
+      "ground_truth": "Ufffff! Qué situación Manue! 😬 Pero bueno, a veces las cosas se cierran así. Lo importante es que vos seguís moviendo y buscando lo que querés!",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 1
+    },
+    {
+      "id": "cpe_stefan_025",
+      "test_input": "Prestame atención a este punto de vista de Jung",
+      "ground_truth": "Hola hijo! Cómo andás? Dale, te escucho. Contame de Jung. 😊",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_026",
+      "test_input": "[reaction: 😂]",
+      "ground_truth": "[video]",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_027",
+      "test_input": "Hola Stefano. Gracias por avisar. Genial que el grupo funcione!",
+      "ground_truth": "[reaction: ❤️]",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_028",
+      "test_input": "Qué bella! Bon appetite 🙌🏼",
+      "ground_truth": "Sent an attachment",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_029",
+      "test_input": "[audio]",
+      "ground_truth": "Buen día Hermano!!",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_030",
+      "test_input": "Asi que bueno lo que queria saber es como mas o menos es tu abordaje para un caso de esta indole y pues podemos hacer una session en una de estas siguientes semanas ☺️",
+      "ground_truth": "Muchas gracias por compartirte y por transmitirme todo eso.",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 1
+    },
+    {
+      "id": "cpe_stefan_031",
+      "test_input": "Hopefully in a good way for you. It seems like this is a time of deep transformation for everyone right now. Interesting times.",
+      "ground_truth": "Good afternoon Elina!!",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_032",
+      "test_input": "[audio]",
+      "ground_truth": "[audio]",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_033",
+      "test_input": "Entonces si ☺️",
+      "ground_truth": "Que hermoso gatito!! 💙",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_034",
+      "test_input": "Gracias hermano",
+      "ground_truth": "Jajaja, qué genio! Me alegra que te guste mi contenido, amigo! 😄 Contame, qué te resonó de todo? ❤️",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_035",
+      "test_input": "Mentioned you in their story",
+      "ground_truth": "Mentioned you in their story",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_036",
+      "test_input": "Ok… this is guapo 😉 \nbut imagine a shot of you in the middle of facilitation\nwould elevate it even more\n\nThe ones like red-circled.",
+      "ground_truth": "Give a second!!",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_037",
+      "test_input": "[sticker]",
+      "ground_truth": "Hola Mi hermano!!",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_038",
+      "test_input": "Enjoy your vacation!!",
+      "ground_truth": "Trueeee! Super chill and quiet",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_039",
+      "test_input": "Es donde Iba siempre cuando tenia la oficina",
+      "ground_truth": "Perfecto!!",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_040",
+      "test_input": "Shit perdon… es cierto….",
+      "ground_truth": "tendria q llegarte cuando creo el invite",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_041",
+      "test_input": "Contenido compartido",
+      "ground_truth": "espectacular!!",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_042",
+      "test_input": "te aviso se vengo antes",
+      "ground_truth": "¡Ey Guido! Dale, avisame cualquier cosa, ¡va a ser genial que podamos charlar! Che, de lo que subí el otro día en Instagram, ¡Me re intriga saber! 😊",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_043",
+      "test_input": "Yes, I saw the caravan in your stories, it’s a dream. And places just incredible.\nNice to have you back. That means that we can talk soon ☺️",
+      "ground_truth": "Hello! Good morning",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 1
+    },
+    {
+      "id": "cpe_stefan_044",
+      "test_input": "[audio]",
+      "ground_truth": "Amigooo",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_045",
+      "test_input": "Un abrazo grande!!! Exitooo",
+      "ground_truth": "Éxitos con esa propuesta!!! ☺️",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_046",
+      "test_input": "Amigo! Me canceló entreno hasta las 5. Por viento. Ven mañana a la que quieras a casa. Podemos hacer running aquí a Montjuic si quieres ?",
+      "ground_truth": "Me cambio y salgo para tu casa ☺️",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_047",
+      "test_input": "Me encantaria 🤍 igual pretendia contactarte era en un par de semanas porque estoy un poco liada este mes, tambien acabo de tener una cirugía y estoy como lidiando con todo\n\nPero cuentame seria online o en persona ? Para mirar como bookear contigo",
+      "ground_truth": "Normalmente suelo atender online, excepto que ambos estemos en la misma ciudad.",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 1
+    },
+    {
+      "id": "cpe_stefan_048",
+      "test_input": "[audio]",
+      "ground_truth": "Excelente",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_049",
+      "test_input": "Acabo de terminar una discovery tengo q hablar con vos",
+      "ground_truth": "En 5 estoy libre",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    },
+    {
+      "id": "cpe_stefan_050",
+      "test_input": "https://maps.app.goo.gl/sLKmBaoSYLWfRbAp8?g_st=ic",
+      "ground_truth": "15 min",
+      "bot_response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+      "elapsed_ms": 0
+    }
+  ]
+}

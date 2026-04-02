@@ -208,6 +208,9 @@ async def process_message_impl(handler, message) -> "DMResponse":
         message_text, media_info = await _transcribe_audio(
             handler, message.sender_id, message_text, media_info
         )
+        # Persist transcription on the original message object so
+        # save_messages_to_db (which reads msg.text) stores the real text.
+        message.text = message_text
 
     # Build metadata
     dm_metadata = {

@@ -46,12 +46,15 @@ CLIENTE_INDICATORS = {
 _MEDIA_PLACEHOLDERS = frozenset(
     ["[audio]", "[video]", "[image]", "[sticker]",
      "[📷 Photo]", "[🎤 Audio]", "[🎤 Audio message]",
-     "[📹 Video]", "[🎤 Audio]:"]
+     "[📹 Video]", "[🎤 Audio]:",
+     "[📍 Location]", "[📄 Document]", "[📎 File]",
+     "[👤 Contact]", "[🔗 Link]", "[GIF]", "[gif]"]
 )
 
 # Prefixes that indicate media content (for startswith matching)
 _MEDIA_PREFIXES = ("[audio]", "[video]", "[image]", "[sticker]",
-                   "[📷", "[🎤", "[📹")
+                   "[📷", "[🎤", "[📹", "[📍", "[📄", "[📎",
+                   "[👤", "[🔗", "[GIF]", "[gif]")
 
 
 class RelationshipAnalyzer:
@@ -66,13 +69,20 @@ class RelationshipAnalyzer:
         """Initialize the analyzer."""
         self._cache = {}  # Simple in-memory cache
 
-    def analyze(self, creator_id: str, follower_id: str, messages: List[Dict]) -> Dict:
+    def analyze(
+        self, creator_id: str, follower_id: str, messages: List[Dict],
+        global_vocab: Dict = None, total_leads: int = 1,
+        leads_per_word: Dict = None,
+    ) -> Dict:
         """Analyze conversation and return relationship DNA.
 
         Args:
             creator_id: Creator identifier
             follower_id: Follower/lead identifier
             messages: List of message dicts with 'role' and 'content'
+            global_vocab: Aggregate vocabulary across all leads (for TF-IDF).
+            total_leads: Total leads for this creator.
+            leads_per_word: Optional word -> lead_count mapping.
 
         Returns:
             Dict with relationship DNA fields
@@ -110,7 +120,11 @@ class RelationshipAnalyzer:
         depth_level = self._calculate_depth_level(total_messages)
 
         # Extract vocabulary - analyze what creator USES and what to AVOID
-        vocabulary_uses = self._extract_vocabulary_uses(creator_messages, relationship_type)
+        vocabulary_uses = self._extract_vocabulary_uses(
+            creator_messages, relationship_type,
+            global_vocab=global_vocab, total_leads=total_leads,
+            leads_per_word=leads_per_word,
+        )
         vocabulary_avoids = self._extract_vocabulary_avoids(user_messages, creator_messages)
         emojis = self._extract_emojis(creator_messages, relationship_type)
 
@@ -154,73 +168,16 @@ class RelationshipAnalyzer:
         """Detect relationship type from conversation content.
 
         Delegates to RelationshipTypeDetector (Sprint 1) which supports
-        FAMILIA and all other types with weighted scoring.
-        Falls back to legacy detection if detector fails.
+        FAMILIA and all 7 types with weighted scoring and thresholds.
         """
-        # Use Sprint 1 detector (supports FAMILIA, weighted scoring, thresholds)
         try:
             from services.relationship_type_detector import RelationshipTypeDetector
             result = RelationshipTypeDetector().detect(messages)
             if result.get("confidence", 0) > 0.4:
                 return result["type"]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"RelationshipTypeDetector failed: {e}")
 
-        # Legacy fallback
-        text_lower = text.lower()
-
-        # Check for INTIMA indicators (highest priority)
-        intima_score = 0
-        for word in INTIMA_INDICATORS["words"]:
-            if word in text_lower:
-                intima_score += 2
-        for emoji in INTIMA_INDICATORS["emojis"]:
-            if emoji in text:
-                intima_score += 1
-
-        if intima_score >= 3:
-            return RelationshipType.INTIMA.value
-
-        # Check for CLIENTE indicators
-        cliente_score = 0
-        for word in CLIENTE_INDICATORS["words"]:
-            if word in text_lower:
-                cliente_score += 1
-        for pattern in CLIENTE_INDICATORS["patterns"]:
-            if pattern in text_lower:
-                cliente_score += 2
-
-        if cliente_score >= 3:
-            return RelationshipType.CLIENTE.value
-
-        # Check for AMISTAD_CERCANA indicators
-        cercana_score = 0
-        for word in AMISTAD_CERCANA_INDICATORS["words"]:
-            if word in text_lower:
-                cercana_score += 2
-        for topic in AMISTAD_CERCANA_INDICATORS["topics"]:
-            if topic in text_lower:
-                cercana_score += 1
-        for emoji in AMISTAD_CERCANA_INDICATORS["emojis"]:
-            if emoji in text:
-                cercana_score += 1
-
-        if cercana_score >= 3:
-            return RelationshipType.AMISTAD_CERCANA.value
-
-        # Check for AMISTAD_CASUAL
-        casual_score = 0
-        for word in AMISTAD_CASUAL_INDICATORS["words"]:
-            if word in text_lower:
-                casual_score += 1
-        for emoji in AMISTAD_CASUAL_INDICATORS["emojis"]:
-            if emoji in text:
-                casual_score += 1
-
-        if casual_score >= 2:
-            return RelationshipType.AMISTAD_CASUAL.value
-
-        # Default
         return RelationshipType.DESCONOCIDO.value
 
     def _calculate_trust_score(
@@ -258,82 +215,57 @@ class RelationshipAnalyzer:
             return 4
 
     def _extract_vocabulary_uses(
-        self, creator_messages: List[str], relationship_type: str
+        self, creator_messages: List[str], relationship_type: str,
+        global_vocab: Dict = None, total_leads: int = 1,
+        leads_per_word: Dict = None,
     ) -> List[str]:
-        """Extract vocabulary patterns the creator ACTUALLY uses in their messages."""
-        uses = []
-        all_text = " ".join(creator_messages).lower()
+        """Extract distinctive vocabulary the creator uses with this lead.
 
-        # Check ALL relationship vocabulary (not just type-specific)
-        # This captures what the creator actually uses regardless of relationship type
-        all_vocabulary = [
-            # Intimate/affectionate
-            "amor",
-            "cariño",
-            "preciosa",
-            "precioso",
-            "mi vida",
-            "te quiero",
-            "te amo",
-            # Friendship
-            "hermano",
-            "bro",
-            "crack",
-            "tio",
-            "compa",
-            "brother",
-            "amigo",
-            # Casual
-            "maquina",
-            "genial",
-            "crack",
-            "capo",
-        ]
-
-        for word in all_vocabulary:
-            if word in all_text:
-                uses.append(word)
-
-        return list(set(uses))
+        Uses word-boundary tokenization + TF-IDF distinctiveness scoring.
+        Data-mined from real messages only — zero hardcoding.
+        """
+        from services.vocabulary_extractor import get_top_distinctive_words
+        return get_top_distinctive_words(
+            creator_messages,
+            global_vocab=global_vocab,
+            total_leads=total_leads,
+            leads_per_word=leads_per_word,
+            top_n=8,
+            min_freq=2,
+        )
 
     def _extract_vocabulary_avoids(
         self, user_messages: List[str], creator_messages: List[str]
     ) -> List[str]:
-        """Extract vocabulary the lead uses but the creator doesn't.
+        """Extract vocabulary the lead uses frequently but the creator doesn't.
 
-        This prevents the bot from mimicking the lead's vocabulary instead of the creator's.
+        Uses word-boundary matching (language-agnostic):
+        words the lead uses 2+ times that never appear in creator messages.
         """
-        avoids = []
-        user_text = " ".join(user_messages).lower()
-        creator_text = " ".join(creator_messages).lower()
+        from services.vocabulary_extractor import tokenize
 
-        # Words to check - if lead uses them but creator doesn't, avoid them
-        vocabulary_to_check = [
-            "hermano",
-            "bro",
-            "crack",
-            "tio",
-            "compa",
-            "brother",
-            "amigo",
-            "amor",
-            "cariño",
-            "preciosa",
-            "precioso",
-            "mi vida",
-            "colega",
-            "maquina",
-            "capo",
-            "jefe",
-            "master",
+        if not user_messages:
+            return []
+
+        # Build creator word set using word-boundary tokenization
+        creator_words = set()
+        for msg in creator_messages:
+            creator_words.update(tokenize(msg))
+
+        # Count lead's words
+        lead_counts: Dict[str, int] = {}
+        for msg in user_messages:
+            for w in tokenize(msg):
+                lead_counts[w] = lead_counts.get(w, 0) + 1
+
+        # Words the lead uses 2+ times but creator never uses
+        avoids = [
+            w for w, c in lead_counts.items()
+            if c >= 2 and w not in creator_words
         ]
 
-        for word in vocabulary_to_check:
-            # Lead uses it but creator doesn't → avoid it
-            if word in user_text and word not in creator_text:
-                avoids.append(word)
-
-        return list(set(avoids))
+        avoids.sort(key=lambda w: lead_counts[w], reverse=True)
+        return avoids[:5]
 
     def _extract_emojis(self, creator_messages: List[str], relationship_type: str) -> List[str]:
         """Extract commonly used emojis from creator messages."""
@@ -370,24 +302,45 @@ class RelationshipAnalyzer:
         return unique_emojis[:5]  # Limit to 5 most relevant
 
     def _extract_topics(self, text: str) -> List[str]:
-        """Extract recurring topics from conversation."""
-        topics = []
-        topic_keywords = {
-            "circulos de hombres": ["circulo", "circulos", "hombres"],
-            "meditacion": ["meditacion", "meditar", "vipassana"],
-            "terapia": ["terapia", "terapeuta", "sesion"],
-            "negocios": ["negocio", "empresa", "ventas", "cliente"],
-            "fitness": ["entreno", "gimnasio", "dieta", "musculo"],
-        }
+        """Extract recurring topics from conversation using frequency-based noun extraction.
 
+        Combines a curated seed list (catches known domains) with dynamic
+        frequency extraction (catches any creator's topics). Language-agnostic.
+        """
         text_lower = text.lower()
-        for topic, keywords in topic_keywords.items():
-            for keyword in keywords:
-                if keyword in text_lower:
-                    topics.append(topic)
-                    break
+        topics = []
 
-        return list(set(topics))
+        # Curated seeds: map keyword → topic label (fast, high-precision)
+        _SEED_TOPICS = {
+            "circulo": "círculos", "circulos": "círculos",
+            "meditacion": "meditación", "meditar": "meditación", "vipassana": "meditación",
+            "terapia": "terapia", "terapeuta": "terapia",
+            "negocio": "negocios", "empresa": "negocios", "ventas": "negocios",
+            "entreno": "fitness", "gimnasio": "fitness", "dieta": "fitness",
+            "yoga": "yoga", "breathwork": "breathwork",
+            "maquillaje": "maquillaje", "skincare": "skincare", "belleza": "belleza",
+            "cocina": "cocina", "receta": "cocina", "cooking": "cocina",
+            "musica": "música", "cancion": "música", "music": "música",
+            "fotografia": "fotografía", "photography": "fotografía",
+            "viaje": "viajes", "travel": "viajes",
+        }
+        for keyword, label in _SEED_TOPICS.items():
+            if keyword in text_lower and label not in topics:
+                topics.append(label)
+
+        # Dynamic: extract nouns appearing 3+ times (language-agnostic)
+        from services.vocabulary_extractor import STOPWORDS
+        words = re.findall(r"\b[a-záéíóúüñàèòïçìùöäãõ]{4,}\b", text_lower)
+        word_counts: Dict[str, int] = {}
+        for w in words:
+            if w not in STOPWORDS:
+                word_counts[w] = word_counts.get(w, 0) + 1
+
+        for w, c in sorted(word_counts.items(), key=lambda x: x[1], reverse=True):
+            if c >= 3 and w not in topics and len(topics) < 5:
+                topics.append(w)
+
+        return topics[:5]
 
     def _describe_tone(self, relationship_type: str) -> str:
         """Generate tone description based on relationship type."""

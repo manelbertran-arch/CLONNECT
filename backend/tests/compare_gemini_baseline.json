@@ -1,0 +1,155 @@
+{
+  "timestamp": "2026-03-24T16:46:09.779188",
+  "models": [
+    {
+      "label": "Gemini-baseline",
+      "provider": "gemini",
+      "model": "gemini-2.0-flash-lite"
+    }
+  ],
+  "messages": [
+    "Hola! Me interesaría saber los precios de las clases",
+    "Ei quina foto mes bonica",
+    "No sé, es un poco caro para mí",
+    "Bon dia Iris!! Avui tens classe?",
+    "🤣🤣",
+    "Hola guapa! Quiero apuntarme a barre",
+    "Gràcies per tot, ets la millor!",
+    "Oye y los horarios? Trabajo hasta las 6",
+    "[audio message]",
+    "Ya pero es que no sé si me va a gustar"
+  ],
+  "responses": [
+    {
+      "message_idx": 0,
+      "message": "Hola! Me interesaría saber los precios de las clases",
+      "label": "Gemini-baseline",
+      "provider": "gemini",
+      "model": "gemini-2.0-flash-lite",
+      "responses": [
+        "[ERROR: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=AIzaSyBEJZxeORY9DHcL3KijEVMoNyarWQzd1xk]"
+      ],
+      "response_lengths": [
+        183
+      ]
+    },
+    {
+      "message_idx": 1,
+      "message": "Ei quina foto mes bonica",
+      "label": "Gemini-baseline",
+      "provider": "gemini",
+      "model": "gemini-2.0-flash-lite",
+      "responses": [
+        "[ERROR: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=AIzaSyBEJZxeORY9DHcL3KijEVMoNyarWQzd1xk]"
+      ],
+      "response_lengths": [
+        183
+      ]
+    },
+    {
+      "message_idx": 2,
+      "message": "No sé, es un poco caro para mí",
+      "label": "Gemini-baseline",
+      "provider": "gemini",
+      "model": "gemini-2.0-flash-lite",
+      "responses": [
+        "[ERROR: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=AIzaSyBEJZxeORY9DHcL3KijEVMoNyarWQzd1xk]"
+      ],
+      "response_lengths": [
+        183
+      ]
+    },
+    {
+      "message_idx": 3,
+      "message": "Bon dia Iris!! Avui tens classe?",
+      "label": "Gemini-baseline",
+      "provider": "gemini",
+      "model": "gemini-2.0-flash-lite",
+      "responses": [
+        "[ERROR: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=AIzaSyBEJZxeORY9DHcL3KijEVMoNyarWQzd1xk]"
+      ],
+      "response_lengths": [
+        183
+      ]
+    },
+    {
+      "message_idx": 4,
+      "message": "🤣🤣",
+      "label": "Gemini-baseline",
+      "provider": "gemini",
+      "model": "gemini-2.0-flash-lite",
+      "responses": [
+        "[ERROR: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=AIzaSyBEJZxeORY9DHcL3KijEVMoNyarWQzd1xk]"
+      ],
+      "response_lengths": [
+        183
+      ]
+    },
+    {
+      "message_idx": 5,
+      "message": "Hola guapa! Quiero apuntarme a barre",
+      "label": "Gemini-baseline",
+      "provider": "gemini",
+      "model": "gemini-2.0-flash-lite",
+      "responses": [
+        "[ERROR: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=AIzaSyBEJZxeORY9DHcL3KijEVMoNyarWQzd1xk]"
+      ],
+      "response_lengths": [
+        183
+      ]
+    },
+    {
+      "message_idx": 6,
+      "message": "Gràcies per tot, ets la millor!",
+      "label": "Gemini-baseline",
+      "provider": "gemini",
+      "model": "gemini-2.0-flash-lite",
+      "responses": [
+        "[ERROR: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=AIzaSyBEJZxeORY9DHcL3KijEVMoNyarWQzd1xk]"
+      ],
+      "response_lengths": [
+        183
+      ]
+    },
+    {
+      "message_idx": 7,
+      "message": "Oye y los horarios? Trabajo hasta las 6",
+      "label": "Gemini-baseline",
+      "provider": "gemini",
+      "model": "gemini-2.0-flash-lite",
+      "responses": [
+        "[ERROR: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=AIzaSyBEJZxeORY9DHcL3KijEVMoNyarWQzd1xk]"
+      ],
+      "response_lengths": [
+        183
+      ]
+    },
+    {
+      "message_idx": 8,
+      "message": "[audio message]",
+      "label": "Gemini-baseline",
+      "provider": "gemini",
+      "model": "gemini-2.0-flash-lite",
+      "responses": [
+        "[ERROR: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=AIzaSyBEJZxeORY9DHcL3KijEVMoNyarWQzd1xk]"
+      ],
+      "response_lengths": [
+        183
+      ]
+    },
+    {
+      "message_idx": 9,
+      "message": "Ya pero es que no sé si me va a gustar",
+      "label": "Gemini-baseline",
+      "provider": "gemini",
+      "model": "gemini-2.0-flash-lite",
+      "responses": [
+        "[ERROR: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=AIzaSyBEJZxeORY9DHcL3KijEVMoNyarWQzd1xk]"
+      ],
+      "response_lengths": [
+        183
+      ]
+    }
+  ],
+  "markdown_table": "| # | Mensaje | Gemini-baseline |\n|---|---|---|\n| 1 | Hola! Me interesaría saber los precios d... | [ERROR: 404 Client Error: Not Found for url: https://generat |\n| 2 | Ei quina foto mes bonica | [ERROR: 404 Client Error: Not Found for url: https://generat |\n| 3 | No sé, es un poco caro para mí | [ERROR: 404 Client Error: Not Found for url: https://generat |\n| 4 | Bon dia Iris!! Avui tens classe? | [ERROR: 404 Client Error: Not Found for url: https://generat |\n| 5 | 🤣🤣 | [ERROR: 404 Client Error: Not Found for url: https://generat |\n| 6 | Hola guapa! Quiero apuntarme a barre | [ERROR: 404 Client Error: Not Found for url: https://generat |\n| 7 | Gràcies per tot, ets la millor! | [ERROR: 404 Client Error: Not Found for url: https://generat |\n| 8 | Oye y los horarios? Trabajo hasta las 6 | [ERROR: 404 Client Error: Not Found for url: https://generat |\n| 9 | [audio message] | [ERROR: 404 Client Error: Not Found for url: https://generat |\n| 10 | Ya pero es que no sé si me va a gustar | [ERROR: 404 Client Error: Not Found for url: https://generat |"
+}

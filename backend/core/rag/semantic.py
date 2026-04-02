@@ -29,8 +29,8 @@ RAG_CACHE_TTL = 300  # 5 minutes
 # FEATURE FLAGS - All OFF by default to minimize latency
 # =============================================================================
 
-# Cross-encoder reranking: improves relevance but adds ~100-200ms
-# Default: FALSE - Railway can timeout downloading models on cold start
+# Cross-encoder reranking: improves relevance but adds ~30-100ms for ≤12 pairs
+# Default: TRUE — model loads in background during startup
 ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "true").lower() == "true"
 
 # BM25 hybrid search: combines semantic + lexical search
@@ -95,13 +95,15 @@ class SemanticRAG:
             self._doc_list.append(doc_id)
 
         # Generate and store embedding if OpenAI available
+        # Uses contextual prefix (Anthropic Contextual Retrieval: +49% quality)
         if self._check_embeddings_available():
             try:
-                from core.embeddings import generate_embedding, store_embedding
+                from core.contextual_prefix import generate_embedding_with_context
+                from core.embeddings import store_embedding
 
-                embedding = generate_embedding(text)
+                creator_id = metadata.get("creator_id", "unknown") if metadata else "unknown"
+                embedding = generate_embedding_with_context(text, creator_id)
                 if embedding:
-                    creator_id = metadata.get("creator_id", "unknown") if metadata else "unknown"
                     store_embedding(doc_id, creator_id, text, embedding)
                     logger.debug(f"Stored embedding for {doc_id}")
             except Exception as e:

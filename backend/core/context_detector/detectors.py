@@ -5,7 +5,12 @@ Redesigned: language-extensible via keyword dicts. No hardcoded Spanish.
 Removed: frustration (FrustrationDetector v2), sarcasm (LLM handles it).
 Kept: B2B, meta-message, correction, objection, user name, interest.
 
-To add a language: add a key to the relevant KEYWORDS dict.
+Language coverage:
+  - Keyword lists: ES, CA, EN, IT, FR, PT only.
+  - Universal patterns (all detectors): work regardless of language — negation
+    repetition, legal entity suffixes, business email domains, URLs.
+  - Languages NOT covered by keyword lists (DE, AR, ZH, PT-BR, etc.) rely solely
+    on universal patterns. For full coverage, add a key to the relevant dict.
 """
 
 import re
@@ -19,16 +24,26 @@ from .models import B2BResult
 # "universal" patterns work regardless of language.
 # =============================================================================
 
+# Coverage: ES/CA/EN/IT/FR/PT keyword lists + universal patterns (any language).
 B2B_KEYWORDS: Dict[str, List[str]] = {
     "universal": [
-        r"@\w+\.\w+",          # email pattern
+        # Business email: any @domain.tld that is NOT a consumer provider.
+        # Consumer domains excluded: gmail, hotmail, yahoo, outlook, icloud,
+        # live, msn, aol, proton/protonmail. Extend as needed.
+        r"@(?!(?:gmail|hotmail|yahoo|outlook|icloud|live|msn|aol|proton(?:mail)?)\b)\w[\w.-]*\.\w+",
         r"https?://",           # URL
         r"www\.",               # website
+        # Legal entity suffixes — language-agnostic B2B signal.
+        # Covers DE (GmbH, AG), UK (Ltd), US (LLC, Inc), ES (S.A., S.L.),
+        # IT (SpA, S.r.l.), FR (SARL, SAS), NL (B.V., N.V.), EE (OÜ),
+        # SE (AB), NO (AS), AU (Pty).
+        r"\b(?:GmbH|Ltd\.?|LLC|S\.?A\.?|S\.?L\.?|Inc\.?|AG|B\.?V\.?|N\.?V\.?|SpA|S\.?[Rr]\.?[Ll]\.?|SARL|SAS|OÜ|AB|AS|Pty)\b",
     ],
     "es": [
         r"\bcolaboraci[oó]n\b", r"\bempresa\b", r"\bmarca\b",
         r"\bsponsor\b", r"\bpropuesta\b", r"\bcorporativo\b",
         r"\bcontrato\b", r"\bacuerdo\b", r"\bproveedor\b",
+        r"\bfactura\b", r"\bnif\b", r"\bcif\b",
     ],
     "ca": [
         r"\bcol·laboraci[oó]\b", r"\bempresa\b", r"\bmarca\b",
@@ -40,6 +55,7 @@ B2B_KEYWORDS: Dict[str, List[str]] = {
         r"\bpartnership\b", r"\bproposal\b", r"\bcorporate\b",
         r"\bcontract\b", r"\bagreement\b", r"\bsupplier\b",
         r"\bsponsor\b",
+        r"\binvoice\b", r"\bvat\b", r"\btax id\b", r"\bpurchase order\b",
     ],
     "it": [
         r"\bcollaborazione\b", r"\bazienda\b", r"\bmarca\b",
@@ -57,22 +73,22 @@ B2B_KEYWORDS: Dict[str, List[str]] = {
 
 B2B_INTRO_PATTERNS: Dict[str, List[str]] = {
     "es": [
-        r"(?:soy|les escribe|mi nombre es|me llamo)\s+\w+\s+de\s+([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+?)(?:[,.\s]|$)",
+        r"(?:soy|les escribe|mi nombre es|me llamo)\s+(?:\w+\s+)+de\s+([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+?)(?:[,.\s]|$)",
     ],
     "ca": [
-        r"(?:sóc|em dic|el meu nom és)\s+(?:l[ae]\s+)?\w+\s+de\s+([A-ZÀÈÉÍÒÓÚÇa-zàèéíòóúç\s]+?)(?:[,.\s]|$)",
+        r"(?:sóc|em dic|el meu nom és)\s+(?:l[ae]\s+)?(?:\w+\s+)+de\s+([A-ZÀÈÉÍÒÓÚÇa-zàèéíòóúç\s]+?)(?:[,.\s]|$)",
     ],
     "en": [
-        r"(?:i'?m|my name is|this is)\s+\w+\s+from\s+([A-Za-z\s]+?)(?:[,.\s]|$)",
+        r"(?:i'?m|my name is|this is)\s+(?:\w+\s+)+from\s+([A-Za-z\s]+?)(?:[,.\s]|$)",
     ],
     "it": [
-        r"(?:sono|mi chiamo)\s+\w+\s+di\s+([A-ZÀÈÉÌÒÙa-zàèéìòù\s]+?)(?:[,.\s]|$)",
+        r"(?:sono|mi chiamo)\s+(?:\w+\s+)+di\s+([A-ZÀÈÉÌÒÙa-zàèéìòù\s]+?)(?:[,.\s]|$)",
     ],
     "fr": [
-        r"(?:je suis|je m'appelle)\s+\w+\s+de\s+([A-ZÀÂÆÇÈÉÊa-zàâæçèéê\s]+?)(?:[,.\s]|$)",
+        r"(?:je suis|je m'appelle)\s+(?:\w+\s+)+de\s+([A-ZÀÂÆÇÈÉÊa-zàâæçèéê\s]+?)(?:[,.\s]|$)",
     ],
     "pt": [
-        r"(?:sou|meu nome é|me chamo)\s+\w+\s+(?:de|da)\s+([A-ZÃÁÂÉÊÍÓÔÚa-zãáâéêíóôú\s]+?)(?:[,.\s]|$)",
+        r"(?:sou|meu nome é|me chamo)\s+(?:\w+\s+)+(?:de|da)\s+([A-ZÃÁÂÉÊÍÓÔÚa-zãáâéêíóôú\s]+?)(?:[,.\s]|$)",
     ],
 }
 
@@ -102,19 +118,36 @@ META_KEYWORDS: Dict[str, List[str]] = {
     "pt": [r"\bjá te disse\b", r"\breleia\b", r"\bcomo eu disse\b"],
 }
 
+# Coverage: ES/CA/EN/IT/FR/PT keyword lists + universal patterns (any language).
+# For unsupported languages, universal patterns handle negation-based corrections.
 CORRECTION_KEYWORDS: Dict[str, List[str]] = {
+    "universal": [
+        # Negation repetition — works across Indo-European languages:
+        # ES "no no", EN "no no", IT "no no", DE "nein nein", etc.
+        r"\bno\s+no\b",
+        # Message-initial "no," or "no!" followed by content — strong correction
+        # signal: "No, I meant Tuesday" / "No, quería decir martes".
+        # Requires comma or exclamation to avoid matching "no tengo..." etc.
+        r"(?i)^no[,!]\s*\w",
+    ],
     "es": [r"\bno (?:te )?he dicho\b", r"\bno quiero comprar\b",
            r"\bme has entendido mal\b", r"\bno es eso\b",
            r"\bno me refiero\b", r"\bno era eso\b", r"\bmalentendido\b",
-           r"\bno he pedido\b", r"\bno dije eso\b", r"\bno quise decir\b"],
+           r"\bno he pedido\b", r"\bno dije eso\b", r"\bno quise decir\b",
+           r"\bme he equivocado\b", r"\bme equivoqu[eé]\b",
+           r"\bperdona\b", r"\bno me refer[ií]a\b"],
     "ca": [r"\bno (?:t')?he dit\b", r"\bno és això\b",
            r"\bm'has entès malament\b", r"\bno em refereixo\b",
-           r"\bmalentès\b", r"\bno volia dir\b"],
+           r"\bmalentès\b", r"\bno volia dir\b",
+           r"\bm'he equivocat\b", r"\bperdona\b", r"\bno em referia\b"],
     "en": [r"\bthat'?s not what i (?:said|meant)\b", r"\bi didn'?t say\b",
            r"\bmisunderstanding\b", r"\bi don'?t mean\b",
-           r"\bthat'?s not (?:it|right)\b", r"\byou misunderstood\b"],
+           r"\bthat'?s not (?:it|right)\b", r"\byou misunderstood\b",
+           r"\bi was wrong\b", r"\bi didn'?t mean\b",
+           r"\bsorry,?\s+(?:i meant|that'?s not)\b"],
     "it": [r"\bnon (?:è|ho detto) (?:quello|così)\b", r"\bmalinteso\b",
-           r"\bnon intendevo\b"],
+           r"\bnon intendevo\b",
+           r"\bmi sono sbagliato\b", r"\bscusa\b", r"\bnon mi riferivo\b"],
     "fr": [r"\bce n'est pas ce que j'ai dit\b", r"\bmalentendu\b",
            r"\bje n'ai pas dit\b"],
     "pt": [r"\bnão (?:é|foi) isso\b", r"\bmal-entendido\b",

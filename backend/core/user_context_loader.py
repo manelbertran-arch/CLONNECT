@@ -1,12 +1,18 @@
 """
 User Context Loader - Unified user data loading for LLM context injection.
 
-This module loads ALL user/follower data for personalizing responses:
-- From FollowerMemory (JSON): conversation history, scores, interests
-- From UserProfile (JSON): preferences, communication style
-- From Lead table (PostgreSQL): CRM status, tags, deal value
+DEPRECATED (2026-04-01, Audit Sistema #7):
+  This module is NOT called from the main DM pipeline (context.py).
+  CRM enrichment (tags, VIP, deal_value, notes) has been moved to
+  core/dm/phases/context.py which queries the Lead table directly.
+  The UserContext dataclass is still imported by tests/academic/.
+  Do not add new features here — extend context.py instead.
 
-Used for context injection into LLM prompts for personalized responses.
+Original description:
+  Loads ALL user/follower data for personalizing responses:
+  - From FollowerMemory (JSON): conversation history, scores, interests
+  - From UserProfile (JSON): preferences, communication style
+  - From Lead table (PostgreSQL): CRM status, tags, deal value
 """
 
 import logging
@@ -311,7 +317,8 @@ def load_user_context(
 def _load_from_follower_memory(context: UserContext):
     """Load data from FollowerMemory (JSON storage)."""
     try:
-        from core.memory import MemoryStore
+        # BUG-UC-05 fix: Use services.memory_service.MemoryStore (not deprecated core.memory)
+        from services.memory_service import MemoryStore
 
         store = MemoryStore()
         # Use sync approach - MemoryStore.get is async but we need sync here

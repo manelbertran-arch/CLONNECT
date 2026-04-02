@@ -1,0 +1,719 @@
+{
+  "version": "llm_judge",
+  "date": "2026-03-24",
+  "judge_model": "gpt-4o-mini",
+  "bot_model": "together/manelbertran_c647/Qwen3-8B-iris-sft-8b-v1-877e513f",
+  "provider": "together",
+  "baselines": {
+    "v1_sm": 28.9,
+    "v1_judge": 3.5,
+    "v3_sm": 34.2,
+    "v3_judge": 5.7
+  },
+  "results": {
+    "overall_judge": 0,
+    "overall_sm": 0
+  },
+  "conversations": [
+    {
+      "id": "conv_001",
+      "type": "personal",
+      "language": "ca",
+      "test_input": "que no les trobo",
+      "bot_response": "",
+      "ground_truth": "Ay, Manel! Qué lío con las bambas. 😣 ¿Seguro que no las dejaste en casa?",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 397
+    },
+    {
+      "id": "conv_002",
+      "type": "saludo",
+      "language": "ca",
+      "test_input": "❤️❤️",
+      "bot_response": "",
+      "ground_truth": "Mare meva Irene! Quina gràcia!! 😍 Com estàs, guapa?",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 222
+    },
+    {
+      "id": "conv_003",
+      "type": "saludo",
+      "language": "es",
+      "test_input": "Aca por bajar, me vine a buenos aires unos dias",
+      "bot_response": "",
+      "ground_truth": "Daleee! Que haces babyyyy? 😘 Que fuerteee!",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 240
+    },
+    {
+      "id": "conv_004",
+      "type": "saludo",
+      "language": "es",
+      "test_input": "Sent an attachment",
+      "bot_response": "",
+      "ground_truth": "Ostiaaa😂😂😂",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 226
+    },
+    {
+      "id": "conv_005",
+      "type": "precio",
+      "language": "es",
+      "test_input": "Iris, quiero reservar plaza para barre por fis.\nMe llamo Angelina \nGracias",
+      "bot_response": "",
+      "ground_truth": "Ya estás flor",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 252
+    },
+    {
+      "id": "conv_006",
+      "type": "precio",
+      "language": "ca",
+      "test_input": "Ok",
+      "bot_response": "",
+      "ground_truth": "Hola Iolanda! 😊",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 251
+    },
+    {
+      "id": "conv_007",
+      "type": "precio",
+      "language": "es",
+      "test_input": "Nos vemos mañana *21.03* para el workshop con Tamara🌟, de *14:00h a 16:00h.*\n\nAquí os dejo el enlace para abrir la puerta de entrada:\nhttps://docs.google.com/document/d/16q47UYLdRdYF5KBBnpdSePNfROwe_ZdW/edit?usp=drivesdk&ouid=100996112409432303735&rtpof=true&sd=true",
+      "bot_response": "",
+      "ground_truth": "Hola Albert! 😊 Qué bien que te animas al workshop!",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 273
+    },
+    {
+      "id": "conv_008",
+      "type": "precio",
+      "language": "es",
+      "test_input": "abril a les 13:00",
+      "bot_response": "",
+      "ground_truth": "Hola cariño, ¿qué pasa? ¿Hablando de abril a las 13:00€ 😂",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 244
+    },
+    {
+      "id": "conv_009",
+      "type": "precio",
+      "language": "ca",
+      "test_input": "Fins demà!!",
+      "bot_response": "",
+      "ground_truth": "Aiii Eli! 🥰 Cómo va todo?? Te paso info por privado ahora que ya he colgado.",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 241
+    },
+    {
+      "id": "conv_010",
+      "type": "objecion",
+      "language": "es",
+      "test_input": "Okiii; todo bien. Lo estoy asimilando tranqui; es solo una pausa. Volveré🥹🫶🏻",
+      "bot_response": "",
+      "ground_truth": "Amor, me alegro un montón de que lo estés asimilando bien. 🥰 ¡Ya verás qué bien te sienta!",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 236
+    },
+    {
+      "id": "conv_011",
+      "type": "objecion",
+      "language": "es",
+      "test_input": "Me han dado invitación para otra clase",
+      "bot_response": "",
+      "ground_truth": "Ay, mi vida, qué lío! 🫠 Entonces, ¿al final vas a la otra clase o te quedas a la de barre? 😘",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 267
+    },
+    {
+      "id": "conv_012",
+      "type": "objecion",
+      "language": "ca",
+      "test_input": "Gràcies preciosa!! 😍😍💖💖",
+      "bot_response": "",
+      "ground_truth": "Hola Marta! De res, guapa! 🥰 Sempre que puguis i vulguis, aquí estic! Què et va semblar la classe d'ahir? 😊",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 238
+    },
+    {
+      "id": "conv_013",
+      "type": "lead_caliente",
+      "language": "ca",
+      "test_input": "Oqqq?",
+      "bot_response": "",
+      "ground_truth": "Hola bro! Com va tot? 🥰 Que moltes ganes de barre dijous! 💪",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 264
+    },
+    {
+      "id": "conv_014",
+      "type": "lead_caliente",
+      "language": "es",
+      "test_input": "Gràcies Per la clase d’avui \nI Per la paciencia ❤️🫶🏻",
+      "bot_response": "",
+      "ground_truth": "De nada, cariño. ❤️ Me alegro que te gustara. 😘",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 495
+    },
+    {
+      "id": "conv_015",
+      "type": "lead_caliente",
+      "language": "es",
+      "test_input": "Tengo trabajo por la tarde y iré a comprar unas placas para el piso 🤯 al mediodía",
+      "bot_response": "",
+      "ground_truth": "Que vendrás el domingo que es el últimooo",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 336
+    },
+    {
+      "id": "conv_016",
+      "type": "lead_caliente",
+      "language": "ca",
+      "test_input": "VINC SÚPER RAPID",
+      "bot_response": "",
+      "ground_truth": "Tranqui",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 280
+    },
+    {
+      "id": "conv_017",
+      "type": "audio",
+      "language": "ca",
+      "test_input": "[🏷️ Sticker]",
+      "bot_response": "",
+      "ground_truth": "Jajaja, ¡qué bueno! 😂 Me alegro que todo se haya solucionado, Sònia. ¡Un abrazo! 😘",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 280
+    },
+    {
+      "id": "conv_018",
+      "type": "audio",
+      "language": "es",
+      "test_input": "[🎤 Audio]: ¡Hustia! Me ha sorprendido, no me lo esperaba. Pensaba que era un rollo de estar todo el día en el gimnasio, desconectando y sin pensar. Pero bueno, por los vídeos que hagas, tampoco pasa nada.\n\n¿Ya notabas que te quedaba clavada la cervical? Joder, tío, qué putada. Si no vas a descansar, olvídate.\n\nHoy duerme, descansa, desconecta. Si has hecho la clase, ya te han ido bien, seguro. Y cuando quieras venir a verme a Pibonacos de Barcelona, me parece perfecto. Es un planazo estupendo. Cuando queráis, vigilar la carretera, ¿vale?\n\nY mañana, en principio, si todo va bien, creo que sí, vengo a Hipopilates y Barre. Tengo ganas porque hace mucho que no vengo a Barre.",
+      "bot_response": "",
+      "ground_truth": "Ay, mi vidaaa 💔. Qué movida, bro. Pero sí, a descansar y desconectar, ¡eso es lo primero! ❤️",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 258
+    },
+    {
+      "id": "conv_019",
+      "type": "lead_caliente",
+      "language": "ca",
+      "test_input": "Bon dia!!! Dema tampoc vinc, estic molt millor, pero dema tinc dia de fer gestions…🙏",
+      "bot_response": "",
+      "ground_truth": "Dijous no podrem fer entreno aviso😘",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 247
+    },
+    {
+      "id": "conv_020",
+      "type": "audio",
+      "language": "ca",
+      "test_input": "[🎤 Audio]: Muchísimas gracias, family. Os estimo, os estimo y os estimo. Vale, que vayamos cumpliendo años y santos.",
+      "bot_response": "",
+      "ground_truth": "Oleeeeee nen! Que te cuento? 🥹 Com va tot per allà?",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 242
+    },
+    {
+      "id": "conv_021",
+      "type": "audio",
+      "language": "ca",
+      "test_input": "[audio]",
+      "bot_response": "",
+      "ground_truth": "Hola! Que et vaig dir que et recordés?",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 256
+    },
+    {
+      "id": "conv_022",
+      "type": "audio",
+      "language": "ca",
+      "test_input": "[🎤 Audio]: Es que no he trobat res más, eh?",
+      "bot_response": "",
+      "ground_truth": "Montse tu avui no vens a zumba? Que graba l’Erika 15minutets de classe🌚",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 234
+    },
+    {
+      "id": "conv_023",
+      "type": "audio",
+      "language": "mixto",
+      "test_input": "[🎤 Audio]: Hola amor, sí sí, contas si el teu germán no pot, Julián ve amb nosotros, vale? Un petó, ya em dius?",
+      "bot_response": "",
+      "ground_truth": "Valeee ja taaa",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 250
+    },
+    {
+      "id": "conv_024",
+      "type": "audio",
+      "language": "mixto",
+      "test_input": "[audio]",
+      "bot_response": "",
+      "ground_truth": "No sé que ha pasaou",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 238
+    },
+    {
+      "id": "conv_025",
+      "type": "audio",
+      "language": "es",
+      "test_input": "[🎤 Audio]: El viernes, a las 8:56, tienes que estar aquí. Tenemos que hacer un esfuerzo, porque esto es como el concierto que va a hacer, aquella gira que va a hacer el Celta de Vigo, que no iba a ir y no me haría más caso.\n\nSí, tengo que ir. Esto lo explicaremos a los nuestros, no a los nietos, pero sí, tengo que ir.\n\nDime, ¿crees que vendrás? Vale, genial. Sí, porque tengo el oficio. Dime la hora, más o menos, para saber si pongo el oficio antes o después.\n\nSi me avisas, puedo irme a mis amantes cuando quieras. Que tengas un buen día.",
+      "bot_response": "",
+      "ground_truth": "[🎤 Audio]: Ay, cariño, ¡qué ilusión que vengas! 🥰 Sí, sí, aquí te espero. Dime tú la hora que te va mejor y nos organizamos. ¡Te quiero! 🩷",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 232
+    },
+    {
+      "id": "conv_026",
+      "type": "audio",
+      "language": "es",
+      "test_input": "[audio]",
+      "bot_response": "",
+      "ground_truth": "Vaya, Virginia, suena complicado lo de tu padre. 😔 La cortisona puede hacer de las suyas, pero espero que se recupere pronto. ¿Cómo te sientes tú con todo esto?",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 265
+    },
+    {
+      "id": "conv_027",
+      "type": "audio",
+      "language": "es",
+      "test_input": "[🎤 Audio]: Cariño, no creo que me dé tiempo a hacerte las manos o los pies, solo uno. Tú te tienes que ir y yo también, tengo que estar en otro sitio. Yo siempre me demoro un poco.",
+      "bot_response": "",
+      "ground_truth": "[🎤 Audio]: \"Yoja, ¿no tengo que pintar? En una hora no haces las manos y en otra los pies. Yo creo que sí. Bueno, no sé, lo probamos, al menos, que quede un poco pulido y ya está. ¿Puedes a las 7 o no? Esa es la pregunta.\"",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 566
+    },
+    {
+      "id": "conv_028",
+      "type": "audio",
+      "language": "es",
+      "test_input": "[audio]",
+      "bot_response": "",
+      "ground_truth": "Perfecto merci🫶🏽 todo esto lo sé y x eso vengo. Sino tuviera paciencia la gente no todos vuelven igual que el gym.🙂‍↔️ahí estamos en el proceso❤️‍🩹",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 271
+    },
+    {
+      "id": "conv_029",
+      "type": "precio",
+      "language": "ca",
+      "test_input": "Encara no tinc clar si baixaré o no però si baixo pot ser molt dkvertit!!",
+      "bot_response": "",
+      "ground_truth": "Has de baixarrr eee que només tenim aquestes festes x estar juntsss",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 253
+    },
+    {
+      "id": "conv_030",
+      "type": "precio",
+      "language": "ca",
+      "test_input": "Iris, dimecres 18 tinc reunió i no puc fer classe. A veure si em trobes altra dia per fer-la setmana vinent❤️",
+      "bot_response": "",
+      "ground_truth": "Cucaaa, cap problema! Miraré de trobar-te un hueco la setmana que ve. 😘❤️",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 232
+    },
+    {
+      "id": "conv_031",
+      "type": "precio",
+      "language": "ca",
+      "test_input": "Tinc la clase de les 18?",
+      "bot_response": "",
+      "ground_truth": "Siii claaa",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 268
+    },
+    {
+      "id": "conv_032",
+      "type": "precio",
+      "language": "mixto",
+      "test_input": "vinc😉😘",
+      "bot_response": "",
+      "ground_truth": "Hola cariño! 💪 Què et va semblar la classe? 😍",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 257
+    },
+    {
+      "id": "conv_033",
+      "type": "precio",
+      "language": "es",
+      "test_input": "No sta mal xo millor skinceuticals o cantabria labs: radiance C20",
+      "bot_response": "",
+      "ground_truth": "[🎤 Audio]: Cuando me dijo el precio, pensé: \"Creo que el de mi doctora es mejor porque es más caro\". ¡Qué va! Si aquel tío vale. Le va a recomendar la Mar, pero claro, con muchas más cosas.\n\nCada ampolleta cuesta entre 30 y 40 euros, así que son 120 euros mínimo. Me voy a HotCore ahora. Esta clase también la has aprobado alguna vez, Aidy. ¡A los 36 grados, top!",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 238
+    },
+    {
+      "id": "conv_034",
+      "type": "saludo",
+      "language": "ca",
+      "test_input": "Perfefte",
+      "bot_response": "",
+      "ground_truth": "😊 Què passa, Laura? 🤗",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 254
+    },
+    {
+      "id": "conv_035",
+      "type": "saludo",
+      "language": "ca",
+      "test_input": "Voyy",
+      "bot_response": "",
+      "ground_truth": "Ho vaig fer molt malament ahir no…😞perdona. També estic fatal físicament supongo que tampoco atraigo nada😅✌🏽",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 271
+    },
+    {
+      "id": "conv_036",
+      "type": "saludo",
+      "language": "mixto",
+      "test_input": "[sticker]",
+      "bot_response": "",
+      "ground_truth": "Baby demà impossible hoy😬 es que dijous es el sant de la mami i la portaré a dinar , i x no anar amb preses però si demà no et va bé cap problema ok, que a les 16:00 i ja ta😘no problemo🩷 si demà es possible top i sino no worries",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 219
+    },
+    {
+      "id": "conv_037",
+      "type": "saludo",
+      "language": "es",
+      "test_input": "Ok",
+      "bot_response": "",
+      "ground_truth": "Ay, qué bien, ¡gracias, cariño! Ya voy a por él. 💖",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 231
+    },
+    {
+      "id": "conv_038",
+      "type": "saludo",
+      "language": "es",
+      "test_input": "Nos vamosssss🥳🥳",
+      "bot_response": "",
+      "ground_truth": "Qui vulgui celebrar el meu cumple que me propongan lo que quieran y ya",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 254
+    },
+    {
+      "id": "conv_039",
+      "type": "objecion",
+      "language": "ca",
+      "test_input": "Només indica que el seu organisme no baixa la inflamació per algún motiu...quan la vegi aquesta tarda et comento. Una abraçada",
+      "bot_response": "",
+      "ground_truth": "Rei et puc fer transferencia de la de la mama",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 263
+    },
+    {
+      "id": "conv_040",
+      "type": "objecion",
+      "language": "ca",
+      "test_input": "Hellooo! Compta amb mi dijous 9:30 i diumenge a les 10:00, por fi 😉",
+      "bot_response": "",
+      "ground_truth": "Anna cuka tu aquest diumenge vens?",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 232
+    },
+    {
+      "id": "conv_041",
+      "type": "objecion",
+      "language": "ca",
+      "test_input": "Mil gràcies per pensar en mi 🥰",
+      "bot_response": "",
+      "ground_truth": "Cuka el diafragma parla x sí sol🥹 i s’allibera com pot, sino plora es contrau sino l’estirem ( apnea) es contrau, ja sé que et molesta però intenta fer hipos sense exagerar les respiracions xk vagi treient.",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 496
+    },
+    {
+      "id": "conv_042",
+      "type": "lead_caliente",
+      "language": "ca",
+      "test_input": "Sent an attachment",
+      "bot_response": "",
+      "ground_truth": "Wow però no es d’aqui aquest combo es de lapsos quan vaig anar😂 bueno potser laNhoa les segueix",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 457
+    },
+    {
+      "id": "conv_043",
+      "type": "lead_caliente",
+      "language": "mixto",
+      "test_input": "Amor m’encantaria pero tinc una reunió! Ya hem poso les piles per la setmana vinent!",
+      "bot_response": "",
+      "ground_truth": "¡Hola Lidia! ¿Qué tal por República Dominicana? 🇩🇴 Justo hablé en un post sobre la importancia de la organización para no perderse oportunidades. 😊",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 240
+    },
+    {
+      "id": "conv_044",
+      "type": "lead_caliente",
+      "language": "es",
+      "test_input": "[Media/Attachment]",
+      "bot_response": "",
+      "ground_truth": "Pues eso lo que me falta a mí🥹",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 253
+    },
+    {
+      "id": "conv_045",
+      "type": "personal",
+      "language": "ca",
+      "test_input": "Just he arribat",
+      "bot_response": "",
+      "ground_truth": "Que crec que podré passar abans de l’assaig",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 242
+    },
+    {
+      "id": "conv_046",
+      "type": "personal",
+      "language": "ca",
+      "test_input": "Enserioo?! I el teu tiet al ser metge que diu…?!",
+      "bot_response": "",
+      "ground_truth": "Bet amor perdona❤️ el meu tiet ni vull parlar xk segons ell cada dia està de baixada😂😂😂😂✌🏽no sirve pa ná. Jo no demano favors a la familia xk tem soles🙂‍↔️ y eso es así millor no tenir metges😂😂😂",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 264
+    },
+    {
+      "id": "conv_047",
+      "type": "personal",
+      "language": "es",
+      "test_input": "[🎬 Video]",
+      "bot_response": "",
+      "ground_truth": "[🎤 Audio]: ¡Está superguay! Se hace supercurto, este. No hay un palito más largo, ¿verdad? Es imposible, pero me encanta, es muy guay. Se lo he enseñado ahora a los de la fiesta y han flipado. Es muy guay. La luz no era la mejor, pero me la pela, ¿eh? También te lo digo.",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 242
+    },
+    {
+      "id": "conv_048",
+      "type": "lead_caliente",
+      "language": "ca",
+      "test_input": "la pròxima coreo de flow4u de twerk jajajaj",
+      "bot_response": "",
+      "ground_truth": "Jajajaja, que guay! ❤️❤️❤️ Espero que puguis venir a la pròxima! 🥹✨",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 275
+    },
+    {
+      "id": "conv_049",
+      "type": "personal",
+      "language": "es",
+      "test_input": "[reaction: ❤️]",
+      "bot_response": "",
+      "ground_truth": "Reina Mañana a las 14:45 en casa si puedes?",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 278
+    },
+    {
+      "id": "conv_050",
+      "type": "personal",
+      "language": "ca",
+      "test_input": "Una forta abraçada i ena veiem aviat",
+      "bot_response": "",
+      "ground_truth": "[🎤 Audio]: Petonet amor! 🥰",
+      "sm_score": 0.0,
+      "judge": {
+        "overall": 0,
+        "error": "no_bot_response"
+      },
+      "elapsed_ms": 258
+    }
+  ]
+}

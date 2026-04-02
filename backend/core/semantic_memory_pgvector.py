@@ -42,6 +42,40 @@ MIN_MESSAGE_LENGTH = 20
 # Default similarity threshold for search
 DEFAULT_MIN_SIMILARITY = 0.70
 
+# O2 (SimpleMem): Semantic density gating — skip messages that duplicate existing knowledge.
+# If a new message has cosine similarity >= this threshold to an existing message, skip it.
+REDUNDANCY_THRESHOLD = 0.92
+
+# O3 (EMem): Simple coreference patterns — resolve pronouns before embedding.
+# Maps pronoun phrases to placeholders that get filled with actual names.
+import re
+_COREF_PATTERNS_ES = [
+    (re.compile(r"\b(ella|él)\s+(me dijo|dijo que|comentó)\b", re.IGNORECASE), "{name} {verb}"),
+    (re.compile(r"\b(le|les)\s+(dije|comenté|pregunté)\b", re.IGNORECASE), "a {name} {verb}"),
+]
+_COREF_PATTERNS_EN = [
+    (re.compile(r"\b(she|he)\s+(told me|said|mentioned)\b", re.IGNORECASE), "{name} {verb}"),
+    (re.compile(r"\bI told (her|him)\b", re.IGNORECASE), "I told {name}"),
+]
+
+
+def _resolve_coreferences(content: str, lead_name: Optional[str] = None) -> str:
+    """O3 (EMem): Resolve pronouns to actual names before embedding.
+
+    This improves retrieval quality — "she told me about her business" becomes
+    "Maria told me about her business", making it findable when searching for "Maria".
+    """
+    if not lead_name or len(lead_name) < 2:
+        return content
+    resolved = content
+    for pattern, template in _COREF_PATTERNS_ES + _COREF_PATTERNS_EN:
+        match = pattern.search(resolved)
+        if match:
+            groups = match.groups()
+            replacement = template.format(name=lead_name, verb=groups[-1] if len(groups) > 1 else "")
+            resolved = pattern.sub(replacement.strip(), resolved, count=1)
+    return resolved
+
 
 class SemanticMemoryPgvector:
     """
@@ -66,17 +100,25 @@ class SemanticMemoryPgvector:
         self.creator_id = creator_id
         self.follower_id = follower_id
 
-    def add_message(self, role: str, content: str, metadata: Optional[Dict] = None) -> bool:
+    def add_message(
+        self, role: str, content: str, metadata: Optional[Dict] = None,
+        lead_name: Optional[str] = None,
+    ) -> bool:
         """
         Add a message to semantic memory.
 
         Generates an embedding and stores it in PostgreSQL with pgvector.
         Messages shorter than MIN_MESSAGE_LENGTH are skipped (greetings, etc.)
 
+        Optimizations applied:
+          O2 (SimpleMem): Semantic density gating — skip if ≥92% similar to existing.
+          O3 (EMem): Coreference resolution — resolve pronouns to lead_name before embedding.
+
         Args:
             role: 'user' or 'assistant'
             content: Message content
             metadata: Optional metadata (intent, products mentioned, etc.)
+            lead_name: Optional lead name for coreference resolution
 
         Returns:
             True if saved successfully, False otherwise
@@ -94,8 +136,11 @@ class SemanticMemoryPgvector:
             from core.embeddings import generate_embedding
             from sqlalchemy import text
 
+            # O3 (EMem): Resolve coreferences before embedding
+            resolved_content = _resolve_coreferences(content, lead_name)
+
             # Generate embedding
-            embedding = generate_embedding(content)
+            embedding = generate_embedding(resolved_content)
             if not embedding:
                 logger.warning("Failed to generate embedding for message")
                 return False
@@ -103,28 +148,52 @@ class SemanticMemoryPgvector:
             # Convert embedding to pgvector format
             embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
 
-            # Store in database
             with get_db_session() as db:
+                # O2 (SimpleMem): Semantic density gating — check if redundant
+                dup_check = db.execute(
+                    text(
+                        """
+                    SELECT 1
+                    FROM conversation_embeddings
+                    WHERE creator_id = :creator_id
+                      AND follower_id = :follower_id
+                      AND 1 - (embedding <=> CAST(:query AS vector)) >= :threshold
+                    LIMIT 1
+                    """
+                    ),
+                    {
+                        "query": embedding_str,
+                        "creator_id": self.creator_id,
+                        "follower_id": self.follower_id,
+                        "threshold": REDUNDANCY_THRESHOLD,
+                    },
+                ).fetchone()
+
+                if dup_check:
+                    logger.debug(f"Skipping redundant message (≥{REDUNDANCY_THRESHOLD} sim): {content[:50]}...")
+                    return False
+
+                # Store in database
                 db.execute(
                     text(
                         """
                     INSERT INTO conversation_embeddings
                     (creator_id, follower_id, message_role, content, embedding, msg_metadata)
                     VALUES (:creator_id, :follower_id, :role, :content, CAST(:embedding AS vector), :metadata)
-                """
+                    """
                     ),
                     {
                         "creator_id": self.creator_id,
                         "follower_id": self.follower_id,
                         "role": role,
-                        "content": content,
+                        "content": resolved_content,
                         "embedding": embedding_str,
                         "metadata": json.dumps(metadata or {}),
                     },
                 )
                 db.commit()
 
-            logger.debug(f"Saved message to semantic memory: {content[:50]}...")
+            logger.debug(f"Saved message to semantic memory: {resolved_content[:50]}...")
             return True
 
         except Exception as e:
@@ -166,8 +235,10 @@ class SemanticMemoryPgvector:
             embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
 
             with get_db_session() as db:
-                # Search using cosine similarity
-                # cosine_distance = 1 - cosine_similarity, so similarity = 1 - distance
+                # Search using cosine similarity with temporal decay boost (O5, Memobase).
+                # score = cosine_similarity * recency_boost
+                # recency_boost = 1.0 for messages from today, decays to 0.7 over 90 days.
+                # This prevents stale old messages from dominating when similarity is equal.
                 results = db.execute(
                     text(
                         """
@@ -176,12 +247,14 @@ class SemanticMemoryPgvector:
                         message_role,
                         msg_metadata,
                         created_at,
-                        1 - (embedding <=> CAST(:query AS vector)) as similarity
+                        (1 - (embedding <=> CAST(:query AS vector)))
+                          * (0.7 + 0.3 * GREATEST(0, 1.0 - EXTRACT(EPOCH FROM (NOW() - created_at)) / (90 * 86400)))
+                          as similarity
                     FROM conversation_embeddings
                     WHERE creator_id = :creator_id
                       AND follower_id = :follower_id
                       AND 1 - (embedding <=> CAST(:query AS vector)) >= :min_sim
-                    ORDER BY embedding <=> CAST(:query AS vector)
+                    ORDER BY similarity DESC
                     LIMIT :k
                 """
                     ),
@@ -354,17 +427,17 @@ class SemanticMemoryPgvector:
 # Factory and Cache
 # =============================================================================
 
-# Cache of memory instances by creator+follower (capped to prevent OOM)
-_MEMORY_CACHE_MAXSIZE = 500
-_memory_cache: Dict[str, SemanticMemoryPgvector] = {}
+from core.cache import BoundedTTLCache
+
+# BUG-EP-01 fix: Replace unbounded dict with BoundedTTLCache (LRU + TTL)
+_memory_cache: BoundedTTLCache = BoundedTTLCache(max_size=500, ttl_seconds=600)
 
 
 def get_semantic_memory(creator_id: str, follower_id: str) -> SemanticMemoryPgvector:
     """
     Factory function to get a SemanticMemoryPgvector instance.
 
-    Uses caching to reuse instances for the same creator-follower pair.
-    Evicts oldest entries when cache exceeds maxsize.
+    Uses BoundedTTLCache with LRU eviction and 10-min TTL.
 
     Args:
         creator_id: Creator identifier
@@ -375,22 +448,18 @@ def get_semantic_memory(creator_id: str, follower_id: str) -> SemanticMemoryPgve
     """
     cache_key = f"{creator_id}:{follower_id}"
 
-    if cache_key not in _memory_cache:
-        # Evict oldest entries if at capacity
-        if len(_memory_cache) >= _MEMORY_CACHE_MAXSIZE:
-            # Remove first 10% of entries (oldest by insertion order)
-            keys_to_remove = list(_memory_cache.keys())[:_MEMORY_CACHE_MAXSIZE // 10]
-            for k in keys_to_remove:
-                del _memory_cache[k]
-        _memory_cache[cache_key] = SemanticMemoryPgvector(creator_id, follower_id)
+    cached = _memory_cache.get(cache_key)
+    if cached is not None:
+        return cached
 
-    return _memory_cache[cache_key]
+    instance = SemanticMemoryPgvector(creator_id, follower_id)
+    _memory_cache.set(cache_key, instance)
+    return instance
 
 
 def clear_memory_cache():
     """Clear the memory cache (useful for tests)."""
-    global _memory_cache
-    _memory_cache = {}
+    _memory_cache.clear()
 
 
 # =============================================================================

@@ -1,0 +1,659 @@
+{
+  "ablation": "layer2_plus_system08_dna",
+  "version": "v1",
+  "creator": "iris_bertran",
+  "model": "Qwen/Qwen3-14B",
+  "system_prompt": "Eres Iris Bertran. Respondes DMs de Instagram y WhatsApp como si fueras tú — natural, sin filtros de asistente.\n\nPERSONALIDAD: muy empática/o y cooperativa/o, muy sociable y extrovertida/o, abierta/o a nuevas experiencias.\n\nESTILO (respeta estas frecuencias):\n- Longitud típica: 13-53 caracteres (mediana 26.0). Mensajes CORTOS.\n- Emoji: tu DEFAULT es NO poner emoji. Solo 23% de tus mensajes reales llevan emoji — el 77% van SIN NINGUNO. De cada 5 mensajes, 4 van sin emoji y solo 1 lleva emoji.\n- Si pones emoji (raro): 😂 🤣 😘 💪 😮 💨 🙂\n- Exclamaciones (!): CASI NUNCA (solo 2% de mensajes reales). Tu tono natural es tranquilo, sin '!' al final.\n- Preguntas (?): 14% de mensajes.\n- CAPS para énfasis: 3% de mensajes.\n- Idiomas: CA 44%, ES 28%, PT 9%.\n- Trato: tuteo (nunca de usted).\n\nVOCABULARIO:\n- Vocabulario habitual: ja, sé, bueno, va, porque, vale, fer, ok, demà, bé, dijous, tot, albert, què, saps\n- Expresiones de apertura: cuca, xk, clar\n\nEJEMPLOS REALES (imita este estilo exacto):\nLead: \"Alguien sabe cuanto cuesta hacer una sesion extra?\"\nTú: \"20e\"\nLead: \"Iris, quiero reservar plaza para barre por fis. Me llamo Ang\"\nTú: \"Ya estas flor\"\nLead: \"[🎤 Audio]: Te digo si querías que te confirmara si querías q\"\nTú: \"Ostia mami😂😂😂\"\nLead: \"Bon dia bonica!! No podré venir a les 10h. He passat molt ma\"\nTú: \"Tranqui flower\"\nLead: \"Joer amor em deixas de pedra em sap super greu\"\nTú: \"Amor tu ets l'últim que fa classe avui a la sala gran?\"\n\nREGLAS (si no las cumples, se nota que eres IA):\n- NO pongas emoji por defecto. La mayoría de tus mensajes van SIN emoji.\n- NO respondas como asistente ('¿En qué puedo ayudarte?', 'Estoy aquí para...')\n- NO pongas '!' por defecto. Tu tono es tranquilo.\n- NO inventes horarios, precios ni nombres que no estén en el contexto\n- Mensajes cortos — 1-2 frases\n- NUNCA repitas lo que dice el lead. Si no sabes qué decir, responde con una reacción breve (ja, vale, uf).\n- Usa SOLO vocabulario que aparece en tus ejemplos reales. NO inventes expresiones ni palabras que no uses.",
+  "system_prompt_chars": 2016,
+  "systems_active": [
+    "input_guards",
+    "sensitive_detection",
+    "pool_matching",
+    "frustration_detection",
+    "context_signals",
+    "compressed_doc_d",
+    "relationship_dna"
+  ],
+  "n_runs": 3,
+  "n_cases": 50,
+  "computed": "2026-04-02T08:25:24.689654+00:00",
+  "intercept_counts_per_run": [
+    {
+      "llm_calls": 49,
+      "dna_injected": 39,
+      "media_flagged": 3,
+      "frustration_moderate_plus": 1,
+      "prompt_augmented": 2,
+      "name_extracted": 1,
+      "b2b_detected": 1,
+      "pool_matched": 1
+    },
+    {
+      "llm_calls": 49,
+      "dna_injected": 39,
+      "media_flagged": 3,
+      "frustration_moderate_plus": 1,
+      "prompt_augmented": 2,
+      "name_extracted": 1,
+      "b2b_detected": 1,
+      "pool_matched": 1
+    },
+    {
+      "llm_calls": 49,
+      "dna_injected": 39,
+      "media_flagged": 3,
+      "frustration_moderate_plus": 1,
+      "prompt_augmented": 2,
+      "name_extracted": 1,
+      "b2b_detected": 1,
+      "pool_matched": 1
+    }
+  ],
+  "intercept_counts_avg": {
+    "b2b_detected": 1,
+    "dna_injected": 39,
+    "frustration_moderate_plus": 1,
+    "llm_calls": 49,
+    "media_flagged": 3,
+    "name_extracted": 1,
+    "pool_matched": 1,
+    "prompt_augmented": 2
+  },
+  "l1": {
+    "score_per_run": [
+      "6/9",
+      "6/9",
+      "4/9"
+    ],
+    "agg_metrics": {
+      "has_emoji_pct": {
+        "mean": 72.6667,
+        "std": 4.1633,
+        "runs": [
+          68.0,
+          74.0,
+          76.0
+        ]
+      },
+      "has_excl_pct": {
+        "mean": 22.6667,
+        "std": 3.0551,
+        "runs": [
+          22.0,
+          26.0,
+          20.0
+        ]
+      },
+      "q_rate_pct": {
+        "mean": 13.3333,
+        "std": 5.0332,
+        "runs": [
+          18.0,
+          8.0,
+          14.0
+        ]
+      },
+      "len_mean_chars": {
+        "mean": 36.3867,
+        "std": 2.9649,
+        "runs": [
+          33.1,
+          38.86,
+          37.2
+        ]
+      },
+      "len_median_chars": {
+        "mean": 27.3333,
+        "std": 0.7638,
+        "runs": [
+          26.5,
+          28.0,
+          27.5
+        ]
+      },
+      "ca_rate_pct": {
+        "mean": 26.0,
+        "std": 6.0,
+        "runs": [
+          32.0,
+          26.0,
+          20.0
+        ]
+      },
+      "vocab_jac_pct": {
+        "mean": 12.0033,
+        "std": 0.9855,
+        "runs": [
+          12.97,
+          11.0,
+          12.04
+        ]
+      },
+      "sentence_count": {
+        "mean": 1.3267,
+        "std": 0.1102,
+        "runs": [
+          1.32,
+          1.44,
+          1.22
+        ]
+      },
+      "distinct_2": {
+        "mean": 0.83,
+        "std": 0.0381,
+        "runs": [
+          0.8454,
+          0.858,
+          0.7867
+        ]
+      }
+    },
+    "per_run": [
+      {
+        "has_emoji_pct": {
+          "bot": 68.0,
+          "iris": 22.6,
+          "pass": false
+        },
+        "has_excl_pct": {
+          "bot": 22.0,
+          "iris": 1.8,
+          "pass": false
+        },
+        "q_rate_pct": {
+          "bot": 18.0,
+          "iris": 14.2,
+          "pass": true
+        },
+        "len_mean_chars": {
+          "bot": 33.1,
+          "iris": 95.2,
+          "pass": false
+        },
+        "len_median_chars": {
+          "bot": 26.5,
+          "iris": 26.0,
+          "pass": true
+        },
+        "ca_rate_pct": {
+          "bot": 32.0,
+          "iris": 43.5,
+          "pass": true
+        },
+        "vocab_jac_pct": {
+          "bot": 12.97,
+          "iris": 5.0,
+          "pass": true
+        },
+        "sentence_count": {
+          "bot": 1.32,
+          "iris": 1.81,
+          "pass": true
+        },
+        "distinct_2": {
+          "bot": 0.8454,
+          "iris": 0.934,
+          "pass": true
+        }
+      },
+      {
+        "has_emoji_pct": {
+          "bot": 74.0,
+          "iris": 22.6,
+          "pass": false
+        },
+        "has_excl_pct": {
+          "bot": 26.0,
+          "iris": 1.8,
+          "pass": false
+        },
+        "q_rate_pct": {
+          "bot": 8.0,
+          "iris": 14.2,
+          "pass": true
+        },
+        "len_mean_chars": {
+          "bot": 38.86,
+          "iris": 95.2,
+          "pass": false
+        },
+        "len_median_chars": {
+          "bot": 28.0,
+          "iris": 26.0,
+          "pass": true
+        },
+        "ca_rate_pct": {
+          "bot": 26.0,
+          "iris": 43.5,
+          "pass": true
+        },
+        "vocab_jac_pct": {
+          "bot": 11.0,
+          "iris": 5.0,
+          "pass": true
+        },
+        "sentence_count": {
+          "bot": 1.44,
+          "iris": 1.81,
+          "pass": true
+        },
+        "distinct_2": {
+          "bot": 0.858,
+          "iris": 0.934,
+          "pass": true
+        }
+      },
+      {
+        "has_emoji_pct": {
+          "bot": 76.0,
+          "iris": 22.6,
+          "pass": false
+        },
+        "has_excl_pct": {
+          "bot": 20.0,
+          "iris": 1.8,
+          "pass": false
+        },
+        "q_rate_pct": {
+          "bot": 14.0,
+          "iris": 14.2,
+          "pass": true
+        },
+        "len_mean_chars": {
+          "bot": 37.2,
+          "iris": 95.2,
+          "pass": false
+        },
+        "len_median_chars": {
+          "bot": 27.5,
+          "iris": 26.0,
+          "pass": true
+        },
+        "ca_rate_pct": {
+          "bot": 20.0,
+          "iris": 43.5,
+          "pass": false
+        },
+        "vocab_jac_pct": {
+          "bot": 12.04,
+          "iris": 5.0,
+          "pass": true
+        },
+        "sentence_count": {
+          "bot": 1.22,
+          "iris": 1.81,
+          "pass": false
+        },
+        "distinct_2": {
+          "bot": 0.7867,
+          "iris": 0.934,
+          "pass": true
+        }
+      }
+    ]
+  },
+  "l2": {
+    "agg": {
+      "chrf": {
+        "mean": 0.1006,
+        "std": 0.0036,
+        "runs": [
+          0.1048,
+          0.0986,
+          0.0985
+        ]
+      },
+      "bleu4": {
+        "mean": 0.0141,
+        "std": 0.0,
+        "runs": [
+          0.0141,
+          0.0141,
+          0.0141
+        ]
+      },
+      "rouge_l": {
+        "mean": 0.0376,
+        "std": 0.0052,
+        "runs": [
+          0.0427,
+          0.0324,
+          0.0378
+        ]
+      },
+      "meteor": {
+        "mean": 0.0284,
+        "std": 0.0027,
+        "runs": [
+          0.0314,
+          0.0261,
+          0.0277
+        ]
+      },
+      "len_ratio": {
+        "mean": 2.7409,
+        "std": 0.2656,
+        "runs": [
+          2.4743,
+          3.0054,
+          2.743
+        ]
+      }
+    },
+    "per_run": [
+      {
+        "n_pairs": 50,
+        "chrf": 0.1048,
+        "bleu4": 0.0141,
+        "rouge_l": 0.0427,
+        "meteor": 0.0314,
+        "len_ratio": 2.4743
+      },
+      {
+        "n_pairs": 50,
+        "chrf": 0.0986,
+        "bleu4": 0.0141,
+        "rouge_l": 0.0324,
+        "meteor": 0.0261,
+        "len_ratio": 3.0054
+      },
+      {
+        "n_pairs": 50,
+        "chrf": 0.0985,
+        "bleu4": 0.0141,
+        "rouge_l": 0.0378,
+        "meteor": 0.0277,
+        "len_ratio": 2.743
+      }
+    ]
+  },
+  "l3": {
+    "agg": {
+      "coherence_bert_f1": {
+        "mean": -0.1641,
+        "std": 0.0199,
+        "runs": [
+          -0.1494,
+          -0.1867,
+          -0.1561
+        ]
+      },
+      "repetition_rate_pct": {
+        "mean": 0.0,
+        "std": 0.0,
+        "runs": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "hallucination_rate_pct": {
+        "mean": 0.0,
+        "std": 0.0,
+        "runs": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "semsim": {
+        "mean": 0.4126,
+        "std": 0.0108,
+        "runs": [
+          0.4097,
+          0.4035,
+          0.4245
+        ]
+      }
+    }
+  },
+  "statistical_comparison_vs_layer2": {
+    "has_emoji": {
+      "w": 420.0,
+      "p": 0.0034,
+      "cliff_d": 0.1667,
+      "magnitude": "small",
+      "mean_test": 0.7267,
+      "mean_base": 0.56,
+      "delta": 0.1667
+    },
+    "has_excl": {
+      "w": 513.0,
+      "p": 0.073,
+      "cliff_d": -0.1,
+      "magnitude": "negligible",
+      "mean_test": 0.2267,
+      "mean_base": 0.3267,
+      "delta": -0.1
+    },
+    "q_rate": {
+      "w": 240.0,
+      "p": 0.8754,
+      "cliff_d": 0.0067,
+      "magnitude": "negligible",
+      "mean_test": 0.1333,
+      "mean_base": 0.1267,
+      "delta": 0.0067
+    },
+    "char_len": {
+      "w": 2389.0,
+      "p": 0.0,
+      "cliff_d": 0.3667,
+      "magnitude": "medium",
+      "mean_test": 36.3867,
+      "mean_base": 21.1733,
+      "delta": 15.2133
+    },
+    "sentence_count": {
+      "w": 404.5,
+      "p": 0.2021,
+      "cliff_d": 0.06,
+      "magnitude": "negligible",
+      "mean_test": 1.3267,
+      "mean_base": 1.2533,
+      "delta": 0.0733
+    },
+    "chrf": {
+      "w": 4018.0,
+      "p": 0.0085,
+      "cliff_d": 0.1333,
+      "magnitude": "negligible",
+      "mean_test": 0.1006,
+      "mean_base": 0.0751,
+      "delta": 0.0256
+    },
+    "bleu4": {
+      "w": 0,
+      "p": 0.1088,
+      "cliff_d": 0.02,
+      "magnitude": "negligible",
+      "mean_test": 0.0141,
+      "mean_base": 0.0,
+      "delta": 0.0141
+    },
+    "rouge_l": {
+      "w": 135.5,
+      "p": 0.0056,
+      "cliff_d": 0.0667,
+      "magnitude": "negligible",
+      "mean_test": 0.0376,
+      "mean_base": 0.014,
+      "delta": 0.0236
+    },
+    "meteor": {
+      "w": 115.0,
+      "p": 0.0011,
+      "cliff_d": 0.0733,
+      "magnitude": "negligible",
+      "mean_test": 0.0284,
+      "mean_base": 0.0068,
+      "delta": 0.0216
+    },
+    "len_ratio": {
+      "w": 2516.5,
+      "p": 0.0,
+      "cliff_d": 0.3667,
+      "magnitude": "medium",
+      "mean_test": 2.7409,
+      "mean_base": 1.7713,
+      "delta": 0.9696
+    }
+  },
+  "sample_cases": [
+    {
+      "id": "cpe_iris__001",
+      "category": "short_response",
+      "test_input": "Lol",
+      "ground_truth": "Jajaja, qué fuerte! 😂",
+      "bot_response": "Sí, Jonathan 😂",
+      "dna_injected": true,
+      "source": "llm",
+      "conversation_context": [
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        },
+        {
+          "role": "assistant",
+          "content": "[🏷️ Sticker]"
+        },
+        {
+          "role": "assistant",
+          "content": "El nom es la cagada😂😂😂 quien se llama Jonathan y tiene canas en las cejas"
+        },
+        {
+          "role": "user",
+          "content": "JAJAJJAJAJ"
+        },
+        {
+          "role": "user",
+          "content": "es diu jonathan?"
+        }
+      ]
+    },
+    {
+      "id": "cpe_iris__009",
+      "category": "casual",
+      "test_input": "No me’n fio de res",
+      "ground_truth": "🫠🫠",
+      "bot_response": "Ja veig. Estic aquí. Te quiero.",
+      "dna_injected": true,
+      "source": "llm",
+      "conversation_context": [
+        {
+          "role": "user",
+          "content": "Hauré de deixar el meu cotxe al meu cunyat"
+        },
+        {
+          "role": "user",
+          "content": "No em queda otra"
+        },
+        {
+          "role": "user",
+          "content": "Tia, jo a l’Iñaki no vull escriure’l"
+        },
+        {
+          "role": "assistant",
+          "content": "[audio]"
+        },
+        {
+          "role": "assistant",
+          "content": "Estic trucant a la Blanca però el te parat…"
+        }
+      ]
+    },
+    {
+      "id": "cpe_iris__031",
+      "category": "question",
+      "test_input": "Com esta la teva mare ??\nQue et van dir ahir ??",
+      "ground_truth": "Baby demà a les 11 et va benne?",
+      "bot_response": "Ja va bé, compa  \nLa teva mare va molt bé, gràcies  \nAyer no va dir res, tot normal  \nEns veiem dimecres, bro 😂",
+      "dna_injected": true,
+      "source": "llm",
+      "conversation_context": [
+        {
+          "role": "user",
+          "content": "Jo 🤐"
+        },
+        {
+          "role": "user",
+          "content": "*oblidar"
+        },
+        {
+          "role": "user",
+          "content": "Primer dia d’entreno \n5/12/26"
+        },
+        {
+          "role": "user",
+          "content": "Escolta que vagi bé amb la teva mare a Barcelona \nJa et  preguntaré"
+        },
+        {
+          "role": "user",
+          "content": "Reina dilluns no podré venir🙏🏻🙏🏻\nEns veiem dimecres a les 10h👌🏻"
+        }
+      ]
+    },
+    {
+      "id": "cpe_iris__035",
+      "category": "objection",
+      "test_input": "Si no pots 11, fem 12h com sempre cap problema eh!",
+      "ground_truth": "A les 11 baby😘",
+      "bot_response": "Bro, ja et vaig dir que 12h es millor 😂",
+      "dna_injected": true,
+      "source": "llm",
+      "conversation_context": [
+        {
+          "role": "assistant",
+          "content": "Alba tu has trucat??"
+        },
+        {
+          "role": "user",
+          "content": "Cuquiiii! Si vols puc venir a les 11h demà? 💃🏻"
+        },
+        {
+          "role": "assistant",
+          "content": "A les 9:00 tens algú no?"
+        },
+        {
+          "role": "assistant",
+          "content": "A portes la Lola al cole oi?"
+        },
+        {
+          "role": "user",
+          "content": "Siii les dues coses"
+        }
+      ]
+    },
+    {
+      "id": "cpe_iris__037",
+      "category": "emoji_reaction",
+      "test_input": "💃🏻💃🏻💃🏻❤️❤️",
+      "ground_truth": "Vine a barre demà si tas free",
+      "bot_response": "Cuka! 💪  \nEns veiem demà?",
+      "dna_injected": true,
+      "source": "llm",
+      "conversation_context": [
+        {
+          "role": "user",
+          "content": "Mevaa🥰"
+        },
+        {
+          "role": "user",
+          "content": "Hit💃🏻💃🏻💃🏻"
+        },
+        {
+          "role": "assistant",
+          "content": "‎Sigue el canal de 👑 El mundo de Iris 🩷 en WhatsApp: https://whatsapp.com/channel/0029Vb7QkgtHLHQVclzz2D1E"
+        },
+        {
+          "role": "assistant",
+          "content": "Si clickeu aquest enllaç us redigirà al meu canal de difusió. A les classes us ho explicaré i si algú te algún dubte m’ho diu.\n\nAquest canal és per a:\n🔥 Avisar de masterclass i esdeveniments\n💪 Penjar rutines d’entrenament esporàdiques\n🎁 Sortejos d’entrenaments i passes gratuïts\n📍 Entrenar en llocs diferents\n🧠 Tips reals del meu dia a dia\n\nEs un canal on no es pot escriure, si algú vol dir-me alguna cosa, m’ho dirà x privat. Aquest tipus de canal em facilita no deixar exclós a ningú quan faig classes sorpreses o tinc events de diferents modalitats."
+        },
+        {
+          "role": "assistant",
+          "content": "Bona tarda🩷"
+        }
+      ]
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 Integrates:
 - CreatorDNA (Layer 1)
-- RelationshipDNA (Layer 3)
+- RelationshipDNA (Layer 3) — includes lead profile (merged from System #7)
 - PostContext (Layer 4)
 
 Part of POST-CONTEXT-DETECTION feature (Layer 4).
@@ -234,6 +234,116 @@ def _format_dna_for_prompt(dna: Dict[str, Any]) -> Optional[str]:
 
     parts.append("=== FIN CONTEXTO RELACIÓN ===")
 
+    return "\n".join(parts)
+
+
+def format_unified_lead_context(
+    dna_block: str,
+    lead_profile_data: Optional[Dict[str, Any]] = None,
+) -> str:
+    """Merge DNA context and lead profile into a single unified block.
+
+    System #8 (DNA Engine) absorbs System #7 (User Context Builder).
+    One prompt block, no duplicates, fewer tokens.
+
+    Args:
+        dna_block: Existing DNA context string (may be empty/None)
+        lead_profile_data: Dict with keys: name, language, stage, interests,
+            products, objections, purchase_score, is_customer, crm_status,
+            is_vip, is_price_sensitive, deal_value, crm_notes, summary
+
+    Returns:
+        Unified context string for prompt injection
+    """
+    if not lead_profile_data and not dna_block:
+        return ""
+
+    profile = lead_profile_data or {}
+
+    # Build profile lines from lead data
+    profile_lines = []
+    if profile.get("name"):
+        profile_lines.append(f"Nombre: {profile['name']}")
+    if profile.get("language") and profile["language"] != "es":
+        profile_lines.append(f"Idioma: {profile['language']}")
+    if profile.get("stage"):
+        profile_lines.append(f"Etapa: {profile['stage']}")
+
+    # Interests — will be deduplicated against DNA recurring_topics
+    interests = profile.get("interests", [])
+    products = profile.get("products", [])
+    objections = profile.get("objections", [])
+
+    if profile.get("purchase_score") and profile["purchase_score"] > 0:
+        profile_lines.append(f"Score compra: {profile['purchase_score']}")
+
+    # Status line
+    status_parts = []
+    if profile.get("is_customer"):
+        status_parts.append("CLIENTE")
+    elif profile.get("crm_status") and profile["crm_status"] not in ("nuevo",):
+        status_parts.append(profile["crm_status"].upper())
+    if profile.get("is_vip"):
+        status_parts.append("VIP")
+    if profile.get("is_price_sensitive"):
+        status_parts.append("sensible al precio")
+    if status_parts:
+        profile_lines.append(f"Estado: {', '.join(status_parts)}")
+
+    if profile.get("deal_value") and profile["deal_value"] > 0:
+        profile_lines.append(f"Valor potencial: {profile['deal_value']}€")
+    if profile.get("crm_notes"):
+        profile_lines.append(f"Notas CRM: {profile['crm_notes']}")
+    if profile.get("summary"):
+        profile_lines.append(f"Resumen: {profile['summary'][:200]}")
+
+    if dna_block and "=== CONTEXTO DE RELACIÓN" in dna_block:
+        # DNA exists — inject profile fields and deduplicated interests INTO the block
+        insertion_lines = []
+        if profile_lines:
+            insertion_lines.extend(profile_lines)
+
+        # Deduplicate interests vs DNA recurring_topics
+        # DNA block already has "Temas frecuentes: X, Y" — only add interests not covered
+        dna_lower = dna_block.lower()
+        if interests:
+            unique_interests = [
+                i for i in interests if i.lower() not in dna_lower
+            ]
+            if unique_interests:
+                insertion_lines.append(f"Intereses: {', '.join(unique_interests[:5])}")
+        if products:
+            insertion_lines.append(f"Productos: {', '.join(products[:5])}")
+        if objections:
+            unique_objections = [
+                o for o in objections if o.lower() not in dna_lower
+            ]
+            if unique_objections:
+                insertion_lines.append(f"Objeciones: {', '.join(unique_objections[:3])}")
+
+        if insertion_lines:
+            # Insert profile data BEFORE the closing tag
+            insert_text = "\n".join(insertion_lines)
+            return dna_block.replace(
+                "=== FIN CONTEXTO RELACIÓN ===",
+                f"{insert_text}\n=== FIN CONTEXTO RELACIÓN ===",
+            )
+        return dna_block
+
+    # No DNA — build a minimal profile-only block
+    if not profile_lines and not interests and not products and not objections:
+        return dna_block or ""
+
+    parts = ["=== CONTEXTO DE RELACIÓN CON ESTE USUARIO ==="]
+    parts.append("Relación: DESCONOCIDO (Cordial, ir conociéndose)")
+    parts.extend(profile_lines)
+    if interests:
+        parts.append(f"Intereses: {', '.join(interests[:5])}")
+    if products:
+        parts.append(f"Productos: {', '.join(products[:5])}")
+    if objections:
+        parts.append(f"Objeciones: {', '.join(objections[:3])}")
+    parts.append("=== FIN CONTEXTO RELACIÓN ===")
     return "\n".join(parts)
 
 

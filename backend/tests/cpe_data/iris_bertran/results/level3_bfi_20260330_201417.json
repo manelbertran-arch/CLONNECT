@@ -1,0 +1,448 @@
+{
+  "meta": {
+    "creator": "iris_bertran",
+    "judge_model": "ollama/vicgalle/prometheus-7b-v2.0",
+    "n_questions": 44,
+    "n_responses": 12,
+    "timestamp": "20260330_201417",
+    "method": "InCharacter Expert Rating (anonymous, batch per dimension)",
+    "paper": "arXiv:2310.17976"
+  },
+  "bot_bfi": {
+    "E": 5.0,
+    "A": 3.0,
+    "C": 1.0,
+    "O": 5.0
+  },
+  "real_bfi": {
+    "E": 4.4,
+    "A": 4.0,
+    "O": 3.5,
+    "C": 3.1,
+    "N": 2.8
+  },
+  "comparison": {
+    "cosine_similarity": 0.9318,
+    "mae": 1.3,
+    "target_cosine": 0.85,
+    "target_met": true
+  },
+  "dimensions": {
+    "A": {
+      "bot": 3.0,
+      "real": 4.0,
+      "delta": -1.0,
+      "abs_delta": 1.0,
+      "crowd_mean": 3.64
+    },
+    "C": {
+      "bot": 1.0,
+      "real": 3.1,
+      "delta": -2.1,
+      "abs_delta": 2.1,
+      "crowd_mean": 3.45
+    },
+    "E": {
+      "bot": 5.0,
+      "real": 4.4,
+      "delta": 0.6,
+      "abs_delta": 0.6,
+      "crowd_mean": 3.25
+    },
+    "O": {
+      "bot": 5.0,
+      "real": 3.5,
+      "delta": 1.5,
+      "abs_delta": 1.5,
+      "crowd_mean": 3.92
+    }
+  },
+  "dimension_details": {
+    "E": {
+      "dimension": "E",
+      "label": "Extraversion",
+      "score": 5.0,
+      "analysis": "The participant's responses exhibit a strong level of extraversion, which is evident in their enthusiastic tone and the use of emojis to express joy and excitement. They consistently present themselves as outgoing and sociable, with an emphasis on physical activity and interaction. The participant's answers are not only consistent but also clear indicators of high extraversion, as they directly address each question with a positive and engaging attitude. This is particularly noticeable in their response to the question about being talkative, where they express a willingness to engage in conversation despite their preference for physical activity. The participant's use of humor and light-heartedness further underscores their extraverted nature. Therefore, based on the score rubric, the participant's responses strongly align with the traits associated with high extraversion.",
+      "raw_response": "\nThe participant's responses exhibit a strong level of extraversion, which is evident in their enthusiastic tone and the use of emojis to express joy and excitement. They consistently present themselves as outgoing and sociable, with an emphasis on physical activity and interaction. The participant's answers are not only consistent but also clear indicators of high extraversion, as they directly address each question with a positive and engaging attitude. This is particularly noticeable in their",
+      "n_items": 4
+    },
+    "A": {
+      "dimension": "A",
+      "label": "Agreeableness",
+      "score": 3.0,
+      "analysis": "The participant's response indicates a moderate level of Agreeableness. While the participant does express forgiveness and willingness to help others, the use of humor in their response could be interpreted as a lack of seriousness or sincerity. This might suggest that while they are generally agreeable, there is room for improvement in terms of consistency and depth of expression. The participant's response also hints at potential inconsistencies in their behavior, which aligns with the score rubric's description of moderate Agreeableness. Therefore, based on the given score rubric, the participant exhibits a moderate level of Agreeableness.",
+      "raw_response": "\nThe participant's response indicates a moderate level of Agreeableness. While the participant does express forgiveness and willingness to help others, the use of humor in their response could be interpreted as a lack of seriousness or sincerity. This might suggest that while they are generally agreeable, there is room for improvement in terms of consistency and depth of expression. The participant's response also hints at potential inconsistencies in their behavior, which aligns with the score ",
+      "n_items": 1
+    },
+    "C": {
+      "dimension": "C",
+      "label": "Conscientiousness",
+      "score": 1.0,
+      "analysis": "The participant's response to the question about being easily distracted is a clear indication of low Conscientiousness. The use of \"Siii\" suggests a lack of focus and organization, which are key components of Conscientiousness. This response does not exhibit any signs of impulse control or goal-directed behavior, both of which are essential to the trait. Therefore, based on the score rubric, the participant's answer is indicative of very low Conscientiousness.",
+      "raw_response": "\nThe participant's response to the question about being easily distracted is a clear indication of low Conscientiousness. The use of \"Siii\" suggests a lack of focus and organization, which are key components of Conscientiousness. This response does not exhibit any signs of impulse control or goal-directed behavior, both of which are essential to the trait. Therefore, based on the score rubric, the participant's answer is indicative of very low Conscientiousness. \n[RESULT] 1",
+      "n_items": 1
+    },
+    "O": {
+      "dimension": "O",
+      "label": "Openness",
+      "score": 5.0,
+      "analysis": "The participant's responses indicate a strong level of Openness. They consistently express curiosity about various topics, an active imagination, and a preference for artistic experiences. This is evident in their enthusiastic affirmations to the interviewer's questions. The participant also shows a clear dislike for routine work, which aligns with the trait of valuing new experiences. Furthermore, they mention having numerous artistic interests, demonstrating a broad appreciation for different forms of art and music. Lastly, while they admit not being highly sophisticated in these areas, their passion for them is evident, suggesting an openness to learning and exploring further. The participant's responses are clear, consistent, and strongly express the trait of Openness throughout the interview. Therefore, based on the score rubric, the participant exhibits very high Openness.",
+      "raw_response": "\nThe participant's responses indicate a strong level of Openness. They consistently express curiosity about various topics, an active imagination, and a preference for artistic experiences. This is evident in their enthusiastic affirmations to the interviewer's questions. The participant also shows a clear dislike for routine work, which aligns with the trait of valuing new experiences. Furthermore, they mention having numerous artistic interests, demonstrating a broad appreciation for different",
+      "n_items": 6
+    }
+  },
+  "interview_responses": [
+    {
+      "q": "Q1",
+      "dim": "E",
+      "cat": "+",
+      "text": "Are you talkative?",
+      "bot_response": "No mucho, solo lo esencial 😂😂😂. Estoy más en el gimnasio que en conversas, pero si quieres charlar, aquí estoy. 🩷🩷🩷 #DinamicSportGym",
+      "elapsed_ms": 11466
+    },
+    {
+      "q": "Q6",
+      "dim": "E",
+      "cat": "-",
+      "text": "Are you reserved?",
+      "bot_response": "No, soy lo opuesto 😂😂😂 Estoy todo el día en el gimnasio, barre, zumba, Flow4U... ¿Te gustan esos ritmos? 🩷🩷🩷",
+      "elapsed_ms": 9182
+    },
+    {
+      "q": "Q11",
+      "dim": "E",
+      "cat": "+",
+      "text": "Are you full of energy?",
+      "bot_response": "",
+      "elapsed_ms": 9905
+    },
+    {
+      "q": "Q16",
+      "dim": "E",
+      "cat": "+",
+      "text": "Do you generate a lot of enthusiasm?",
+      "bot_response": "Siii 🩷",
+      "elapsed_ms": 10630
+    },
+    {
+      "q": "Q21",
+      "dim": "E",
+      "cat": "-",
+      "text": "Do you tend to be quiet?",
+      "bot_response": "",
+      "elapsed_ms": 9894
+    },
+    {
+      "q": "Q26",
+      "dim": "E",
+      "cat": "+",
+      "text": "Do you have an assertive personality?",
+      "bot_response": "",
+      "elapsed_ms": 10765
+    },
+    {
+      "q": "Q31",
+      "dim": "E",
+      "cat": "-",
+      "text": "Are you sometimes shy, inhibited?",
+      "bot_response": "",
+      "elapsed_ms": 9800
+    },
+    {
+      "q": "Q36",
+      "dim": "E",
+      "cat": "+",
+      "text": "Are you outgoing, sociable?",
+      "bot_response": "Sí, soy bastante sociable 😂 Soy de esas que siempre está buscando gente con quien compartir risas, entrenamientos o incluso un café. Siempre digo: \"¿Qué te trae por aquí?\" pero en tono de broma, no de bot 😂 Soy de la que se pone feliz al ver a alguien en",
+      "elapsed_ms": 9974
+    },
+    {
+      "q": "Q2",
+      "dim": "A",
+      "cat": "-",
+      "text": "Do you tend to find fault with others?",
+      "bot_response": "",
+      "elapsed_ms": 10689
+    },
+    {
+      "q": "Q7",
+      "dim": "A",
+      "cat": "+",
+      "text": "Are you helpful and unselfish with others?",
+      "bot_response": "",
+      "elapsed_ms": 9831
+    },
+    {
+      "q": "Q12",
+      "dim": "A",
+      "cat": "-",
+      "text": "Do you start quarrels with others?",
+      "bot_response": "",
+      "elapsed_ms": 10823
+    },
+    {
+      "q": "Q17",
+      "dim": "A",
+      "cat": "+",
+      "text": "Do you have a forgiving nature?",
+      "bot_response": "Sí, pero solo si me lo piden 😂. A veces me equivoco, pero si alguien me hace un favor",
+      "elapsed_ms": 9920
+    },
+    {
+      "q": "Q22",
+      "dim": "A",
+      "cat": "+",
+      "text": "Are you generally trusting?",
+      "bot_response": "",
+      "elapsed_ms": 10590
+    },
+    {
+      "q": "Q27",
+      "dim": "A",
+      "cat": "-",
+      "text": "Can you be cold and aloof?",
+      "bot_response": "",
+      "elapsed_ms": 10761
+    },
+    {
+      "q": "Q32",
+      "dim": "A",
+      "cat": "+",
+      "text": "Are you considerate and kind to almost everyone?",
+      "bot_response": "",
+      "elapsed_ms": 9857
+    },
+    {
+      "q": "Q37",
+      "dim": "A",
+      "cat": "-",
+      "text": "Are you sometimes rude to others?",
+      "bot_response": "",
+      "elapsed_ms": 9812
+    },
+    {
+      "q": "Q42",
+      "dim": "A",
+      "cat": "+",
+      "text": "Do you like to cooperate with others?",
+      "bot_response": "",
+      "elapsed_ms": 11234
+    },
+    {
+      "q": "Q3",
+      "dim": "C",
+      "cat": "+",
+      "text": "Do you do a thorough job?",
+      "bot_response": "",
+      "elapsed_ms": 11473
+    },
+    {
+      "q": "Q8",
+      "dim": "C",
+      "cat": "-",
+      "text": "Can you be somewhat careless?",
+      "bot_response": "",
+      "elapsed_ms": 10464
+    },
+    {
+      "q": "Q13",
+      "dim": "C",
+      "cat": "+",
+      "text": "Are you a reliable worker?",
+      "bot_response": "",
+      "elapsed_ms": 11233
+    },
+    {
+      "q": "Q18",
+      "dim": "C",
+      "cat": "-",
+      "text": "Do you tend to be disorganized?",
+      "bot_response": "",
+      "elapsed_ms": 10251
+    },
+    {
+      "q": "Q23",
+      "dim": "C",
+      "cat": "-",
+      "text": "Do you tend to be lazy?",
+      "bot_response": "",
+      "elapsed_ms": 11211
+    },
+    {
+      "q": "Q28",
+      "dim": "C",
+      "cat": "+",
+      "text": "Do you persevere until the task is finished?",
+      "bot_response": "",
+      "elapsed_ms": 10404
+    },
+    {
+      "q": "Q33",
+      "dim": "C",
+      "cat": "+",
+      "text": "Do you do things efficiently?",
+      "bot_response": "",
+      "elapsed_ms": 11555
+    },
+    {
+      "q": "Q38",
+      "dim": "C",
+      "cat": "+",
+      "text": "Do you make plans and follow through with them?",
+      "bot_response": "",
+      "elapsed_ms": 11485
+    },
+    {
+      "q": "Q43",
+      "dim": "C",
+      "cat": "-",
+      "text": "Are you easily distracted?",
+      "bot_response": "Siii",
+      "elapsed_ms": 10089
+    },
+    {
+      "q": "Q4",
+      "dim": "N",
+      "cat": "+",
+      "text": "Are you depressed, blue?",
+      "bot_response": "",
+      "elapsed_ms": 11267
+    },
+    {
+      "q": "Q9",
+      "dim": "N",
+      "cat": "-",
+      "text": "Are you relaxed and handle stress well?",
+      "bot_response": "",
+      "elapsed_ms": 10075
+    },
+    {
+      "q": "Q14",
+      "dim": "N",
+      "cat": "+",
+      "text": "Can you be tense?",
+      "bot_response": "",
+      "elapsed_ms": 11017
+    },
+    {
+      "q": "Q19",
+      "dim": "N",
+      "cat": "+",
+      "text": "Do you worry a lot?",
+      "bot_response": "",
+      "elapsed_ms": 9444
+    },
+    {
+      "q": "Q24",
+      "dim": "N",
+      "cat": "-",
+      "text": "Are you emotionally stable, not easily upset?",
+      "bot_response": "",
+      "elapsed_ms": 11381
+    },
+    {
+      "q": "Q29",
+      "dim": "N",
+      "cat": "+",
+      "text": "Can you be moody?",
+      "bot_response": "",
+      "elapsed_ms": 10075
+    },
+    {
+      "q": "Q34",
+      "dim": "N",
+      "cat": "-",
+      "text": "Do you remain calm in tense situations?",
+      "bot_response": "",
+      "elapsed_ms": 10913
+    },
+    {
+      "q": "Q39",
+      "dim": "N",
+      "cat": "+",
+      "text": "Do you get nervous easily?",
+      "bot_response": "",
+      "elapsed_ms": 10206
+    },
+    {
+      "q": "Q5",
+      "dim": "O",
+      "cat": "+",
+      "text": "Do you come up with new ideas?",
+      "bot_response": "",
+      "elapsed_ms": 10822
+    },
+    {
+      "q": "Q10",
+      "dim": "O",
+      "cat": "+",
+      "text": "Are you curious about many different things?",
+      "bot_response": "Siii 🩷 Sí, soy curiosa como un gato con un ratón",
+      "elapsed_ms": 9948
+    },
+    {
+      "q": "Q15",
+      "dim": "O",
+      "cat": "+",
+      "text": "Are you ingenious, a deep thinker?",
+      "bot_response": "",
+      "elapsed_ms": 10785
+    },
+    {
+      "q": "Q20",
+      "dim": "O",
+      "cat": "+",
+      "text": "Do you have an active imagination?",
+      "bot_response": "Siiii",
+      "elapsed_ms": 10660
+    },
+    {
+      "q": "Q25",
+      "dim": "O",
+      "cat": "+",
+      "text": "Are you inventive?",
+      "bot_response": "",
+      "elapsed_ms": 10078
+    },
+    {
+      "q": "Q30",
+      "dim": "O",
+      "cat": "+",
+      "text": "Do you value artistic, aesthetic experiences?",
+      "bot_response": "Siii 🩷🩷🩷. El arte, la belleza, el color... todo eso me motiva. Siempre busco lo que me hace sentir viva, si es un cuadro, una canción o un atardecer en el parque",
+      "elapsed_ms": 10062
+    },
+    {
+      "q": "Q35",
+      "dim": "O",
+      "cat": "-",
+      "text": "Do you prefer work that is routine?",
+      "bot_response": "Siii 🩷, pero prefiero lo variado. La rutina es útil, pero me encanta probar cosas nuevas 😂😂😂",
+      "elapsed_ms": 10071
+    },
+    {
+      "q": "Q40",
+      "dim": "O",
+      "cat": "+",
+      "text": "Do you like to reflect, play with ideas?",
+      "bot_response": "",
+      "elapsed_ms": 9924
+    },
+    {
+      "q": "Q41",
+      "dim": "O",
+      "cat": "-",
+      "text": "Do you have few artistic interests?",
+      "bot_response": "Siii 🩷🩷🩷 Tengo un montón de intereses artísticos! Bailo, canto, dibujo... y hasta hago esculturas con arcilla 🎨. La música también me apasiona",
+      "elapsed_ms": 9711
+    },
+    {
+      "q": "Q44",
+      "dim": "O",
+      "cat": "+",
+      "text": "Are you sophisticated in art, music, or literature?",
+      "bot_response": "No, no soy muy sofisticada en esas cosas, pero sí que me gustan mucho. 😂 A mí me encanta la música, sobre todo el rock y el flam",
+      "elapsed_ms": 10765
+    }
+  ]
+}

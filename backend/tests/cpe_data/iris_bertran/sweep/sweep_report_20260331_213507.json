@@ -1,0 +1,28 @@
+{
+  "creator": "iris_bertran",
+  "timestamp": "2026-03-31T19:35:07.464907+00:00",
+  "protocol": "additive_ablation",
+  "n_runs": 3,
+  "n_cases": 50,
+  "naked_baseline": {
+    "bertscore_f1": -0.047,
+    "chrf": 0.1643
+  },
+  "systems": [
+    {
+      "system": "question_hints",
+      "env_var": "ENABLE_QUESTION_HINTS",
+      "status": "TESTED",
+      "l2_bertscore": -0.0575,
+      "l2_delta": -0.0105,
+      "l2_p": 0.171914,
+      "l2_cliff": -0.0296,
+      "l2_cliff_mag": "negligible",
+      "l3_chrf": 0.1602,
+      "l3_delta": -0.0041,
+      "l3_p": 0.04831,
+      "l3_cliff": -0.0328,
+      "decision": "NO EFFECT"
+    }
+  ]
+}

@@ -1,181 +1,339 @@
-"""VocabularyExtractor service for extracting vocabulary patterns.
+"""Vocabulary extractor — data-mined, per-lead, TF-IDF distinctive.
 
-Extracts:
-- Common words used in messages
-- Emojis
-- Muletillas (filler words)
-- Forbidden words based on relationship type
+Extracts vocabulary from creator's REAL messages only.
+Uses word-boundary matching (not substring), stopword filtering,
+and TF-IDF distinctiveness scoring for per-lead vocabulary.
 
-Part of RELATIONSHIP-DNA feature.
+Universal: works for any creator in any language.
+Zero hardcoding: no vocabulary lists, no forbidden words.
 """
 
+import logging
+import math
 import re
+import time
 from collections import Counter
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 
-from models.relationship_dna import RelationshipType
+logger = logging.getLogger(__name__)
+
+# ─── Canonical stopwords (ES + CA + EN + PT + IT) ───
+# Pure function words only — content words are kept as potentially characteristic.
+# Shared across RelationshipAnalyzer, compressed_doc_d, and this module.
+STOPWORDS = frozenset({
+    # Spanish
+    "de", "la", "el", "en", "que", "un", "una", "es", "se", "no", "lo",
+    "con", "por", "su", "para", "al", "del", "las", "los", "me", "te",
+    "ya", "si", "mi", "le", "a", "y", "o", "pero", "como", "más", "muy",
+    "bien", "hay", "todo", "esta", "esto", "eso", "hola", "gracias",
+    "bueno", "buena", "vale", "pues", "ser", "hoy", "fue", "has", "han",
+    "era", "son", "tan", "vez", "aquí", "ahí", "qué", "cómo", "sí",
+    "sus", "nos", "les", "unos", "unas", "estos", "esas", "ese",
+    "ella", "él", "ellos", "ellas", "nosotros", "vosotros",
+    "estar", "tener", "hacer", "poder", "decir",
+    "donde", "cuando", "quien", "cual", "cuanto",
+    "ese", "esos", "esa", "esas", "aquel",
+    "va", "voy", "ti", "yo", "tu",
+    "soy", "estoy", "tengo",
+    "sin", "sobre", "entre", "también",
+    "cada", "otro", "otra", "otros", "otras",
+    "ahora", "así", "después", "antes",
+    "ayer", "mañana", "mensaje",
+    # Catalan
+    "és", "amb", "els", "les", "pel", "dels", "als", "seva", "són",
+    "què", "com", "molt", "bé", "però", "ara", "hem", "fer",
+    "uns", "unes", "qui", "quan", "on", "jo", "tu", "ell",
+    "nosaltres", "vosaltres",
+    "perquè", "tot", "res",
+    "estic", "fas", "fes", "tinc", "puc",
+    "doncs", "encara", "sempre", "mai", "també",
+    # English
+    "the", "is", "it", "to", "and", "of", "in", "for", "on", "my",
+    "you", "do", "so", "ok", "hi", "yes", "not", "can", "was",
+    "are", "be", "have", "has", "had", "will", "just", "that", "this",
+    "with", "from", "what", "how", "but", "all", "your", "they",
+    "would", "could", "should", "about", "been", "were", "its",
+    "also", "than", "then", "some", "these", "those", "them",
+    # Portuguese
+    "e", "da", "do", "das", "dos", "em", "uma",
+    "seu", "sua", "não", "mais", "mas", "foi", "são",
+    # Italian
+    "che", "di", "il", "per", "non", "sono",
+    "della", "dei", "delle", "gli", "anche", "più",
+    # Universal high-frequency non-distinctive
+    "jaja", "jajaja", "jajajaja", "haha", "hahaha", "lol",
+    "buenas", "buenos",
+})
+
+# Media placeholders to skip
+_MEDIA_PREFIXES = (
+    "[audio]", "[video]", "[image]", "[sticker]",
+    "[📷", "[🎤", "[📹", "[📍", "[📄", "[📎",
+    "[👤", "[🔗", "[gif]", "[media",
+)
+
+# Technical / URL / platform tokens that should never be vocabulary
+_TECHNICAL_TOKENS = frozenset({
+    # URLs and web
+    "https", "http", "www", "com", "org", "net",
+    # Platforms
+    "instagram", "whatsapp", "telegram", "facebook", "tiktok",
+    "youtube", "twitter", "snapchat", "spotify", "google",
+    # Technical sharing
+    "wetransfer", "drive", "dropbox", "link", "download",
+    # WhatsApp/IG media types that leak through
+    "sticker", "reaction", "gif", "audio", "video", "image",
+    "attachment", "shared", "content", "sent", "voice", "message",
+    # URL fragments
+    "igsh", "utm", "reel", "reels", "stories", "story",
+    # Email
+    "gmail", "hotmail", "yahoo", "outlook", "email",
+})
+
+# Word-boundary tokenizer: captures words with Unicode letters, 3+ chars
+# Uses letter classes (not \w) to avoid matching underscores in handles/URLs
+_WORD_RE = re.compile(r"\b([a-zA-Z\u00C0-\u024F]{3,})\b", re.UNICODE)
 
 
-# Stop words to exclude from common words
-SPANISH_STOP_WORDS = {
-    "de", "la", "que", "el", "en", "y", "a", "los", "del", "se", "las",
-    "por", "un", "para", "con", "no", "una", "su", "al", "lo", "como",
-    "más", "pero", "sus", "le", "ya", "o", "este", "ha", "me", "si",
-    "porque", "esta", "cuando", "muy", "sin", "sobre", "también", "ser",
-    "es", "yo", "eso", "entre", "era", "hay", "soy", "estoy", "tengo",
-    "va", "voy", "te", "ti", "tu", "mi", "nos", "esa", "ese", "esto",
-    "todo", "bien", "así", "ahora", "aquí", "cada", "donde", "hacer",
-    "hola", "gracias", "mensaje", "hoy", "ayer", "mañana",
-}
+def tokenize(text: str) -> List[str]:
+    """Tokenize text into words using word-boundary regex.
 
-# Common muletillas (filler words) in Spanish
-MULETILLAS = {
-    "bueno", "pues", "entonces", "mira", "oye", "vale", "ósea", "osea",
-    "tipo", "como", "digamos", "sabes", "nada", "total", "básicamente",
-}
+    Returns lowercase words of 3+ characters, excluding stopwords,
+    media placeholders, and technical tokens.
+    """
+    text_lower = text.lower().strip()
 
-# Forbidden words per relationship type
-FORBIDDEN_WORDS = {
-    RelationshipType.FAMILIA.value: ["bro", "crack", "tio", "colega", "compa"],
-    RelationshipType.INTIMA.value: ["hermano", "bro", "crack", "tio", "colega", "compa"],
-    RelationshipType.AMISTAD_CERCANA.value: ["amor", "cariño", "mi vida", "bebe", "preciosa"],
-    RelationshipType.AMISTAD_CASUAL.value: ["amor", "cariño", "mi vida"],
-    RelationshipType.CLIENTE.value: ["hermano", "bro", "tio", "crack", "compa"],
-    RelationshipType.COLABORADOR.value: ["hermano", "bro", "tio", "amor"],
-    RelationshipType.DESCONOCIDO.value: ["hermano", "bro", "amor", "cariño"],
-}
+    # Skip media placeholders
+    if text_lower.startswith(_MEDIA_PREFIXES):
+        return []
+
+    words = _WORD_RE.findall(text_lower)
+    return [
+        w for w in words
+        if w not in STOPWORDS
+        and w not in _TECHNICAL_TOKENS
+        and not w.isdigit()
+    ]
 
 
-class VocabularyExtractor:
-    """Extracts vocabulary patterns from conversation messages."""
+def extract_lead_vocabulary(
+    creator_messages: List[str],
+    min_freq: int = 2,
+) -> Dict[str, int]:
+    """Extract word frequencies from creator's messages to a specific lead.
 
-    def __init__(self):
-        """Initialize the extractor."""
-        self._word_pattern = re.compile(r"\b[a-záéíóúñü]+\b", re.IGNORECASE)
-        self._emoji_pattern = re.compile(
-            "["
-            "\U0001F600-\U0001F64F"  # emoticons
-            "\U0001F300-\U0001F5FF"  # symbols & pictographs
-            "\U0001F680-\U0001F6FF"  # transport & map symbols
-            "\U0001F1E0-\U0001F1FF"  # flags
-            "\U00002702-\U000027B0"
-            "\U000024C2-\U0001F251"
-            "\U0001F900-\U0001F9FF"  # supplemental symbols
-            "\U0001FA00-\U0001FA6F"  # chess symbols
-            "\U0001FA70-\U0001FAFF"  # symbols extended
-            "]+",
-            flags=re.UNICODE,
+    Args:
+        creator_messages: List of message content strings from the creator.
+        min_freq: Minimum frequency to include a word.
+
+    Returns:
+        Dict of word -> count, filtered by frequency threshold.
+    """
+    counts: Counter = Counter()
+    for msg in creator_messages:
+        counts.update(tokenize(msg))
+
+    # Adaptive threshold: raise for large conversations
+    effective_min = min_freq
+    if len(creator_messages) >= 50:
+        effective_min = max(min_freq, 3)
+
+    return {w: c for w, c in counts.items() if c >= effective_min}
+
+
+def compute_distinctiveness(
+    lead_vocab: Dict[str, int],
+    global_vocab: Dict[str, int],
+    total_leads: int,
+    leads_per_word: Optional[Dict[str, int]] = None,
+) -> List[Tuple[str, float]]:
+    """Score vocabulary by TF-IDF distinctiveness.
+
+    Words used with many leads score low (generic).
+    Words concentrated on this lead score high (distinctive).
+
+    Args:
+        lead_vocab: Word frequencies for this specific lead.
+        global_vocab: Aggregate word frequencies across all leads.
+        total_leads: Total number of leads for this creator.
+        leads_per_word: Dict of word -> number of leads that use it.
+
+    Returns:
+        List of (word, score) sorted by score descending.
+    """
+    if not lead_vocab or total_leads < 1:
+        return []
+
+    scored = []
+    for word, count in lead_vocab.items():
+        tf = count
+
+        if leads_per_word and word in leads_per_word:
+            df = leads_per_word[word]
+            idf = math.log(max(1, total_leads) / max(1, df))
+        elif global_vocab.get(word, 0) > 0:
+            global_count = global_vocab[word]
+            concentration = count / max(1, global_count)
+            idf = max(0.1, concentration * math.log(max(2, total_leads)))
+        else:
+            idf = math.log(max(2, total_leads))
+
+        scored.append((word, tf * idf))
+
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored
+
+
+def get_top_distinctive_words(
+    creator_messages: List[str],
+    global_vocab: Optional[Dict[str, int]] = None,
+    total_leads: int = 1,
+    leads_per_word: Optional[Dict[str, int]] = None,
+    top_n: int = 8,
+    min_freq: int = 2,
+) -> List[str]:
+    """Extract the top N distinctive words for a lead.
+
+    Main entry point for DNA vocabulary extraction.
+
+    Args:
+        creator_messages: Creator's messages to this specific lead.
+        global_vocab: Aggregate vocabulary across all leads (for TF-IDF).
+        total_leads: Total leads for this creator.
+        leads_per_word: Optional word -> lead_count mapping.
+        top_n: Number of words to return.
+        min_freq: Minimum frequency threshold.
+
+    Returns:
+        List of distinctive words, ordered by score.
+    """
+    lead_vocab = extract_lead_vocabulary(creator_messages, min_freq=min_freq)
+
+    if not lead_vocab:
+        return []
+
+    if global_vocab and total_leads > 1:
+        scored = compute_distinctiveness(
+            lead_vocab, global_vocab, total_leads, leads_per_word,
         )
+        return [w for w, _ in scored[:top_n]]
+    else:
+        # Fallback: frequency-only (no global corpus available)
+        sorted_words = sorted(
+            lead_vocab.items(), key=lambda x: x[1], reverse=True,
+        )
+        return [w for w, _ in sorted_words[:top_n]]
 
-    def extract_common_words(self, messages: List[str], limit: int = 10) -> List[str]:
-        """Extract commonly used words from messages.
 
-        Args:
-            messages: List of message strings
-            limit: Maximum number of words to return
+# In-memory cache for global corpus (TTL-based, per creator)
+_corpus_cache: Dict[str, Tuple[float, Dict[str, int], int, Dict[str, int]]] = {}
+_CORPUS_CACHE_TTL = 3600  # 1 hour
 
-        Returns:
-            List of common words, ordered by frequency
-        """
-        if not messages:
-            return []
 
-        # Combine all messages
-        all_text = " ".join(messages).lower()
+def build_global_corpus(
+    creator_id: str,
+    use_cache: bool = True,
+) -> Tuple[Dict[str, int], int, Dict[str, int]]:
+    """Build global corpus for a creator from the database.
 
-        # Extract words
-        words = self._word_pattern.findall(all_text)
+    Results are cached in-memory for 1 hour per creator to avoid
+    redundant DB queries when processing multiple leads.
 
-        # Filter out stop words and short words
-        filtered_words = [
-            w for w in words
-            if w not in SPANISH_STOP_WORDS
-            and len(w) > 2
-            and not w.isdigit()
-        ]
+    Queries all real creator messages grouped by lead,
+    computes aggregate word frequencies and per-word lead counts.
 
-        # Count frequencies
-        counter = Counter(filtered_words)
+    Args:
+        creator_id: Creator slug (e.g. "iris_bertran").
 
-        # Get most common (require at least 2 occurrences)
-        common = [word for word, count in counter.most_common(limit * 2) if count >= 2]
+    Returns:
+        Tuple of (global_vocab, total_leads, leads_per_word).
+    """
+    if use_cache and creator_id in _corpus_cache:
+        cached_at, gv, tl, lpw = _corpus_cache[creator_id]
+        if time.time() - cached_at < _CORPUS_CACHE_TTL:
+            logger.debug("[VOCAB-CORPUS] Cache hit for %s", creator_id)
+            return gv, tl, lpw
 
-        return common[:limit]
+    try:
+        from api.database import SessionLocal
+        from sqlalchemy import text
 
-    def extract_emojis(self, messages: List[str], limit: int = 5) -> List[str]:
-        """Extract emojis from messages.
+        session = SessionLocal()
+        try:
+            cr = session.execute(
+                text("SELECT id FROM creators WHERE name = :name LIMIT 1"),
+                {"name": creator_id},
+            ).fetchone()
+            if not cr:
+                logger.warning("Creator %s not found", creator_id)
+                return {}, 0, {}
 
-        Args:
-            messages: List of message strings
-            limit: Maximum number of emojis to return
+            creator_uuid = str(cr[0])
 
-        Returns:
-            List of emojis, ordered by frequency
-        """
-        if not messages:
-            return []
+            # Paginated fetch to avoid OOM on large creators
+            lead_messages: Dict[str, List[str]] = {}
+            page_size = 5000
+            offset = 0
 
-        all_text = " ".join(messages)
+            while True:
+                rows = session.execute(
+                    text("""
+                        SELECT l.id, m.content
+                        FROM messages m
+                        JOIN leads l ON m.lead_id = l.id
+                        WHERE l.creator_id = CAST(:cid AS uuid)
+                        AND m.role = 'assistant'
+                        AND m.content IS NOT NULL
+                        AND LENGTH(m.content) > 2
+                        AND m.deleted_at IS NULL
+                        AND COALESCE(m.approved_by, 'human') NOT IN ('auto', 'autopilot')
+                        ORDER BY m.created_at
+                        LIMIT :lim OFFSET :off
+                    """),
+                    {"cid": creator_uuid, "lim": page_size, "off": offset},
+                ).fetchall()
 
-        # Find all emojis
-        emojis = self._emoji_pattern.findall(all_text)
+                if not rows:
+                    break
 
-        # Count frequencies
-        counter = Counter(emojis)
+                for lead_id, content in rows:
+                    lid = str(lead_id)
+                    if lid not in lead_messages:
+                        lead_messages[lid] = []
+                    lead_messages[lid].append(content)
 
-        # Return most common
-        return [emoji for emoji, _ in counter.most_common(limit)]
+                if len(rows) < page_size:
+                    break
+                offset += page_size
 
-    def get_forbidden_words(self, relationship_type: str) -> List[str]:
-        """Get words that should be avoided for a relationship type.
+            total_leads = len(lead_messages)
 
-        Args:
-            relationship_type: The relationship type
+            global_vocab: Counter = Counter()
+            leads_per_word: Counter = Counter()
 
-        Returns:
-            List of words to avoid
-        """
-        return FORBIDDEN_WORDS.get(relationship_type, [])
+            for lid, messages in lead_messages.items():
+                lead_words = set()
+                for msg in messages:
+                    tokens = tokenize(msg)
+                    global_vocab.update(tokens)
+                    lead_words.update(tokens)
+                for w in lead_words:
+                    leads_per_word[w] += 1
 
-    def extract_muletillas(self, messages: List[str]) -> List[str]:
-        """Extract filler words (muletillas) from messages.
+            logger.info(
+                "[VOCAB-CORPUS] Built for %s: %d leads, %d unique words",
+                creator_id, total_leads, len(global_vocab),
+            )
+            result_gv = dict(global_vocab)
+            result_lpw = dict(leads_per_word)
+            _corpus_cache[creator_id] = (
+                time.time(), result_gv, total_leads, result_lpw,
+            )
+            return result_gv, total_leads, result_lpw
 
-        Args:
-            messages: List of message strings
+        finally:
+            session.close()
 
-        Returns:
-            List of muletillas found
-        """
-        if not messages:
-            return []
-
-        all_text = " ".join(messages).lower()
-
-        found = []
-        for muletilla in MULETILLAS:
-            if muletilla in all_text:
-                # Count occurrences
-                count = all_text.count(muletilla)
-                if count >= 2:  # Only if used multiple times
-                    found.append(muletilla)
-
-        return found
-
-    def extract_all(self, messages: List[str], relationship_type: str = None) -> Dict:
-        """Extract all vocabulary patterns.
-
-        Args:
-            messages: List of message strings
-            relationship_type: Optional relationship type for forbidden words
-
-        Returns:
-            Dict with common_words, emojis, muletillas, forbidden_words
-        """
-        return {
-            "common_words": self.extract_common_words(messages),
-            "emojis": self.extract_emojis(messages),
-            "muletillas": self.extract_muletillas(messages),
-            "forbidden_words": (
-                self.get_forbidden_words(relationship_type) if relationship_type else []
-            ),
-        }
+    except Exception as e:
+        logger.error("build_global_corpus failed for %s: %s", creator_id, e)
+        return {}, 0, {}

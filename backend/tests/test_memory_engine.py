@@ -348,19 +348,19 @@ class TestMemoryInjection:
     """Test memory formatting for prompt injection."""
 
     def test_memory_injection_in_prompt(self, engine, sample_facts, sample_summary):
-        """Verify memory section is correctly formatted for prompt."""
+        """Verify memory section uses bulleted list format (mem0/Zep pattern)."""
         result = engine._format_memory_section(sample_facts, sample_summary)
 
-        assert "=== MEMORIA DEL LEAD ===" in result
-        assert "=== FIN MEMORIA ===" in result
-        assert "Hechos conocidos sobre este lead:" in result
-        assert "Le interesa el curso de nutricion" in result
-        assert "Se le prometio enviar el enlace manana" in result
+        assert "<memoria>" in result
+        assert "</memoria>" in result
+        assert "Instrucción:" in result
+        assert "nutricion" in result.lower() or "nutrición" in result.lower()
+        assert "enlace" in result
         assert "[PENDIENTE]" in result
-        assert "Resumen ultima conversacion" in result
+        assert "Último tema:" in result
 
     def test_token_budget_enforcement(self, engine):
-        """Verify the memory section respects the character/token budget."""
+        """Verify the memory section respects the 600-char budget."""
         many_facts = [
             LeadMemory(
                 id=str(uuid.uuid4()),
@@ -376,9 +376,10 @@ class TestMemoryInjection:
 
         result = engine._format_memory_section(many_facts, None)
 
-        fact_lines = [line for line in result.split("\n") if line.startswith("- ")]
-        assert len(fact_lines) < 20
-        assert len(fact_lines) <= MAX_FACTS_IN_PROMPT
+        # Bulleted format with <memoria> tags, under 600 chars
+        assert len(result) <= 700  # 600 max_chars + instruction line
+        bullet_lines = [l for l in result.split("\n") if l.startswith("- ")]
+        assert len(bullet_lines) <= 5
 
     def test_empty_memories_returns_empty_string(self, engine):
         """No memories -> empty string (no section injected)."""
@@ -386,7 +387,7 @@ class TestMemoryInjection:
         assert result == ""
 
     def test_commitment_priority_ordering(self, engine):
-        """Commitments should appear before other fact types."""
+        """Commitments should appear before other fact types in bullet list."""
         now = datetime.now(timezone.utc)
         facts = [
             LeadMemory(id="1", creator_id="c", lead_id="l", fact_type="topic",
@@ -398,9 +399,22 @@ class TestMemoryInjection:
         ]
 
         result = engine._format_memory_section(facts, None)
-        lines = [l for l in result.split("\n") if l.startswith("- ")]
+        bullet_lines = [l for l in result.split("\n") if l.startswith("- ")]
+        # Commitment (with [PENDIENTE]) should be first bullet
+        assert "[PENDIENTE]" in bullet_lines[0]
+        assert "enviar info" in bullet_lines[0]
 
-        assert "Se prometio enviar info" in lines[0]
+    def test_name_extraction(self, engine):
+        """Lead name extracted from personal_info into Nombre: line."""
+        now = datetime.now(timezone.utc)
+        facts = [
+            LeadMemory(id="1", creator_id="c", lead_id="l", fact_type="personal_info",
+                       fact_text="El lead se llama Cuca", created_at=now),
+            LeadMemory(id="2", creator_id="c", lead_id="l", fact_type="topic",
+                       fact_text="Le interesa yoga", created_at=now),
+        ]
+        result = engine._format_memory_section(facts, None)
+        assert "Nombre: Cuca" in result
 
 
 class TestEbbinghausDecay:

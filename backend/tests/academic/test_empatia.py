@@ -43,10 +43,16 @@ class TestEmpatia:
         tracks explicit frustration patterns and negative markers.
         The old context_detector.detect_frustration is now a stub.
         """
+        # v3 is language-agnostic: detection requires para-linguistic signals
+        # (CAPS, punctuation bursts, emoji, numeric COUNT_RE, repetition overlap).
+        # Pure keyword phrases ("estoy harto") are not detected — trade-off: zero
+        # false positives in unknown languages, zero hardcoded language dependencies.
+        # Paper ref: Hernandez Caralt et al. COLING 2025 — keyword approach achieves
+        # only 1% recall; language-agnostic behavioral signals are the robust path.
         frustrated_messages = [
-            "Estoy harto, no me ayudas nada",
-            "Esto no funciona, no sirve para nada, eres inutil",
-            "No entiendes nada, ya te lo dije mil veces",
+            "ESTOY HARTO, NO ME AYUDAS NADA!!!",          # full CAPS + burst → 0.30
+            "Esto no funciona!!! ya te lo dije 3 veces",  # burst + COUNT_RE → 0.45
+            "No entiendes nada \U0001f621\U0001f92c",      # frustration emoji → 0.50
         ]
 
         for msg in frustrated_messages:
@@ -54,19 +60,19 @@ class TestEmpatia:
                 msg, conversation_id="test_empathy"
             )
             assert score > 0.2, (
-                f"Message '{msg}' should produce frustration score > 0.2, " f"got {score:.2f}"
+                f"Message '{msg}' should produce frustration score > 0.2, got {score:.2f}"
             )
-            assert signals.explicit_frustration or signals.negative_markers > 0, (
-                f"Message '{msg}' should trigger explicit_frustration or " "negative_markers"
+            assert signals.explicit_frustration or signals.caps_ratio > 0.4, (
+                f"Message '{msg}' should trigger explicit_frustration or high CAPS ratio"
             )
 
         # Verify FrustrationDetector detects this with level > 0
         signals, score = frustration_detector.analyze_message(
-            "No me entiendes, ya te lo dije mil veces",
+            "No me entiendes, ya te lo dije 5 veces!!!",
             conversation_id="test_empathy_verify",
         )
         assert signals.level > 0, (
-            "FrustrationDetector should flag 'no me entiendes, ya te lo dije mil veces' "
+            "FrustrationDetector should flag message with COUNT_RE + burst "
             f"with level > 0, got level={signals.level}"
         )
 

@@ -87,3 +87,10 @@ clonnect-memory-core/
 backend/clonnect.db
 backend/clonnect.db
 frontend/dist/
+
+# ML model files (large, not for deploy)
+backend/merged_dpo_8b/
+backend/lora_adapters/
+backend/.venv/
+**/*.safetensors
+**/*.safetensors.index.json
