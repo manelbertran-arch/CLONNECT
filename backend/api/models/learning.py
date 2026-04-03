@@ -95,6 +95,7 @@ class GoldExample(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=True)
+    embedding = Column(JSON, nullable=True)  # vector(1536) stored as JSON list; pgvector queries use raw SQL
 
 
 class PatternAnalysisRun(Base):

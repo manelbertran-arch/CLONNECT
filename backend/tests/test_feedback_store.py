@@ -99,7 +99,7 @@ class TestScoringBugFixes:
     @patch("api.database.SessionLocal")
     def test_gold_examples_no_double_quality(self, mock_session_cls):
         """BUG-GE-01 regression: score should be linear in quality_score, not quadratic."""
-        from services.gold_examples_service import get_matching_examples, _examples_cache, _examples_cache_ts
+        from services.style_retriever import get_matching_examples, _examples_cache, _examples_cache_ts
 
         _examples_cache.clear()
         _examples_cache_ts.clear()
@@ -163,8 +163,8 @@ class TestFeedbackStore:
         # FIX FB-01: Single commit for feedback + derivatives
         assert mock_session.commit.call_count == 1
 
-    @patch("services.feedback_store._auto_create_gold_example")
-    @patch("services.feedback_store._auto_create_preference_pair")
+    @patch("services.feedback_capture._auto_create_gold_example")
+    @patch("services.feedback_capture._auto_create_preference_pair")
     @patch("api.database.SessionLocal")
     def test_save_feedback_with_ideal_creates_pair(self, mock_session_cls, mock_pair, mock_gold):
         """When ideal_response provided, auto-creates preference pair."""
@@ -195,8 +195,8 @@ class TestFeedbackStore:
         assert result["gold_created"] is False  # lo_enviarias < 4
         mock_pair.assert_called_once()
 
-    @patch("services.feedback_store._auto_create_gold_example")
-    @patch("services.feedback_store._auto_create_preference_pair")
+    @patch("services.feedback_capture._auto_create_gold_example")
+    @patch("services.feedback_capture._auto_create_preference_pair")
     @patch("api.database.SessionLocal")
     def test_save_feedback_high_score_creates_gold(self, mock_session_cls, mock_pair, mock_gold):
         """When lo_enviarias >= 4 AND ideal_response, also creates gold example."""
@@ -229,11 +229,11 @@ class TestFeedbackStore:
     @patch("api.database.SessionLocal")
     def test_save_feedback_disabled_returns_status(self, mock_session_cls):
         """When ENABLE_EVALUATOR_FEEDBACK=false, returns status=disabled."""
-        import services.feedback_store as fs
-        original = fs.ENABLE_EVALUATOR_FEEDBACK
-        fs.ENABLE_EVALUATOR_FEEDBACK = False
+        import services.feedback_capture as fc
+        original = fc.ENABLE_EVALUATOR_FEEDBACK
+        fc.ENABLE_EVALUATOR_FEEDBACK = False
         try:
-            result = fs.save_feedback(
+            result = fc.save_feedback(
                 creator_db_id=uuid.uuid4(),
                 evaluator_id="manel",
                 user_message="test",
@@ -242,7 +242,7 @@ class TestFeedbackStore:
             assert result == {"status": "disabled"}
             mock_session_cls.assert_not_called()
         finally:
-            fs.ENABLE_EVALUATOR_FEEDBACK = original
+            fc.ENABLE_EVALUATOR_FEEDBACK = original
 
     @patch("api.database.SessionLocal")
     def test_get_feedback_returns_list(self, mock_session_cls):
@@ -476,7 +476,7 @@ class TestUnifiedCapture:
         assert result["signal_type"] == "evaluator_score"
 
     @pytest.mark.asyncio
-    @patch("services.preference_pairs_service.create_pairs_from_action")
+    @patch("services.feedback_capture.create_pairs_from_action")
     async def test_capture_copilot_edit(self, mock_create_pairs):
         """capture(copilot_edit) routes to create_pairs_from_action."""
         from services.feedback_store import capture
@@ -505,7 +505,7 @@ class TestUnifiedCapture:
         assert call_kwargs.kwargs["action"] == "edited"
 
     @pytest.mark.asyncio
-    @patch("services.preference_pairs_service.create_pairs_from_action")
+    @patch("services.feedback_capture.create_pairs_from_action")
     async def test_capture_copilot_approve(self, mock_create_pairs):
         """capture(copilot_approve) → quality 0.6."""
         from services.feedback_store import capture
@@ -523,7 +523,7 @@ class TestUnifiedCapture:
         assert result["pairs_created"] == 1
 
     @pytest.mark.asyncio
-    @patch("services.preference_pairs_service.create_pairs_from_action")
+    @patch("services.feedback_capture.create_pairs_from_action")
     async def test_capture_copilot_discard(self, mock_create_pairs):
         """capture(copilot_discard) → quality 0.4."""
         from services.feedback_store import capture
@@ -540,7 +540,7 @@ class TestUnifiedCapture:
         assert result["quality_score"] == 0.4
 
     @pytest.mark.asyncio
-    @patch("services.preference_pairs_service.create_pairs_from_action")
+    @patch("services.feedback_capture.create_pairs_from_action")
     async def test_capture_copilot_resolved(self, mock_create_pairs):
         """capture(copilot_resolved) → quality 0.9 (strongest signal)."""
         from services.feedback_store import capture

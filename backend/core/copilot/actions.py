@@ -113,25 +113,6 @@ async def approve_response_impl(
 
         session.commit()
 
-        # Autolearning hook: fire-and-forget rule extraction
-        try:
-            from services.autolearning_analyzer import analyze_creator_action
-
-            asyncio.create_task(analyze_creator_action(
-                action="edited" if was_edited else "approved",
-                creator_id=creator_id,
-                creator_db_id=creator.id,
-                suggested_response=msg.suggested_response,
-                final_response=final_text if was_edited else None,
-                edit_diff=msg.edit_diff if was_edited else None,
-                intent=msg.intent,
-                lead_stage=lead.status,
-                relationship_type=getattr(lead, "relationship_type", None),
-                source_message_id=msg.id,
-            ))
-        except Exception as learn_err:
-            logger.debug(f"[Copilot] Autolearning hook failed: {learn_err}")
-
         # Preference pairs hook: fire-and-forget via unified FeedbackCapture
         try:
             from services.feedback_store import capture as feedback_capture
@@ -275,29 +256,6 @@ async def discard_response_impl(
 
         session.commit()
 
-        # Autolearning hook: fire-and-forget rule extraction from discard
-        try:
-            from services.autolearning_analyzer import analyze_creator_action
-
-            # Look up creator and lead for context
-            from api.models import Creator as _Cr, Lead as _Ld
-            _creator = session.query(_Cr).filter_by(name=creator_id).first()
-            _lead = session.query(_Ld).filter_by(id=msg.lead_id).first() if msg.lead_id else None
-            if _creator:
-                asyncio.create_task(analyze_creator_action(
-                    action="discarded",
-                    creator_id=creator_id,
-                    creator_db_id=_creator.id,
-                    suggested_response=msg.suggested_response,
-                    discard_reason=discard_reason,
-                    intent=msg.intent,
-                    lead_stage=_lead.status if _lead else None,
-                    relationship_type=getattr(_lead, "relationship_type", None) if _lead else None,
-                    source_message_id=msg.id,
-                ))
-        except Exception as learn_err:
-            logger.debug(f"[Copilot] Autolearning discard hook failed: {learn_err}")
-
         # Preference pairs hook: fire-and-forget via unified FeedbackCapture
         try:
             from services.feedback_store import capture as feedback_capture
@@ -435,22 +393,6 @@ def auto_discard_pending_for_lead_impl(
                 _lead_obj = session.query(_Ld2).filter_by(id=lead_id).first()
                 for msg in pending:
                     _creator_db_id = service._get_creator_db_id(creator_id, session)
-                    try:
-                        from services.autolearning_analyzer import analyze_creator_action
-
-                        asyncio.create_task(analyze_creator_action(
-                            action="resolved_externally",
-                            creator_id=creator_id or "",
-                            creator_db_id=_creator_db_id,
-                            suggested_response=msg.suggested_response,
-                            final_response=creator_response,
-                            intent=msg.intent,
-                            lead_stage=_lead_obj.status if _lead_obj else None,
-                            relationship_type=getattr(_lead_obj, "relationship_type", None) if _lead_obj else None,
-                            source_message_id=msg.id,
-                        ))
-                    except Exception as learn_err:
-                        logger.debug(f"[Copilot] Autolearning resolved_externally hook failed: {learn_err}")
                     try:
                         from services.feedback_store import capture as feedback_capture
                         from api.models import Message as _Msg3

@@ -399,7 +399,7 @@ def register_startup_handlers(app: "FastAPI"):
                 logger.debug("[COPILOT_EVAL] Disabled via env var, skipping")
                 return
             from api.models import Creator
-            from core.autolearning_evaluator import run_daily_evaluation
+            from services.persona_compiler import run_daily_evaluation
 
             session = SessionLocal()
             try:
@@ -430,7 +430,7 @@ def register_startup_handlers(app: "FastAPI"):
                 logger.debug("[COPILOT_RECAL] Disabled via env var, skipping")
                 return
             from api.models import Creator
-            from core.autolearning_evaluator import run_weekly_recalibration
+            from services.persona_compiler import run_weekly_recalibration
 
             session = SessionLocal()
             try:
@@ -461,7 +461,7 @@ def register_startup_handlers(app: "FastAPI"):
                 logger.debug("[LEARNING_CONSOLIDATION] Disabled via env var, skipping")
                 return
             from api.models import Creator
-            from services.learning_consolidator import consolidate_rules_for_creator
+            from services.persona_compiler import compile_persona as consolidate_rules_for_creator
 
             session = SessionLocal()
             try:
@@ -497,7 +497,7 @@ def register_startup_handlers(app: "FastAPI"):
             if not enable:
                 logger.debug("[PATTERN_ANALYZER] Disabled via env var, skipping")
                 return
-            from services.pattern_analyzer import run_pattern_analysis_all
+            from services.persona_compiler import compile_persona_all as run_pattern_analysis_all
 
             results = await run_pattern_analysis_all()
             for creator_name, result in results.items():

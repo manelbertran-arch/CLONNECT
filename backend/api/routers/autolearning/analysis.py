@@ -20,7 +20,7 @@ async def trigger_consolidation(creator_id: str):
         if not creator:
             raise HTTPException(status_code=404, detail="Creator not found")
 
-        from services.learning_consolidator import consolidate_rules_for_creator
+        from services.persona_compiler import compile_persona as consolidate_rules_for_creator
 
         result = await consolidate_rules_for_creator(creator_id, creator.id)
 
@@ -44,7 +44,7 @@ async def analyze_patterns(creator_id: str):
     finally:
         session.close()
 
-    from services.pattern_analyzer import run_pattern_analysis
+    from services.persona_compiler import compile_persona as run_pattern_analysis
 
     result = await run_pattern_analysis(creator_id, cid)
     return {"creator_id": creator_id, **result}
