@@ -4,6 +4,61 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-03 — Bug 2 Fix: Emoji Normalization via Direct-Rate Formula
+
+**Context:** Post-deploy CPE measurement revealed bot emoji rate = 82.7% vs Iris real rate = 23%. The LLM overuses emojis and prompting alone cannot reliably fix this.
+
+**Root cause:** `normalize_style()` used a keep_prob formula derived from `creator_rate / bot_natural_rate`. When bot natural rate data is absent (or wrong), emoji suppression fails. Additionally, the old formula required bot natural rate measurements for every new creator, making it unscalable.
+
+**Decision:** Switch to direct-rate formula: `keep_prob = creator_emoji_rate`. For each response, if `random() > keep_prob` → strip all emojis. This directly matches the output distribution to the creator's measured rate without needing bot natural rate data.
+
+**Profile priority (highest to lowest):**
+1. `evaluation_profiles/{creator_slug}_style.json` → `emoji_rate` (CCEE worker output)
+2. DB/local `baseline_metrics.json` → `emoji.emoji_rate_pct / 100`
+3. Fallback: `0.50` (conservative — keep emoji in half of responses)
+
+**Changes:**
+- `core/dm/style_normalizer.py`:
+  - Added `_eval_profile_cache`, `_load_eval_profile_emoji_rate()`, `_get_creator_emoji_rate()`
+  - `normalize_style()`: rewrote emoji section with direct-rate formula
+  - Rate normalization: handles both pct (>1.0 → /100) and fraction formats
+  - Count trimming: `target_n = max(1, min(5, round(avg_emoji_count / keep_prob)))` to prevent explosion at low rates
+  - Safety guard: never produce string < 2 chars
+  - Absolute path for eval_profile: `Path(__file__).parent.parent.parent / "evaluation_profiles"`
+
+**Tests:** 14 tests in `tests/test_style_normalizer.py`. Convergence verified: 100 responses → rate ±5% of target (0.23, 0.10, 0.50, 0.90). All pass.
+
+**Not deployed yet.** Wait for CCEE `evaluation_profiles/` worker deployment coordination.
+
+---
+
+## 2026-04-03 — Bug 1 Fix: Universal Thinking Token Stripping
+
+**Context:** Production failure detected in CPE case `cpe_iris__030`. Qwen3 leaked `</think>` into user-facing response: `"Jajjajajaja valee pobre….🥲 quina llastima aixo del gluten /no_think  \n</think>"`. Previous fix only handled empty `<think></think>` blocks.
+
+**Root cause:** `deepinfra_provider.py:129` used `re.sub(r"<think>\s*</think>\s*", "", content)` — only stripped empty blocks. Qwen3 in `/no_think` mode sometimes still emits orphan `</think>` closing tags. The old regex missed full blocks, orphan tags, and `/no_think` leaks.
+
+**Decision:** Universal `strip_thinking_artifacts()` function applied at two levels:
+1. Provider level (deepinfra): catches issues before they leave the provider
+2. Generation phase level (generation.py): universal safety net for ALL providers (Gemini, GPT-4o-mini, future models)
+
+**Patterns handled:**
+- Full `<think>…</think>` blocks (re.DOTALL)
+- Empty `<think></think>` blocks
+- Orphan `</think>` closing tags
+- Orphan `<think>` opening tags  
+- Trailing `/no_think` instruction leaked to output
+
+**Changes:**
+- `core/providers/deepinfra_provider.py`: replaced narrow regex with `strip_thinking_artifacts()` function + called at content post-processing
+- `core/dm/phases/generation.py`: added universal safety net after LLM response, before building `LLMResponse`
+
+**Tests:** 38 tests in `tests/test_thinking_tokens.py`. All pass.
+
+**Not deployed yet.** Wait for CCEE deployment coordination.
+
+---
+
 ## 2026-04-02 — ROLLBACK: Stay with OpenAI text-embedding-3-small (1536 dims)
 
 **Context:** Previous decision switched default to local MiniLM (384 dims) due to OpenAI quota exhaustion. Rolling back because DB already has 1536-dim vectors that work with OpenAI — switching dimensions would require destructive migration + re-embedding 50K+ vectors.

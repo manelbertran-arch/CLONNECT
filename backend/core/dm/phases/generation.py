@@ -392,6 +392,20 @@ async def phase_llm_generation(
     logger.info(f"[TIMING] LLM call: {int((_t3 - _t2) * 1000)}ms")
 
     if llm_result:
+        # Universal safety: strip any thinking-model artifacts before
+        # the response reaches post-processing or the user.
+        # The provider (deepinfra_provider) already strips, but this
+        # catches cases from Gemini, OpenAI, or any new provider.
+        from core.providers.deepinfra_provider import strip_thinking_artifacts
+        _raw_content = llm_result["content"]
+        _clean_content = strip_thinking_artifacts(_raw_content)
+        if _clean_content != _raw_content:
+            logger.info(
+                "[THINK-STRIP] Removed thinking artifacts from %s response: %r→%r",
+                llm_result.get("provider", "?"),
+                _raw_content[:60], _clean_content[:60],
+            )
+            llm_result = {**llm_result, "content": _clean_content}
         llm_response = LLMResponse(
             content=llm_result["content"],
             model=llm_result.get("model", "unknown"),

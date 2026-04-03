@@ -18,6 +18,31 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+
+def strip_thinking_artifacts(text: str) -> str:
+    """Strip LLM reasoning tokens/artifacts from any provider output.
+
+    Handles all known patterns produced by thinking models:
+      - Full <think>…</think> blocks (Qwen3 extended-thinking mode)
+      - Empty <think></think> blocks (Qwen3 /no_think residue)
+      - Orphan </think> closing tags (model leaked closing tag without thinking)
+      - Orphan <think> opening tags
+      - Trailing /no_think instruction leaked into the response text
+
+    Designed to be universal: safe to call on output from Gemini, GPT-4o,
+    Qwen3, or any future model that may emit thinking tokens.
+    """
+    # 1. Full blocks with content (re.DOTALL so '.' matches newlines)
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    # 2. Orphan </think> anywhere in the string
+    text = re.sub(r"</think>", "", text)
+    # 3. Orphan <think> (no matching close tag)
+    text = re.sub(r"<think>", "", text)
+    # 4. Trailing /no_think instruction leaked to output (with optional whitespace)
+    text = re.sub(r"\s*/no_think\s*$", "", text)
+    return text.strip()
+
+
 DEEPINFRA_BASE_URL = "https://api.deepinfra.com/v1/openai"
 DEEPINFRA_MODEL = os.getenv("DEEPINFRA_MODEL", "Qwen/Qwen3-32B")
 
@@ -125,8 +150,7 @@ async def call_deepinfra(
         )
 
         content = (response.choices[0].message.content or "").strip()
-        # Strip empty or residual <think>...</think> blocks (Qwen3 /no_think leaves an empty block)
-        content = re.sub(r"<think>\s*</think>\s*", "", content).strip()
+        content = strip_thinking_artifacts(content)
         latency_ms = int((time.monotonic() - start) * 1000)
         usage = response.usage
         tokens_in = usage.prompt_tokens if usage else 0
