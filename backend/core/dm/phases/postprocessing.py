@@ -182,16 +182,17 @@ async def phase_postprocessing(
     # Step 7a2b3: Blacklist word/emoji replacement from Doc D
     # Replaces prohibited address terms ('compa'→'nena') and forbidden emojis (🥰→🩷).
     # Reads creator's Doc D — no-op if no Doc D exists. Universal across creators.
-    try:
-        from services.calibration_loader import apply_blacklist_replacement
+    if flags.blacklist_replacement:
+        try:
+            from services.calibration_loader import apply_blacklist_replacement
 
-        response_content, _bl_changed = apply_blacklist_replacement(
-            response_content, agent.creator_id
-        )
-        if _bl_changed:
-            cognitive_metadata["blacklist_replacement"] = True
-    except Exception as e:
-        logger.debug(f"Blacklist replacement failed: {e}")
+            response_content, _bl_changed = apply_blacklist_replacement(
+                response_content, agent.creator_id
+            )
+            if _bl_changed:
+                cognitive_metadata["blacklist_replacement"] = True
+        except Exception as e:
+            logger.debug(f"Blacklist replacement failed: {e}")
 
     # Step 7a2c: Question removal
     # Uses creator's real question_frequency_pct from calibration or baseline_metrics.
@@ -514,15 +515,18 @@ async def phase_postprocessing(
     llm_meta = llm_response.metadata or {}
 
     # Confidence scoring (multi-factor)
-    try:
-        from core.confidence_scorer import calculate_confidence
-        scored_confidence = calculate_confidence(
-            intent=intent_value,
-            response_text=formatted_content,
-            response_type="llm_generation",
-            creator_id=agent.creator_id,
-        )
-    except Exception:
+    if flags.confidence_scorer:
+        try:
+            from core.confidence_scorer import calculate_confidence
+            scored_confidence = calculate_confidence(
+                intent=intent_value,
+                response_text=formatted_content,
+                response_type="llm_generation",
+                creator_id=agent.creator_id,
+            )
+        except Exception:
+            scored_confidence = AGENT_THRESHOLDS.default_scored_confidence
+    else:
         scored_confidence = AGENT_THRESHOLDS.default_scored_confidence
 
     _dm_metadata = {

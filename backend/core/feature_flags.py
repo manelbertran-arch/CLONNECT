@@ -72,6 +72,13 @@ class FeatureFlags:
     intelligence: bool = field(default_factory=lambda: _flag("ENABLE_INTELLIGENCE", True))
     style_analyzer: bool = field(default_factory=lambda: _flag("ENABLE_STYLE_ANALYZER", True))
 
+    # === Unaudited systems (default: disabled until forensic audit passes) ===
+    confidence_scorer: bool = field(default_factory=lambda: _flag("ENABLE_CONFIDENCE_SCORER", False))
+    blacklist_replacement: bool = field(default_factory=lambda: _flag("ENABLE_BLACKLIST_REPLACEMENT", False))
+    nurturing: bool = field(default_factory=lambda: _flag("ENABLE_NURTURING", False))
+    unified_profile: bool = field(default_factory=lambda: _flag("ENABLE_UNIFIED_PROFILE", False))
+    identity_resolver: bool = field(default_factory=lambda: _flag("ENABLE_IDENTITY_RESOLVER", False))
+
     def to_dict(self) -> Dict[str, Any]:
         """All flags as dict for API/logging."""
         return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}

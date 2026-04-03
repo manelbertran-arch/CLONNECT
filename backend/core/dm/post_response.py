@@ -18,6 +18,8 @@ import time as _time_mod
 from datetime import datetime, timezone
 from typing import Dict
 
+from core.feature_flags import flags
+
 from core.notifications import EscalationNotification, get_notification_service
 from services import LeadStage
 from services.dna_update_triggers import get_dna_triggers
@@ -217,30 +219,31 @@ def sync_post_response(
             logger.debug(f"DNA trigger check failed: {e}")
 
     # Step 9b: Auto-schedule nurturing based on intent
-    try:
-        from core.nurturing import should_schedule_nurturing, get_nurturing_manager
+    if flags.nurturing:
+        try:
+            from core.nurturing import should_schedule_nurturing, get_nurturing_manager
 
-        sequence_type = should_schedule_nurturing(
-            intent=intent_value,
-            has_purchased=follower.is_customer,
-            creator_id=agent.creator_id,
-        )
-        if sequence_type:
-            manager = get_nurturing_manager()
-            followups = manager.schedule_followup(
+            sequence_type = should_schedule_nurturing(
+                intent=intent_value,
+                has_purchased=follower.is_customer,
                 creator_id=agent.creator_id,
-                follower_id=sender_id,
-                sequence_type=sequence_type,
-                product_name="",
             )
-            if followups:
-                logger.info(
-                    f"[NURTURING] Auto-scheduled {len(followups)} followups "
-                    f"(type={sequence_type}) for {sender_id}"
+            if sequence_type:
+                manager = get_nurturing_manager()
+                followups = manager.schedule_followup(
+                    creator_id=agent.creator_id,
+                    follower_id=sender_id,
+                    sequence_type=sequence_type,
+                    product_name="",
                 )
-                cognitive_metadata["nurturing_scheduled"] = sequence_type
-    except Exception as e:
-        logger.error(f"[NURTURING] Auto-trigger failed: {e}")
+                if followups:
+                    logger.info(
+                        f"[NURTURING] Auto-scheduled {len(followups)} followups "
+                        f"(type={sequence_type}) for {sender_id}"
+                    )
+                    cognitive_metadata["nurturing_scheduled"] = sequence_type
+        except Exception as e:
+            logger.error(f"[NURTURING] Auto-trigger failed: {e}")
 
 
 async def update_follower_memory(
@@ -307,6 +310,8 @@ def step_email_capture(
     cognitive_metadata: dict,
 ) -> str:
     """Step 9c: Email capture logic."""
+    if not flags.unified_profile:
+        return formatted_content
     from core.unified_profile_service import (
         extract_email,
         process_email_capture,
@@ -427,6 +432,8 @@ async def check_and_notify_escalation(
 
 def trigger_identity_resolution(agent, sender_id: str, platform: str) -> None:
     """Fire-and-forget identity resolution for a lead."""
+    if not flags.identity_resolver:
+        return
     try:
         from api.services.db_service import get_session
         from api.models import Lead
