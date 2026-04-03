@@ -31,7 +31,9 @@ def make_example(
     intent=None, lead_stage=None, relationship_type=None,
     quality=0.8, user_msg="Pregunta?", response="Respuesta.",
 ):
+    import uuid as _uuid
     ex = MagicMock()
+    ex.id = _uuid.uuid4()
     ex.intent = intent
     ex.lead_stage = lead_stage
     ex.relationship_type = relationship_type
@@ -129,7 +131,7 @@ class TestGetMatchingExamplesScoring:
 
         # First result should be intent-matched example
         assert len(result) >= 1
-        assert result[0]["user_message"] == "precio?"
+        assert result[0]["creator_response"] == "97€"
 
     def test_universal_example_without_intent_gets_base_score(self):
         """Example with no intent/stage/rel gets +0.5×quality as base score."""
@@ -140,7 +142,7 @@ class TestGetMatchingExamplesScoring:
             result = get_matching_examples("creator_3", intent="pricing")
         # Score = 0.5 × 1.0 = 0.5 > 0 → should appear
         assert len(result) == 1
-        assert result[0]["user_message"] == "q_universal"
+        assert result[0]["creator_response"] == "r_universal"
 
     def test_example_with_wrong_intent_ranks_lowest(self):
         """Example whose intent doesn't match still appears (base score > 0) but ranks last."""
@@ -156,7 +158,7 @@ class TestGetMatchingExamplesScoring:
                                            lead_stage=None, relationship_type=None)
         # Both appear (base score > 0), but intent-matched ranks first
         assert len(result) == 2
-        assert result[0]["user_message"] == "q_match"
+        assert result[0]["creator_response"] == "r_match"
 
     def test_stage_match_adds_score(self):
         """Stage match (+2) ranks higher than intent match alone (+3×0.5)."""
@@ -173,8 +175,8 @@ class TestGetMatchingExamplesScoring:
                                            lead_stage="interesado")
         assert len(result) >= 1
         # stage example should appear (both have score > 0)
-        user_msgs = [r["user_message"] for r in result]
-        assert "q_stage" in user_msgs
+        responses = [r["creator_response"] for r in result]
+        assert "r_stage" in responses
 
     def test_returns_at_most_gold_max_examples(self):
         """Should return at most GOLD_MAX_EXAMPLES_IN_PROMPT results."""
@@ -196,7 +198,6 @@ class TestGetMatchingExamplesScoring:
             result = get_matching_examples("creator_7", intent="pricing")
         assert len(result) == 1
         item = result[0]
-        assert "user_message" in item
         assert "creator_response" in item
         assert "intent" in item
         assert "quality_score" in item

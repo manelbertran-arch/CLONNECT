@@ -32,7 +32,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from core.evaluation.ccee_scorer import CCEEScorer, DEFAULT_WEIGHTS
+from core.evaluation.ccee_scorer import (
+    CCEEScorer,
+    DEFAULT_WEIGHTS,
+    score_s1_per_case,
+    score_s4_per_case,
+)
 from core.evaluation.calibrator import CCEECalibrator
 from core.evaluation.style_profile_builder import _get_conn, _resolve_creator_uuid
 
@@ -219,12 +224,15 @@ def _select_human_eval_cases(
 ) -> List[Dict]:
     """Select N cases for human evaluation.
 
-    Strategy: 1 per trust segment + 1 worst S2 case.
+    Strategy: 1 per trust segment (UNKNOWN/KNOWN/CLOSE/INTIMATE) + 1 worst S3
+    case (edge case). If fewer than 4 segments are present, fills remaining
+    slots with additional cases not yet selected.
     """
     selected = []
+    selected_idxs = set()
     seen_segments = set()
 
-    # First: one per trust segment
+    # First pass: one per trust segment
     for i, tc in enumerate(test_cases):
         trust = tc.get("trust_score", 0.0)
         if trust < 0.3:
@@ -238,16 +246,31 @@ def _select_human_eval_cases(
 
         if seg not in seen_segments and len(selected) < n - 1:
             seen_segments.add(seg)
+            selected_idxs.add(i)
             selected.append({
                 "case_idx": i,
                 "trust_segment": seg,
-                "user_input": tc["user_input"],
-                "ground_truth": tc["ground_truth"],
+                "user_message": tc["user_input"],
+                "iris_real_response": tc["ground_truth"],
                 "bot_response": bot_responses[i],
                 "input_type": tc.get("input_type", ""),
             })
 
-    # Last: worst scoring case (edge case)
+    # Fill remaining segment slots with any unseen cases
+    if len(selected) < n - 1:
+        for i, tc in enumerate(test_cases):
+            if i not in selected_idxs and len(selected) < n - 1:
+                selected_idxs.add(i)
+                selected.append({
+                    "case_idx": i,
+                    "trust_segment": "EXTRA",
+                    "user_message": tc["user_input"],
+                    "iris_real_response": tc["ground_truth"],
+                    "bot_response": bot_responses[i],
+                    "input_type": tc.get("input_type", ""),
+                })
+
+    # Last slot: worst scoring case (edge case)
     s3_detail = results.get("S3_strategic_alignment", {}).get("detail", {})
     per_case = s3_detail.get("per_case", [])
     if per_case:
@@ -256,8 +279,8 @@ def _select_human_eval_cases(
             selected.append({
                 "case_idx": worst_idx,
                 "trust_segment": "EDGE_CASE",
-                "user_input": test_cases[worst_idx]["user_input"],
-                "ground_truth": test_cases[worst_idx]["ground_truth"],
+                "user_message": test_cases[worst_idx]["user_input"],
+                "iris_real_response": test_cases[worst_idx]["ground_truth"],
                 "bot_response": bot_responses[worst_idx],
                 "input_type": test_cases[worst_idx].get("input_type", ""),
                 "s3_score": per_case[worst_idx],
@@ -407,8 +430,8 @@ def main():
     )
     for i, hc in enumerate(human_cases, 1):
         print(f"\n  Case {i} [{hc['trust_segment']}] ({hc.get('input_type', '?')}):")
-        print(f"    User: {hc['user_input'][:80]}")
-        print(f"    Real: {hc['ground_truth'][:80]}")
+        print(f"    User: {hc['user_message'][:80]}")
+        print(f"    Real: {hc['iris_real_response'][:80]}")
         print(f"    Bot:  {hc['bot_response'][:80]}")
 
     # Save results
@@ -420,6 +443,35 @@ def main():
     else:
         out_path = os.path.join(out_dir, f"ccee_run_{timestamp}.json")
 
+    # Build per-case records using last run's scores
+    last_run = all_run_results[-1]
+    last_s2_per_case = (
+        last_run.get("S2_response_quality", {})
+        .get("detail", {})
+        .get("per_case", [])
+    )
+    last_s3_per_case = (
+        last_run.get("S3_strategic_alignment", {})
+        .get("detail", {})
+        .get("per_case", [])
+    )
+    per_case_records = []
+    for i, tc in enumerate(test_cases):
+        resp = bot_responses[i] if i < len(bot_responses) else ""
+        trust = tc.get("trust_score", 0.0)
+        per_case_records.append({
+            "idx": i,
+            "input_type": tc.get("input_type", "OTHER"),
+            "trust_score": trust,
+            "user_message": tc.get("user_input", ""),
+            "iris_real_response": tc.get("ground_truth", ""),
+            "bot_response": resp,
+            "s1_score": score_s1_per_case(resp, style_profile, tc.get("user_input")),
+            "s2_score": last_s2_per_case[i] if i < len(last_s2_per_case) else None,
+            "s3_score": last_s3_per_case[i] if i < len(last_s3_per_case) else None,
+            "s4_score": score_s4_per_case(resp, trust, adaptation_profile),
+        })
+
     output = {
         "creator_id": creator,
         "timestamp": timestamp,
@@ -430,6 +482,7 @@ def main():
         "composites": all_composites,
         "human_eval_cases": human_cases,
         "weights_used": weights or DEFAULT_WEIGHTS,
+        "per_case_records": per_case_records,
     }
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False, default=str)

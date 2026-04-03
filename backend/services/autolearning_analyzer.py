@@ -32,31 +32,32 @@ def _is_non_text_response(text: str) -> bool:
     return any(text.startswith(prefix) for prefix in _NON_TEXT_PREFIXES)
 
 _ANALYSIS_SYSTEM_PROMPT = (
-    "Eres un analizador de correcciones de un bot de DMs. "
-    "Compara la respuesta del bot con la del creador y extrae una regla concisa."
+    "You are a correction analyzer for a DM bot. "
+    "Compare the bot response with the creator's version and extract a concise rule. "
+    "IMPORTANT: Write the rule_text in the SAME LANGUAGE as the creator's response."
 )
 
-_ANALYSIS_PROMPT_TEMPLATE = """El bot sugirió esta respuesta:
+_ANALYSIS_PROMPT_TEMPLATE = """The bot suggested this response:
 ---
 {bot_response}
 ---
 
-El creador la {action_description}:
+The creator {action_description}:
 ---
 {creator_response}
 ---
 
-Contexto: intent={intent}, lead_stage={lead_stage}
+Context: intent={intent}, lead_stage={lead_stage}
 
-Analiza la diferencia y genera UNA regla en JSON:
+Analyze the difference and generate ONE rule as JSON:
 {{
-  "rule_text": "Instruccion concisa en espanol (max 100 palabras)",
+  "rule_text": "Concise instruction in the SAME LANGUAGE as the creator's response (max 100 words)",
   "pattern": "shorten_response|tone_more_casual|remove_question|add_greeting|remove_emoji|add_emoji|tone_more_formal|restructure|personalize|remove_cta|soften_pitch|complete_rewrite|other",
-  "example_bad": "Lo que el bot NO deberia decir (extracto corto)",
-  "example_good": "Lo que el bot SI deberia decir (extracto corto)"
+  "example_bad": "What the bot should NOT say (short excerpt)",
+  "example_good": "What the bot SHOULD say (short excerpt)"
 }}
 
-Responde SOLO con el JSON, sin markdown ni explicaciones."""
+Respond ONLY with the JSON, no markdown or explanations."""
 
 
 async def analyze_creator_action(
@@ -113,9 +114,11 @@ async def _handle_approval(creator_db_id, intent, lead_stage):
     """Approval = positive signal. No LLM call — just reinforce existing rules."""
     from services.learning_rules_service import get_applicable_rules, update_rule_feedback
 
-    rules = get_applicable_rules(creator_db_id, intent=intent, lead_stage=lead_stage)
+    rules = await asyncio.to_thread(
+        get_applicable_rules, creator_db_id, intent=intent, lead_stage=lead_stage
+    )
     for rule in rules:
-        update_rule_feedback(rule["id"], was_helpful=True)
+        await asyncio.to_thread(update_rule_feedback, rule["id"], was_helpful=True)
 
     if rules:
         logger.debug(f"[AUTOLEARN] Approval reinforced {len(rules)} rules")
@@ -130,22 +133,27 @@ async def _handle_edit(
     if not suggested_response:
         return
 
+    # Skip if no final response (nothing to compare)
+    if not final_response:
+        return
+
     # Skip trivial edits
-    if final_response and abs(len(final_response) - len(suggested_response)) < _MIN_EDIT_CHARS:
+    if abs(len(final_response) - len(suggested_response)) < _MIN_EDIT_CHARS:
         # Check if text actually changed meaningfully
         if suggested_response.strip().lower() == final_response.strip().lower():
             return
 
     rule_data = await _llm_extract_rule(
         bot_response=suggested_response,
-        creator_response=final_response or "",
+        creator_response=final_response,
         action_description="editó asi",
         intent=intent,
         lead_stage=lead_stage,
     )
 
     if rule_data:
-        _store_rule(
+        await asyncio.to_thread(
+            _store_rule,
             creator_db_id, rule_data, confidence=0.5,
             intent=intent, lead_stage=lead_stage,
             relationship_type=relationship_type,
@@ -177,7 +185,8 @@ async def _handle_discard(
     )
 
     if rule_data:
-        _store_rule(
+        await asyncio.to_thread(
+            _store_rule,
             creator_db_id, rule_data, confidence=0.6,
             intent=intent, lead_stage=lead_stage,
             relationship_type=relationship_type,
@@ -210,7 +219,8 @@ async def _handle_resolved_externally(
     )
 
     if rule_data:
-        _store_rule(
+        await asyncio.to_thread(
+            _store_rule,
             creator_db_id, rule_data, confidence=0.7,
             intent=intent, lead_stage=lead_stage,
             relationship_type=relationship_type,
@@ -230,6 +240,11 @@ async def _handle_manual_override(
     bot_text = suggested_response or "(no habia sugerencia del bot)"
     creator_text = final_response or "(el creador escribió manualmente)"
 
+    # Skip audio/sticker/media — not useful for text comparison
+    if _is_non_text_response(creator_text):
+        logger.debug("[AUTOLEARN] Skipping manual_override: creator response is audio/sticker/media")
+        return
+
     rule_data = await _llm_extract_rule(
         bot_response=bot_text,
         creator_response=creator_text,
@@ -239,7 +254,8 @@ async def _handle_manual_override(
     )
 
     if rule_data:
-        _store_rule(
+        await asyncio.to_thread(
+            _store_rule,
             creator_db_id, rule_data, confidence=0.65,
             intent=intent, lead_stage=lead_stage,
             relationship_type=relationship_type,
@@ -305,6 +321,13 @@ def _parse_llm_response(text: str) -> Optional[dict]:
     # Truncate rule_text if too long
     data["rule_text"] = data["rule_text"][:500]
     data["pattern"] = data["pattern"][:50]
+
+    # Sanitize: reject rules that look like prompt injection attempts
+    rule_lower = data["rule_text"].lower()
+    _INJECTION_MARKERS = ("ignore all", "ignore previous", "system:", "assistant:", "```", "\\n\\n")
+    if any(marker in rule_lower for marker in _INJECTION_MARKERS):
+        logger.warning(f"[AUTOLEARN] Rejected rule with injection marker: {data['rule_text'][:100]}")
+        return None
 
     return data
 

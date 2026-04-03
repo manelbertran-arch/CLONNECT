@@ -23,25 +23,27 @@ LEARNING_CONSOLIDATION_THRESHOLD = int(
 )
 
 _CONSOLIDATION_SYSTEM_PROMPT = (
-    "Eres un optimizador de reglas de comportamiento para un bot de DMs. "
-    "Tu trabajo es fusionar reglas similares en una regla concisa y clara."
+    "You are a behavior-rule optimizer for a DM bot. "
+    "Your job is to merge similar rules into one concise, clear rule. "
+    "Write consolidated rules in the SAME LANGUAGE as the input rules."
 )
 
-_CONSOLIDATION_PROMPT_TEMPLATE = """Estas reglas del patron "{pattern}" se solapan:
+_CONSOLIDATION_PROMPT_TEMPLATE = """These rules for pattern "{pattern}" overlap:
 
 {rules_text}
 
-Fusiona en 1-2 reglas consolidadas. Responde en JSON array:
+Merge into 1-2 consolidated rules. Respond in JSON array:
 [
   {{
-    "rule_text": "Regla consolidada concisa (max 100 palabras)",
+    "rule_text": "Concise consolidated rule (max 100 words, SAME LANGUAGE as input rules)",
     "pattern": "{pattern}",
-    "example_bad": "Ejemplo de lo que NO hacer",
-    "example_good": "Ejemplo de lo que SI hacer"
+    "example_bad": "Example of what NOT to do",
+    "example_good": "Example of what TO do"
   }}
 ]
 
-Responde SOLO con el JSON array, sin markdown ni explicaciones."""
+IMPORTANT: Write rule_text, example_bad, and example_good in the same language as the input rules above.
+Respond ONLY with the JSON array, no markdown or explanations."""
 
 
 async def consolidate_rules_for_creator(
@@ -79,7 +81,12 @@ async def consolidate_rules_for_creator(
         if len(group_rules) < 3:
             continue  # Only consolidate groups with 3+ rules
 
-        consolidated = await _consolidate_group(pattern, group_rules)
+        try:
+            consolidated = await _consolidate_group(pattern, group_rules)
+        except Exception as e:
+            logger.warning("[CONSOLIDATE] Error consolidating pattern %s: %s", pattern, e)
+            continue
+
         if not consolidated:
             continue
 
@@ -93,20 +100,25 @@ async def consolidate_rules_for_creator(
                 example_bad=merged.get("example_bad"),
                 example_good=merged.get("example_good"),
                 confidence=0.7,  # Consolidated rules start at higher confidence
+                source="consolidation",
             )
             if result:
                 new_rule_ids.append(result["id"])
                 total_consolidated += 1
 
+        # Only deactivate originals if at least one consolidated rule was created
+        if not new_rule_ids:
+            continue
+
         # Deactivate original rules, pointing to first consolidated rule
-        superseded_by = new_rule_ids[0] if new_rule_ids else None
+        superseded_by = new_rule_ids[0]
         for old_rule in group_rules:
             deactivate_rule(old_rule["id"], superseded_by=superseded_by)
             total_deactivated += 1
 
     logger.info(
-        f"[CONSOLIDATE] {creator_id}: consolidated={total_consolidated} "
-        f"deactivated={total_deactivated}"
+        "[CONSOLIDATE] %s: consolidated=%d deactivated=%d",
+        creator_id, total_consolidated, total_deactivated,
     )
 
     return {

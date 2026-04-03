@@ -9,7 +9,10 @@ Feature flag: ENABLE_GOLD_EXAMPLES (default false)
 
 import logging
 import os
+import re
+import threading
 import time
+from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -20,10 +23,50 @@ GOLD_MAX_CHARS_PER_EXAMPLE = int(os.getenv("GOLD_MAX_CHARS_PER_EXAMPLE", "500"))
 GOLD_MAX_EXAMPLES_PER_CREATOR = 100
 GOLD_EXPIRY_DAYS = 90
 
-# Simple TTL cache for get_matching_examples
-_examples_cache: Dict[str, Any] = {}
+# LRU-bounded TTL cache for get_matching_examples (max 200 entries)
+_examples_cache: OrderedDict = OrderedDict()
 _examples_cache_ts: Dict[str, float] = {}
 _EXAMPLES_CACHE_TTL = 120  # seconds
+_EXAMPLES_CACHE_MAX = 200
+_cache_lock = threading.Lock()
+
+# Non-text prefixes (audio, sticker, media) — same as autolearning_analyzer
+_NON_TEXT_PREFIXES = ("[🎤 Audio]", "[🏷️ Sticker]", "[📷", "[🎥", "[📎", "[Media", "[🎬")
+
+# Language detection (lightweight heuristic — CA/ES/EN)
+_CA_WORDS = re.compile(
+    r'\b(vaig|però|molt|avui|demà|tinc|estic|puc|podem|que fas|que et|que em|'
+    r'gràcies|fins|dilluns|dimarts|dimecres|dijous|divendres|dissabte|diumenge|'
+    r'doncs|ara|anem|hem|heu|han|venir|vine|vindràs|bon dia|bona)\b',
+    re.IGNORECASE,
+)
+_ES_WORDS = re.compile(
+    r'\b(tengo|tienes|tiene|tenemos|pero|muy|mucho|estoy|estás|estamos|'
+    r'soy|eres|fue|fui|hoy|mañana|gracias|señor|señora|buenas|buenos|'
+    r'qué tal|cómo estás|hasta luego|me llamo|me ha|lo que|lo sé)\b',
+    re.IGNORECASE,
+)
+_ES_TILDE_N = re.compile(r'[ñÑ]')
+
+
+def detect_language(text: str) -> str:
+    """Detect language of text. Returns 'ca', 'es', 'mixto', or 'unknown'."""
+    ca = len(_CA_WORDS.findall(text))
+    es = len(_ES_WORDS.findall(text)) + len(_ES_TILDE_N.findall(text))
+    if ca > 0 and es > 0:
+        return "mixto"
+    if ca > 0:
+        return "ca"
+    if es > 0:
+        return "es"
+    return "unknown"
+
+
+def _is_non_text(text: str) -> bool:
+    """Check if text is a non-text response (audio, sticker, media)."""
+    if not text:
+        return True
+    return any(text.startswith(prefix) for prefix in _NON_TEXT_PREFIXES)
 
 # Quality scores by source
 _SOURCE_QUALITY = {
@@ -50,6 +93,15 @@ def create_gold_example(
     from api.models import GoldExample
 
     if not user_message or not creator_response:
+        return None
+
+    # Reject non-text content (audio, sticker, media)
+    if _is_non_text(user_message) or _is_non_text(creator_response):
+        return None
+
+    # Reject emoji-only or very short non-text responses
+    alpha_chars = re.sub(r'[^a-zA-ZáéíóúàèìòùñçÀ-ÿ]', '', creator_response)
+    if len(alpha_chars) < 3:
         return None
 
     # Truncate long responses
@@ -123,17 +175,22 @@ def get_matching_examples(
     intent: Optional[str] = None,
     lead_stage: Optional[str] = None,
     relationship_type: Optional[str] = None,
+    language: Optional[str] = None,
 ) -> List[Dict]:
     """Get context-scored examples for prompt injection.
 
     Scoring: +3 intent, +2 stage, +1 relationship × quality_score.
     Returns top N examples, max GOLD_MAX_CHARS_PER_EXAMPLE chars each.
+    Language filter: if provided, excludes examples whose detected language
+    doesn't match (unknown/mixto always pass).
     """
-    cache_key = f"{creator_db_id}:{intent}:{lead_stage}:{relationship_type}"
+    cache_key = f"{creator_db_id}:{intent}:{lead_stage}:{relationship_type}:{language}"
     now = time.time()
-    if cache_key in _examples_cache:
-        if now - _examples_cache_ts.get(cache_key, 0) < _EXAMPLES_CACHE_TTL:
-            return _examples_cache[cache_key]
+    with _cache_lock:
+        if cache_key in _examples_cache:
+            if now - _examples_cache_ts.get(cache_key, 0) < _EXAMPLES_CACHE_TTL:
+                _examples_cache.move_to_end(cache_key)
+                return _examples_cache[cache_key]
 
     from api.database import SessionLocal
     from api.models import GoldExample
@@ -151,15 +208,19 @@ def get_matching_examples(
         )
 
         if not examples:
-            _examples_cache[cache_key] = []
-            _examples_cache_ts[cache_key] = now
+            _set_cache(cache_key, [], now)
             return []
 
         scored = []
         for ex in examples:
+            # Language filter: skip examples in wrong language
+            if language:
+                ex_lang = detect_language(ex.creator_response)
+                if ex_lang not in (language, "mixto", "unknown"):
+                    continue
+
             # Base score ensures examples with non-matching context still rank above zero.
-            # Same fix as learning_rules: context matching is for RANKING, not GATING.
-            # NOTE: quality_score is applied ONCE at line 183 (`score *= quality_score`).
+            # Context matching is for RANKING, not GATING.
             score = 0.1
 
             # Intent match
@@ -187,9 +248,9 @@ def get_matching_examples(
         scored.sort(key=lambda x: x[0], reverse=True)
         top = scored[:GOLD_MAX_EXAMPLES_IN_PROMPT]
 
+        # Build result dicts BEFORE any commit to avoid expired ORM objects
         result = [
             {
-                "user_message": ex.user_message[:GOLD_MAX_CHARS_PER_EXAMPLE],
                 "creator_response": ex.creator_response[:GOLD_MAX_CHARS_PER_EXAMPLE],
                 "intent": ex.intent,
                 "quality_score": ex.quality_score,
@@ -198,8 +259,22 @@ def get_matching_examples(
             if _ > 0
         ]
 
-        _examples_cache[cache_key] = result
-        _examples_cache_ts[cache_key] = now
+        # Increment times_used for selected examples (best-effort)
+        selected_ids = [ex.id for _, ex in top if _ > 0]
+        if selected_ids:
+            try:
+                session.query(GoldExample).filter(
+                    GoldExample.id.in_(selected_ids)
+                ).update(
+                    {GoldExample.times_used: GoldExample.times_used + 1},
+                    synchronize_session=False,
+                )
+                session.commit()
+            except Exception as inc_err:
+                logger.debug("[GOLD] times_used increment failed: %s", inc_err)
+                session.rollback()
+
+        _set_cache(cache_key, result, now)
         return result
 
     except Exception as e:
@@ -207,6 +282,17 @@ def get_matching_examples(
         return []
     finally:
         session.close()
+
+
+def _set_cache(key: str, value: Any, ts: float):
+    """Set cache entry with LRU eviction at _EXAMPLES_CACHE_MAX. Thread-safe."""
+    with _cache_lock:
+        _examples_cache[key] = value
+        _examples_cache_ts[key] = ts
+        _examples_cache.move_to_end(key)
+        while len(_examples_cache) > _EXAMPLES_CACHE_MAX:
+            oldest_key, _ = _examples_cache.popitem(last=False)
+            _examples_cache_ts.pop(oldest_key, None)
 
 
 async def mine_historical_examples(
@@ -452,8 +538,9 @@ async def curate_examples(creator_id: str, creator_db_id) -> Dict[str, Any]:
 
 
 def _invalidate_examples_cache(creator_db_id_str: str):
-    """Remove all cache entries for a creator."""
-    keys_to_remove = [k for k in _examples_cache if k.startswith(creator_db_id_str)]
-    for k in keys_to_remove:
-        _examples_cache.pop(k, None)
-        _examples_cache_ts.pop(k, None)
+    """Remove all cache entries for a creator. Thread-safe."""
+    with _cache_lock:
+        keys_to_remove = [k for k in _examples_cache if k.startswith(creator_db_id_str)]
+        for k in keys_to_remove:
+            _examples_cache.pop(k, None)
+            _examples_cache_ts.pop(k, None)

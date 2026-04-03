@@ -40,23 +40,51 @@ def save_feedback(
     doc_d_version: Optional[str] = None,
     model_id: Optional[str] = None,
     system_prompt_hash: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Dict[str, Any]:
     """Save structured evaluator feedback. Auto-creates derivative records.
 
-    When ideal_response is provided:
+    When ideal_response is provided (non-empty):
       - Auto-creates a PreferencePair (chosen=ideal, rejected=bot)
       - Auto-creates a GoldExample if lo_enviarias >= 4
 
-    Returns dict with feedback_id and derivative record counts.
+    Returns dict with status + feedback_id and derivative record counts.
+    Returns {"status": "disabled"} if feature flag is off.
+    Returns {"status": "error", "message": ...} on failure.
     """
     if not ENABLE_EVALUATOR_FEEDBACK:
-        return None
+        return {"status": "disabled"}
 
     from api.database import SessionLocal
     from api.models import EvaluatorFeedback
 
     session = SessionLocal()
     try:
+        # FIX FB-02: Dedup — if source_message_id provided, check for existing
+        if source_message_id:
+            existing = session.query(EvaluatorFeedback).filter(
+                EvaluatorFeedback.creator_id == creator_db_id,
+                EvaluatorFeedback.source_message_id == source_message_id,
+                EvaluatorFeedback.evaluator_id == evaluator_id,
+            ).first()
+            if existing:
+                # Update existing record instead of creating duplicate
+                existing.coherencia = coherencia if coherencia is not None else existing.coherencia
+                existing.lo_enviarias = lo_enviarias if lo_enviarias is not None else existing.lo_enviarias
+                existing.ideal_response = ideal_response if ideal_response else existing.ideal_response
+                existing.error_tags = error_tags if error_tags is not None else existing.error_tags
+                existing.error_free_text = error_free_text if error_free_text else existing.error_free_text
+                session.commit()
+                logger.info(
+                    "[FEEDBACK] Updated existing feedback %s for source_message %s",
+                    existing.id, source_message_id,
+                )
+                return {
+                    "status": "updated",
+                    "feedback_id": str(existing.id),
+                    "pair_created": False,
+                    "gold_created": False,
+                }
+
         feedback = EvaluatorFeedback(
             creator_id=creator_db_id,
             evaluator_id=evaluator_id,
@@ -76,21 +104,22 @@ def save_feedback(
             system_prompt_hash=system_prompt_hash,
         )
         session.add(feedback)
-        session.commit()
-        feedback_id = str(feedback.id)
 
         logger.info(
-            "[FEEDBACK] Saved evaluator feedback %s from %s for creator %s "
+            "[FEEDBACK] Saving evaluator feedback from %s for creator %s "
             "(coherencia=%s, lo_enviarias=%s, has_ideal=%s)",
-            feedback_id, evaluator_id, creator_db_id,
+            evaluator_id, creator_db_id,
             coherencia, lo_enviarias, ideal_response is not None,
         )
 
-        # Auto-create derivative records in the SAME session
+        # Auto-create derivative records in the SAME transaction
         pair_created = False
         gold_created = False
 
-        if ideal_response:
+        # FIX FB-03: Check non-empty ideal_response (not just truthy)
+        has_ideal = bool(ideal_response and ideal_response.strip())
+
+        if has_ideal:
             pair_created = _auto_create_preference_pair(
                 session=session,
                 creator_db_id=creator_db_id,
@@ -111,10 +140,12 @@ def save_feedback(
                     source_message_id=source_message_id,
                 )
 
-        # Single commit for all derivative records
+        # FIX FB-01: Single commit for feedback + all derivatives
         session.commit()
+        feedback_id = str(feedback.id)
 
         return {
+            "status": "created",
             "feedback_id": feedback_id,
             "pair_created": pair_created,
             "gold_created": gold_created,
@@ -123,7 +154,8 @@ def save_feedback(
     except Exception as e:
         logger.error("[FEEDBACK] save_feedback error: %s", e)
         session.rollback()
-        return None
+        # FIX FB-07: Distinguish error from disabled
+        return {"status": "error", "message": str(e)}
     finally:
         session.close()
 
@@ -184,7 +216,10 @@ def get_feedback(
 
 
 def get_feedback_stats(creator_db_id) -> Dict[str, Any]:
-    """Aggregate stats across all feedback types for a creator."""
+    """Aggregate stats across all feedback types for a creator.
+
+    Returns dict with stats or {"status": "error"} on failure.
+    """
     from sqlalchemy import func as sqlfunc
     from api.database import SessionLocal
     from api.models import EvaluatorFeedback, GoldExample, LearningRule, PreferencePair
@@ -235,7 +270,8 @@ def get_feedback_stats(creator_db_id) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error("[FEEDBACK] get_feedback_stats error: %s", e)
-        return {}
+        # FIX FB-08: Return error status instead of empty dict
+        return {"status": "error", "message": str(e)}
     finally:
         session.close()
 
@@ -286,6 +322,35 @@ def _auto_create_gold_example(
     from api.models import GoldExample
 
     try:
+        # Dedup: check for existing active example with same user_message
+        if source_message_id:
+            existing = (
+                session.query(GoldExample)
+                .filter(
+                    GoldExample.creator_id == creator_db_id,
+                    GoldExample.is_active.is_(True),
+                    GoldExample.source_message_id == source_message_id,
+                )
+                .first()
+            )
+        else:
+            existing = (
+                session.query(GoldExample)
+                .filter(
+                    GoldExample.creator_id == creator_db_id,
+                    GoldExample.is_active.is_(True),
+                    GoldExample.user_message == user_message,
+                )
+                .first()
+            )
+        if existing:
+            # Update if quality is higher (evaluator_correction = 0.9)
+            if 0.9 > existing.quality_score:
+                existing.creator_response = ideal_response
+                existing.quality_score = 0.9
+                existing.source = "evaluator_correction"
+            return True
+
         example = GoldExample(
             creator_id=creator_db_id,
             user_message=user_message,

@@ -7,6 +7,7 @@ recurring patterns (3+ pairs) and extracts high-confidence learning rules.
 Feature flag: ENABLE_PATTERN_ANALYZER (default false)
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -19,6 +20,14 @@ PATTERN_ANALYSIS_MIN_PAIRS = int(os.getenv("PATTERN_ANALYSIS_MIN_PAIRS", "3"))
 PATTERN_ANALYSIS_MAX_PAIRS_PER_GROUP = 10
 PATTERN_ANALYSIS_MAX_CHARS = 300
 
+_PATTERN_SYSTEM_PROMPT = (
+    "You are a preference-pattern analyst for DM conversations. "
+    "You identify recurring rules from CHOSEN/REJECTED pairs. "
+    "Output rule_text, example_bad, and example_good in the SAME LANGUAGE "
+    "as the creator's responses (auto-detect from the pairs). "
+    "Respond ONLY with valid JSON."
+)
+
 
 def _format_pair(pair) -> str:
     """Format a single preference pair for the judge prompt."""
@@ -26,11 +35,11 @@ def _format_pair(pair) -> str:
     rejected = (pair.rejected or "")[:PATTERN_ANALYSIS_MAX_CHARS]
     parts = []
     if chosen:
-        parts.append(f"  ELEGIDA: \"{chosen}\"")
+        parts.append(f"  CHOSEN: \"{chosen}\"")
     if rejected:
-        parts.append(f"  RECHAZADA: \"{rejected}\"")
+        parts.append(f"  REJECTED: \"{rejected}\"")
     if pair.action_type:
-        parts.append(f"  ACCIÓN: {pair.action_type}")
+        parts.append(f"  ACTION: {pair.action_type}")
     return "\n".join(parts)
 
 
@@ -38,44 +47,50 @@ def _build_judge_prompt(pairs, intent: str, lead_stage: str) -> str:
     """Build the LLM judge prompt for pattern analysis."""
     formatted = []
     for i, pair in enumerate(pairs[:PATTERN_ANALYSIS_MAX_PAIRS_PER_GROUP], 1):
-        formatted.append(f"Par {i}:\n{_format_pair(pair)}")
+        formatted.append(f"Pair {i}:\n{_format_pair(pair)}")
 
     pairs_text = "\n\n".join(formatted)
 
-    return f"""Analiza estos {len(formatted)} pares de preferencia del creador.
-Cada par muestra: ELEGIDA (lo que prefirió) vs RECHAZADA (lo que no quiso).
+    return f"""Analyze these {len(formatted)} preference pairs from the creator.
+Each pair shows: CHOSEN (what they preferred) vs REJECTED (what they didn't want).
 
 {pairs_text}
 
-Contexto: intent={intent or 'general'}, lead_stage={lead_stage or 'unknown'}
+Context: intent={intent or 'general'}, lead_stage={lead_stage or 'unknown'}
 
-Busca PATRONES RECURRENTES en 2+ pares. Responde SOLO un JSON array válido:
-[{{"rule_text": "regla concisa en español", "pattern": "{intent or 'general'}", "example_bad": "ejemplo corto de lo que NO hacer", "example_good": "ejemplo corto de lo que SI hacer", "evidence_count": N}}]
+Find RECURRING PATTERNS in 2+ pairs. Respond ONLY with a valid JSON array:
+[{{"rule_text": "concise rule in the SAME LANGUAGE as the creator's responses", "pattern": "{intent or 'general'}", "example_bad": "short example of what NOT to do", "example_good": "short example of what TO do", "evidence_count": N}}]
 
-Si no hay patrones claros, responde: []
-IMPORTANTE: Solo JSON, sin texto adicional."""
+IMPORTANT: Write rule_text, example_bad, and example_good in the same language as the creator's CHOSEN/REJECTED texts.
+If no clear patterns, respond: []
+IMPORTANT: Only JSON, no additional text."""
 
 
-def _persist_run(creator_db_id, result: Dict[str, Any]) -> None:
+def _persist_run_sync(creator_db_id, result: Dict[str, Any]) -> None:
+    """Insert one row into pattern_analysis_runs for audit trail (sync)."""
+    from api.database import SessionLocal
+    from api.models import PatternAnalysisRun
+
+    s = SessionLocal()
+    try:
+        run = PatternAnalysisRun(
+            creator_id=creator_db_id,
+            status=result.get("status", "error"),
+            pairs_analyzed=result.get("pairs_analyzed", 0),
+            rules_created=result.get("rules_created", 0),
+            groups_processed=result.get("groups_processed", 0),
+            details=result,
+        )
+        s.add(run)
+        s.commit()
+    finally:
+        s.close()
+
+
+async def _persist_run(creator_db_id, result: Dict[str, Any]) -> None:
     """Insert one row into pattern_analysis_runs for audit trail."""
     try:
-        from api.database import SessionLocal
-        from api.models import PatternAnalysisRun
-
-        s = SessionLocal()
-        try:
-            run = PatternAnalysisRun(
-                creator_id=creator_db_id,
-                status=result.get("status", "error"),
-                pairs_analyzed=result.get("pairs_analyzed", 0),
-                rules_created=result.get("rules_created", 0),
-                groups_processed=result.get("groups_processed", 0),
-                details=result,
-            )
-            s.add(run)
-            s.commit()
-        finally:
-            s.close()
+        await asyncio.to_thread(_persist_run_sync, creator_db_id, result)
     except Exception as e:
         logger.warning("[PATTERN] Failed to persist run record: %s", e)
 
@@ -109,7 +124,7 @@ async def run_pattern_analysis(creator_id: str, creator_db_id) -> Dict[str, Any]
                 "reason": f"Only {len(pairs)} unanalyzed pairs (min: {PATTERN_ANALYSIS_MIN_PAIRS})",
                 "pairs_available": len(pairs),
             }
-            _persist_run(creator_db_id, result)
+            await _persist_run(creator_db_id, result)
             return result
 
         # Group by (intent, lead_stage)
@@ -133,14 +148,17 @@ async def run_pattern_analysis(creator_id: str, creator_db_id) -> Dict[str, Any]
             rules_data = await _call_judge(prompt)
 
             if rules_data:
-                from services.learning_rules_service import create_rule
+                from services.learning_rules_service import create_rule, sanitize_rule_text
 
                 for rule_data in rules_data:
+                    rule_text = sanitize_rule_text(rule_data.get("rule_text", ""))
+                    if not rule_text:
+                        continue
                     evidence = rule_data.get("evidence_count", 2)
                     confidence = min(0.9, 0.5 + (evidence * 0.1))
                     result = create_rule(
                         creator_id=creator_db_id,
-                        rule_text=rule_data.get("rule_text", ""),
+                        rule_text=rule_text,
                         pattern=rule_data.get("pattern", intent),
                         example_bad=rule_data.get("example_bad"),
                         example_good=rule_data.get("example_good"),
@@ -175,14 +193,14 @@ async def run_pattern_analysis(creator_id: str, creator_db_id) -> Dict[str, Any]
             "[PATTERN] %s: analyzed=%d pairs, created=%d rules from %d groups",
             creator_id, total_pairs_analyzed, total_rules, len(groups),
         )
-        _persist_run(creator_db_id, result)
+        await _persist_run(creator_db_id, result)
         return result
 
     except Exception as e:
         logger.error("[PATTERN] run_pattern_analysis error for %s: %s", creator_id, e)
         session.rollback()
         result = {"status": "error", "error": str(e)}
-        _persist_run(creator_db_id, result)
+        await _persist_run(creator_db_id, result)
         return result
     finally:
         session.close()
@@ -193,7 +211,7 @@ async def _call_judge(prompt: str) -> List[dict]:
     try:
         from core.providers.gemini_provider import generate_simple
 
-        result = await generate_simple(prompt, max_tokens=500)
+        result = await generate_simple(prompt, _PATTERN_SYSTEM_PROMPT, max_tokens=500)
         if not result:
             return []
 

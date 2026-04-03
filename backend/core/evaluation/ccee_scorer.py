@@ -220,6 +220,92 @@ def score_s1_style_fidelity(
     }
 
 
+def score_s1_per_case(
+    bot_response: str,
+    style_profile: Dict,
+    user_input: Optional[str] = None,
+) -> float:
+    """Score style fidelity for a single response (0-100).
+
+    Uses probabilistic per-case scoring for binary metrics (excl, question,
+    emoji) and direct range-based scoring for length and vocabulary.
+    A7 (fragmentation) is omitted — not measurable from a single response.
+    """
+    # A1: length
+    a1_thresh = style_profile["A1_length"].get("threshold", [0, 10000])
+    a1 = _within_range(len(bot_response), a1_thresh[0], a1_thresh[1])
+
+    # A2: emoji — probability-weighted per-case
+    creator_emoji_rate = style_profile["A2_emoji"]["global_rate"]
+    has_emoji = 1.0 if EMOJI_RE.search(bot_response) else 0.0
+    a2 = max(0.0, 100.0 - abs(has_emoji - creator_emoji_rate) * 100.0)
+
+    # A2 contextual
+    a2_ctx = 0.0
+    if user_input:
+        per_ctx = style_profile["A2_emoji"].get("per_context", {})
+        ctx = classify_context(user_input)
+        if ctx in per_ctx and per_ctx[ctx]["count"] >= 5:
+            ctx_rate = per_ctx[ctx]["rate"]
+            a2_ctx = max(0.0, 100.0 - abs(has_emoji - ctx_rate) * 100.0)
+
+    # A3: exclamation
+    creator_excl = style_profile["A3_exclamations"]["rate"]
+    has_excl = 1.0 if "!" in bot_response else 0.0
+    a3 = max(0.0, 100.0 - abs(has_excl - creator_excl) * 100.0)
+
+    # A4: question
+    creator_q = style_profile["A4_questions"]["rate"]
+    has_q = 1.0 if "?" in bot_response else 0.0
+    a4 = max(0.0, 100.0 - abs(has_q - creator_q) * 100.0)
+
+    # A5: vocabulary overlap — scale up since single response is short
+    creator_vocab = set(
+        item["word"] for item in style_profile["A5_vocabulary"].get("top_50", [])
+    )
+    if creator_vocab:
+        words = set(tokenize(bot_response))
+        overlap = len(words & creator_vocab) / len(creator_vocab)
+        a5 = min(100.0, overlap * 300.0)  # 33% overlap = 100
+    else:
+        a5 = 50.0
+
+    # A6: language match
+    creator_langs = style_profile["A6_language_ratio"]["ratios"]
+    if creator_langs:
+        from services.calibration_loader import detect_message_language
+        creator_dominant = max(creator_langs, key=creator_langs.get)
+        bot_lang = detect_message_language(bot_response) or "unknown"
+        a6 = 100.0 if bot_lang == creator_dominant else max(
+            0.0, 100.0 - (1.0 - creator_langs.get(bot_lang, 0.0)) * 100.0
+        )
+    else:
+        a6 = 50.0
+
+    # A8: formality (single response — noisy but included)
+    a8_profile = style_profile["A8_formality"]
+    creator_formality = a8_profile["formality_score"]
+    from core.evaluation.style_profile_builder import StyleProfileBuilder
+    bot_formality = StyleProfileBuilder()._compute_a8([bot_response])["formality_score"]
+    a8 = max(0.0, 100.0 - abs(bot_formality - creator_formality) * 200.0)
+
+    # A9: catchphrase
+    catchphrases = set(
+        item["phrase"]
+        for item in style_profile["A9_catchphrases"].get("catchphrases", [])
+    )
+    if catchphrases:
+        text_lower = bot_response.lower()
+        a9 = 100.0 if any(cp in text_lower for cp in catchphrases) else 0.0
+    else:
+        a9 = 50.0
+
+    metrics = [a1, a2, a3, a4, a5, a6, a8, a9]
+    base = float(np.mean(metrics))
+    final = min(100.0, base * 0.9 + a2_ctx * 0.1) if user_input else base
+    return round(final, 2)
+
+
 # ---------------------------------------------------------------------------
 # S2: Response Quality
 # ---------------------------------------------------------------------------
@@ -337,6 +423,7 @@ def score_s2_response_quality(
             "g1_hallucination_count": sum(1 for p in g1_penalties if p > 0),
             "g2_bot_reveal_count": sum(1 for p in g2_penalties if p > 0),
             "g4_echo_mean": round(float(np.mean(g4_penalties)), 2),
+            "per_case": [round(s, 2) for s in case_scores],
         },
     }
 
@@ -488,6 +575,55 @@ def score_s4_adaptation(
             "segments_used": valid_segs,
         },
     }
+
+
+def score_s4_per_case(
+    bot_response: str,
+    trust_score: float,
+    adaptation_profile: Dict,
+) -> float:
+    """Score segment-fit for a single response (0-100).
+
+    Unlike aggregate S4 (which measures directional adaptation across segments),
+    per-case S4 measures proximity: does this response match the creator's style
+    for the specific trust segment of this conversation?
+    """
+    from core.evaluation.adaptation_profiler import _trust_segment
+    segment = _trust_segment(trust_score)
+    if segment is None:
+        return 50.0
+
+    segments = adaptation_profile.get("segments", {})
+    seg_data = segments.get(segment)
+    if not seg_data or seg_data.get("message_count", 0) < 10:
+        return 50.0  # insufficient data for this segment
+
+    # Compute 4 bot metrics for this single response
+    has_emoji = 1.0 if EMOJI_RE.search(bot_response) else 0.0
+    has_excl = 1.0 if "!" in bot_response else 0.0
+    has_q = 1.0 if "?" in bot_response else 0.0
+
+    # A1: length vs segment P10/P90
+    a1_len = seg_data.get("A1_length", {})
+    a1 = _within_range(
+        len(bot_response),
+        a1_len.get("P10", 0),
+        a1_len.get("P90", 10000),
+    )
+
+    # A2: emoji rate proximity
+    seg_emoji_rate = seg_data.get("A2_emoji_rate", 0.5)
+    a2 = max(0.0, 100.0 - abs(has_emoji - seg_emoji_rate) * 100.0)
+
+    # A3: exclamation rate proximity
+    seg_excl_rate = seg_data.get("A3_exclamation_rate", 0.5)
+    a3 = max(0.0, 100.0 - abs(has_excl - seg_excl_rate) * 100.0)
+
+    # A4: question rate proximity
+    seg_q_rate = seg_data.get("A4_question_rate", 0.5)
+    a4 = max(0.0, 100.0 - abs(has_q - seg_q_rate) * 100.0)
+
+    return round(float(np.mean([a1, a2, a3, a4])), 2)
 
 
 # ---------------------------------------------------------------------------

@@ -156,17 +156,18 @@ async def phase_llm_generation(
                     _c = _s.query(Creator.id).filter_by(name=agent.creator_id).first()
                     if not _c:
                         return []
-                    return get_applicable_rules(
-                        _c[0], intent=intent_value,
-                        relationship_type=_rel_type,
-                        lead_stage=current_stage,
-                    )
+                    _creator_db_id = _c[0]
                 finally:
                     _s.close()
+                return get_applicable_rules(
+                    _creator_db_id, intent=intent_value,
+                    relationship_type=_rel_type,
+                    lead_stage=current_stage,
+                )
 
             _learning_rules = await asyncio.to_thread(_load_rules)
             if _learning_rules:
-                lines = []
+                lines = ["[LEARNING RULES — Apply these behavioral corrections to your response:]"]
                 for r in _learning_rules:
                     lines.append(f"- {r['rule_text']}")
                     if r.get("example_bad"):
@@ -214,11 +215,14 @@ async def phase_llm_generation(
         except Exception as pp_err:
             logger.debug(f"[PREFERENCE] Profile loading failed: {pp_err}")
 
-    # Step 5e: Load gold examples (few-shot)
+    # Step 5e: Load gold examples (few-shot) — style reference only, no lead data leakage
     gold_examples_section = ""
     if ENABLE_GOLD_EXAMPLES:
         try:
-            from services.gold_examples_service import get_matching_examples
+            from services.gold_examples_service import get_matching_examples, detect_language
+
+            # Detect conversation language for filtering
+            _conv_language = detect_language(message) if message else None
 
             def _load_examples():
                 from api.database import SessionLocal
@@ -232,19 +236,19 @@ async def phase_llm_generation(
                         _c[0], intent=intent_value,
                         relationship_type=_rel_type,
                         lead_stage=current_stage,
+                        language=_conv_language,
                     )
                 finally:
                     _s.close()
 
             _gold_examples = await asyncio.to_thread(_load_examples)
             if _gold_examples:
-                ex_lines = []
+                _header = "=== EJEMPLOS DE ESTILO DEL CREATOR (referencia de tono y formato, NO copies literalmente) ==="
+                ex_lines = [_header]
                 for ex in _gold_examples:
-                    ex_lines.append(
-                        f"Lead: \"{ex['user_message']}\"\n"
-                        f"{agent.creator_id}: \"{ex['creator_response']}\""
-                    )
-                gold_examples_section = "\n---\n".join(ex_lines)
+                    _intent_tag = f" [{ex['intent']}]" if ex.get("intent") else ""
+                    ex_lines.append(f"- \"{ex['creator_response']}\"{_intent_tag}")
+                gold_examples_section = "\n".join(ex_lines)
                 cognitive_metadata["gold_examples_injected"] = len(_gold_examples)
                 logger.info(f"[FEWSHOT] Injected {len(_gold_examples)} examples for {sender_id}")
         except Exception as ge_err:

@@ -11,10 +11,13 @@ Functions:
 - update_rule_feedback(): Adjust confidence after rule application
 - deactivate_rule(): Soft delete with optional supersession
 - get_rules_count() / get_all_active_rules(): For consolidation
+- sanitize_rule_text(): Defense-in-depth sanitization before prompt injection
+- filter_contradictions(): Remove contradictory rules, keep highest confidence
 """
 
 import logging
 import os
+import re
 import time
 import uuid
 from typing import Any, Dict, List, Optional
@@ -22,11 +25,81 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 LEARNING_MAX_RULES_IN_PROMPT = int(os.getenv("LEARNING_MAX_RULES_IN_PROMPT", "5"))
+_MAX_RULE_TEXT_LENGTH = 500
 
 # Simple TTL cache for get_applicable_rules
 _rules_cache: Dict[str, Any] = {}
 _rules_cache_ts: Dict[str, float] = {}
 _RULES_CACHE_TTL = 60  # seconds
+_RULES_CACHE_MAX_SIZE = 200  # max entries before eviction
+
+# Prompt injection patterns to strip from rule_text
+_INJECTION_PATTERNS = re.compile(
+    r"(?i)"
+    r"(ignore\s+(all\s+)?previous\s+instructions?"
+    r"|you\s+are\s+now"
+    r"|system\s*:"
+    r"|assistant\s*:"
+    r"|<\s*/?\s*(?:system|instructions?|prompt|role)\s*>)",
+)
+
+# Contradiction keyword pairs: (positive_keywords, negative_keywords)
+# If one rule contains a positive and another contains a negative for the same
+# topic, they contradict. We keep the one with higher confidence.
+_CONTRADICTION_PAIRS = [
+    (["usa ", "incluye", "incluir", "añade", "añadir", "utiliza", "usar"],
+     ["no uses", "no incluyas", "no incluir", "evita", "evitar", "no utilices", "no usar", "elimina"]),
+    (["breve", "corto", "corta", "conciso"],
+     ["largo", "detallado", "extenso", "explica bien", "elabora"]),
+    (["emoji", "emojis", "emoticono"],
+     ["sin emoji", "no emoji", "evita emoji", "no uses emoji"]),
+    (["formal", "usted"],
+     ["informal", "coloquial", "casual", "tú"]),
+    (["pregunta", "pregunta abierta"],
+     ["no preguntes", "sin pregunta", "evita preguntar"]),
+]
+
+
+def sanitize_rule_text(text: str) -> str:
+    """Strip prompt injection patterns and enforce max length."""
+    if not text:
+        return ""
+    cleaned = _INJECTION_PATTERNS.sub("", text).strip()
+    if len(cleaned) > _MAX_RULE_TEXT_LENGTH:
+        cleaned = cleaned[:_MAX_RULE_TEXT_LENGTH].rsplit(" ", 1)[0]
+    return cleaned
+
+
+def filter_contradictions(rules: List[Dict]) -> List[Dict]:
+    """Remove contradictory rules — keep the one with higher confidence."""
+    if len(rules) <= 1:
+        return rules
+
+    to_remove = set()
+    for i, r1 in enumerate(rules):
+        if i in to_remove:
+            continue
+        t1 = r1["rule_text"].lower()
+        for j, r2 in enumerate(rules):
+            if j <= i or j in to_remove:
+                continue
+            t2 = r2["rule_text"].lower()
+            for positives, negatives in _CONTRADICTION_PAIRS:
+                r1_pos = any(kw in t1 for kw in positives)
+                r1_neg = any(kw in t1 for kw in negatives)
+                r2_pos = any(kw in t2 for kw in positives)
+                r2_neg = any(kw in t2 for kw in negatives)
+                if (r1_pos and r2_neg) or (r1_neg and r2_pos):
+                    loser = j if r1["confidence"] >= r2["confidence"] else i
+                    to_remove.add(loser)
+                    logger.info(
+                        f"[AUTOLEARN] Contradiction filtered: "
+                        f"kept={'r1' if loser == j else 'r2'} "
+                        f"({rules[loser]['rule_text'][:60]}...)"
+                    )
+                    break
+
+    return [r for idx, r in enumerate(rules) if idx not in to_remove]
 
 
 def create_rule(
@@ -43,6 +116,10 @@ def create_rule(
     source: str = "realtime",
 ) -> Optional[Dict]:
     """Create a learning rule. Deduplicates: same pattern+text → increment confidence."""
+    if not rule_text or not rule_text.strip():
+        logger.warning("[AUTOLEARN] Rejected rule with empty rule_text")
+        return None
+    confidence = max(0.0, min(1.0, confidence))
     from api.database import SessionLocal
     from api.models import LearningRule
 
@@ -125,6 +202,13 @@ def get_applicable_rules(
         if now - _rules_cache_ts.get(cache_key, 0) < _RULES_CACHE_TTL:
             return _rules_cache[cache_key]
 
+    # Evict stale entries if cache is too large
+    if len(_rules_cache) > _RULES_CACHE_MAX_SIZE:
+        expired = [k for k, ts in _rules_cache_ts.items() if now - ts > _RULES_CACHE_TTL]
+        for k in expired:
+            _rules_cache.pop(k, None)
+            _rules_cache_ts.pop(k, None)
+
     from api.database import SessionLocal
     from api.models import LearningRule
 
@@ -136,6 +220,7 @@ def get_applicable_rules(
                 LearningRule.creator_id == creator_db_id,
                 LearningRule.is_active.is_(True),
             )
+            .order_by(LearningRule.confidence.desc(), LearningRule.times_helped.desc())
             .limit(100)
             .all()
         )
@@ -199,18 +284,23 @@ def get_applicable_rules(
         scored.sort(key=lambda x: x[0], reverse=True)
         top_rules = scored[:max_rules]
 
-        result = [
-            {
+        result = []
+        for score_val, r in top_rules:
+            if score_val <= 0:
+                continue
+            cleaned_text = sanitize_rule_text(r.rule_text)
+            if not cleaned_text:
+                continue
+            result.append({
                 "id": str(r.id),
-                "rule_text": r.rule_text,
+                "rule_text": cleaned_text,
                 "example_bad": r.example_bad,
                 "example_good": r.example_good,
                 "pattern": r.pattern,
                 "confidence": r.confidence,
-            }
-            for _, r in top_rules
-            if _ > 0  # Only rules with positive score
-        ]
+            })
+
+        result = filter_contradictions(result)
 
         _rules_cache[cache_key] = result
         _rules_cache_ts[cache_key] = now

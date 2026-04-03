@@ -75,6 +75,7 @@ async def test_consolidation_merges(
     assert result["deactivated"] == 5
     mock_create.assert_called_once()
     assert mock_create.call_args[1]["confidence"] == 0.7  # Higher confidence
+    assert mock_create.call_args[1]["source"] == "consolidation"
     assert mock_deactivate.call_count == 5
 
 

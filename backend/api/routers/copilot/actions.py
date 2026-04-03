@@ -381,14 +381,24 @@ async def track_manual_response(
         # Preference pairs hook: fire-and-forget training data collection
         try:
             from services.preference_pairs_service import create_pairs_from_action
+            from api.models import Message as _Msg4
 
             if _creator:
+                # BUG-1 fix: fetch preceding user message
+                _preceding4 = session.query(_Msg4.content).filter(
+                    _Msg4.lead_id == lead.id, _Msg4.role == "user",
+                    _Msg4.created_at < manual_msg.created_at,
+                ).order_by(_Msg4.created_at.desc()).first()
+                _user_msg4 = _preceding4[0] if _preceding4 else None
+
                 _aio.create_task(create_pairs_from_action(
                     action="manual_override",
                     creator_db_id=_creator.id,
                     source_message_id=manual_msg.id,
+                    lead_id=lead.id,
                     suggested_response=original_suggestion,
                     final_response=body.content,
+                    user_message=_user_msg4,
                     intent=None,
                     lead_stage=lead.status,
                     edit_diff=edit_diff,

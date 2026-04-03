@@ -42,7 +42,7 @@ class TestScoringBugFixes:
         mock_rule.example_good = "good"
 
         mock_session = MagicMock()
-        mock_session.query.return_value.filter.return_value.limit.return_value.all.return_value = [mock_rule]
+        mock_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_rule]
         mock_session_cls.return_value = mock_session
 
         creator_id = uuid.uuid4()
@@ -85,7 +85,7 @@ class TestScoringBugFixes:
         rule_10 = make_rule(1.0)
 
         mock_session = MagicMock()
-        mock_session.query.return_value.filter.return_value.limit.return_value.all.return_value = [rule_05, rule_10]
+        mock_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [rule_05, rule_10]
         mock_session_cls.return_value = mock_session
 
         creator_id = uuid.uuid4()
@@ -105,6 +105,7 @@ class TestScoringBugFixes:
         _examples_cache_ts.clear()
 
         mock_ex = MagicMock()
+        mock_ex.id = uuid.uuid4()
         mock_ex.quality_score = 0.6
         mock_ex.intent = "greeting"
         mock_ex.lead_stage = None
@@ -120,7 +121,7 @@ class TestScoringBugFixes:
         result = get_matching_examples(creator_id, intent="greeting")
 
         assert len(result) == 1
-        assert result[0]["user_message"] == "Hola!"
+        assert result[0]["creator_response"] == "Hey! Que tal?"
         assert result[0]["quality_score"] == 0.6
 
 
@@ -154,12 +155,13 @@ class TestFeedbackStore:
         )
 
         assert result is not None
+        assert result["status"] == "created"
         assert "feedback_id" in result
         assert result["pair_created"] is False  # No ideal_response
         assert result["gold_created"] is False
         mock_session.add.assert_called_once()
-        # Two commits: 1) feedback record, 2) derivative records (even if none)
-        assert mock_session.commit.call_count == 2
+        # FIX FB-01: Single commit for feedback + derivatives
+        assert mock_session.commit.call_count == 1
 
     @patch("services.feedback_store._auto_create_gold_example")
     @patch("services.feedback_store._auto_create_preference_pair")
@@ -225,8 +227,8 @@ class TestFeedbackStore:
         mock_gold.assert_called_once()
 
     @patch("api.database.SessionLocal")
-    def test_save_feedback_disabled_returns_none(self, mock_session_cls):
-        """When ENABLE_EVALUATOR_FEEDBACK=false, returns None."""
+    def test_save_feedback_disabled_returns_status(self, mock_session_cls):
+        """When ENABLE_EVALUATOR_FEEDBACK=false, returns status=disabled."""
         import services.feedback_store as fs
         original = fs.ENABLE_EVALUATOR_FEEDBACK
         fs.ENABLE_EVALUATOR_FEEDBACK = False
@@ -237,7 +239,7 @@ class TestFeedbackStore:
                 user_message="test",
                 bot_response="test",
             )
-            assert result is None
+            assert result == {"status": "disabled"}
             mock_session_cls.assert_not_called()
         finally:
             fs.ENABLE_EVALUATOR_FEEDBACK = original
@@ -329,6 +331,8 @@ class TestAutoCreation:
         from services.feedback_store import _auto_create_gold_example
 
         mock_session = MagicMock()
+        # Dedup query returns None (no existing example)
+        mock_session.query.return_value.filter.return_value.first.return_value = None
 
         result = _auto_create_gold_example(
             session=mock_session,
@@ -349,6 +353,67 @@ class TestAutoCreation:
 # ---------------------------------------------------------------------------
 # 4. Universal: works for any creator
 # ---------------------------------------------------------------------------
+
+class TestBugFixes:
+    """Regression tests for feedback store bug fixes."""
+
+    @patch("api.database.SessionLocal")
+    def test_fb03_empty_ideal_response_no_pair(self, mock_session_cls):
+        """FB-03: Empty string ideal_response should NOT create preference pair."""
+        from services.feedback_store import save_feedback
+
+        mock_session = MagicMock()
+        mock_session_cls.return_value = mock_session
+        def set_id(obj):
+            obj.id = uuid.uuid4()
+        mock_session.add.side_effect = set_id
+
+        result = save_feedback(
+            creator_db_id=uuid.uuid4(),
+            evaluator_id="manel",
+            user_message="test",
+            bot_response="test",
+            ideal_response="",  # Empty string — should be treated as no ideal
+        )
+
+        assert result["status"] == "created"
+        assert result["pair_created"] is False
+        # Only 1 add call (feedback itself, no pair or gold)
+        assert mock_session.add.call_count == 1
+
+    @patch("api.database.SessionLocal")
+    def test_fb07_error_returns_status_error(self, mock_session_cls):
+        """FB-07: DB error returns status=error, not None."""
+        from services.feedback_store import save_feedback
+
+        mock_session = MagicMock()
+        mock_session_cls.return_value = mock_session
+        mock_session.add.side_effect = Exception("DB connection lost")
+
+        result = save_feedback(
+            creator_db_id=uuid.uuid4(),
+            evaluator_id="manel",
+            user_message="test",
+            bot_response="test",
+        )
+
+        assert result["status"] == "error"
+        assert "DB connection lost" in result["message"]
+
+    @patch("api.database.SessionLocal")
+    def test_fb08_stats_error_returns_status(self, mock_session_cls):
+        """FB-08: Stats error returns status=error dict."""
+        from services.feedback_store import get_feedback_stats
+
+        mock_session = MagicMock()
+        mock_session_cls.return_value = mock_session
+        mock_session.query.side_effect = Exception("DB timeout")
+
+        result = get_feedback_stats(creator_db_id=uuid.uuid4())
+
+        assert result["status"] == "error"
+        assert "DB timeout" in result["message"]
+
 
 class TestUniversal:
     """Verify no hardcoded creator IDs."""

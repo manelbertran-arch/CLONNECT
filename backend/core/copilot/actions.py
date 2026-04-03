@@ -135,14 +135,23 @@ async def approve_response_impl(
         # Preference pairs hook: fire-and-forget training data collection
         try:
             from services.preference_pairs_service import create_pairs_from_action
+            from api.models import Message as _Msg
+
+            # BUG-1 fix: fetch preceding user message for training context
+            _preceding = session.query(_Msg.content).filter(
+                _Msg.lead_id == msg.lead_id, _Msg.role == "user",
+                _Msg.created_at < msg.created_at,
+            ).order_by(_Msg.created_at.desc()).first()
+            _user_msg = _preceding[0] if _preceding else None
 
             asyncio.create_task(create_pairs_from_action(
                 action="edited" if was_edited else "approved",
                 creator_db_id=creator.id,
                 source_message_id=msg.id,
+                lead_id=msg.lead_id,
                 suggested_response=msg.suggested_response,
                 final_response=final_text if was_edited else None,
-                user_message=None,
+                user_message=_user_msg,
                 intent=msg.intent,
                 lead_stage=lead.status,
                 edit_diff=msg.edit_diff if was_edited else None,
@@ -267,9 +276,10 @@ async def discard_response_impl(
         try:
             from services.autolearning_analyzer import analyze_creator_action
 
-            # Look up creator for db_id
-            from api.models import Creator as _Cr
+            # Look up creator and lead for context
+            from api.models import Creator as _Cr, Lead as _Ld
             _creator = session.query(_Cr).filter_by(name=creator_id).first()
+            _lead = session.query(_Ld).filter_by(id=msg.lead_id).first() if msg.lead_id else None
             if _creator:
                 asyncio.create_task(analyze_creator_action(
                     action="discarded",
@@ -278,6 +288,8 @@ async def discard_response_impl(
                     suggested_response=msg.suggested_response,
                     discard_reason=discard_reason,
                     intent=msg.intent,
+                    lead_stage=_lead.status if _lead else None,
+                    relationship_type=getattr(_lead, "relationship_type", None) if _lead else None,
                     source_message_id=msg.id,
                 ))
         except Exception as learn_err:
@@ -286,16 +298,26 @@ async def discard_response_impl(
         # Preference pairs hook: fire-and-forget training data collection
         try:
             from services.preference_pairs_service import create_pairs_from_action
+            from api.models import Message as _Msg2
 
             _cr = session.query(_Cr).filter_by(name=creator_id).first() if not locals().get("_creator") else _creator
             if _cr:
+                # BUG-1 fix: fetch preceding user message
+                _preceding2 = session.query(_Msg2.content).filter(
+                    _Msg2.lead_id == msg.lead_id, _Msg2.role == "user",
+                    _Msg2.created_at < msg.created_at,
+                ).order_by(_Msg2.created_at.desc()).first()
+                _user_msg2 = _preceding2[0] if _preceding2 else None
+
                 asyncio.create_task(create_pairs_from_action(
                     action="discarded",
                     creator_db_id=_cr.id,
                     source_message_id=msg.id,
+                    lead_id=msg.lead_id,
                     suggested_response=msg.suggested_response,
+                    user_message=_user_msg2,
                     intent=msg.intent,
-                    lead_stage=None,
+                    lead_stage=_lead.status if _lead else None,
                     best_of_n_candidates=_bon_candidates,
                     rejected_confidence=msg.confidence_score,
                 ))
@@ -403,6 +425,9 @@ def auto_discard_pending_for_lead_impl(
                     f"[Copilot] Resolved externally {count} pending suggestion(s) for lead {lead_id}"
                 )
                 # Fire autolearning + preference pairs hooks for each resolved suggestion
+                # Fetch lead for context
+                from api.models import Lead as _Ld2
+                _lead_obj = session.query(_Ld2).filter_by(id=lead_id).first()
                 for msg in pending:
                     _creator_db_id = service._get_creator_db_id(creator_id, session)
                     try:
@@ -415,21 +440,33 @@ def auto_discard_pending_for_lead_impl(
                             suggested_response=msg.suggested_response,
                             final_response=creator_response,
                             intent=msg.intent,
-                            lead_stage=None,
+                            lead_stage=_lead_obj.status if _lead_obj else None,
+                            relationship_type=getattr(_lead_obj, "relationship_type", None) if _lead_obj else None,
                             source_message_id=msg.id,
                         ))
                     except Exception as learn_err:
                         logger.debug(f"[Copilot] Autolearning resolved_externally hook failed: {learn_err}")
                     try:
                         from services.preference_pairs_service import create_pairs_from_action
+                        from api.models import Message as _Msg3
+
+                        # BUG-1 fix: fetch preceding user message
+                        _preceding3 = session.query(_Msg3.content).filter(
+                            _Msg3.lead_id == lead_id, _Msg3.role == "user",
+                            _Msg3.created_at < msg.created_at,
+                        ).order_by(_Msg3.created_at.desc()).first()
+                        _user_msg3 = _preceding3[0] if _preceding3 else None
 
                         asyncio.create_task(create_pairs_from_action(
                             action="resolved_externally",
                             creator_db_id=_creator_db_id,
                             source_message_id=msg.id,
+                            lead_id=lead_id,
                             suggested_response=msg.suggested_response,
                             final_response=creator_response,
+                            user_message=_user_msg3,
                             intent=msg.intent,
+                            lead_stage=_lead_obj.status if _lead_obj else None,
                             best_of_n_candidates=getattr(msg, "_bon_candidates", None),
                         ))
                     except Exception as pairs_err:

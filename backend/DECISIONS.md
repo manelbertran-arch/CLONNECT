@@ -4,6 +4,34 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-03 — Learning systems: 48 bug fixes + CCEE scoring + gold examples hardening
+
+**Context:**
+Audit of 7 learning subsystems (FeedbackStore, AutolearningAnalyzer, LearningRules, GoldExamples, PreferencePairs, PatternAnalyzer, Consolidator) revealed 48 bugs including 2 P1 (privacy/data leakage), multiple P2 (data quality), and P3 (performance/correctness). Gold examples DB contained 29 garbage entries (test messages, emoji-only, audio/sticker, echo). CCEE evaluation engine needed per-case dimensional scoring.
+
+**Decision:**
+Fix all bugs, purge garbage data, harden gold examples for eventual activation.
+
+**Changes (17 files, +1044/-257):**
+- `services/gold_examples_service.py`: P1 privacy fix (removed user_message from injection results), non-text filter, emoji-only rejection, language detection (`detect_language`), thread-safe LRU cache (OrderedDict + threading.Lock, max 200), times_used increment.
+- `core/dm/phases/generation.py`: Only inject creator_response (no lead data leakage), added section header with "NO copies literalmente", language-filtered example selection.
+- `services/feedback_store.py`: Dedup in `_auto_create_gold_example` (by source_message_id or user_message).
+- `services/learning_rules_service.py`: Thread-safe cache, language filter.
+- `services/autolearning_analyzer.py`: Non-text filter, edit similarity improvements.
+- `services/preference_pairs_service.py`: Dedup, quality gates.
+- `services/pattern_analyzer.py`: Batch safety.
+- `services/learning_consolidator.py`: Conflict resolution.
+- `core/evaluation/ccee_scorer.py`, `scripts/run_ccee.py`: Per-case S1-S4 dimensional scoring with BERTScore.
+- `api/routers/feedback.py`, `api/routers/copilot/actions.py`, `core/copilot/actions.py`: Validation, error handling.
+- Tests updated: `test_feedback_store.py`, `test_gold_examples_service.py`, `test_learning_consolidator.py`, `test_learning_rules_service.py`.
+- DB purge: 29 gold_examples deactivated (test=1, non-text=24, emoji-only=3, echo=1). 148 active remaining.
+
+**Blast radius:** ENABLE_GOLD_EXAMPLES is OFF in production — gold examples code changes have zero runtime impact until enabled. Learning rules/preference pairs changes are backward-compatible. CCEE is a standalone evaluation tool.
+
+**Smoke tests:** 7/7 pass before and after. 29/29 unit tests pass.
+
+---
+
 ## 2026-04-03 — Bug 2 Fix: Emoji Normalization via Direct-Rate Formula
 
 **Context:** Post-deploy CPE measurement revealed bot emoji rate = 82.7% vs Iris real rate = 23%. The LLM overuses emojis and prompting alone cannot reliably fix this.
