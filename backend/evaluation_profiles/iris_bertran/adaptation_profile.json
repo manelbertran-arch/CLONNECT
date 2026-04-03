@@ -2,76 +2,76 @@
   "creator_id": "iris_bertran",
   "segments": {
     "UNKNOWN": {
-      "message_count": 8823,
+      "message_count": 8868,
       "A1_length": {
-        "mean": 46.014507537118895,
+        "mean": 45.75676589986468,
         "median": 18.0,
-        "std": 175.18322337650508,
+        "std": 174.64003327007677,
         "P10": 7.0,
         "P25": 11.0,
         "P75": 35.0,
         "P90": 72.0,
-        "P95": 123.0,
-        "count": 8823
+        "P95": 122.0,
+        "count": 8868
       },
-      "A2_emoji_rate": 0.34455400657372776,
-      "A3_exclamation_rate": 0.03320865918621784,
-      "A4_question_rate": 0.09214552873172391,
-      "A5_vocab_diversity": 0.2335490088105727
+      "A2_emoji_rate": 0.34438430311231394,
+      "A3_exclamation_rate": 0.033040144339197115,
+      "A4_question_rate": 0.09156517816869644,
+      "A5_vocab_diversity": 0.23420355656451003
     },
     "KNOWN": {
-      "message_count": 346,
+      "message_count": 347,
       "A1_length": {
-        "mean": 120.3121387283237,
+        "mean": 120.0835734870317,
         "median": 22.0,
-        "std": 309.91807741424606,
+        "std": 309.5003902655861,
         "P10": 7.0,
         "P25": 9.0,
-        "P75": 59.75,
-        "P90": 361.5,
+        "P75": 59.5,
+        "P90": 361.2000000000001,
         "P95": 742.0,
-        "count": 346
+        "count": 347
       },
-      "A2_emoji_rate": 0.37283236994219654,
-      "A3_exclamation_rate": 0.08092485549132948,
-      "A4_question_rate": 0.19653179190751446,
-      "A5_vocab_diversity": 0.4129533678756477
+      "A2_emoji_rate": 0.3746397694524496,
+      "A3_exclamation_rate": 0.08069164265129683,
+      "A4_question_rate": 0.19596541786743515,
+      "A5_vocab_diversity": 0.4134366925064599
     },
     "INTIMATE": {
-      "message_count": 10989,
+      "message_count": 11035,
       "A1_length": {
-        "mean": 52.43197743197743,
+        "mean": 52.48527412777526,
         "median": 20.0,
-        "std": 175.01265931959261,
+        "std": 174.8206652756906,
         "P10": 7.0,
         "P25": 9.0,
         "P75": 39.0,
         "P90": 84.0,
-        "P95": 153.60000000000036,
-        "count": 10989
+        "P95": 154.29999999999927,
+        "count": 11035
       },
-      "A2_emoji_rate": 0.2566202566202566,
-      "A3_exclamation_rate": 0.025116025116025117,
-      "A4_question_rate": 0.09946309946309946,
-      "A5_vocab_diversity": 0.2107698054653602
+      "A2_emoji_rate": 0.257091073855913,
+      "A3_exclamation_rate": 0.025464431354780246,
+      "A4_question_rate": 0.09950158586316267,
+      "A5_vocab_diversity": 0.20971560601306444
     },
     "CLOSE": {
-      "message_count": 391,
+      "message_count": 390,
       "A1_length": {
-        "mean": 62.68030690537084,
+        "mean": 62.85641025641026,
         "median": 20.0,
-        "std": 170.29244470074548,
+        "std": 170.4768272016897,
         "P10": 7.0,
         "P25": 10.0,
         "P75": 50.0,
-        "P90": 108.0,
-        "P95": 216.0,
-        "count": 391
+        "P90": 108.60000000000014,
+        "P95": 216.69999999999936,
+        "count": 390
       },
-      "A2_emoji_rate": 0.43478260869565216,
-      "A3_exclamation_rate": 0.07161125319693094,
-      "A4_question_rate": 0.1483375959079284,
-      "A5_vocab_diversity": 0.46923076923076923
+      "A2_emoji_rate": 0.4358974358974359,
+      "A3_exclamation_rate": 0.06923076923076923,
+      "A4_question_rate": 0.14871794871794872,
+      "A5_vocab_diversity": 0.4680473372781065
     }
   },
   "adaptation": {
@@ -80,60 +80,60 @@
     "directions": {
       "length_mean": {
         "direction": "neutral",
-        "magnitude": 0.0517,
+        "magnitude": 0.0498,
         "values_by_segment": {
-          "UNKNOWN": 46.0145,
-          "KNOWN": 120.3121,
-          "CLOSE": 62.6803,
-          "INTIMATE": 52.432
+          "UNKNOWN": 45.7568,
+          "KNOWN": 120.0836,
+          "CLOSE": 62.8564,
+          "INTIMATE": 52.4853
         }
       },
       "emoji_rate": {
         "direction": "decreases_with_trust",
-        "magnitude": 0.1133,
+        "magnitude": 0.1122,
         "values_by_segment": {
-          "UNKNOWN": 0.3446,
-          "KNOWN": 0.3728,
-          "CLOSE": 0.4348,
-          "INTIMATE": 0.2566
+          "UNKNOWN": 0.3444,
+          "KNOWN": 0.3746,
+          "CLOSE": 0.4359,
+          "INTIMATE": 0.2571
         }
       },
       "exclamation_rate": {
         "direction": "neutral",
-        "magnitude": 0.0602,
+        "magnitude": 0.0619,
         "values_by_segment": {
-          "UNKNOWN": 0.0332,
-          "KNOWN": 0.0809,
-          "CLOSE": 0.0716,
-          "INTIMATE": 0.0251
+          "UNKNOWN": 0.033,
+          "KNOWN": 0.0807,
+          "CLOSE": 0.0692,
+          "INTIMATE": 0.0255
         }
       },
       "question_rate": {
         "direction": "neutral",
-        "magnitude": 0.0251,
+        "magnitude": 0.0225,
         "values_by_segment": {
-          "UNKNOWN": 0.0921,
-          "KNOWN": 0.1965,
-          "CLOSE": 0.1483,
+          "UNKNOWN": 0.0916,
+          "KNOWN": 0.196,
+          "CLOSE": 0.1487,
           "INTIMATE": 0.0995
         }
       },
       "vocab_diversity": {
         "direction": "neutral",
-        "magnitude": 0.0047,
+        "magnitude": 0.0073,
         "values_by_segment": {
-          "UNKNOWN": 0.2335,
-          "KNOWN": 0.413,
-          "CLOSE": 0.4692,
-          "INTIMATE": 0.2108
+          "UNKNOWN": 0.2342,
+          "KNOWN": 0.4134,
+          "CLOSE": 0.468,
+          "INTIMATE": 0.2097
         }
       }
     }
   },
   "segment_counts": {
-    "UNKNOWN": 8823,
-    "KNOWN": 346,
-    "INTIMATE": 10989,
-    "CLOSE": 391
+    "UNKNOWN": 8868,
+    "KNOWN": 347,
+    "INTIMATE": 11035,
+    "CLOSE": 390
   }
 }

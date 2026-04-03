@@ -1,111 +1,111 @@
 {
   "creator_id": "iris_bertran",
-  "total_sessions": 5118,
-  "total_pairs": 8999,
+  "total_sessions": 5166,
+  "total_pairs": 9033,
   "strategy_map": {
     "EMOJI_ONLY": {
       "distribution": {
-        "MIRROR": 0.2157,
-        "VALIDATE": 0.1089,
-        "INFORM": 0.0282,
-        "REDIRECT": 0.1109,
-        "ASK": 0.1492,
-        "IGNORE": 0.3871
+        "MIRROR": 0.2189,
+        "VALIDATE": 0.1124,
+        "INFORM": 0.0276,
+        "REDIRECT": 0.1164,
+        "ASK": 0.142,
+        "IGNORE": 0.3826
       },
-      "count": 496,
+      "count": 507,
       "dominant": "IGNORE"
     },
     "GREETING": {
       "distribution": {
-        "MIRROR": 0.1251,
-        "VALIDATE": 0.1755,
-        "INFORM": 0.0514,
-        "REDIRECT": 0.1242,
-        "ASK": 0.1298,
-        "IGNORE": 0.394
+        "MIRROR": 0.1294,
+        "VALIDATE": 0.171,
+        "INFORM": 0.0518,
+        "REDIRECT": 0.1238,
+        "ASK": 0.1229,
+        "IGNORE": 0.4011
       },
-      "count": 1071,
+      "count": 1082,
       "dominant": "IGNORE"
     },
     "QUESTION_SERVICE": {
       "distribution": {
-        "MIRROR": 0.1195,
-        "VALIDATE": 0.1447,
-        "INFORM": 0.0566,
-        "REDIRECT": 0.2075,
-        "ASK": 0.1006,
-        "IGNORE": 0.3711
+        "MIRROR": 0.1097,
+        "VALIDATE": 0.1613,
+        "INFORM": 0.0581,
+        "REDIRECT": 0.2129,
+        "ASK": 0.0839,
+        "IGNORE": 0.3742
       },
-      "count": 159,
+      "count": 155,
       "dominant": "IGNORE"
     },
     "EMOTIONAL": {
       "distribution": {
-        "MIRROR": 0.2407,
-        "VALIDATE": 0.1667,
-        "INFORM": 0.037,
-        "REDIRECT": 0.1481,
-        "ASK": 0.0741,
-        "IGNORE": 0.3333
+        "MIRROR": 0.2321,
+        "VALIDATE": 0.1786,
+        "INFORM": 0.0179,
+        "REDIRECT": 0.1607,
+        "ASK": 0.0714,
+        "IGNORE": 0.3393
       },
-      "count": 54,
+      "count": 56,
       "dominant": "IGNORE"
     },
     "HEALTH": {
       "distribution": {
-        "MIRROR": 0.0506,
-        "VALIDATE": 0.2911,
-        "INFORM": 0.0253,
-        "REDIRECT": 0.1392,
-        "ASK": 0.0759,
-        "IGNORE": 0.4177
+        "MIRROR": 0.05,
+        "VALIDATE": 0.275,
+        "INFORM": 0.025,
+        "REDIRECT": 0.1375,
+        "ASK": 0.0875,
+        "IGNORE": 0.425
       },
-      "count": 79,
+      "count": 80,
       "dominant": "IGNORE"
     },
     "LAUGH": {
       "distribution": {
-        "MIRROR": 0.1937,
-        "VALIDATE": 0.1453,
-        "INFORM": 0.0112,
-        "REDIRECT": 0.1359,
-        "ASK": 0.0801,
-        "IGNORE": 0.4339
+        "MIRROR": 0.196,
+        "VALIDATE": 0.1447,
+        "INFORM": 0.011,
+        "REDIRECT": 0.1355,
+        "ASK": 0.0751,
+        "IGNORE": 0.4377
       },
-      "count": 537,
+      "count": 546,
       "dominant": "IGNORE"
     },
     "MEDIA": {
       "distribution": {
-        "MIRROR": 0.2507,
-        "VALIDATE": 0.1758,
-        "INFORM": 0.0294,
-        "REDIRECT": 0.1406,
-        "ASK": 0.0764,
-        "IGNORE": 0.3271
+        "MIRROR": 0.2488,
+        "VALIDATE": 0.1771,
+        "INFORM": 0.0278,
+        "REDIRECT": 0.1391,
+        "ASK": 0.0776,
+        "IGNORE": 0.3296
       },
-      "count": 1871,
+      "count": 1869,
       "dominant": "IGNORE"
     },
     "OTHER": {
       "distribution": {
-        "MIRROR": 0.1156,
-        "VALIDATE": 0.1249,
-        "INFORM": 0.0423,
-        "REDIRECT": 0.1498,
-        "ASK": 0.1156,
-        "IGNORE": 0.4518
+        "MIRROR": 0.1148,
+        "VALIDATE": 0.1254,
+        "INFORM": 0.0416,
+        "REDIRECT": 0.1511,
+        "ASK": 0.115,
+        "IGNORE": 0.4521
       },
-      "count": 4732,
+      "count": 4738,
       "dominant": "IGNORE"
     }
   },
   "global_strategy_distribution": {
-    "MIRROR": 0.1552,
-    "VALIDATE": 0.1439,
-    "INFORM": 0.0381,
-    "REDIRECT": 0.1428,
-    "ASK": 0.108,
-    "IGNORE": 0.4119
+    "MIRROR": 0.1551,
+    "VALIDATE": 0.1442,
+    "INFORM": 0.0373,
+    "REDIRECT": 0.1435,
+    "ASK": 0.1063,
+    "IGNORE": 0.4136
   }
 }

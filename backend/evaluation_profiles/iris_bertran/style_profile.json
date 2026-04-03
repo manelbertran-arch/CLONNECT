@@ -1,67 +1,67 @@
 {
   "creator_id": "iris_bertran",
-  "total_messages": 20549,
-  "total_pairs": 8903,
+  "total_messages": 20640,
+  "total_pairs": 8948,
   "A1_length": {
-    "mean": 51.01450192223466,
+    "mean": 50.92679263565891,
     "median": 19.0,
-    "std": 178.38398187330057,
+    "std": 178.04296776705885,
     "P10": 7.0,
     "P25": 9.0,
     "P75": 38.0,
     "P90": 80.0,
-    "P95": 145.0,
-    "count": 20549,
+    "P95": 144.0,
+    "count": 20640,
     "threshold": [
       7.0,
       80.0
     ]
   },
   "A2_emoji": {
-    "global_rate": 0.2997226142391357,
+    "global_rate": 0.2999515503875969,
     "emoji_count_stats": {
-      "mean": 0.7474329651077911,
+      "mean": 0.7482073643410853,
       "median": 0.0,
-      "std": 1.693612522900935,
+      "std": 1.6932440092406904,
       "P10": 0.0,
       "P25": 0.0,
       "P75": 1.0,
       "P90": 3.0,
       "P95": 4.0,
-      "count": 20549
+      "count": 20640
     },
     "per_context": {
       "MEDIA": {
-        "rate": 0.33142559833506763,
-        "count": 1922
+        "rate": 0.3309128630705394,
+        "count": 1928
       },
       "LAUGH": {
-        "rate": 0.38738738738738737,
-        "count": 555
+        "rate": 0.3902877697841727,
+        "count": 556
       },
       "OTHER": {
-        "rate": 0.3161303802758044,
-        "count": 4786
+        "rate": 0.3144640998959417,
+        "count": 4805
       },
       "GREETING": {
-        "rate": 0.3392382639503986,
-        "count": 1129
+        "rate": 0.3409090909090909,
+        "count": 1144
       },
       "HEALTH": {
         "rate": 0.23529411764705882,
         "count": 85
       },
       "EMOTIONAL": {
-        "rate": 0.39655172413793105,
-        "count": 58
+        "rate": 0.39285714285714285,
+        "count": 56
       },
       "QUESTION_SERVICE": {
-        "rate": 0.42857142857142855,
-        "count": 168
+        "rate": 0.4470588235294118,
+        "count": 170
       },
       "EMOJI_ONLY": {
-        "rate": 0.315,
-        "count": 200
+        "rate": 0.3235294117647059,
+        "count": 204
       }
     },
     "threshold_global": [
@@ -70,14 +70,14 @@
     ]
   },
   "A3_exclamations": {
-    "rate": 0.03041510535792496,
+    "rate": 0.030474806201550388,
     "threshold": [
       0.0,
       0.0
     ]
   },
   "A4_questions": {
-    "rate": 0.09888559053968562,
+    "rate": 0.09864341085271318,
     "threshold": [
       0.0,
       0.0
@@ -87,228 +87,228 @@
     "top_50": [
       {
         "word": "demà",
-        "score": 1093.3993
+        "score": 1094.7741
       },
       {
         "word": "dia",
-        "score": 1047.548
+        "score": 1049.0584
       },
       {
         "word": "mama",
-        "score": 1018.4121
+        "score": 1022.2196
       },
       {
         "word": "avui",
-        "score": 979.6768
+        "score": 984.8932
       },
       {
         "word": "vaig",
-        "score": 829.6863
+        "score": 828.617
       },
       {
         "word": "sino",
-        "score": 787.9847
+        "score": 789.0055
       },
       {
         "word": "cuka",
-        "score": 779.6424
+        "score": 780.5055
       },
       {
         "word": "canal",
-        "score": 778.4372
+        "score": 779.1509
       },
       {
         "word": "està",
-        "score": 774.0585
+        "score": 774.9686
       },
       {
         "word": "aquest",
-        "score": 755.0582
+        "score": 766.4604
       },
       {
         "word": "més",
-        "score": 709.9591
+        "score": 709.1329
       },
       {
         "word": "gràcies",
-        "score": 696.279
+        "score": 703.7824
       },
       {
         "word": "barre",
-        "score": 651.3539
+        "score": 651.6755
       },
       {
         "word": "vols",
-        "score": 636.636
+        "score": 637.2722
       },
       {
         "word": "cuca",
-        "score": 585.3359
+        "score": 588.275
       },
       {
         "word": "hora",
-        "score": 568.2488
+        "score": 568.8463
       },
       {
         "word": "tranqui",
-        "score": 567.0152
+        "score": 567.6625
       },
       {
         "word": "això",
-        "score": 558.755
-      },
-      {
-        "word": "venir",
-        "score": 556.5996
+        "score": 561.7132
       },
       {
         "word": "dir",
-        "score": 555.7434
+        "score": 558.7054
+      },
+      {
+        "word": "venir",
+        "score": 557.3944
       },
       {
         "word": "meu",
-        "score": 554.7583
+        "score": 555.3566
       },
       {
         "word": "veure",
-        "score": 552.7621
+        "score": 553.4067
       },
       {
         "word": "tens",
-        "score": 547.1235
+        "score": 547.7116
       },
       {
         "word": "així",
-        "score": 544.5427
+        "score": 545.1264
       },
       {
         "word": "zumba",
-        "score": 539.5125
+        "score": 540.0602
       },
       {
         "word": "vas",
-        "score": 523.0578
+        "score": 523.6498
       },
       {
         "word": "dius",
-        "score": 515.8818
+        "score": 516.4295
       },
       {
         "word": "bon",
-        "score": 509.3346
+        "score": 510.004
       },
       {
         "word": "baby",
-        "score": 509.2255
+        "score": 509.8341
       },
       {
         "word": "anar",
-        "score": 472.3774
+        "score": 472.8394
       },
       {
         "word": "nada",
-        "score": 462.9033
+        "score": 463.3459
       },
       {
         "word": "pots",
-        "score": 446.0031
+        "score": 446.4789
       },
       {
         "word": "després",
-        "score": 437.4938
+        "score": 437.8949
       },
       {
         "word": "dic",
-        "score": 436.4929
+        "score": 436.9079
       },
       {
         "word": "manel",
-        "score": 431.2457
+        "score": 431.4753
       },
       {
         "word": "casa",
-        "score": 428.408
+        "score": 428.8672
       },
       {
         "word": "algo",
-        "score": 426.1309
+        "score": 426.5679
       },
       {
         "word": "ver",
-        "score": 414.8866
-      },
-      {
-        "word": "algú",
-        "score": 408.7216
+        "score": 415.3292
       },
       {
         "word": "cap",
-        "score": 407.8999
+        "score": 411.6885
+      },
+      {
+        "word": "algú",
+        "score": 409.1365
       },
       {
         "word": "passa",
-        "score": 407.3934
+        "score": 407.7807
       },
       {
         "word": "alguna",
-        "score": 403.6238
+        "score": 404.0886
       },
       {
         "word": "faig",
-        "score": 397.7034
+        "score": 398.1377
+      },
+      {
+        "word": "fet",
+        "score": 397.3548
       },
       {
         "word": "bcn",
-        "score": 396.4873
+        "score": 396.8856
       },
       {
         "word": "ahir",
-        "score": 396.3609
+        "score": 396.7288
       },
       {
         "word": "millor",
-        "score": 395.1603
+        "score": 395.5697
       },
       {
         "word": "vens",
-        "score": 390.3478
+        "score": 390.7295
       },
       {
         "word": "meva",
-        "score": 388.5384
+        "score": 388.8787
       },
       {
         "word": "dit",
-        "score": 386.9587
-      },
-      {
-        "word": "dormir",
-        "score": 383.4788
+        "score": 387.3045
       }
     ],
     "method": "tfidf"
   },
   "A6_language_ratio": {
     "ratios": {
-      "ca": 0.2733,
+      "ca": 0.2732,
       "unknown": 0.2566,
-      "es": 0.1371,
+      "es": 0.1367,
       "it": 0.0641,
-      "pt": 0.0377,
-      "en": 0.0294,
+      "pt": 0.0378,
+      "en": 0.0296,
       "ca-es": 0.0226,
-      "fr": 0.0214,
-      "de": 0.0195,
+      "fr": 0.0213,
+      "de": 0.0194,
       "es-pt": 0.0102,
       "ro": 0.0091,
       "so": 0.009,
       "nl": 0.008,
-      "sl": 0.0078,
-      "fi": 0.0072,
+      "sl": 0.0079,
+      "fi": 0.0071,
       "es-it": 0.0071,
-      "et": 0.0069,
+      "et": 0.0071,
       "tl": 0.0059,
-      "af": 0.0051,
+      "af": 0.0052,
       "id": 0.005,
       "es-fr": 0.0031,
       "hu": 0.0029,
@@ -317,42 +317,42 @@
       "hr": 0.0021,
       "lt": 0.002,
       "lv": 0.0017,
-      "de-es": 0.0017,
+      "de-es": 0.0016,
       "cy": 0.0016,
-      "sw": 0.0014,
+      "sw": 0.0015,
       "tr": 0.0014,
       "es-sl": 0.0014,
+      "pt-sv": 0.0012,
       "da": 0.0012,
       "ca-it": 0.0012,
-      "pt-sv": 0.0012,
       "sk": 0.0012,
       "sv": 0.0011,
       "es-lt": 0.0011,
-      "ca-fr": 0.0009,
+      "ca-fr": 0.001,
+      "es-fi": 0.0009,
       "es-so": 0.0009,
       "sq": 0.0008,
-      "es-fi": 0.0008,
       "en-es": 0.0008,
       "es-tl": 0.0007,
+      "pl": 0.0007,
       "en-sv": 0.0007,
       "da-es": 0.0007,
       "fr-sl": 0.0007,
-      "pl": 0.0006,
       "cs": 0.0006,
       "ca-sv": 0.0006,
       "ca-sl": 0.0006,
       "nl-sv": 0.0006,
       "es-sk": 0.0006,
+      "ca-fi": 0.0005,
       "es-ro": 0.0005,
       "es-et": 0.0005,
-      "ca-fi": 0.0005,
       "es-nl": 0.0005,
       "es-tr": 0.0005,
       "ca-nl": 0.0005,
+      "af-es": 0.0005,
       "en-sk": 0.0005,
       "ca-en": 0.0004,
       "ca-tr": 0.0004,
-      "af-es": 0.0004,
       "ca-so": 0.0004,
       "ca-ro": 0.0003,
       "ca-no": 0.0003,
@@ -365,12 +365,12 @@
       "fr-so": 0.0003,
       "es-sv": 0.0003,
       "es-lv": 0.0002,
+      "af-ca": 0.0002,
       "fr-tl": 0.0002,
       "en-pt": 0.0002,
       "ca-id": 0.0002,
       "pt-sk": 0.0002,
       "es-sw": 0.0002,
-      "af-ca": 0.0002,
       "es-id": 0.0001,
       "es-vi": 0.0001,
       "de-tl": 0.0001,
@@ -454,34 +454,34 @@
       "cs-es": 0.0,
       "fr-nl": 0.0
     },
-    "total_detected": 20549
+    "total_detected": 20640
   },
   "A7_fragmentation": {
-    "mean": 2.2345146379044682,
+    "mean": 2.235444592243937,
     "median": 2.0,
-    "std": 1.840468528635075,
+    "std": 1.840883244462514,
     "P10": 1.0,
     "P25": 1.0,
     "P75": 3.0,
     "P90": 4.0,
     "P95": 6.0,
-    "count": 9735,
+    "count": 9773,
     "threshold": [
       1.0,
       4.0
     ]
   },
   "A8_formality": {
-    "formal_rate": 4.866416857267994e-05,
-    "informal_rate": 0.008905542848800428,
-    "abbreviation_rate": 0.042873132512531026,
+    "formal_rate": 4.8449612403100775e-05,
+    "informal_rate": 0.008866279069767441,
+    "abbreviation_rate": 0.04273255813953488,
     "formality_score": 0.005434782608695652
   },
   "A9_catchphrases": {
     "catchphrases": [
       {
         "phrase": "media attachment",
-        "count": 887
+        "count": 889
       },
       {
         "phrase": "bon dia",
@@ -493,19 +493,19 @@
       },
       {
         "phrase": "mentioned their",
-        "count": 108
+        "count": 110
       },
       {
         "phrase": "their story",
-        "count": 108
+        "count": 110
       },
       {
         "phrase": "mentioned their story",
-        "count": 108
+        "count": 110
       },
       {
         "phrase": "sent attachment",
-        "count": 101
+        "count": 102
       },
       {
         "phrase": "dia dia",
@@ -513,7 +513,7 @@
       },
       {
         "phrase": "vaig dir",
-        "count": 69
+        "count": 70
       },
       {
         "phrase": "meu dia",
@@ -536,20 +536,20 @@
         "count": 63
       },
       {
+        "phrase": "https www",
+        "count": 61
+      },
+      {
         "phrase": "vol dir",
         "count": 60
       },
       {
-        "phrase": "https www",
+        "phrase": "www instagram",
         "count": 60
       },
       {
-        "phrase": "www instagram",
-        "count": 59
-      },
-      {
         "phrase": "https www instagram",
-        "count": 59
+        "count": 60
       },
       {
         "phrase": "bona tarda",

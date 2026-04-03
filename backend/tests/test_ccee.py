@@ -122,6 +122,38 @@ def sample_strategy_map():
 @pytest.fixture
 def sample_adaptation_profile():
     return {
+        "segments": {
+            "UNKNOWN": {
+                "message_count": 500,
+                "A1_length": {
+                    "mean": 20.0, "median": 18.0, "std": 10.0,
+                    "P10": 5.0, "P25": 10.0, "P75": 30.0, "P90": 40.0, "count": 500,
+                },
+                "A2_emoji_rate": 0.2,
+                "A3_exclamation_rate": 0.3,
+                "A4_question_rate": 0.5,
+            },
+            "KNOWN": {
+                "message_count": 200,
+                "A1_length": {
+                    "mean": 35.0, "median": 30.0, "std": 15.0,
+                    "P10": 10.0, "P25": 20.0, "P75": 50.0, "P90": 65.0, "count": 200,
+                },
+                "A2_emoji_rate": 0.5,
+                "A3_exclamation_rate": 0.32,
+                "A4_question_rate": 0.3,
+            },
+            "CLOSE": {
+                "message_count": 100,
+                "A1_length": {
+                    "mean": 55.0, "median": 50.0, "std": 20.0,
+                    "P10": 20.0, "P25": 35.0, "P75": 70.0, "P90": 90.0, "count": 100,
+                },
+                "A2_emoji_rate": 0.8,
+                "A3_exclamation_rate": 0.31,
+                "A4_question_rate": 0.1,
+            },
+        },
         "adaptation": {
             "adaptation_score": 60.0,
             "valid_segments": 3,
@@ -146,7 +178,7 @@ def sample_adaptation_profile():
                     "direction": "neutral", "magnitude": 0.02,
                 },
             },
-        }
+        },
     }
 
 
@@ -400,6 +432,66 @@ class TestCCEEScorer:
         # MIRROR is not in HEALTH top 2 (VALIDATE, ASK)
         assert result["score"] < 50, (
             f"Expected low S3 for mirror response in HEALTH context, got {result['score']}"
+        )
+
+    def test_s4_proximity_not_fixed_50(self, sample_adaptation_profile):
+        """S4 should use proximity scores when directional analysis is insufficient."""
+        test_cases = [
+            {"user_input": "Hola!", "trust_score": 0.1},   # UNKNOWN
+            {"user_input": "Qué tal?", "trust_score": 0.5},  # KNOWN
+            {"user_input": "Te quiero", "trust_score": 0.85},  # CLOSE
+        ]
+        bot_responses = [
+            "Hola! 😊",            # short + emoji
+            "Molt bé! Com va tot amb tu?",  # medium
+            "Gràcies amor! Et trobo a faltar molt, espero veure't aviat 😘",  # long + emoji
+        ]
+        result = score_s4_adaptation(test_cases, bot_responses, sample_adaptation_profile)
+        assert result["score"] != 50.0, (
+            f"S4 should not be exactly 50.0, got {result}"
+        )
+        assert result["detail"].get("mode") in ("proximity_only", "blended")
+
+    def test_s4_all_neutral_directions_still_varies(self):
+        """S4 should vary even when all directions are neutral (real Iris scenario)."""
+        profile = {
+            "segments": {
+                "UNKNOWN": {
+                    "message_count": 8000,
+                    "A1_length": {"P10": 7.0, "P90": 72.0},
+                    "A2_emoji_rate": 0.34,
+                    "A3_exclamation_rate": 0.03,
+                    "A4_question_rate": 0.09,
+                },
+                "INTIMATE": {
+                    "message_count": 10000,
+                    "A1_length": {"P10": 7.0, "P90": 84.0},
+                    "A2_emoji_rate": 0.26,
+                    "A3_exclamation_rate": 0.025,
+                    "A4_question_rate": 0.10,
+                },
+            },
+            "adaptation": {
+                "adaptation_score": 20.0,
+                "valid_segments": 2,
+                "directions": {
+                    "length_mean": {"direction": "neutral", "magnitude": 0.05},
+                    "emoji_rate": {"direction": "neutral", "magnitude": 0.05},
+                    "exclamation_rate": {"direction": "neutral", "magnitude": 0.05},
+                    "question_rate": {"direction": "neutral", "magnitude": 0.02},
+                },
+            },
+        }
+        test_cases = [
+            {"user_input": "Hola", "trust_score": 0.1},
+            {"user_input": "Qué tal?", "trust_score": 0.15},
+            {"user_input": "Amor!", "trust_score": 0.95},
+            {"user_input": "Te echo de menos", "trust_score": 0.92},
+        ]
+        bot_responses = ["Hola 😊", "Bé!", "T'estimo molt! 😘❤️", "Jo també, amor"]
+        result = score_s4_adaptation(test_cases, bot_responses, profile)
+        assert result["score"] != 50.0, (
+            f"S4 should not be exactly 50.0 with neutral directions but real segment data, got {result}"
         )
 
     def test_composite_weight_sum(self, sample_style_profile, sample_strategy_map,

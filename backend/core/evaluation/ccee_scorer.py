@@ -498,83 +498,113 @@ def score_s4_adaptation(
     bot_responses: List[str],
     adaptation_profile: Dict,
 ) -> Dict[str, Any]:
-    """Score if bot adapts in the same direction as the creator."""
+    """Score if bot adapts style to match creator per trust segment.
+
+    Uses two signals:
+    - Proximity: per-case style match against creator's segment profile (primary)
+    - Directional: does the bot shift style in the same direction as creator (bonus)
+
+    Blends 60% proximity + 40% directional when both available.
+    """
     if not test_cases or not bot_responses:
         return {"score": 0.0, "detail": "no data"}
 
+    # --- Proximity scores (per-case segment fit) ---
+    has_segments = bool(adaptation_profile.get("segments"))
+    proximity_scores = []
+    for tc, resp in zip(test_cases, bot_responses):
+        trust = tc.get("trust_score", tc.get("trust", None))
+        if trust is not None and has_segments:
+            proximity_scores.append(
+                score_s4_per_case(resp, float(trust), adaptation_profile)
+            )
+
+    # --- Directional scores (cross-segment trend match) ---
     adapt = adaptation_profile.get("adaptation", {})
     directions = adapt.get("directions", {})
-
-    if not directions or adapt.get("status") == "insufficient_segments":
-        return {"score": 50.0, "detail": "insufficient creator adaptation data"}
-
-    # Group bot responses by trust segment
-    from collections import defaultdict
-    by_segment: Dict[str, List[str]] = defaultdict(list)
-    for tc, resp in zip(test_cases, bot_responses):
-        seg = _trust_segment_for_case(tc)
-        if seg:
-            by_segment[seg].append(resp)
-
-    if len(by_segment) < 2:
-        return {"score": 50.0, "detail": "insufficient trust segment coverage"}
-
-    # Compute bot metrics per segment
-    ordered = ["UNKNOWN", "KNOWN", "CLOSE", "INTIMATE"]
-    valid_segs = [s for s in ordered if s in by_segment and len(by_segment[s]) >= 3]
-
-    if len(valid_segs) < 2:
-        return {"score": 50.0, "detail": "insufficient cases per segment"}
-
-    bot_metrics = {}
-    for seg in valid_segs:
-        resps = by_segment[seg]
-        bot_metrics[seg] = {
-            "length_mean": np.mean([len(r) for r in resps]),
-            "emoji_rate": sum(1 for r in resps if EMOJI_RE.search(r)) / len(resps),
-            "exclamation_rate": sum(1 for r in resps if "!" in r) / len(resps),
-            "question_rate": sum(1 for r in resps if "?" in r) / len(resps),
-        }
-
-    # Compare direction with creator
     direction_scores = []
-    for metric_name in ["length_mean", "emoji_rate", "exclamation_rate", "question_rate"]:
-        creator_dir = directions.get(metric_name, {}).get("direction", "neutral")
-        if creator_dir == "neutral":
-            direction_scores.append(50.0)
-            continue
+    valid_segs = []
 
-        # Bot direction
-        bot_vals = [bot_metrics[s][metric_name] for s in valid_segs]
-        if len(bot_vals) < 2:
-            direction_scores.append(50.0)
-            continue
+    if directions and adapt.get("status") != "insufficient_segments":
+        from collections import defaultdict
+        by_segment: Dict[str, List[str]] = defaultdict(list)
+        for tc, resp in zip(test_cases, bot_responses):
+            seg = _trust_segment_for_case(tc)
+            if seg:
+                by_segment[seg].append(resp)
 
-        x = np.arange(len(bot_vals), dtype=float)
-        slope = np.polyfit(x, np.array(bot_vals, dtype=float), 1)[0]
+        ordered = ["UNKNOWN", "KNOWN", "CLOSE", "INTIMATE"]
+        valid_segs = [s for s in ordered if s in by_segment and len(by_segment[s]) >= 3]
 
-        if creator_dir == "increases_with_trust" and slope > 0:
-            direction_scores.append(100.0)
-        elif creator_dir == "decreases_with_trust" and slope < 0:
-            direction_scores.append(100.0)
-        elif abs(slope) < 0.01:
-            direction_scores.append(50.0)  # no adaptation
-        else:
-            direction_scores.append(0.0)  # opposite direction
+        if len(valid_segs) >= 2:
+            bot_metrics = {}
+            for seg in valid_segs:
+                resps = by_segment[seg]
+                bot_metrics[seg] = {
+                    "length_mean": np.mean([len(r) for r in resps]),
+                    "emoji_rate": sum(1 for r in resps if EMOJI_RE.search(r)) / len(resps),
+                    "exclamation_rate": sum(1 for r in resps if "!" in r) / len(resps),
+                    "question_rate": sum(1 for r in resps if "?" in r) / len(resps),
+                }
 
-    return {
-        "score": round(float(np.mean(direction_scores)), 2),
-        "detail": {
-            "per_metric": {
-                m: round(s, 1)
-                for m, s in zip(
-                    ["length", "emoji", "exclamation", "question"],
-                    direction_scores,
-                )
-            },
-            "segments_used": valid_segs,
-        },
-    }
+            for metric_name in ["length_mean", "emoji_rate", "exclamation_rate", "question_rate"]:
+                creator_dir = directions.get(metric_name, {}).get("direction", "neutral")
+                if creator_dir == "neutral":
+                    direction_scores.append(50.0)
+                    continue
+
+                bot_vals = [bot_metrics[s][metric_name] for s in valid_segs]
+                if len(bot_vals) < 2:
+                    direction_scores.append(50.0)
+                    continue
+
+                x = np.arange(len(bot_vals), dtype=float)
+                slope = np.polyfit(x, np.array(bot_vals, dtype=float), 1)[0]
+
+                if creator_dir == "increases_with_trust" and slope > 0:
+                    direction_scores.append(100.0)
+                elif creator_dir == "decreases_with_trust" and slope < 0:
+                    direction_scores.append(100.0)
+                elif abs(slope) < 0.01:
+                    direction_scores.append(50.0)
+                else:
+                    direction_scores.append(0.0)
+
+    # --- Blend scores ---
+    has_proximity = len(proximity_scores) > 0
+    has_directional = len(direction_scores) > 0
+
+    if has_proximity and has_directional:
+        prox_mean = float(np.mean(proximity_scores))
+        dir_mean = float(np.mean(direction_scores))
+        score = 0.6 * prox_mean + 0.4 * dir_mean
+        mode = "blended"
+    elif has_proximity:
+        score = float(np.mean(proximity_scores))
+        mode = "proximity_only"
+    elif has_directional:
+        score = float(np.mean(direction_scores))
+        mode = "directional_only"
+    else:
+        return {"score": 50.0, "detail": "no adaptation data available"}
+
+    score = max(0.0, min(100.0, score))
+
+    detail: Dict[str, Any] = {"mode": mode}
+    if has_proximity:
+        detail["proximity_mean"] = round(float(np.mean(proximity_scores)), 2)
+        detail["proximity_n"] = len(proximity_scores)
+    if has_directional:
+        detail["per_metric"] = {
+            m: round(s, 1)
+            for m, s in zip(
+                ["length", "emoji", "exclamation", "question"],
+                direction_scores,
+            )
+        }
+        detail["segments_used"] = valid_segs
+
+    return {"score": round(score, 2), "detail": detail}
 
 
 def score_s4_per_case(

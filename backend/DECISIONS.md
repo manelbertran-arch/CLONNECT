@@ -4,6 +4,20 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-03 — Fix S4 Adaptation Scorer (always returned 50.0)
+
+**Problem**: `score_s4_adaptation()` returned exactly 50.0 in every CCEE run because:
+1. Directional analysis required ≥3 bot responses in ≥2 trust segments — too strict for 42 test cases with skewed trust distribution
+2. Even when met, 3/4 direction metrics for Iris were "neutral" → each scored 50.0
+
+**Fix**: Blend per-case proximity scores (via `score_s4_per_case`, which already worked — varied 58-90) with directional scores: 60% proximity + 40% directional when both available, 100% proximity otherwise. Fallback to 50.0 only when no segment data exists at all.
+
+**Result**: S4 now returns 58.32 (blended: proximity_mean=72.21, directional=37.5) instead of fixed 50.0.
+
+**Files**: `core/evaluation/ccee_scorer.py` (score_s4_adaptation), `tests/test_ccee.py` (+2 tests, fixture update)
+
+---
+
 ## 2026-04-03 — Learning systems: 48 bug fixes + CCEE scoring + gold examples hardening
 
 **Context:**
