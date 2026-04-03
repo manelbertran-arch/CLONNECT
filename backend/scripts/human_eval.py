@@ -541,7 +541,7 @@ def main():
             existing = {"ratings": [], "metadata": {}}
             completed_ids = set()
 
-    remaining = [c for c in conversations if c.get("id", conversations.index(c)) not in completed_ids]
+    remaining = [c for i, c in enumerate(conversations) if c.get("id", f"case_{i+1}") not in completed_ids]
     total_remaining = len(remaining)
 
     if not remaining:
@@ -579,10 +579,18 @@ def main():
             break
         elif result == "back":
             if i > 0:
-                # Remove last rating and go back
-                if ratings and ratings[-1].get("case_id") == remaining[i - 1].get("id"):
+                # Go back, skipping over auto-skipped cases (no bot_response / no GT)
+                target = i - 1
+                while target > 0:
+                    prev_conv = remaining[target]
+                    if prev_conv.get("bot_response") and prev_conv.get("ground_truth", prev_conv.get("real_response")):
+                        break
+                    target -= 1
+                # Remove last rating if it matches the target case
+                target_id = remaining[target].get("id", f"case_{resume_from + target + 1}")
+                if ratings and ratings[-1].get("case_id") == target_id:
                     ratings.pop()
-                i -= 1
+                i = target
                 print(f"\n  ← Going back to case {resume_from + i + 1}")
             else:
                 print("  Already at first case — can't go back")

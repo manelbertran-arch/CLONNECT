@@ -535,8 +535,13 @@ def _call_hf_inference(prompt: str, hf_token: str, model: str, max_tokens: int =
 
     req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=120) as resp:
             data = json.loads(resp.read().decode("utf-8"))
+            # HF returns {"error": "Model is loading", "estimated_time": N} on cold start
+            if isinstance(data, dict) and "error" in data:
+                est = data.get("estimated_time", "?")
+                logger.info(f"HF model loading: {data['error']} (est {est}s), will use fallback")
+                return None
             if isinstance(data, list) and data:
                 return data[0].get("generated_text", "")
             return None
@@ -552,32 +557,39 @@ def _call_hf_inference(prompt: str, hf_token: str, model: str, max_tokens: int =
 
 
 def _call_gemini_fallback(prompt: str) -> Optional[str]:
-    """Call Gemini Flash Lite as fallback judge."""
+    """Call Gemini Flash Lite as fallback judge.
+
+    Handles both sync and async calling contexts safely.
+    """
     import asyncio
+    import concurrent.futures
+
     try:
         from core.providers.gemini_provider import generate_simple
-        # Reuse running loop if available (inside async main), otherwise create one
-        try:
-            loop = asyncio.get_running_loop()
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                result = pool.submit(
-                    lambda: asyncio.run(generate_simple(
-                        prompt=prompt,
-                        system_prompt=JUDGE_SYSTEM_PROMPT,
-                        max_tokens=400,
-                        temperature=0.1,
-                    ))
-                ).result(timeout=30)
-        except RuntimeError:
-            # No running loop
-            result = asyncio.run(generate_simple(
-                prompt=prompt,
-                system_prompt=JUDGE_SYSTEM_PROMPT,
-                max_tokens=400,
-                temperature=0.1,
-            ))
+    except ImportError as e:
+        logger.warning(f"Gemini provider not available: {e}")
+        return None
+
+    async def _do_call():
+        return await generate_simple(
+            prompt=prompt,
+            system_prompt=JUDGE_SYSTEM_PROMPT,
+            max_tokens=400,
+            temperature=0.1,
+        )
+
+    try:
+        # If we're inside an async event loop (main() is async), run in a thread
+        asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            result = pool.submit(asyncio.run, _do_call()).result(timeout=30)
         return result
+    except RuntimeError:
+        # No running loop — safe to use asyncio.run directly
+        pass
+
+    try:
+        return asyncio.run(_do_call())
     except Exception as e:
         logger.warning(f"Gemini fallback failed: {e}")
         return None
@@ -707,12 +719,9 @@ def _get_platform_user_id(lead_id: str) -> Optional[str]:
     try:
         from api.database import SessionLocal
         from api.models import Lead
-        session = SessionLocal()
-        try:
+        with SessionLocal() as session:
             row = session.query(Lead.platform_user_id).filter_by(id=lead_id).first()
             return row[0] if row and row[0] else None
-        finally:
-            session.close()
     except Exception:
         return None
 
@@ -873,8 +882,13 @@ async def main():
     hf_token = os.environ.get("HF_TOKEN", "")
     hf_model = os.environ.get("PROMETHEUS_MODEL", "prometheus-eval/prometheus-7b-v2.0")
 
-    if args.judge_model.startswith("hf/") or args.judge_model == "hf/prometheus":
+    if args.judge_model.startswith("hf/"):
         judge_backend = "hf"
+        # Parse model from arg: "hf/prometheus" uses env var, "hf/org/model" uses that model
+        hf_arg_model = args.judge_model[3:]  # strip "hf/"
+        if hf_arg_model and hf_arg_model != "prometheus" and "/" in hf_arg_model:
+            hf_model = hf_arg_model  # user specified a custom HF model
+        # else: use PROMETHEUS_MODEL env var (default)
         judge_model_resolved = hf_model
         if not hf_token:
             logger.warning("HF_TOKEN not set — will use Gemini fallback for all calls")
@@ -999,17 +1013,17 @@ async def main():
                 logger.warning(f"[{conv.get('id', i)}] Missing bot_response or ground_truth, skipping pairwise")
                 continue
 
-            if judge_backend == "hf":
+            if judge_backend in ("hf", "prometheus_lib"):
+                # HF and prometheus_lib both use HF API for pairwise (no native pairwise in prometheus-eval)
                 result = judge_pairwise_hf(
                     creator_name, creator_profile, conv,
                     hf_token, hf_model,
                 )
-            elif judge_backend in ("prometheus_lib", "openai", "ollama"):
+            elif judge_backend in ("openai", "ollama"):
                 if not client:
                     from openai import OpenAI
                     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-                model_for_pairwise = judge_model_resolved if judge_backend != "prometheus_lib" else "gpt-4o-mini"
-                result = judge_pairwise(client, model_for_pairwise, creator_name, creator_profile, conv)
+                result = judge_pairwise(client, judge_model_resolved, creator_name, creator_profile, conv)
 
             pairwise_results.append(result)
 
