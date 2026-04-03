@@ -5,22 +5,31 @@ Evaluates bot responses across 5 dimensions using structured rubrics
 adapted from CharacterEval (Tu et al., 2024) and PersonaGym (Samuel et al., 2024).
 Uses the Prometheus 2 ABSOLUTE_PROMPT format with reference answers.
 
-Judge model: GPT-4o-mini by default (configurable via --judge-model).
-Rubric format: Prometheus 2 (###Task Description + score rubric + reference answer).
+Modes:
+  absolute  — 5-dimension scoring (1-5 scale each) with full conversation history
+  pairwise  — blind A/B comparison (bot vs reference, randomly assigned)
+  both      — run absolute + pairwise sequentially
 
-Dimensions (1-5 scale each):
+Judge model: GPT-4o-mini by default (configurable via --judge-model).
+Also supports Ollama local models (--judge-model ollama/<model>) and
+prometheus-eval library (--judge-model prometheus).
+
+Dimensions (absolute mode, 1-5 scale each):
   1. Conversational Ability — coherence, fluency, contextual consistency
   2. Persona Fidelity — speech patterns, tone, vocabulary, behavioral consistency
   3. Knowledge Accuracy — correctness of facts, avoidance of hallucination
   4. Emotional Intelligence — empathy, emotional perception, appropriate response
   5. Engagement — humanlikeness, avoids generic/assistant patterns, proactive
 
+Default test set: tests/cpe_data/{creator}/test_set_v2_stratified.json (50 cases, ~41 valid text)
+Media cases ([audio], [sticker], [image] in test_input/ground_truth) are excluded automatically.
+
 Usage:
     railway run python3 tests/cpe_level2_llm_judge.py --creator iris_bertran
-    railway run python3 tests/cpe_level2_llm_judge.py --creator iris_bertran --responses tests/cpe_data/iris_bertran/results/level1_*.json
-    railway run python3 tests/cpe_level2_llm_judge.py --creator iris_bertran --judge-model gpt-4o
-
-Universal: works for any creator. Creator profile loaded from personality_docs.
+    railway run python3 tests/cpe_level2_llm_judge.py --creator iris_bertran --mode pairwise
+    railway run python3 tests/cpe_level2_llm_judge.py --creator iris_bertran --mode both --judge-model gpt-4o
+    railway run python3 tests/cpe_level2_llm_judge.py --creator iris_bertran --mode absolute --limit 5
+    railway run python3 tests/cpe_level2_llm_judge.py --creator iris_bertran --include-media
 """
 
 import argparse
@@ -28,13 +37,14 @@ import asyncio
 import json
 import logging
 import os
+import random
 import re
 import statistics
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(REPO_ROOT))
@@ -43,29 +53,104 @@ logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(mes
 logger = logging.getLogger("cpe_level2")
 logger.setLevel(logging.INFO)
 
-DEFAULT_JUDGE_MODEL = "gpt-4o-mini"
+DEFAULT_JUDGE_MODEL = "hf/prometheus"
+MAX_HISTORY_TURNS = 20
 
-# Prometheus-compatible rubric templates (1-5 scale with score descriptions)
-_PROMETHEUS_RUBRICS = {}  # populated lazily
+
+# =========================================================================
+# MEDIA FILTER
+# =========================================================================
+
+_MEDIA_RE = re.compile(
+    r"\[(audio|sticker|image|video|reel|🏷️\s*Sticker|🎤\s*Audio)\]",
+    re.IGNORECASE,
+)
+
+
+def _is_media_case(conv: dict) -> bool:
+    """Return True if test_input or ground_truth is a media-only message."""
+    test_input = conv.get("test_input", "")
+    ground_truth = conv.get("ground_truth", "")
+    # A case is media if the entire content is just a media tag (possibly with whitespace)
+    for text in (test_input, ground_truth):
+        stripped = text.strip()
+        if _MEDIA_RE.fullmatch(stripped):
+            return True
+        # Also catch cases like "[audio]" as the only meaningful content
+        if _MEDIA_RE.search(stripped) and len(_MEDIA_RE.sub("", stripped).strip()) == 0:
+            return True
+    return False
+
+
+def _filter_media_cases(conversations: List[dict]) -> List[dict]:
+    """Filter out cases where test_input or ground_truth is media-only."""
+    before = len(conversations)
+    filtered = [c for c in conversations if not _is_media_case(c)]
+    excluded = before - len(filtered)
+    if excluded:
+        logger.info(f"Media filter: {before} → {len(filtered)} cases ({excluded} excluded)")
+    return filtered
+
+
+# =========================================================================
+# CONVERSATION HISTORY FORMATTER
+# =========================================================================
+
+def _format_history(turns: List[dict], creator_name: str) -> str:
+    """Format conversation turns for the judge prompt.
+
+    Shows all turns (capped at MAX_HISTORY_TURNS most recent).
+    Media turns are replaced with descriptive placeholders.
+    """
+    if not turns:
+        return "(no prior conversation)"
+
+    # Cap at most recent turns if too long
+    if len(turns) > MAX_HISTORY_TURNS:
+        omitted = len(turns) - MAX_HISTORY_TURNS
+        turns = turns[-MAX_HISTORY_TURNS:]
+        lines = [f"... ({omitted} earlier turns omitted)"]
+    else:
+        lines = []
+
+    for t in turns:
+        role = t.get("role", "")
+        content = t.get("content", "").strip()
+        if not content:
+            continue
+
+        label = f"[{creator_name}]" if role in ("iris", "assistant") else "[Follower]"
+
+        # Replace media tags with descriptive placeholders
+        if _MEDIA_RE.fullmatch(content):
+            media_type = _MEDIA_RE.match(content).group(1).lower()
+            content = f"(sent a {media_type})"
+        elif content.startswith("[🎤 Audio]:"):
+            # Transcribed audio — keep the transcription
+            content = content.replace("[🎤 Audio]: ", "(voice message) ")
+        elif content.startswith("[🏷️ Sticker]"):
+            content = "(sent a sticker)"
+
+        lines.append(f"{label} {content}")
+
+    return "\n".join(lines)
 
 
 # =========================================================================
 # RUBRICS (adapted from CharacterEval + PersonaGym, Prometheus 2 format)
 # =========================================================================
 
-# System prompt per Prometheus 2 spec
 JUDGE_SYSTEM_PROMPT = (
     "You are a fair judge assistant tasked with providing clear, objective feedback "
     "based on specific criteria, ensuring each assessment reflects the absolute "
     "standards set for performance."
 )
 
-# 5 rubrics, each with 1-5 scale descriptions
 RUBRICS = {
     "conversational_ability": {
         "name": "Conversational Ability",
         "rubric": (
-            "[Is the response coherent, fluent, and contextually consistent?]\n"
+            "[Is the response coherent, fluent, and contextually consistent with the conversation history?]\n"
             "Score 1: Completely incoherent, grammatically broken, or contradicts the conversation context.\n"
             "Score 2: Partially coherent but contains noticeable inconsistencies or awkward phrasing.\n"
             "Score 3: Generally coherent and fluent, with minor inconsistencies.\n"
@@ -121,7 +206,7 @@ RUBRICS = {
 
 
 # =========================================================================
-# PROMETHEUS 2 ABSOLUTE_PROMPT FORMAT
+# ABSOLUTE MODE: PROMETHEUS 2 ABSOLUTE_PROMPT FORMAT
 # =========================================================================
 
 ABSOLUTE_PROMPT = """###Task Description:
@@ -132,12 +217,12 @@ An instruction (might include an Input inside it), a response to evaluate, a ref
 4. Please do not generate any other opening, closing, and explanations.
 
 ###The instruction to evaluate:
-You are {creator_name}, a real person. A follower sent you this message:
+You are {creator_name}, a real person who communicates via DMs with followers. A follower sent you this message:
 "{lead_message}"
 
 Context about {creator_name}: {creator_profile}
 
-Conversation history:
+Conversation history ({n_turns} turns):
 {history}
 
 ###Response to evaluate:
@@ -153,12 +238,45 @@ Conversation history:
 
 
 # =========================================================================
+# PAIRWISE MODE: BLIND A/B COMPARISON
+# =========================================================================
+
+PAIRWISE_PROMPT = """###Task Description:
+You are comparing two responses to determine which one sounds more authentically like {creator_name} (a real person communicating via DMs).
+
+A follower sent this message: "{lead_message}"
+
+Context about {creator_name}: {creator_profile}
+
+Conversation history ({n_turns} turns):
+{history}
+
+###Response A:
+{response_a}
+
+###Response B:
+{response_b}
+
+###Evaluation Criteria:
+Which response sounds more like a real message from {creator_name}? Consider:
+1. Speech patterns, tone, and vocabulary — does it match how {creator_name} actually writes?
+2. Emoji usage, code-switching between languages, message length
+3. Emotional appropriateness for the context
+4. Naturalness — avoids bot-like patterns (numbered lists, "How can I help you?", overly formal language)
+5. Specificity — uses concrete details rather than vague/generic responses
+
+###Instructions:
+1. Write a brief comparison (2-3 sentences) explaining which response is more authentic and why.
+2. End with your verdict: [RESULT] A or [RESULT] B
+3. Focus ONLY on authenticity to {creator_name}'s real communication style, not general quality."""
+
+
+# =========================================================================
 # CREATOR PROFILE LOADER
 # =========================================================================
 
 def load_creator_profile(creator_id: str) -> str:
     """Load creator profile summary from personality_docs or calibration."""
-    # Try calibration file first
     cal_path = REPO_ROOT / "calibrations" / f"{creator_id}.json"
     if cal_path.exists():
         with open(cal_path) as f:
@@ -183,56 +301,47 @@ def load_creator_profile(creator_id: str) -> str:
     # Fallback: try DB
     try:
         import psycopg2
-        conn = psycopg2.connect(os.environ["DATABASE_URL"])
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT pd.content FROM personality_docs pd
-            JOIN creators c ON c.id::text = pd.creator_id
-            WHERE c.name = %s AND pd.doc_type IN ('doc_d_distilled', 'doc_d')
-            ORDER BY CASE pd.doc_type WHEN 'doc_d_distilled' THEN 0 ELSE 1 END
-            LIMIT 1
-        """, (creator_id,))
-        row = cur.fetchone()
-        conn.close()
-        if row:
-            return row[0][:2000]
-    except Exception:
-        pass
+        with psycopg2.connect(os.environ["DATABASE_URL"]) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT pd.content FROM personality_docs pd
+                    JOIN creators c ON c.id::text = pd.creator_id
+                    WHERE c.name = %s AND pd.doc_type IN ('doc_d_distilled', 'doc_d')
+                    ORDER BY CASE pd.doc_type WHEN 'doc_d_distilled' THEN 0 ELSE 1 END
+                    LIMIT 1
+                """, (creator_id,))
+                row = cur.fetchone()
+                if row:
+                    return row[0][:2000]
+    except Exception as e:
+        logger.debug(f"DB profile fallback failed: {e}")
 
     return f"Creator: {creator_id}. No profile available."
 
 
 # =========================================================================
-# JUDGE CALL
+# JUDGE: ABSOLUTE MODE
 # =========================================================================
 
 def judge_single(client, model: str, dimension: str, rubric_info: dict,
                  creator_name: str, creator_profile: str,
                  conv: dict) -> dict:
-    """Call LLM judge for one dimension on one conversation."""
-
-    # Build history string
+    """Call LLM judge for one dimension on one conversation (absolute mode)."""
     turns = conv.get("turns", [])
-    history_str = ""
-    for t in turns[-6:]:
-        role = "Creator" if t.get("role") in ("iris", "assistant") else "Follower"
-        history_str += f"{role}: {t.get('content', '')}\n"
-    if not history_str:
-        history_str = "(no prior conversation)"
+    history_str = _format_history(turns, creator_name)
 
     prompt = ABSOLUTE_PROMPT.format(
         creator_name=creator_name,
         lead_message=conv.get("test_input", conv.get("lead_message", "")),
         creator_profile=creator_profile[:1500],
         history=history_str,
+        n_turns=len(turns),
         bot_response=conv.get("bot_response", ""),
         reference_answer=conv.get("ground_truth", "(no reference available)"),
         rubric=rubric_info["rubric"],
     )
 
     try:
-        # Ollama/local models need more tokens for verbose rubric feedback
-        is_local = "localhost" in str(getattr(client, '_base_url', ''))
         response = client.chat.completions.create(
             model=model,
             messages=[
@@ -240,11 +349,10 @@ def judge_single(client, model: str, dimension: str, rubric_info: dict,
                 {"role": "user", "content": prompt},
             ],
             temperature=0.0,
-            max_tokens=500 if is_local else 300,
+            max_tokens=400,
         )
         raw = response.choices[0].message.content.strip()
 
-        # Parse "[RESULT] N" from output
         match = re.search(r"\[RESULT\]\s*(\d)", raw)
         score = int(match.group(1)) if match else 0
         feedback = raw.split("[RESULT]")[0].strip() if "[RESULT]" in raw else raw
@@ -252,19 +360,94 @@ def judge_single(client, model: str, dimension: str, rubric_info: dict,
         return {
             "dimension": dimension,
             "score": min(5, max(1, score)) if score else 0,
-            "feedback": feedback[:300],
+            "feedback": feedback[:400],
         }
     except Exception as e:
         logger.warning(f"Judge error ({dimension}): {e}")
         return {"dimension": dimension, "score": 0, "feedback": f"Error: {e}"}
 
 
-def _get_prometheus_judge(model_name: str = "gpt-4o-mini"):
-    """Initialize prometheus-eval PrometheusEval with LiteLLM backend.
+# =========================================================================
+# JUDGE: PAIRWISE MODE
+# =========================================================================
 
-    Supports: 'gpt-4o-mini', 'gpt-4o', 'huggingface/prometheus-eval/prometheus-7b-v2.0',
-    or any LiteLLM-compatible model string.
-    """
+def judge_pairwise(client, model: str,
+                   creator_name: str, creator_profile: str,
+                   conv: dict) -> dict:
+    """Blind A/B comparison between bot response and ground truth."""
+    turns = conv.get("turns", [])
+    history_str = _format_history(turns, creator_name)
+
+    bot_response = conv.get("bot_response", "")
+    ground_truth = conv.get("ground_truth", "")
+
+    # Randomly assign to A/B
+    if random.random() < 0.5:
+        response_a, response_b = bot_response, ground_truth
+        assignment = "bot_is_A"
+    else:
+        response_a, response_b = ground_truth, bot_response
+        assignment = "bot_is_B"
+
+    prompt = PAIRWISE_PROMPT.format(
+        creator_name=creator_name,
+        lead_message=conv.get("test_input", conv.get("lead_message", "")),
+        creator_profile=creator_profile[:1500],
+        history=history_str,
+        n_turns=len(turns),
+        response_a=response_a,
+        response_b=response_b,
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.0,
+            max_tokens=400,
+        )
+        raw = response.choices[0].message.content.strip()
+
+        match = re.search(r"\[RESULT\]\s*([AB])", raw)
+        verdict_raw = match.group(1) if match else None
+        explanation = raw.split("[RESULT]")[0].strip() if "[RESULT]" in raw else raw
+
+        # Map verdict back to bot/reference
+        if verdict_raw is None:
+            chosen = "inconclusive"
+        elif (verdict_raw == "A" and assignment == "bot_is_A") or \
+             (verdict_raw == "B" and assignment == "bot_is_B"):
+            chosen = "bot"
+        else:
+            chosen = "reference"
+
+        return {
+            "id": conv.get("id", ""),
+            "assignment": assignment,
+            "verdict_raw": verdict_raw,
+            "chosen": chosen,
+            "explanation": explanation[:400],
+        }
+    except Exception as e:
+        logger.warning(f"Pairwise judge error: {e}")
+        return {
+            "id": conv.get("id", ""),
+            "assignment": assignment,
+            "verdict_raw": None,
+            "chosen": "error",
+            "explanation": f"Error: {e}",
+        }
+
+
+# =========================================================================
+# JUDGE: PROMETHEUS-EVAL LIBRARY (absolute mode only)
+# =========================================================================
+
+def _get_prometheus_judge(model_name: str = "gpt-4o-mini"):
+    """Initialize prometheus-eval PrometheusEval with LiteLLM backend."""
     from prometheus_eval.litellm import LiteLLM
     from prometheus_eval import PrometheusEval
     from prometheus_eval.prompts import ABSOLUTE_PROMPT as _PROM_ABS
@@ -277,7 +460,6 @@ def _build_prometheus_rubric(dimension: str, rubric_info: dict) -> str:
     """Convert our rubric dict to Prometheus SCORE_RUBRIC_TEMPLATE format."""
     from prometheus_eval.prompts import SCORE_RUBRIC_TEMPLATE
 
-    # Parse Score N: descriptions from our rubric text
     lines = rubric_info["rubric"].strip().split("\n")
     criteria = lines[0].strip("[]") if lines else rubric_info["name"]
     scores = {}
@@ -301,16 +483,13 @@ def judge_single_prometheus(prom_judge, dimension: str, rubric_info: dict,
                             conv: dict) -> dict:
     """Evaluate one dimension using prometheus-eval library."""
     turns = conv.get("turns", [])
-    history_str = ""
-    for t in turns[-6:]:
-        role = "Creator" if t.get("role") in ("iris", "assistant") else "Follower"
-        history_str += f"{role}: {t.get('content', '')}\n"
+    history_str = _format_history(turns, creator_name)
 
     instruction = (
         f"You are {creator_name}, a real person. A follower sent you: "
         f"\"{conv.get('test_input', conv.get('lead_message', ''))}\"\n"
         f"Context: {creator_profile[:800]}\n"
-        f"History: {history_str or '(none)'}"
+        f"History ({len(turns)} turns): {history_str}"
     )
 
     rubric = _build_prometheus_rubric(dimension, rubric_info)
@@ -323,7 +502,7 @@ def judge_single_prometheus(prom_judge, dimension: str, rubric_info: dict,
             rubric=rubric,
         )
         score = int(scores) if scores else 0
-        feedback = str(feedbacks)[:300] if feedbacks else ""
+        feedback = str(feedbacks)[:400] if feedbacks else ""
 
         return {
             "dimension": dimension,
@@ -336,7 +515,192 @@ def judge_single_prometheus(prom_judge, dimension: str, rubric_info: dict,
 
 
 # =========================================================================
-# PIPELINE RUNNER (reuse from level 1)
+# JUDGE: HF INFERENCE API (Prometheus 7B via HuggingFace)
+# =========================================================================
+
+def _call_hf_inference(prompt: str, hf_token: str, model: str, max_tokens: int = 400) -> Optional[str]:
+    """Call HuggingFace Inference API synchronously."""
+    import urllib.request
+    import urllib.error
+
+    url = f"https://api-inference.huggingface.co/models/{model}"
+    headers = {
+        "Authorization": f"Bearer {hf_token}",
+        "Content-Type": "application/json",
+    }
+    payload = json.dumps({
+        "inputs": prompt,
+        "parameters": {"max_new_tokens": max_tokens, "temperature": 0.1, "return_full_text": False},
+    }).encode("utf-8")
+
+    req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if isinstance(data, list) and data:
+                return data[0].get("generated_text", "")
+            return None
+    except urllib.error.HTTPError as e:
+        if e.code == 503:
+            logger.info(f"HF model loading (503), will use fallback")
+        else:
+            logger.warning(f"HF API error {e.code}: {e.read().decode()[:200]}")
+        return None
+    except Exception as e:
+        logger.warning(f"HF API call failed: {e}")
+        return None
+
+
+def _call_gemini_fallback(prompt: str) -> Optional[str]:
+    """Call Gemini Flash Lite as fallback judge."""
+    import asyncio
+    try:
+        from core.providers.gemini_provider import generate_simple
+        # Reuse running loop if available (inside async main), otherwise create one
+        try:
+            loop = asyncio.get_running_loop()
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                result = pool.submit(
+                    lambda: asyncio.run(generate_simple(
+                        prompt=prompt,
+                        system_prompt=JUDGE_SYSTEM_PROMPT,
+                        max_tokens=400,
+                        temperature=0.1,
+                    ))
+                ).result(timeout=30)
+        except RuntimeError:
+            # No running loop
+            result = asyncio.run(generate_simple(
+                prompt=prompt,
+                system_prompt=JUDGE_SYSTEM_PROMPT,
+                max_tokens=400,
+                temperature=0.1,
+            ))
+        return result
+    except Exception as e:
+        logger.warning(f"Gemini fallback failed: {e}")
+        return None
+
+
+def judge_single_hf(
+    dimension: str, rubric_info: dict,
+    creator_name: str, creator_profile: str,
+    conv: dict,
+    hf_token: str, hf_model: str,
+) -> dict:
+    """Judge one dimension using HF Inference API (Prometheus) with Gemini fallback."""
+    turns = conv.get("turns", [])
+    history_str = _format_history(turns, creator_name)
+
+    prompt = ABSOLUTE_PROMPT.format(
+        creator_name=creator_name,
+        lead_message=conv.get("test_input", conv.get("lead_message", "")),
+        creator_profile=creator_profile[:1500],
+        history=history_str,
+        n_turns=len(turns),
+        bot_response=conv.get("bot_response", ""),
+        reference_answer=conv.get("ground_truth", "(no reference available)"),
+        rubric=rubric_info["rubric"],
+    )
+
+    full_prompt = f"{JUDGE_SYSTEM_PROMPT}\n\n{prompt}"
+    judge_used = "prometheus"
+
+    # Try Prometheus via HF
+    raw = _call_hf_inference(full_prompt, hf_token, hf_model)
+
+    # Fallback to Gemini
+    if not raw:
+        judge_used = "gemini_fallback"
+        raw = _call_gemini_fallback(prompt)
+
+    if not raw:
+        return {"dimension": dimension, "score": 0, "feedback": "Both Prometheus and Gemini failed", "judge_used": "none"}
+
+    match = re.search(r"\[RESULT\]\s*(\d)", raw)
+    score = int(match.group(1)) if match else 0
+    feedback = raw.split("[RESULT]")[0].strip() if "[RESULT]" in raw else raw
+
+    return {
+        "dimension": dimension,
+        "score": min(5, max(1, score)) if score else 0,
+        "feedback": feedback[:400],
+        "judge_used": judge_used,
+    }
+
+
+def judge_pairwise_hf(
+    creator_name: str, creator_profile: str,
+    conv: dict,
+    hf_token: str, hf_model: str,
+) -> dict:
+    """Pairwise blind A/B using HF Inference API (Prometheus) with Gemini fallback."""
+    turns = conv.get("turns", [])
+    history_str = _format_history(turns, creator_name)
+
+    bot_response = conv.get("bot_response", "")
+    ground_truth = conv.get("ground_truth", "")
+
+    if random.random() < 0.5:
+        response_a, response_b = bot_response, ground_truth
+        assignment = "bot_is_A"
+    else:
+        response_a, response_b = ground_truth, bot_response
+        assignment = "bot_is_B"
+
+    prompt = PAIRWISE_PROMPT.format(
+        creator_name=creator_name,
+        lead_message=conv.get("test_input", conv.get("lead_message", "")),
+        creator_profile=creator_profile[:1500],
+        history=history_str,
+        n_turns=len(turns),
+        response_a=response_a,
+        response_b=response_b,
+    )
+
+    full_prompt = f"{JUDGE_SYSTEM_PROMPT}\n\n{prompt}"
+    judge_used = "prometheus"
+
+    raw = _call_hf_inference(full_prompt, hf_token, hf_model)
+    if not raw:
+        judge_used = "gemini_fallback"
+        raw = _call_gemini_fallback(prompt)
+
+    if not raw:
+        return {
+            "id": conv.get("id", ""),
+            "assignment": assignment,
+            "verdict_raw": None,
+            "chosen": "error",
+            "explanation": "Both Prometheus and Gemini failed",
+            "judge_used": "none",
+        }
+
+    match = re.search(r"\[RESULT\]\s*([AB])", raw)
+    verdict_raw = match.group(1) if match else None
+    explanation = raw.split("[RESULT]")[0].strip() if "[RESULT]" in raw else raw
+
+    if verdict_raw is None:
+        chosen = "inconclusive"
+    elif (verdict_raw == "A" and assignment == "bot_is_A") or \
+         (verdict_raw == "B" and assignment == "bot_is_B"):
+        chosen = "bot"
+    else:
+        chosen = "reference"
+
+    return {
+        "id": conv.get("id", ""),
+        "assignment": assignment,
+        "verdict_raw": verdict_raw,
+        "chosen": chosen,
+        "explanation": explanation[:400],
+        "judge_used": judge_used,
+    }
+
+
+# =========================================================================
+# PIPELINE RUNNER
 # =========================================================================
 
 def _get_platform_user_id(lead_id: str) -> Optional[str]:
@@ -354,7 +718,7 @@ def _get_platform_user_id(lead_id: str) -> Optional[str]:
 
 
 async def run_pipeline(creator_id: str, conversations: List[Dict]) -> List[Dict]:
-    """Run production DM pipeline."""
+    """Run production DM pipeline on test cases."""
     from core.dm_agent_v2 import DMResponderAgent
     agent = DMResponderAgent(creator_id=creator_id)
     results = []
@@ -404,23 +768,29 @@ async def run_pipeline(creator_id: str, conversations: List[Dict]) -> List[Dict]
 async def main():
     parser = argparse.ArgumentParser(description="CPE Level 2: LLM-as-Judge Persona Evaluation")
     parser.add_argument("--creator", required=True, help="Creator slug")
-    parser.add_argument("--test-set", default=None, help="Custom test set")
+    parser.add_argument("--mode", choices=["absolute", "pairwise", "both"], default="absolute",
+                        help="Evaluation mode (default: absolute)")
+    parser.add_argument("--test-set", default=None, help="Custom test set path")
     parser.add_argument("--responses", default=None, help="Reuse responses from existing file (skip pipeline)")
     parser.add_argument("--judge-model", default=DEFAULT_JUDGE_MODEL, help="Judge model (default: gpt-4o-mini)")
     parser.add_argument("--output", default=None, help="Custom output path")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of test cases")
+    parser.add_argument("--include-media", action="store_true", help="Include media cases (normally filtered)")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for pairwise A/B assignment")
     args = parser.parse_args()
+
+    random.seed(args.seed)
 
     creator = args.creator
     cpe_dir = REPO_ROOT / "tests" / "cpe_data" / creator / "results"
     cpe_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load test set
+    # ---- Load test set ----
     if args.responses:
         with open(args.responses) as f:
             prev = json.load(f)
         conversations = prev if isinstance(prev, list) else prev.get("conversations", [])
-        # Normalize field names from CPE config format → level2 format
+        # Normalize field names
         normalized = []
         for c in conversations:
             if "input" in c and "test_input" not in c:
@@ -435,35 +805,40 @@ async def main():
         # Enrich missing ground_truth from test_set if available
         missing_gt = sum(1 for c in conversations if not c.get("ground_truth"))
         if missing_gt > 0:
-            ts_path = REPO_ROOT / "tests" / "cpe_data" / creator / "test_set.json"
-            if ts_path.exists():
-                with open(ts_path) as f:
-                    ts_data = json.load(f)
-                ts_items = ts_data if isinstance(ts_data, list) else ts_data.get("test_cases", ts_data.get("conversations", []))
-                gt_map = {}
-                for t in ts_items:
-                    key = t.get("id", t.get("test_input", ""))
-                    gt = t.get("ground_truth", t.get("creator_real_response", ""))
-                    if key and gt:
-                        gt_map[key] = gt
-                    # Also index by test_input text for fuzzy match
-                    inp = t.get("test_input", "")
-                    if inp and gt:
-                        gt_map[inp] = gt
+            for ts_name in ["test_set_v2_stratified.json", "test_set.json"]:
+                ts_path = REPO_ROOT / "tests" / "cpe_data" / creator / ts_name
+                if ts_path.exists():
+                    with open(ts_path) as f:
+                        ts_data = json.load(f)
+                    ts_items = ts_data if isinstance(ts_data, list) else ts_data.get("test_cases", ts_data.get("conversations", []))
+                    gt_map = {}
+                    for t in ts_items:
+                        key = t.get("id", t.get("test_input", ""))
+                        gt = t.get("ground_truth", t.get("creator_real_response", ""))
+                        if key and gt:
+                            gt_map[key] = gt
+                        inp = t.get("test_input", "")
+                        if inp and gt:
+                            gt_map[inp] = gt
 
-                filled = 0
-                for c in conversations:
-                    if not c.get("ground_truth"):
-                        gt = gt_map.get(c.get("id", "")) or gt_map.get(c.get("test_input", ""))
-                        if gt:
-                            c["ground_truth"] = gt
-                            filled += 1
-                if filled:
-                    logger.info(f"Enriched {filled}/{missing_gt} missing ground_truths from test_set")
+                    filled = 0
+                    for c in conversations:
+                        if not c.get("ground_truth"):
+                            gt = gt_map.get(c.get("id", "")) or gt_map.get(c.get("test_input", ""))
+                            if gt:
+                                c["ground_truth"] = gt
+                                filled += 1
+                    if filled:
+                        logger.info(f"Enriched {filled}/{missing_gt} missing ground_truths from {ts_name}")
+                        break
 
         logger.info(f"Reusing {len(conversations)} responses from {args.responses}")
     else:
-        test_path = Path(args.test_set) if args.test_set else REPO_ROOT / "tests" / "test_set_real_leads.json"
+        # Default: stratified test set per creator
+        test_path = (
+            Path(args.test_set) if args.test_set
+            else REPO_ROOT / "tests" / "cpe_data" / creator / "test_set_v2_stratified.json"
+        )
         with open(test_path) as f:
             data = json.load(f)
         conversations = data if isinstance(data, list) else data.get("conversations", data.get("test_cases", []))
@@ -471,31 +846,47 @@ async def main():
         if args.limit:
             conversations = conversations[:args.limit]
 
-        # Run pipeline
         logger.info(f"Running pipeline on {len(conversations)} conversations...")
         conversations = await run_pipeline(creator, conversations)
 
-    # Load creator profile
+    # ---- Media filter ----
+    total_loaded = len(conversations)
+    if not args.include_media:
+        conversations = _filter_media_cases(conversations)
+    logger.info(f"Test cases: {len(conversations)} valid (from {total_loaded} loaded)")
+
+    if args.limit and len(conversations) > args.limit:
+        conversations = conversations[:args.limit]
+
+    # ---- Load creator profile ----
     creator_profile = load_creator_profile(creator)
     creator_name = creator.replace("_", " ").title()
     logger.info(f"Creator profile loaded: {len(creator_profile)} chars")
 
-    # Initialize judge — supports OpenAI, prometheus-eval library, and Ollama local
-    use_prometheus = args.judge_model.startswith("prometheus") or args.judge_model == "prometheus"
-    use_ollama = args.judge_model.startswith("ollama/")
+    # ---- Initialize judge ----
+    # Modes: "hf" (HF Inference API), "prometheus" (prometheus-eval lib), "ollama", "openai"
+    judge_model_original = args.judge_model
+    judge_model_resolved = args.judge_model
+    judge_backend = "openai"  # default
     prom_judge = None
     client = None
+    hf_token = os.environ.get("HF_TOKEN", "")
+    hf_model = os.environ.get("PROMETHEUS_MODEL", "prometheus-eval/prometheus-7b-v2.0")
 
-    if use_ollama:
-        # Ollama serves an OpenAI-compatible API at localhost:11434
+    if args.judge_model.startswith("hf/") or args.judge_model == "hf/prometheus":
+        judge_backend = "hf"
+        judge_model_resolved = hf_model
+        if not hf_token:
+            logger.warning("HF_TOKEN not set — will use Gemini fallback for all calls")
+        logger.info(f"Using HF Inference API: {hf_model} (fallback: Gemini)")
+    elif args.judge_model.startswith("ollama/"):
+        judge_backend = "ollama"
         from openai import OpenAI
-        ollama_model = args.judge_model.replace("ollama/", "", 1)
+        judge_model_resolved = args.judge_model.replace("ollama/", "", 1)
         client = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
-        logger.info(f"Using Ollama local model: {ollama_model}")
-        # Override judge_model for the actual API call
-        args.judge_model = ollama_model
-    elif use_prometheus:
-        # Map "prometheus" to the prometheus-eval library with GPT-4o-mini backend
+        logger.info(f"Using Ollama local model: {judge_model_resolved}")
+    elif args.judge_model.startswith("prometheus") or args.judge_model == "prometheus":
+        judge_backend = "prometheus_lib"
         backend = "gpt-4o-mini"
         if "/" in args.judge_model:
             backend = args.judge_model
@@ -503,113 +894,224 @@ async def main():
             prom_judge = _get_prometheus_judge(backend)
             logger.info(f"Using prometheus-eval library with backend: {backend}")
         except (ImportError, Exception) as e:
-            logger.warning(f"prometheus-eval unavailable ({e}), falling back to GPT-4o-mini")
-            use_prometheus = False
-            args.judge_model = "gpt-4o-mini"
-
-    if not use_prometheus and not use_ollama:
+            logger.warning(f"prometheus-eval unavailable ({e}), falling back to HF API")
+            judge_backend = "hf"
+            judge_model_resolved = hf_model
+    else:
+        # OpenAI models (gpt-4o-mini, gpt-4o, etc.)
+        judge_backend = "openai"
         from openai import OpenAI
         client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-    # Evaluate each conversation across all 5 dimensions
-    all_results = []
-    dimension_scores = {d: [] for d in RUBRICS}
+    mode = args.mode
+    is_local = (judge_backend == "ollama")
+    rate_delay = 0.0 if is_local else 0.3
 
-    for i, conv in enumerate(conversations, 1):
-        if not conv.get("bot_response"):
-            logger.warning(f"[{conv.get('id', i)}] No bot_response, skipping")
-            continue
+    # ==== ABSOLUTE MODE ====
+    absolute_output = {}
+    if mode in ("absolute", "both"):
+        all_results = []
+        dimension_scores = {d: [] for d in RUBRICS}
 
-        conv_scores = {}
-        for dim_key, rubric_info in RUBRICS.items():
-            if use_prometheus and prom_judge:
-                result = judge_single_prometheus(
-                    prom_judge, dim_key, rubric_info,
-                    creator_name, creator_profile, conv,
-                )
-            else:
-                result = judge_single(
-                    client, args.judge_model, dim_key, rubric_info,
-                    creator_name, creator_profile, conv,
-                )
-            conv_scores[dim_key] = result
-            if result["score"] > 0:
-                dimension_scores[dim_key].append(result["score"])
-            if not use_ollama:
-                time.sleep(0.2)  # Rate limit (not needed for local Ollama)
+        for i, conv in enumerate(conversations, 1):
+            if not conv.get("bot_response"):
+                logger.warning(f"[{conv.get('id', i)}] No bot_response, skipping")
+                continue
 
-        # Compute per-conversation aggregate
-        valid_scores = [v["score"] for v in conv_scores.values() if v["score"] > 0]
-        overall = round(sum(valid_scores) / len(valid_scores), 2) if valid_scores else 0
+            conv_scores = {}
+            for dim_key, rubric_info in RUBRICS.items():
+                if judge_backend == "hf":
+                    result = judge_single_hf(
+                        dim_key, rubric_info,
+                        creator_name, creator_profile, conv,
+                        hf_token, hf_model,
+                    )
+                elif judge_backend == "prometheus_lib" and prom_judge:
+                    result = judge_single_prometheus(
+                        prom_judge, dim_key, rubric_info,
+                        creator_name, creator_profile, conv,
+                    )
+                else:
+                    result = judge_single(
+                        client, judge_model_resolved, dim_key, rubric_info,
+                        creator_name, creator_profile, conv,
+                    )
+                conv_scores[dim_key] = result
+                if result["score"] > 0:
+                    dimension_scores[dim_key].append(result["score"])
+                if rate_delay:
+                    time.sleep(rate_delay)
 
-        all_results.append({
-            "id": conv.get("id", f"conv_{i}"),
-            "test_input": conv.get("test_input", conv.get("lead_message", "")),
-            "bot_response": conv.get("bot_response", ""),
-            "ground_truth": conv.get("ground_truth", ""),
-            "overall_score": overall,
-            "dimensions": conv_scores,
-            "elapsed_ms": conv.get("elapsed_ms", 0),
-        })
+            valid_scores = [v["score"] for v in conv_scores.values() if v["score"] > 0]
+            overall = round(sum(valid_scores) / len(valid_scores), 2) if valid_scores else 0
 
-        logger.info(
-            f"[{i}/{len(conversations)}] {conv.get('id', '?')}: "
-            f"overall={overall}/5 | " +
-            " ".join(f"{k[:4]}={v['score']}" for k, v in conv_scores.items())
-        )
+            all_results.append({
+                "id": conv.get("id", f"conv_{i}"),
+                "test_input": conv.get("test_input", conv.get("lead_message", "")),
+                "bot_response": conv.get("bot_response", ""),
+                "ground_truth": conv.get("ground_truth", ""),
+                "category": conv.get("category", ""),
+                "overall_score": overall,
+                "dimensions": conv_scores,
+                "elapsed_ms": conv.get("elapsed_ms", 0),
+            })
 
-    # Aggregate
-    dim_summary = {}
-    for dim_key, scores in dimension_scores.items():
-        dim_summary[dim_key] = {
-            "name": RUBRICS[dim_key]["name"],
-            "mean": round(statistics.mean(scores), 2) if scores else 0,
-            "median": round(statistics.median(scores), 1) if scores else 0,
-            "std": round(statistics.stdev(scores), 2) if len(scores) > 1 else 0,
-            "n": len(scores),
+            logger.info(
+                f"[ABS {i}/{len(conversations)}] {conv.get('id', '?')}: "
+                f"overall={overall}/5 | " +
+                " ".join(f"{k[:4]}={v['score']}" for k, v in conv_scores.items())
+            )
+
+        # Aggregate
+        dim_summary = {}
+        for dim_key, scores in dimension_scores.items():
+            dim_summary[dim_key] = {
+                "name": RUBRICS[dim_key]["name"],
+                "mean": round(statistics.mean(scores), 2) if scores else 0,
+                "median": round(statistics.median(scores), 1) if scores else 0,
+                "std": round(statistics.stdev(scores), 2) if len(scores) > 1 else 0,
+                "n": len(scores),
+            }
+
+        all_overalls = [r["overall_score"] for r in all_results if r["overall_score"] > 0]
+        overall_mean = round(statistics.mean(all_overalls), 2) if all_overalls else 0
+        overall_std = round(statistics.stdev(all_overalls), 2) if len(all_overalls) > 1 else 0
+
+        absolute_output = {
+            "n_evaluated": len(all_results),
+            "overall": {"mean": overall_mean, "std": overall_std, "scale": "1-5"},
+            "dimensions": dim_summary,
+            "conversations": all_results,
         }
 
-    all_overalls = [r["overall_score"] for r in all_results if r["overall_score"] > 0]
-    overall_mean = round(statistics.mean(all_overalls), 2) if all_overalls else 0
-    overall_std = round(statistics.stdev(all_overalls), 2) if len(all_overalls) > 1 else 0
+    # ==== PAIRWISE MODE ====
+    pairwise_output = {}
+    if mode in ("pairwise", "both"):
+        pairwise_results = []
+        bot_wins = 0
+        ref_wins = 0
+        inconclusive = 0
+        a_chosen = 0
+        b_chosen = 0
 
-    # Output
+        for i, conv in enumerate(conversations, 1):
+            if not conv.get("bot_response") or not conv.get("ground_truth"):
+                logger.warning(f"[{conv.get('id', i)}] Missing bot_response or ground_truth, skipping pairwise")
+                continue
+
+            if judge_backend == "hf":
+                result = judge_pairwise_hf(
+                    creator_name, creator_profile, conv,
+                    hf_token, hf_model,
+                )
+            elif judge_backend in ("prometheus_lib", "openai", "ollama"):
+                if not client:
+                    from openai import OpenAI
+                    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+                model_for_pairwise = judge_model_resolved if judge_backend != "prometheus_lib" else "gpt-4o-mini"
+                result = judge_pairwise(client, model_for_pairwise, creator_name, creator_profile, conv)
+
+            pairwise_results.append(result)
+
+            if result["chosen"] == "bot":
+                bot_wins += 1
+            elif result["chosen"] == "reference":
+                ref_wins += 1
+            else:
+                inconclusive += 1
+
+            if result["verdict_raw"] == "A":
+                a_chosen += 1
+            elif result["verdict_raw"] == "B":
+                b_chosen += 1
+
+            logger.info(
+                f"[PAIR {i}/{len(conversations)}] {conv.get('id', '?')}: "
+                f"chosen={result['chosen']} (verdict={result['verdict_raw']}, {result['assignment']})"
+            )
+
+            if rate_delay:
+                time.sleep(rate_delay)
+
+        total_decided = bot_wins + ref_wins
+        win_rate = round(bot_wins / total_decided, 3) if total_decided else 0
+
+        pairwise_output = {
+            "summary": {
+                "bot_wins": bot_wins,
+                "reference_wins": ref_wins,
+                "inconclusive": inconclusive,
+                "win_rate": win_rate,
+                "positional_bias_check": {"A_chosen": a_chosen, "B_chosen": b_chosen},
+            },
+            "details": pairwise_results,
+        }
+
+    # ==== OUTPUT ====
     timestamp = datetime.now(timezone.utc).isoformat()
-    output_path = Path(args.output) if args.output else cpe_dir / f"level2_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    mode_suffix = f"_{mode}" if mode != "absolute" else ""
+    output_path = (
+        Path(args.output) if args.output
+        else cpe_dir / f"level2{mode_suffix}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
+    )
 
     output = {
         "creator": creator,
         "timestamp": timestamp,
-        "judge_model": args.judge_model,
-        "n_evaluated": len(all_results),
-        "overall": {
-            "mean": overall_mean,
-            "std": overall_std,
-            "scale": "1-5",
-        },
-        "dimensions": dim_summary,
-        "conversations": all_results,
+        "judge_model": judge_model_original,
+        "mode": mode,
+        "seed": args.seed,
+        "n_cases_loaded": total_loaded,
+        "n_cases_after_filter": len(conversations),
+        "media_filter": not args.include_media,
     }
+    if absolute_output:
+        output["absolute"] = absolute_output
+    if pairwise_output:
+        output["pairwise"] = pairwise_output
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
 
-    # Print summary
+    # ==== PRINT SUMMARY ====
     print()
     print("=" * 65)
     print(f"  CPE LEVEL 2 — LLM-as-Judge: @{creator}")
     print("=" * 65)
-    print(f"  Judge: {args.judge_model}")
-    print(f"  Evaluated: {len(all_results)} conversations")
-    print(f"  Overall: {overall_mean}/5 (std={overall_std})")
+    print(f"  Judge: {judge_model_original} | Mode: {mode} | Seed: {args.seed}")
+    print(f"  Cases: {len(conversations)} valid (from {total_loaded} loaded)")
     print()
-    print(f"  {'Dimension':<25s} {'Mean':>5s} {'Med':>5s} {'Std':>5s} {'n':>3s}  Bar")
-    print(f"  {'-'*55}")
-    for dim_key in RUBRICS:
-        d = dim_summary[dim_key]
-        bar = "#" * int(d["mean"]) + "." * (5 - int(d["mean"]))
-        print(f"  {d['name']:<25s} {d['mean']:>5.2f} {d['median']:>5.1f} {d['std']:>5.2f} {d['n']:>3d}  [{bar}]")
-    print()
+
+    if absolute_output:
+        ao = absolute_output
+        print(f"  ABSOLUTE SCORING (1-5)")
+        print(f"  Overall: {ao['overall']['mean']}/5 (std={ao['overall']['std']})")
+        print()
+        print(f"  {'Dimension':<25s} {'Mean':>5s} {'Med':>5s} {'Std':>5s} {'n':>3s}  Bar")
+        print(f"  {'-'*55}")
+        for dim_key in RUBRICS:
+            d = ao["dimensions"][dim_key]
+            bar = "#" * int(d["mean"]) + "." * (5 - int(d["mean"]))
+            print(f"  {d['name']:<25s} {d['mean']:>5.2f} {d['median']:>5.1f} {d['std']:>5.2f} {d['n']:>3d}  [{bar}]")
+        print()
+
+    if pairwise_output:
+        ps = pairwise_output["summary"]
+        total_decided = ps["bot_wins"] + ps["reference_wins"]
+        print(f"  PAIRWISE COMPARISON (blind A/B)")
+        print(f"  Bot wins: {ps['bot_wins']}/{total_decided} ({ps['win_rate']*100:.1f}%)"
+              f"  |  Reference wins: {ps['reference_wins']}/{total_decided}"
+              f" ({(1-ps['win_rate'])*100:.1f}%)" if total_decided else "  No decided comparisons")
+        if ps["inconclusive"]:
+            print(f"  Inconclusive: {ps['inconclusive']}")
+        bias = ps["positional_bias_check"]
+        total_pos = bias["A_chosen"] + bias["B_chosen"]
+        if total_pos:
+            a_pct = bias["A_chosen"] / total_pos * 100
+            bias_ok = "no bias" if 35 < a_pct < 65 else "POSITIONAL BIAS DETECTED"
+            print(f"  Position check: A={bias['A_chosen']} B={bias['B_chosen']} ({bias_ok})")
+        print()
+
     print(f"  Output: {output_path}")
     print("=" * 65)
 

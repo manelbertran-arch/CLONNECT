@@ -4,6 +4,58 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-04 — Human Eval v2 + Prometheus as Primary LLM Judge
+
+**Problem**: `scripts/human_eval.py` had the same 5 problems as the LLM judge (wrong test set, no media filter, no history, fake blind A/B, only 5 cases). Additionally lacked: free-text notes, back navigation, quit/resume, end summary.
+
+**Changes (human_eval.py — full rewrite)**:
+- Default test set → `test_set_v2_stratified.json` (50 cases, 39 valid text after filter)
+- Media filter: same `_is_media_case()` logic as LLM judge
+- Full conversation history with media placeholders (cap 15 turns)
+- TRUE blind A/B: deterministic per-case RNG (`Random(seed + case_num)`) — never the same order
+- Shows category, language, trust segment per case
+- Free-text notes field per case
+- `back` command to revisit previous case, `quit` to save-and-exit
+- Incremental saves every 3 cases, full resume support
+- End summary: identification accuracy, average scores, notes collected
+- Auto-runs CCEECalibrator after completion if CCEE results are available
+
+**Changes (cpe_level2_llm_judge.py — Prometheus integration)**:
+- Default judge model changed from `gpt-4o-mini` to `hf/prometheus` (HuggingFace Inference API)
+- New functions: `_call_hf_inference()`, `_call_gemini_fallback()`, `judge_single_hf()`, `judge_pairwise_hf()`
+- Fallback chain: Prometheus 7B (HF API) → Gemini Flash Lite → error
+- Each result includes `judge_used` field logging which model scored it
+- `core/evaluation/llm_judge.py` already had Prometheus → Gemini fallback (no changes needed)
+
+**Files**: `scripts/human_eval.py`, `tests/cpe_level2_llm_judge.py`
+
+**Blast radius**: Zero — both are standalone CLI scripts, not imported by production code.
+
+---
+
+## 2026-04-04 — Redesign CPE Level 2 LLM-as-Judge (5 critical fixes)
+
+**Problem**: `cpe_level2_llm_judge.py` had 5 fundamental flaws invalidating all results:
+1. Default test set was `test_set_real_leads.json` (15 cases, many media) instead of stratified 50-case set
+2. No media filtering — cases with `[audio]`/`[sticker]` ground truth evaluated as text (bot replies "???" to images)
+3. Conversation history truncated to 6 turns — judge lacked context to assess coherence
+4. No blind A/B — bot response always shown as "the response", reference always as "reference" — judge biased
+5. Only absolute scoring, no pairwise comparison (which is more reliable per Zheng et al., 2023)
+
+**Changes**:
+- Default test set → `tests/cpe_data/{creator}/test_set_v2_stratified.json` (50 cases, 39 valid text after filter)
+- Media filter: exclude cases where `test_input` or `ground_truth` matches `[audio|sticker|image]` regex. Override with `--include-media`
+- Full history: all turns shown (capped at 20 most recent), media turns replaced with descriptive placeholders
+- New `--mode pairwise`: randomly assigns bot/reference to A/B (seeded for reproducibility), tracks positional bias
+- New `--mode both`: runs absolute + pairwise sequentially
+- DB connection leak fixed (context manager), args mutation fixed (local variable)
+
+**Files**: `tests/cpe_level2_llm_judge.py`
+
+**Blast radius**: Zero — standalone CLI script, not imported by anything. Output JSON format changed (now has `absolute` and `pairwise` top-level keys). Historical Level 2 results used different test set and are not comparable.
+
+---
+
 ## 2026-04-04 — CCEE v3: 44 params complete (28→44), 9 dimensions, LLM judge + business metrics
 
 **Expansion**: Added 16 new params across 4 new dimensions (B/G/H/I) plus improved existing ones.
