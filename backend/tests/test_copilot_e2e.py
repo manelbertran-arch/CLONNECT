@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from core.autolearning_evaluator import (
+from services.persona_compiler import (
     _detect_daily_patterns,
     _generate_weekly_recommendations,
 )

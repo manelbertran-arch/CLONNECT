@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.autolearning_evaluator import (
+from services.persona_compiler import (
     _detect_daily_patterns,
     _generate_weekly_recommendations,
     run_daily_evaluation,

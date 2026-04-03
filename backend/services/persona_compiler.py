@@ -108,6 +108,25 @@ def detect_language(text: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Absorbed from autolearning_analyzer (real-time path removed, batch-only now)
+# ---------------------------------------------------------------------------
+
+_NON_TEXT_PREFIXES = ("[🎤 Audio]", "[🏷️ Sticker]", "[📷", "[🎥", "[📎")
+
+
+def _is_non_text_response(text: str) -> bool:
+    """Check if a response is audio, sticker, or media."""
+    if not text:
+        return True
+    return any(text.startswith(prefix) for prefix in _NON_TEXT_PREFIXES)
+
+
+async def analyze_creator_action(**kwargs) -> None:
+    """No-op: real-time rule extraction removed. System B is batch-only now."""
+    logger.debug("[AUTOLEARN] analyze_creator_action is a no-op (batch-only mode)")
+
+
+# ---------------------------------------------------------------------------
 # Reused: Sanitization (from learning_rules_service.py)
 # ---------------------------------------------------------------------------
 

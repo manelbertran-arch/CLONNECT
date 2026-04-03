@@ -708,7 +708,7 @@ ORIGINAL PROFILE:
 
         # 6a. Pattern Analysis → Learning Rules
         try:
-            from services.pattern_analyzer import run_pattern_analysis
+            from services.persona_compiler import compile_persona as run_pattern_analysis
 
             r = await run_pattern_analysis(self.creator_name, self.creator_db_id)
             results["pattern_analyzer"] = r

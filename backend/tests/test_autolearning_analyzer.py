@@ -13,7 +13,7 @@ import pytest
 @pytest.mark.asyncio
 async def test_approval_no_llm():
     """Approval is a no-op — no rules or LLM calls."""
-    from services.autolearning_analyzer import analyze_creator_action
+    from services.persona_compiler import analyze_creator_action
 
     with patch("services.learning_rules_service.update_rule_feedback") as mock_update, \
          patch("services.learning_rules_service.get_applicable_rules") as mock_get:
@@ -33,7 +33,7 @@ async def test_approval_no_llm():
 @pytest.mark.asyncio
 async def test_edit_no_llm():
     """Edit is a no-op — no LLM call, no rule created."""
-    from services.autolearning_analyzer import analyze_creator_action
+    from services.persona_compiler import analyze_creator_action
 
     with patch("core.providers.gemini_provider.generate_simple", new_callable=AsyncMock) as mock_gen, \
          patch("services.learning_rules_service.create_rule") as mock_create:
@@ -54,7 +54,7 @@ async def test_edit_no_llm():
 @pytest.mark.asyncio
 async def test_discard_no_llm():
     """Discard is a no-op — no LLM call, no rule created."""
-    from services.autolearning_analyzer import analyze_creator_action
+    from services.persona_compiler import analyze_creator_action
 
     with patch("core.providers.gemini_provider.generate_simple", new_callable=AsyncMock) as mock_gen, \
          patch("services.learning_rules_service.create_rule") as mock_create:
@@ -75,7 +75,7 @@ async def test_discard_no_llm():
 @pytest.mark.asyncio
 async def test_missing_suggested_response():
     """No exception when suggested_response is None."""
-    from services.autolearning_analyzer import analyze_creator_action
+    from services.persona_compiler import analyze_creator_action
 
     result = await analyze_creator_action(
         action="edited",
@@ -91,7 +91,7 @@ async def test_missing_suggested_response():
 @pytest.mark.asyncio
 async def test_unknown_action():
     """Unknown action type does not raise."""
-    from services.autolearning_analyzer import analyze_creator_action
+    from services.persona_compiler import analyze_creator_action
 
     result = await analyze_creator_action(
         action="unknown_action_xyz",
@@ -105,7 +105,7 @@ async def test_unknown_action():
 @pytest.mark.asyncio
 async def test_no_kwargs():
     """Called with minimal args does not raise."""
-    from services.autolearning_analyzer import analyze_creator_action
+    from services.persona_compiler import analyze_creator_action
 
     result = await analyze_creator_action()
     assert result is None
@@ -114,7 +114,7 @@ async def test_no_kwargs():
 @pytest.mark.asyncio
 async def test_is_non_text_response():
     """_is_non_text_response correctly identifies media prefixes."""
-    from services.autolearning_analyzer import _is_non_text_response
+    from services.persona_compiler import _is_non_text_response
 
     assert _is_non_text_response("[🎤 Audio] something") is True
     assert _is_non_text_response("[🏷️ Sticker] x") is True

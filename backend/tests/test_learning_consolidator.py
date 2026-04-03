@@ -11,7 +11,7 @@ import pytest
 @patch("services.learning_rules_service.get_rules_count")
 async def test_below_threshold_skips(mock_count):
     """Below threshold returns skipped status."""
-    from services.learning_consolidator import consolidate_rules_for_creator
+    from services.persona_compiler import compile_persona as consolidate_rules_for_creator
 
     mock_count.return_value = 5  # Below default threshold of 20
 
@@ -66,7 +66,7 @@ async def test_consolidation_merges(
     new_rule_id = str(uuid.uuid4())
     mock_create.return_value = {"id": new_rule_id, "deduplicated": False}
 
-    from services.learning_consolidator import consolidate_rules_for_creator
+    from services.persona_compiler import compile_persona as consolidate_rules_for_creator
 
     result = await consolidate_rules_for_creator("test_creator", creator_db_id)
 
@@ -121,7 +121,7 @@ async def test_old_rules_deactivated(
     new_rule_id = str(uuid.uuid4())
     mock_create.return_value = {"id": new_rule_id}
 
-    from services.learning_consolidator import consolidate_rules_for_creator
+    from services.persona_compiler import compile_persona as consolidate_rules_for_creator
 
     await consolidate_rules_for_creator("test_creator", creator_db_id)
 
@@ -162,7 +162,7 @@ async def test_llm_timeout_skips_group(
     mock_get_rules.return_value = rules
     mock_generate.side_effect = asyncio.TimeoutError()
 
-    from services.learning_consolidator import consolidate_rules_for_creator
+    from services.persona_compiler import compile_persona as consolidate_rules_for_creator
 
     result = await consolidate_rules_for_creator("test_creator", uuid.uuid4())
 

@@ -286,9 +286,9 @@ class TestDailyEvaluationUnchanged:
 
     @pytest.mark.asyncio
     @patch("api.database.SessionLocal")
-    async def test_daily_evaluation_via_shim(self, mock_session_cls):
-        """Import via old path still works."""
-        from core.autolearning_evaluator import run_daily_evaluation
+    async def test_daily_evaluation_direct(self, mock_session_cls):
+        """Direct import from persona_compiler works."""
+        from services.persona_compiler import run_daily_evaluation
 
         mock_session = MagicMock()
         mock_session_cls.return_value = mock_session
@@ -345,24 +345,19 @@ class TestWeeklyTriggersCompilation:
 # ---------------------------------------------------------------------------
 
 class TestBackwardCompat:
-    def test_shim_autolearning_evaluator(self):
-        """Old import path still resolves."""
-        from core.autolearning_evaluator import run_daily_evaluation, run_weekly_recalibration
+    def test_direct_persona_compiler_exports(self):
+        """All consolidated functions are importable directly from persona_compiler."""
+        from services.persona_compiler import (
+            run_daily_evaluation,
+            run_weekly_recalibration,
+            compile_persona,
+            compile_persona_all,
+            analyze_creator_action,
+            _is_non_text_response,
+        )
         assert callable(run_daily_evaluation)
         assert callable(run_weekly_recalibration)
-
-    def test_shim_pattern_analyzer(self):
-        """Old import path still resolves."""
-        from services.pattern_analyzer import run_pattern_analysis, run_pattern_analysis_all
-        assert callable(run_pattern_analysis)
-        assert callable(run_pattern_analysis_all)
-
-    def test_shim_learning_consolidator(self):
-        """Old import path still resolves."""
-        from services.learning_consolidator import consolidate_rules_for_creator
-        assert callable(consolidate_rules_for_creator)
-
-    def test_shim_autolearning_analyzer(self):
-        """Old import path still resolves."""
-        from services.autolearning_analyzer import analyze_creator_action
+        assert callable(compile_persona)
+        assert callable(compile_persona_all)
         assert callable(analyze_creator_action)
+        assert callable(_is_non_text_response)
