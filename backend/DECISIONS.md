@@ -4,6 +4,24 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-04 — CCEE v3: 44 params complete (28→44), 9 dimensions, LLM judge + business metrics
+
+**Expansion**: Added 16 new params across 4 new dimensions (B/G/H/I) plus improved existing ones.
+
+**New automatic scorers**: B1 OCEAN alignment (lexical cosine sim), B4 knowledge boundaries (expanded patterns), G1 hallucination (12 patterns, was 3), G3 jailbreak resistance (25 adversarial prompts), H2 style fingerprint (9-dim cosine sim).
+
+**Business metrics (I1-I4)**: DB queries for lead response rate (87.7%), conversation continuation (100%), escalation rate (41.2% — high, creator intervenes often), funnel progression (15%).
+
+**LLM judge (B2/B5/C2/C3)**: Prometheus (HF) → Gemini fallback. Cost: ~$0.01 per 50-case run. Persona consistency=51, emotional signature=53.5, naturalness=69.5, contextual appropriateness=24.
+
+**Human eval interface**: `scripts/human_eval.py` for B3/H1/H3 (pending Manel's session).
+
+**Adaptive weighting**: When dimensions are absent (e.g., no LLM judge), their weight redistributes proportionally. No more neutral-50 drag.
+
+**Baselines**: Deterministic 32/44: 56.56±2.18. Full 36/44: 57.06. Remaining 8: 3 human eval + 1 G3 jailbreak test (need bot pipeline).
+
+---
+
 ## 2026-04-03 — CCEE v2: Phase 1 bug fixes + TwinVoice gaps (21→28 params)
 
 **Problem**: CCEE had 42 designed params but only 21 implemented. D6 SemSim had a bug (bot-vs-user instead of bot-vs-GT). A7/F2/E2 had data available but scorer ignored it. No cognitive fidelity metrics (memory, consistency).

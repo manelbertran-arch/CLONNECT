@@ -214,6 +214,41 @@ def _format_table(results: Dict) -> str:
     s4 = results["S4_adaptation"]
     lines.append(f"{'S4 Adaptation':<25} {s4['score']:>8.2f}")
 
+    # B: Persona Fidelity
+    b = results.get("B_persona_fidelity", {})
+    if b:
+        lines.append(f"{'B  Persona Fidelity':<25} {b.get('score', 50):>8.2f}")
+        if isinstance(b.get("B1"), dict):
+            lines.append(f"  {'B1 OCEAN alignment':<23} {b['B1'].get('score', 50):>8.2f}")
+        if isinstance(b.get("B4"), dict):
+            lines.append(f"  {'B4 knowledge bounds':<23} {b['B4'].get('score', 50):>8.2f}")
+
+    # G: Safety
+    g = results.get("G_safety", {})
+    if g:
+        lines.append(f"{'G  Safety':<25} {g.get('score', 50):>8.2f}")
+        lines.append(f"  {'G1 hallucination':<23} {g.get('G1_score', 50):>8.2f}")
+        if isinstance(g.get("G3"), dict) and g["G3"].get("detail") != "no jailbreak tests run":
+            lines.append(f"  {'G3 jailbreak resist.':<23} {g['G3'].get('score', 50):>8.2f}")
+
+    # H: Indistinguishability
+    h = results.get("H_indistinguishability", {})
+    if h:
+        lines.append(f"{'H  Indistinguishability':<25} {h.get('score', 50):>8.2f}")
+        if isinstance(h.get("H2"), dict):
+            lines.append(f"  {'H2 style fingerprint':<23} {h['H2'].get('score', 50):>8.2f}")
+
+    # I: Business Impact
+    i_biz = results.get("I_business_impact", {})
+    if i_biz:
+        lines.append(f"{'I  Business Impact':<25} {i_biz.get('score', 50):>8.2f}")
+        for key in ["I1_lead_response_rate", "I2_conversation_continuation",
+                     "I3_escalation_rate", "I4_funnel_progression"]:
+            if key in i_biz:
+                label = key.replace("_", " ").replace("I1 ", "  I1 ").replace("I2 ", "  I2 ").replace("I3 ", "  I3 ").replace("I4 ", "  I4 ")
+                lines.append(f"  {key[3:]:<23} {i_biz[key].get('score', 50):>8.2f}")
+
+    # J: Cognitive Fidelity
     j1 = results.get("J1_memory_recall", {})
     if j1:
         lines.append(f"{'J1 Memory Recall':<25} {j1.get('score', 50):>8.2f}")
@@ -224,8 +259,28 @@ def _format_table(results: Dict) -> str:
     if j_cog is not None:
         lines.append(f"{'J  Cognitive Fidelity':<25} {j_cog:>8.2f}")
 
+    # LLM Judge
+    llm = results.get("LLM_judge", {})
+    if llm:
+        lines.append(f"{'--- LLM Judge ---':<25}")
+        for key in ["B2_persona_consistency", "B5_emotional_signature",
+                     "C2_naturalness", "C3_contextual_appropriateness"]:
+            if key in llm:
+                lines.append(f"  {key[3:]:<23} {llm[key].get('score', 50):>8.2f}")
+        lines.append(f"  {'cost USD':<23} {llm.get('estimated_cost_usd', 0):>8.4f}")
+
+    # Human eval
+    human = results.get("human_eval", {})
+    if human:
+        lines.append(f"{'--- Human Eval ---':<25}")
+        for key in ["B3_persona_identification", "H1_turing_test", "H3_would_send"]:
+            if key in human:
+                lines.append(f"  {key[3:]:<23} {human[key].get('score', 50):>8.2f}")
+
     lines.append("-" * 75)
-    lines.append(f"{'COMPOSITE':<25} {results['composite']:>8.2f}")
+    pa = results.get("params_active", "?")
+    pt = results.get("params_total", 44)
+    lines.append(f"{'COMPOSITE':<25} {results['composite']:>8.2f}  ({pa}/{pt} params)")
 
     return "\n".join(lines)
 
@@ -334,6 +389,22 @@ def main():
         "--save-as", default=None,
         help="Custom name for results file (e.g. baseline_0, ablation_temp07)"
     )
+    parser.add_argument(
+        "--with-llm-judge", action="store_true",
+        help="Run LLM judge metrics (B2, B5, C2, C3) — costs ~$0.01 per run"
+    )
+    parser.add_argument(
+        "--with-business-metrics", action="store_true",
+        help="Include business metrics from DB (I1-I4)"
+    )
+    parser.add_argument(
+        "--with-human-ratings", default=None,
+        help="Path to human ratings JSON for B3, H1, H3"
+    )
+    parser.add_argument(
+        "--with-jailbreak-test", action="store_true",
+        help="Run jailbreak resistance test (G3)"
+    )
     args = parser.parse_args()
 
     creator = args.creator
@@ -388,6 +459,38 @@ def main():
     if overrides:
         print(f"  Overrides: {overrides}")
 
+    # Load optional data sources
+    business_scores = None
+    if args.with_business_metrics:
+        print("\n[BIZ] Computing business metrics...")
+        try:
+            from core.evaluation.business_metrics import score_business_metrics
+            business_scores = score_business_metrics(creator)
+            print(f"  I-score: {business_scores.get('score', '?')}")
+        except Exception as e:
+            print(f"  WARNING: Business metrics failed: {e}")
+
+    human_scores = None
+    if args.with_human_ratings:
+        print(f"\n[HUMAN] Loading human ratings from {args.with_human_ratings}...")
+        try:
+            with open(args.with_human_ratings) as f:
+                human_data = json.load(f)
+            human_scores = human_data.get("scores", {})
+            print(f"  Loaded: {list(human_scores.keys())}")
+        except Exception as e:
+            print(f"  WARNING: Human ratings failed: {e}")
+
+    jailbreak_prompts_data = None
+    if args.with_jailbreak_test:
+        jp_path = os.path.join("evaluation_profiles", "jailbreak_prompts.json")
+        if os.path.exists(jp_path):
+            with open(jp_path) as f:
+                jailbreak_prompts_data = json.load(f).get("prompts", [])
+            print(f"\n[G3] Loaded {len(jailbreak_prompts_data)} jailbreak prompts")
+        else:
+            print(f"\n[G3] WARNING: {jp_path} not found")
+
     # Run evaluation
     scorer = CCEEScorer(style_profile, strategy_map, adaptation_profile, weights)
     all_run_results = []
@@ -405,7 +508,41 @@ def main():
             t1 = time.time()
             print(f"  Pipeline: {t1-t0:.1f}s for {len(test_cases)} cases")
 
-        results = scorer.score(test_cases, bot_responses)
+        # Optional: run jailbreak test
+        jailbreak_responses = None
+        if jailbreak_prompts_data and not args.skip_pipeline:
+            print("  Running jailbreak resistance test...")
+            jb_cases = [{"user_input": p["prompt"]} for p in jailbreak_prompts_data]
+            jailbreak_responses = run_bot_pipeline(creator, jb_cases, overrides or None)
+
+        # Optional: run LLM judge
+        llm_scores = None
+        if args.with_llm_judge:
+            import asyncio as _asyncio
+            print("  Running LLM judge (B2, B5, C2, C3)...")
+            try:
+                from core.evaluation.llm_judge import score_llm_judge_batch
+                # Build creator description from profile
+                creator_desc = (
+                    f"Content creator. Language: {list(style_profile.get('A6_language_ratio', {}).get('ratios', {}).keys())}. "
+                    f"Style: emoji rate {style_profile.get('A2_emoji', {}).get('global_rate', '?')}, "
+                    f"formality {style_profile.get('A8_formality', {}).get('formality_score', '?')}. "
+                    f"Catchphrases: {[cp['phrase'] for cp in style_profile.get('A9_catchphrases', {}).get('catchphrases', [])[:5]]}"
+                )
+                llm_scores = _asyncio.run(
+                    score_llm_judge_batch(test_cases, bot_responses, creator_desc)
+                )
+                print(f"  LLM judge cost: ${llm_scores.get('estimated_cost_usd', 0):.4f}")
+            except Exception as e:
+                print(f"  WARNING: LLM judge failed: {e}")
+
+        results = scorer.score(
+            test_cases, bot_responses,
+            llm_scores=llm_scores,
+            human_scores=human_scores,
+            business_scores=business_scores,
+            jailbreak_responses=jailbreak_responses,
+        )
         all_run_results.append(results)
         all_composites.append(results["composite"])
 
@@ -421,9 +558,11 @@ def main():
         print(f"  Std:  {np.std(agg_composites):.2f}")
         for key in ["S1_style_fidelity", "S2_response_quality",
                      "S3_strategic_alignment", "S4_adaptation",
+                     "B_persona_fidelity", "G_safety", "H_indistinguishability",
                      "J1_memory_recall", "J2_multiturn_consistency"]:
-            scores = [r[key]["score"] for r in all_run_results]
-            print(f"  {key}: {np.mean(scores):.2f} +/- {np.std(scores):.2f}")
+            scores = [r[key]["score"] for r in all_run_results if key in r]
+            if scores:
+                print(f"  {key}: {np.mean(scores):.2f} +/- {np.std(scores):.2f}")
 
     # Compare to baseline
     if args.compare:

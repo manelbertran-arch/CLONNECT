@@ -1,0 +1,1631 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260404_002708",
+  "n_runs": 3,
+  "n_cases": 50,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 63.9,
+        "detail": {
+          "A1_length": 92.79,
+          "A2_emoji": 84.01,
+          "A2_contextual": 59.25,
+          "A3_exclamations": 82.09,
+          "A4_questions": 39.73,
+          "A5_vocabulary": 60.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 20.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 40.23,
+        "detail": {
+          "bertscore_mean": 0.8118,
+          "chrf_mean": 0.0824,
+          "bleu4_mean": 0.1336,
+          "rouge_l_mean": 0.0301,
+          "meteor_mean": 0.0234,
+          "semsim_mean": 0.8118,
+          "c4_relevance_mean": 0.8141,
+          "self_rep_mean": 0.8914,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 2.83,
+          "per_case": [
+            47.95,
+            37.53,
+            41.5,
+            25.67,
+            40.48,
+            23.85,
+            37.63,
+            46.26,
+            26.62,
+            49.02,
+            14.66,
+            45.52,
+            34.8,
+            41.99,
+            33.71,
+            50.02,
+            49.53,
+            32.78,
+            51.56,
+            34.54,
+            13.23,
+            49.69,
+            47.2,
+            45.56,
+            53.42,
+            54.37,
+            41.23,
+            39.48,
+            27.54,
+            40.0,
+            45.76,
+            35.5,
+            34.5,
+            49.1,
+            47.19,
+            51.26,
+            47.14,
+            41.1,
+            38.19,
+            34.74,
+            35.17,
+            34.71,
+            48.56,
+            45.07,
+            38.21,
+            42.44,
+            21.57,
+            52.36,
+            47.15,
+            44.2
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 37.89,
+        "detail": {
+          "e1_per_case_mean": 26.41,
+          "e2_distribution_match": 64.67,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.5,
+            "ASK": 0.4,
+            "IGNORE": 0.04,
+            "REDIRECT": 0.04,
+            "MIRROR": 0.02
+          },
+          "per_case": [
+            16.1,
+            12.5,
+            11.5,
+            11.5,
+            11.5,
+            12.5,
+            100.0,
+            11.5,
+            11.5,
+            12.5,
+            11.5,
+            12.5,
+            12.5,
+            12.5,
+            11.5,
+            12.5,
+            11.5,
+            11.5,
+            12.5,
+            12.5,
+            11.5,
+            11.5,
+            12.5,
+            12.5,
+            100.0,
+            11.5,
+            12.5,
+            11.5,
+            100.0,
+            12.5,
+            12.5,
+            12.5,
+            12.3,
+            100.0,
+            100.0,
+            12.3,
+            100.0,
+            17.7,
+            7.8,
+            17.7,
+            17.7,
+            17.7,
+            7.8,
+            17.7,
+            7.8,
+            100.0,
+            7.5,
+            14.5,
+            100.0,
+            8.4
+          ],
+          "mean": 37.89
+        }
+      },
+      "S4_adaptation": {
+        "score": 60.82,
+        "detail": {
+          "mode": "blended",
+          "proximity_mean": 59.69,
+          "proximity_n": 50,
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 100.0,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 78.87,
+        "B1": {
+          "score": 57.74,
+          "detail": {
+            "cosine_similarity": 0.5774,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.0064,
+              0.0,
+              0.0064,
+              0.0064,
+              0.0
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 50,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 50.35,
+        "H2": {
+          "score": 50.35,
+          "detail": {
+            "cosine_similarity": 0.5035,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.2393,
+              0.22,
+              0.12,
+              0.4,
+              0.3,
+              1.0,
+              0.224,
+              0.1,
+              0.1
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 0.0,
+        "detail": {
+          "cases_scored": 4,
+          "mean": 0.0
+        }
+      },
+      "J2_multiturn_consistency": {
+        "score": 53.57,
+        "detail": {
+          "length_consistency": 62.03,
+          "emoji_consistency": 84.01,
+          "question_consistency": 39.73,
+          "exclamation_consistency": 82.09,
+          "cv_match": 0.0,
+          "bot_length_std": 42.85,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 26.79,
+      "composite": 53.61,
+      "params_active": 32,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "I",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "I_business_impact": {
+        "score": 60.98,
+        "I1_lead_response_rate": {
+          "score": 87.7,
+          "detail": {
+            "total_bot_leads": 626,
+            "responded": 549,
+            "rate": 0.877
+          }
+        },
+        "I2_conversation_continuation": {
+          "score": 100.0,
+          "detail": {
+            "leads_with_continuation": 491,
+            "avg_turns_after_bot": 26.7,
+            "max_turns": 1375
+          }
+        },
+        "I3_escalation_rate": {
+          "score": 41.21,
+          "detail": {
+            "total_bot_convos": 626,
+            "escalated": 368,
+            "rate": 0.5879
+          }
+        },
+        "I4_funnel_progression": {
+          "score": 15.02,
+          "detail": {
+            "total_bot_leads": 626,
+            "progressed": 94,
+            "rate": 0.1502
+          }
+        }
+      }
+    },
+    {
+      "S1_style_fidelity": {
+        "score": 76.85,
+        "detail": {
+          "A1_length": 94.9,
+          "A2_emoji": 64.01,
+          "A2_contextual": 62.86,
+          "A3_exclamations": 78.09,
+          "A4_questions": 83.73,
+          "A5_vocabulary": 76.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 98.91,
+          "A9_catchphrases": 10.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 39.62,
+        "detail": {
+          "bertscore_mean": 0.8083,
+          "chrf_mean": 0.0748,
+          "bleu4_mean": 0.1158,
+          "rouge_l_mean": 0.0298,
+          "meteor_mean": 0.0212,
+          "semsim_mean": 0.8083,
+          "c4_relevance_mean": 0.822,
+          "self_rep_mean": 0.9022,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 2.46,
+          "per_case": [
+            42.96,
+            44.38,
+            41.37,
+            34.76,
+            23.33,
+            46.23,
+            39.5,
+            48.49,
+            35.03,
+            32.03,
+            16.81,
+            34.57,
+            34.7,
+            33.88,
+            42.91,
+            44.69,
+            31.07,
+            34.96,
+            45.27,
+            25.5,
+            14.1,
+            48.72,
+            36.94,
+            50.6,
+            44.83,
+            48.1,
+            41.89,
+            47.04,
+            41.23,
+            28.1,
+            52.05,
+            29.03,
+            33.03,
+            49.57,
+            43.2,
+            50.54,
+            51.93,
+            41.17,
+            33.59,
+            41.89,
+            43.29,
+            34.97,
+            43.62,
+            49.56,
+            37.44,
+            36.76,
+            51.72,
+            39.19,
+            33.72,
+            50.88
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 44.05,
+        "detail": {
+          "e1_per_case_mean": 30.05,
+          "e2_distribution_match": 76.73,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.56,
+            "REDIRECT": 0.08,
+            "ASK": 0.18,
+            "INFORM": 0.06,
+            "IGNORE": 0.06,
+            "MIRROR": 0.06
+          },
+          "per_case": [
+            16.1,
+            12.5,
+            12.5,
+            12.5,
+            100.0,
+            12.5,
+            12.5,
+            11.5,
+            4.2,
+            4.2,
+            4.2,
+            11.5,
+            11.5,
+            11.5,
+            12.5,
+            12.5,
+            12.5,
+            12.5,
+            100.0,
+            100.0,
+            11.5,
+            11.5,
+            12.5,
+            100.0,
+            100.0,
+            12.5,
+            12.5,
+            11.5,
+            12.5,
+            12.5,
+            12.5,
+            11.5,
+            100.0,
+            100.0,
+            100.0,
+            12.3,
+            100.0,
+            17.7,
+            17.7,
+            17.7,
+            17.7,
+            7.8,
+            17.7,
+            17.7,
+            17.7,
+            100.0,
+            14.5,
+            7.5,
+            11.6,
+            16.1
+          ],
+          "mean": 44.05
+        }
+      },
+      "S4_adaptation": {
+        "score": 52.2,
+        "detail": {
+          "mode": "blended",
+          "proximity_mean": 62.01,
+          "proximity_n": 50,
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 0.0,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 100.0,
+        "B1": {
+          "score": 100.0,
+          "detail": {
+            "cosine_similarity": 1.0,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0069,
+              0.0
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 50,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 51.74,
+        "H2": {
+          "score": 51.74,
+          "detail": {
+            "cosine_similarity": 0.5174,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.2219,
+              0.12,
+              0.14,
+              0.18,
+              0.38,
+              1.0,
+              0.264,
+              0.1,
+              0.05
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 0.0,
+        "detail": {
+          "cases_scored": 4,
+          "mean": 0.0
+        }
+      },
+      "J2_multiturn_consistency": {
+        "score": 57.0,
+        "detail": {
+          "length_consistency": 59.15,
+          "emoji_consistency": 64.01,
+          "question_consistency": 83.73,
+          "exclamation_consistency": 78.09,
+          "cv_match": 0.0,
+          "bot_length_std": 32.57,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 28.5,
+      "composite": 58.83,
+      "params_active": 32,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "I",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "I_business_impact": {
+        "score": 60.98,
+        "I1_lead_response_rate": {
+          "score": 87.7,
+          "detail": {
+            "total_bot_leads": 626,
+            "responded": 549,
+            "rate": 0.877
+          }
+        },
+        "I2_conversation_continuation": {
+          "score": 100.0,
+          "detail": {
+            "leads_with_continuation": 491,
+            "avg_turns_after_bot": 26.7,
+            "max_turns": 1375
+          }
+        },
+        "I3_escalation_rate": {
+          "score": 41.21,
+          "detail": {
+            "total_bot_convos": 626,
+            "escalated": 368,
+            "rate": 0.5879
+          }
+        },
+        "I4_funnel_progression": {
+          "score": 15.02,
+          "detail": {
+            "total_bot_leads": 626,
+            "progressed": 94,
+            "rate": 0.1502
+          }
+        }
+      }
+    },
+    {
+      "S1_style_fidelity": {
+        "score": 75.06,
+        "detail": {
+          "A1_length": 95.75,
+          "A2_emoji": 68.01,
+          "A2_contextual": 62.08,
+          "A3_exclamations": 78.09,
+          "A4_questions": 39.73,
+          "A5_vocabulary": 88.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 98.91,
+          "A9_catchphrases": 20.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 41.25,
+        "detail": {
+          "bertscore_mean": 0.8073,
+          "chrf_mean": 0.074,
+          "bleu4_mean": 0.1232,
+          "rouge_l_mean": 0.0218,
+          "meteor_mean": 0.018,
+          "semsim_mean": 0.8073,
+          "c4_relevance_mean": 0.8164,
+          "self_rep_mean": 0.9195,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 1.46,
+          "per_case": [
+            50.08,
+            49.41,
+            45.32,
+            33.06,
+            42.71,
+            34.97,
+            50.19,
+            51.02,
+            35.15,
+            35.46,
+            44.55,
+            37.23,
+            47.33,
+            51.01,
+            42.79,
+            36.25,
+            41.29,
+            28.96,
+            45.75,
+            33.5,
+            14.19,
+            46.93,
+            35.52,
+            44.16,
+            46.79,
+            51.49,
+            43.08,
+            46.44,
+            32.8,
+            34.78,
+            35.43,
+            46.38,
+            33.8,
+            49.26,
+            42.81,
+            45.17,
+            48.88,
+            40.97,
+            39.42,
+            33.96,
+            33.92,
+            35.46,
+            42.17,
+            41.53,
+            36.89,
+            42.75,
+            47.66,
+            34.71,
+            50.85,
+            48.36
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 41.17,
+        "detail": {
+          "e1_per_case_mean": 28.08,
+          "e2_distribution_match": 71.7,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.44,
+            "ASK": 0.4,
+            "IGNORE": 0.12,
+            "MIRROR": 0.02,
+            "REDIRECT": 0.02
+          },
+          "per_case": [
+            16.1,
+            12.5,
+            11.5,
+            12.5,
+            11.5,
+            11.5,
+            12.5,
+            11.5,
+            11.5,
+            12.5,
+            12.5,
+            11.5,
+            12.5,
+            100.0,
+            11.5,
+            11.5,
+            12.5,
+            11.5,
+            100.0,
+            12.5,
+            11.5,
+            12.5,
+            100.0,
+            12.5,
+            12.5,
+            12.5,
+            11.5,
+            11.5,
+            11.5,
+            11.5,
+            12.5,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            12.3,
+            12.3,
+            7.8,
+            17.7,
+            7.8,
+            17.7,
+            7.8,
+            7.8,
+            17.7,
+            17.7,
+            100.0,
+            14.5,
+            14.5,
+            100.0,
+            8.4
+          ],
+          "mean": 41.17
+        }
+      },
+      "S4_adaptation": {
+        "score": 60.42,
+        "detail": {
+          "mode": "blended",
+          "proximity_mean": 59.04,
+          "proximity_n": 50,
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 100.0,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 85.35,
+        "B1": {
+          "score": 70.71,
+          "detail": {
+            "cosine_similarity": 0.7071,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.0,
+              0.0,
+              0.0072,
+              0.0072,
+              0.0
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 50,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 54.78,
+        "H2": {
+          "score": 54.78,
+          "detail": {
+            "cosine_similarity": 0.5478,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.2078,
+              0.14,
+              0.14,
+              0.4,
+              0.44,
+              1.0,
+              0.216,
+              0.1,
+              0.1
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 0.0,
+        "detail": {
+          "cases_scored": 4,
+          "mean": 0.0
+        }
+      },
+      "J2_multiturn_consistency": {
+        "score": 48.92,
+        "detail": {
+          "length_consistency": 58.77,
+          "emoji_consistency": 68.01,
+          "question_consistency": 39.73,
+          "exclamation_consistency": 78.09,
+          "cv_match": 0.0,
+          "bot_length_std": 31.23,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 24.46,
+      "composite": 57.24,
+      "params_active": 32,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "I",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "I_business_impact": {
+        "score": 60.98,
+        "I1_lead_response_rate": {
+          "score": 87.7,
+          "detail": {
+            "total_bot_leads": 626,
+            "responded": 549,
+            "rate": 0.877
+          }
+        },
+        "I2_conversation_continuation": {
+          "score": 100.0,
+          "detail": {
+            "leads_with_continuation": 491,
+            "avg_turns_after_bot": 26.7,
+            "max_turns": 1375
+          }
+        },
+        "I3_escalation_rate": {
+          "score": 41.21,
+          "detail": {
+            "total_bot_convos": 626,
+            "escalated": 368,
+            "rate": 0.5879
+          }
+        },
+        "I4_funnel_progression": {
+          "score": 15.02,
+          "detail": {
+            "total_bot_leads": 626,
+            "progressed": 94,
+            "rate": 0.1502
+          }
+        }
+      }
+    }
+  ],
+  "composites": [
+    53.61,
+    58.83,
+    57.24
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "INTIMATE",
+      "user_message": "Quanta estona la mascareta",
+      "iris_real_response": "Gràcies mama moltbó🌟",
+      "bot_response": "Ja te l'he dit, 20e.",
+      "input_type": "QUESTION_SERVICE"
+    },
+    {
+      "case_idx": 5,
+      "trust_segment": "UNKNOWN",
+      "user_message": "Si vols quan torni de casa la meva amiga taviso i vens a fer preso",
+      "iris_real_response": "[audio]",
+      "bot_response": "Ja, ja, ja Què tens avui?",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "EXTRA",
+      "user_message": "La Dra Torrents esta ok",
+      "iris_real_response": "I vigila con el cavita que nos conocemos",
+      "bot_response": "Ja t'ho digue, no puc dir-ho!",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 2,
+      "trust_segment": "EXTRA",
+      "user_message": "[🎬 Video]",
+      "iris_real_response": "Manel, tens cafè fet de la cafetera per si vols ser un cafè, d'acord? Al final he sortit amb la princesa una estona perquè tardava bastant i dic, bueno... Ara quan tornem, si vols anem a córrer, fa un dia espectacular.",
+      "bot_response": "Uf, que mal que t'ha passat! T'has quedat a l'hostal?",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 37,
+      "trust_segment": "EDGE_CASE",
+      "user_message": "[audio]",
+      "iris_real_response": "[🎤 Audio]: Cariño, pero podías haber ido tú a la Open, no pasa nada, no, que bueno, no sé. Vale, ahora cuando llegue a casa, que estoy que llegando a la banda, me he cortado el mismo de 15% y me fallo el mismo de 13 euros y ya está, si es igual, claro, ya da igual, porque te van a llegar a tu, entonces el cambio lo tenemos que hacer igual. Bueno, a ver si hay suerte. Si te arriben a... pels dimecres... Pues de puta madre. O sigui, representa Juli que... Ells t'envien aquests pantalons, aunque tú no los hayas retornado. No los hemos de retornar antes de que los envíen. Porque así mucha gente podría quedar dos pantalones, ¿sabes qué voy a decir?",
+      "bot_response": "Uf, què fes?",
+      "input_type": "MEDIA",
+      "s3_score": 7.8
+    }
+  ],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "QUESTION_SERVICE",
+      "trust_score": 1.0,
+      "user_message": "Quanta estona la mascareta",
+      "iris_real_response": "Gràcies mama moltbó🌟",
+      "bot_response": "Ja te l'he dit, 20e.",
+      "s1_score": 52.03,
+      "s2_score": 50.08,
+      "s3_score": 16.1,
+      "s4_score": 66.65
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "La Dra Torrents esta ok",
+      "iris_real_response": "I vigila con el cavita que nos conocemos",
+      "bot_response": "Ja t'ho digue, no puc dir-ho!",
+      "s1_score": 53.88,
+      "s2_score": 49.41,
+      "s3_score": 12.5,
+      "s4_score": 53.69
+    },
+    {
+      "idx": 2,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "[🎬 Video]",
+      "iris_real_response": "Manel, tens cafè fet de la cafetera per si vols ser un cafè, d'acord? Al final he sortit amb la princesa una estona perquè tardava bastant i dic, bueno... Ara quan tornem, si vols anem a córrer, fa un dia espectacular.",
+      "bot_response": "Uf, que mal que t'ha passat! T'has quedat a l'hostal?",
+      "s1_score": 45.26,
+      "s2_score": 45.32,
+      "s3_score": 11.5,
+      "s4_score": 47.63
+    },
+    {
+      "idx": 3,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Si a todo contigo siempre",
+      "iris_real_response": "Voyy",
+      "bot_response": "Ja sé que no t'has pogut resistir",
+      "s1_score": 53.05,
+      "s2_score": 33.06,
+      "s3_score": 12.5,
+      "s4_score": 70.78
+    },
+    {
+      "idx": 4,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Quina rabia",
+      "iris_real_response": "Necessito el meu temps… estic super trista, xk no m’ho esperava x res, i x mi ets l’única persona important en aquest gimnàs, ets el meu dia a dia, ets el meu recolzament en tot, i la meva confiança, amb tu estic tranquila, em sento protegida i ara això x mi es una caiguda en picat. I sé que has sigut super valent i que haig d’estar feliç x tu, però joder es que no hay un día que pueda estar feliz de verdad… xk x mi això es un cop al cor, tu no ets així però jo si… son 4 anys … que vols que avui estigui contenta que t’abraci es imposssible, xk estic trencada. Ets la meva peça clau del meu dia a dia aqui, i ara ja no et tindré, estaré sola unaltre cop, com al principi abans de que arribessis… en fi… sé que no ho pots entendre xk no som iguals , i xk tu ara estàs superfeliç xk marxes i més a la platja…es on jo voldria traslladar-me cada dia de la meva vida… i estaràs amb pau.. que ja sé que es el necessites carinyu.. i seré feliç sabent que estàs bé, però a mi em\nCostarà molt i ho sé, ara surto de parlar amb la Maria xk necessitava parlar amb algú..i bueno sort que ella m’entén… en fi vaig a fumar-me el porro que em vas deixar xk sino avui no dormo. Tinc els ulls com una granota🫠 que descansis, i perdona, xk no ho sé fer millor. No puc parlar-te xk em trencaré i més si et tinc al davant , no puc fer res, es superior a mi, soc així, quan deixo que entri algú a la meva vida i formi part del meu dia a dia, soc així… i si se’n va de la meva vida pel que sigui, doncs m’allunyo i no dic res x no passar-ho malament… igual soc foc com soc gel , es la\nMeva manera de protegir-me.❤️‍🩹",
+      "bot_response": "Ja veig que t'has despertat amb gana de moviment. T'hi veig demà a les 9:30, cuca?",
+      "s1_score": 55.57,
+      "s2_score": 42.71,
+      "s3_score": 11.5,
+      "s4_score": 54.24
+    },
+    {
+      "idx": 5,
+      "input_type": "OTHER",
+      "trust_score": 0.11,
+      "user_message": "Si vols quan torni de casa la meva amiga taviso i vens a fer preso",
+      "iris_real_response": "[audio]",
+      "bot_response": "Ja, ja, ja Què tens avui?",
+      "s1_score": 45.92,
+      "s2_score": 34.97,
+      "s3_score": 11.5,
+      "s4_score": 54.34
+    },
+    {
+      "idx": 6,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Nonooo!",
+      "iris_real_response": "A les 9:30",
+      "bot_response": "Ja ja ja, tia!",
+      "s1_score": 43.35,
+      "s2_score": 50.19,
+      "s3_score": 12.5,
+      "s4_score": 48.93
+    },
+    {
+      "idx": 7,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Irisss",
+      "iris_real_response": "Baby tu no vens demà al Brunch?",
+      "bot_response": "Uf que mal rollo Moni què et passa?",
+      "s1_score": 45.89,
+      "s2_score": 51.02,
+      "s3_score": 11.5,
+      "s4_score": 58.06
+    },
+    {
+      "idx": 8,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "I perdo per les publis",
+      "iris_real_response": "[🏷️ Sticker]",
+      "bot_response": "Uf, ja veig que tens molta energia! 😂 Què passa?",
+      "s1_score": 28.76,
+      "s2_score": 35.15,
+      "s3_score": 11.5,
+      "s4_score": 38.28
+    },
+    {
+      "idx": 9,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Que va cridava perquè no podia obrir la porta del lavabo crec",
+      "iris_real_response": "Enantym",
+      "bot_response": "Uf, ja em passa a mi de vegades",
+      "s1_score": 53.65,
+      "s2_score": 35.46,
+      "s3_score": 12.5,
+      "s4_score": 70.14
+    },
+    {
+      "idx": 10,
+      "input_type": "OTHER",
+      "trust_score": 0.11,
+      "user_message": "Jo pensava qe era a les 10:30",
+      "iris_real_response": "Descordinada??",
+      "bot_response": "Uf, ja tens mala memòria. 😂",
+      "s1_score": 55.56,
+      "s2_score": 44.55,
+      "s3_score": 12.5,
+      "s4_score": 63.5
+    },
+    {
+      "idx": 11,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Total",
+      "iris_real_response": "Pa tu primo gratis",
+      "bot_response": "Ja veig que tens molta energia. 😘 Què passa cuca?",
+      "s1_score": 38.75,
+      "s2_score": 37.23,
+      "s3_score": 11.5,
+      "s4_score": 54.41
+    },
+    {
+      "idx": 12,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Ara lo dic",
+      "iris_real_response": "Gràcies",
+      "bot_response": "Ja estàs flor",
+      "s1_score": 62.67,
+      "s2_score": 47.33,
+      "s3_score": 12.5,
+      "s4_score": 64.43
+    },
+    {
+      "idx": 13,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "I L’acaben amb trufa",
+      "iris_real_response": "[audio]",
+      "bot_response": "Ostia mami",
+      "s1_score": 52.74,
+      "s2_score": 51.01,
+      "s3_score": 100.0,
+      "s4_score": 63.47
+    },
+    {
+      "idx": 14,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Te voy a echar mucho de menos😌💋",
+      "iris_real_response": "[🎤 Audio]: Mama, em vas dir que no et venia de gust anar a la platja per la vertigen. Jo demà acabo a les dotze i mitja i estic molt cansada. Ja ho veurem. Si fa bon temps anirem, i si no, també.\n\nÉs que no entenc què té a veure la Magda aquí. Si anem a dinar, anem a dinar amb el Manel, tu i jo. O és que la Magda està amb el Manel? Estic perduda, explica'm, perquè totes són sorpreses.",
+      "bot_response": "Ja te’n vols anar? Fins demà, cuca.",
+      "s1_score": 47.05,
+      "s2_score": 42.79,
+      "s3_score": 11.5,
+      "s4_score": 58.06
+    },
+    {
+      "idx": 15,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Vale baby pensava q ho volies sencer, ho modifico dema i et reenvio",
+      "iris_real_response": "O llancem el\nMeu individual de Leoni",
+      "bot_response": "Ja, ja, ja Demanava si volies que et confirmara si volies que et confirmara?",
+      "s1_score": 44.86,
+      "s2_score": 36.25,
+      "s3_score": 11.5,
+      "s4_score": 59.81
+    },
+    {
+      "idx": 16,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Y le dejé una nota al del coche de al lado",
+      "iris_real_response": "Bombón como estás?",
+      "bot_response": "Ja, que guai que t'agraden els detalls!",
+      "s1_score": 63.07,
+      "s2_score": 41.29,
+      "s3_score": 12.5,
+      "s4_score": 56.87
+    },
+    {
+      "idx": 17,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Ven fet,tinc els peus infladets la nena em va dir que podía tenir acumulament de liquits béno no es diu aixi",
+      "iris_real_response": "Ja vinc",
+      "bot_response": "Ja veig, tristesa Té que ser molt greu per tenir els peus així Vols que et digui alguna cosa per aliviar-ho?",
+      "s1_score": 62.61,
+      "s2_score": 28.96,
+      "s3_score": 11.5,
+      "s4_score": 41.75
+    },
+    {
+      "idx": 18,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Yes lady",
+      "iris_real_response": "Alba cuca si venies quan era?",
+      "bot_response": "Ostia mami",
+      "s1_score": 52.74,
+      "s2_score": 45.75,
+      "s3_score": 100.0,
+      "s4_score": 63.47
+    },
+    {
+      "idx": 19,
+      "input_type": "OTHER",
+      "trust_score": 0.14,
+      "user_message": "O esta s a Odena?",
+      "iris_real_response": "[audio]",
+      "bot_response": "Ja ja ja cuca que t'has fet un posta.",
+      "s1_score": 55.24,
+      "s2_score": 33.5,
+      "s3_score": 12.5,
+      "s4_score": 72.33
+    },
+    {
+      "idx": 20,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Obviooooo",
+      "iris_real_response": "🫠🫠🫠",
+      "bot_response": "Obviooooo",
+      "s1_score": 55.24,
+      "s2_score": 14.19,
+      "s3_score": 11.5,
+      "s4_score": 63.16
+    },
+    {
+      "idx": 21,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Paracetanol oí?",
+      "iris_real_response": "LES PARAULES MÉS POTENS D’aquesta vida son, PERDÓ, GRÀCIES I T’estimu",
+      "bot_response": "Ja, t'ha de servir, nena.",
+      "s1_score": 62.67,
+      "s2_score": 46.93,
+      "s3_score": 12.5,
+      "s4_score": 68.24
+    },
+    {
+      "idx": 22,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Futbolista del barça eh next level",
+      "iris_real_response": "[🎤 Audio]: Buah, papári tal.",
+      "bot_response": "Obviooooo 😂 \nAra lo dic \nVale baby pensava q ho volies sencer, ho modifico dema i et reenvio \nObviooooo",
+      "s1_score": 43.02,
+      "s2_score": 35.52,
+      "s3_score": 100.0,
+      "s4_score": 48.72
+    },
+    {
+      "idx": 23,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Primer a veure com respira aquesta resposta amb el q he escrit",
+      "iris_real_response": "Fua erika hi ha com 3 que sino treiem la panxa las saco",
+      "bot_response": "Ja veig, ja veig",
+      "s1_score": 52.67,
+      "s2_score": 44.16,
+      "s3_score": 12.5,
+      "s4_score": 72.37
+    },
+    {
+      "idx": 24,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Bueno",
+      "iris_real_response": "Tot està bé, si tu vols fer un canvi.",
+      "bot_response": "Ja, bon nadal compa",
+      "s1_score": 53.65,
+      "s2_score": 46.79,
+      "s3_score": 12.5,
+      "s4_score": 66.33
+    },
+    {
+      "idx": 25,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Emma Soler Quiroga dema 9:30",
+      "iris_real_response": "Que a ver que entenc que es de les primeres contes que etc",
+      "bot_response": "Ja veig que t'has passat de ràbia 😂",
+      "s1_score": 54.96,
+      "s2_score": 51.49,
+      "s3_score": 12.5,
+      "s4_score": 63.32
+    },
+    {
+      "idx": 26,
+      "input_type": "OTHER",
+      "trust_score": 0.14,
+      "user_message": "Ha anat tot super!",
+      "iris_real_response": "[🎤 Audio]: Gerard, rei, moltíssimes gràcies. Et passo el meu Insta per no sé si penjar alguna foto xula o jo què sé, per si hi ha alguna cosa o alguna publicació. Jo us he seguit i després penjaré la foto de les nenes perquè gràcies, sort que he tingut d'elles. I això, que m'havien demanat l'Insta però he hagut de marxar volant. L'últim grup a fer només dues cançons, havia de marxar, jo què sé. que res, espero que hagi anat molt bé i que me'n vaig a zumbar a una hora i mitja estic cao, cao, eh? Quin fred que feia, eh? Moltes gràcies a tu i a l'altre noi que no sé com es diu m'ha dit el nom però estava tant quan he arribat perquè arribava superjusta no sé com es diu que li donis les gràcies també, supermacos i hi ha una profe que ho ha donat tot, eh? Ho ha donat tot",
+      "bot_response": "Ja veig que has fet un gran treball. Què vols fer ara?",
+      "s1_score": 55.85,
+      "s2_score": 43.08,
+      "s3_score": 11.5,
+      "s4_score": 58.9
+    },
+    {
+      "idx": 27,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Estic completament en shock",
+      "iris_real_response": "I ja sé que te l’estimes molt",
+      "bot_response": "Uf, què passa?",
+      "s1_score": 55.25,
+      "s2_score": 46.44,
+      "s3_score": 11.5,
+      "s4_score": 51.39
+    },
+    {
+      "idx": 28,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "De tanta por de legir el k posaba,ara no ho trovo castigo divino",
+      "iris_real_response": "Així que la vida es fácil",
+      "bot_response": "Ja, ja, no et preocupis, ja t’entenc Té, és normal, passa a moltes. I si vols, et poso una alternativa?",
+      "s1_score": 42.71,
+      "s2_score": 32.8,
+      "s3_score": 11.5,
+      "s4_score": 43.46
+    },
+    {
+      "idx": 29,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "He tornat a legir aquet mens,ok,vale a les sis a casa teva",
+      "iris_real_response": "Estic fent feina",
+      "bot_response": "Ja ja, no te preocupis, ja som aquí. Tinc el paracetamol, si vols que t’el porti. I la mascareta? Ja te la puc fer.",
+      "s1_score": 50.45,
+      "s2_score": 34.78,
+      "s3_score": 11.5,
+      "s4_score": 40.24
+    },
+    {
+      "idx": 30,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Fins el dia vint es pot esperar a setmana que bè,no?",
+      "iris_real_response": "Vull saber si els saquets que et vaig fer per la nit",
+      "bot_response": "Ja te'n vaig dir que fins el dia vint podies esperar a la setmana que bé.",
+      "s1_score": 74.47,
+      "s2_score": 35.43,
+      "s3_score": 12.5,
+      "s4_score": 70.45
+    },
+    {
+      "idx": 31,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Si baby",
+      "iris_real_response": "Parlant amb la Estefi si vol",
+      "bot_response": "Ostia mami",
+      "s1_score": 52.74,
+      "s2_score": 46.38,
+      "s3_score": 100.0,
+      "s4_score": 63.47
+    },
+    {
+      "idx": 32,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "user_message": "Per mi be ja m’hi quedaré Tb dilluns",
+      "iris_real_response": "Ja ho sé",
+      "bot_response": "Ja m’alegro que t’hi quedis, cuca",
+      "s1_score": 63.01,
+      "s2_score": 33.8,
+      "s3_score": 100.0,
+      "s4_score": 70.78
+    },
+    {
+      "idx": 33,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "user_message": "Bon dia cuquiiii",
+      "iris_real_response": "[audio]",
+      "bot_response": "ja",
+      "s1_score": 54.29,
+      "s2_score": 49.26,
+      "s3_score": 100.0,
+      "s4_score": 69.53
+    },
+    {
+      "idx": 34,
+      "input_type": "GREETING",
+      "trust_score": 0.0,
+      "user_message": "Sent a voice message",
+      "iris_real_response": "Acá es viernes, sábado xk toca, domingo y lunes, pero en mi ciudad el martes también🙂‍↔️",
+      "bot_response": "Ostia mami",
+      "s1_score": 52.48,
+      "s2_score": 42.81,
+      "s3_score": 100.0,
+      "s4_score": 62.49
+    },
+    {
+      "idx": 35,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "user_message": "Voi",
+      "iris_real_response": "Bueno això era ahir ee que tava en la merda",
+      "bot_response": "Amor, què passa?",
+      "s1_score": 54.98,
+      "s2_score": 45.17,
+      "s3_score": 12.3,
+      "s4_score": 52.03
+    },
+    {
+      "idx": 36,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "user_message": "No,es fan aixi les coses,ningú està a punt per fer nos serveis,havies d'aver me avisat ,ok",
+      "iris_real_response": "Avui toca baixar mitja pastilla mes a la nit acabo tard pero vindré a deixar-t’ho preparar",
+      "bot_response": "Ja, ja, t'entenc T'espero a les sis, cuca. I si t'agrada, puc fer-te una fotocòpia de lo d'ahir?",
+      "s1_score": 53.39,
+      "s2_score": 48.88,
+      "s3_score": 12.3,
+      "s4_score": 47.2
+    },
+    {
+      "idx": 37,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[audio]",
+      "iris_real_response": "[🎤 Audio]: Cariño, pero podías haber ido tú a la Open, no pasa nada, no, que bueno, no sé. Vale, ahora cuando llegue a casa, que estoy que llegando a la banda, me he cortado el mismo de 15% y me fallo el mismo de 13 euros y ya está, si es igual, claro, ya da igual, porque te van a llegar a tu, entonces el cambio lo tenemos que hacer igual. Bueno, a ver si hay suerte. Si te arriben a... pels dimecres... Pues de puta madre. O sigui, representa Juli que... Ells t'envien aquests pantalons, aunque tú no los hayas retornado. No los hemos de retornar antes de que los envíen. Porque así mucha gente podría quedar dos pantalones, ¿sabes qué voy a decir?",
+      "bot_response": "Uf, què fes?",
+      "s1_score": 54.48,
+      "s2_score": 40.97,
+      "s3_score": 7.8,
+      "s4_score": 60.44
+    },
+    {
+      "idx": 38,
+      "input_type": "MEDIA",
+      "trust_score": 0.14,
+      "user_message": "[image]",
+      "iris_real_response": "El ibuprofeno🙏🏽",
+      "bot_response": "Ja ja ja, que crida més que un gat. 😂",
+      "s1_score": 45.73,
+      "s2_score": 39.42,
+      "s3_score": 17.7,
+      "s4_score": 67.14
+    },
+    {
+      "idx": 39,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[sticker]",
+      "iris_real_response": "[audio]",
+      "bot_response": "Ja ja ja, que somni! Vols q et digui q et veig dema?",
+      "s1_score": 35.69,
+      "s2_score": 33.96,
+      "s3_score": 7.8,
+      "s4_score": 47.64
+    },
+    {
+      "idx": 40,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[audio]",
+      "iris_real_response": "[audio]",
+      "bot_response": "Ja ja ja, amb això t'ho tiro",
+      "s1_score": 63.11,
+      "s2_score": 33.92,
+      "s3_score": 17.7,
+      "s4_score": 69.19
+    },
+    {
+      "idx": 41,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[audio]",
+      "iris_real_response": "Noooooo es unaltre capssaaaa",
+      "bot_response": "Ja ja, no fa res, em vaig reir Perdonat, no te'n vols sortir A casa teva a les sis, ja te'n vas?",
+      "s1_score": 44.71,
+      "s2_score": 35.46,
+      "s3_score": 7.8,
+      "s4_score": 47.2
+    },
+    {
+      "idx": 42,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[audio]",
+      "iris_real_response": "Vam comprar aigua ahir 2 packs ok",
+      "bot_response": "Uf, ja ho entenc, no t'amoïnis Té que ser el botó de la dreta, ja saps?",
+      "s1_score": 44.71,
+      "s2_score": 42.17,
+      "s3_score": 7.8,
+      "s4_score": 57.74
+    },
+    {
+      "idx": 43,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[sticker]",
+      "iris_real_response": "Grazziee mille",
+      "bot_response": "Ja veig que t'ho has menjat 😘",
+      "s1_score": 55.13,
+      "s2_score": 41.53,
+      "s3_score": 17.7,
+      "s4_score": 61.41
+    },
+    {
+      "idx": 44,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[audio]",
+      "iris_real_response": "Et fa molt mal?",
+      "bot_response": "Uf, ja veig que estàs massa cansada, tia \nDescansa, que no et perdis la classe de demà.",
+      "s1_score": 61.94,
+      "s2_score": 36.89,
+      "s3_score": 17.7,
+      "s4_score": 65.36
+    },
+    {
+      "idx": 45,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[audio]",
+      "iris_real_response": "Enga",
+      "bot_response": "Ostia mami",
+      "s1_score": 52.58,
+      "s2_score": 42.75,
+      "s3_score": 100.0,
+      "s4_score": 63.47
+    },
+    {
+      "idx": 46,
+      "input_type": "LAUGH",
+      "trust_score": 0.11,
+      "user_message": "Jajaja",
+      "iris_real_response": "I no estic guanyant res e",
+      "bot_response": "Uf que rau.",
+      "s1_score": 52.13,
+      "s2_score": 47.66,
+      "s3_score": 14.5,
+      "s4_score": 62.86
+    },
+    {
+      "idx": 47,
+      "input_type": "LAUGH",
+      "trust_score": 0.0,
+      "user_message": "Jaja perq?",
+      "iris_real_response": "[🏷️ Sticker]",
+      "bot_response": "Ja ja, perquè em vaig fer un node amb el mobile!",
+      "s1_score": 53.12,
+      "s2_score": 34.71,
+      "s3_score": 14.5,
+      "s4_score": 59.13
+    },
+    {
+      "idx": 48,
+      "input_type": "EMOJI_ONLY",
+      "trust_score": 0.14,
+      "user_message": "🤣🤣🤣",
+      "iris_real_response": "[audio]",
+      "bot_response": "Ostia mami",
+      "s1_score": 52.65,
+      "s2_score": 50.85,
+      "s3_score": 100.0,
+      "s4_score": 62.49
+    },
+    {
+      "idx": 49,
+      "input_type": "QUESTION_SERVICE",
+      "trust_score": 1.0,
+      "user_message": "Iris perdona al treurem he tocat no se que o no se apaga,que toco per apagar lo,😌perdonam",
+      "iris_real_response": "Això necessito i que gastis en omplir la nevera amb coses que t’agradin.",
+      "bot_response": "Ja estàs flor, tranquila Tinc el link per a les fotocopies, vols que te'l passi?",
+      "s1_score": 53.92,
+      "s2_score": 48.36,
+      "s3_score": 8.4,
+      "s4_score": 54.88
+    }
+  ]
+}
