@@ -47,7 +47,6 @@ def _truncate_if_looping(text: str) -> tuple[bool, str]:
 
 
 # Feature flags for generation phase
-ENABLE_LEARNING_RULES = os.getenv("ENABLE_LEARNING_RULES", "false").lower() == "true"
 ENABLE_PREFERENCE_PROFILE = os.getenv("ENABLE_PREFERENCE_PROFILE", "false").lower() == "true"
 ENABLE_GOLD_EXAMPLES = os.getenv("ENABLE_GOLD_EXAMPLES", "false").lower() == "true"
 ENABLE_BEST_OF_N = os.getenv("ENABLE_BEST_OF_N", "false").lower() == "true"
@@ -142,47 +141,11 @@ async def phase_llm_generation(
         cognitive_metadata["response_strategy"] = strategy_hint.split(".")[0]
         logger.info(f"[STRATEGY] {strategy_hint.split('.')[0]}")
 
-    # Step 5c: Load learning rules (autolearning feedback loop)
-    learning_rules_section = ""
-    if ENABLE_LEARNING_RULES:
-        try:
-            from services.learning_rules_service import get_applicable_rules
-
-            def _load_rules():
-                from api.database import SessionLocal
-                from api.models import Creator
-                _s = SessionLocal()
-                try:
-                    _c = _s.query(Creator.id).filter_by(name=agent.creator_id).first()
-                    if not _c:
-                        return []
-                    _creator_db_id = _c[0]
-                finally:
-                    _s.close()
-                return get_applicable_rules(
-                    _creator_db_id, intent=intent_value,
-                    relationship_type=_rel_type,
-                    lead_stage=current_stage,
-                )
-
-            _learning_rules = await asyncio.to_thread(_load_rules)
-            if _learning_rules:
-                lines = ["[LEARNING RULES — Apply these behavioral corrections to your response:]"]
-                for r in _learning_rules:
-                    lines.append(f"- {r['rule_text']}")
-                    if r.get("example_bad"):
-                        lines.append(f'  NO: "{r["example_bad"]}"')
-                    if r.get("example_good"):
-                        lines.append(f'  SI: "{r["example_good"]}"')
-                learning_rules_section = "\n".join(lines)
-                cognitive_metadata["learning_rules_applied"] = len(_learning_rules)
-                logger.info(f"[LEARNING] Injected {len(_learning_rules)} rules for {sender_id}")
-
-                # Track injection count (times_applied) — fire-and-forget, no confidence change
-                _injected_ids = [r["id"] for r in _learning_rules]
-                asyncio.create_task(_track_rules_applied(_injected_ids))
-        except Exception as lr_err:
-            logger.debug(f"[LEARNING] Rule loading failed: {lr_err}")
+    # Step 5c: Learning rules — removed from runtime injection (April 2026).
+    # Per TextGrad (Nature'24) and RBR (NeurIPS'24), rules competed with Doc D
+    # persona description and showed neutral-to-negative impact. Rules are now
+    # consumed by PersonaCompiler (weekly batch) which compiles behavioral
+    # patterns into Doc D updates. See services/learning_rules_service.py.
 
     # Step 5d: Load preference profile
     preference_profile_section = ""
@@ -258,8 +221,6 @@ async def phase_llm_generation(
     # User context (username, stage, interests) is already in system_prompt via
     # relational_block + dna_context + state_context. No need to repeat here.
     prompt_parts = []
-    if learning_rules_section:
-        prompt_parts.append(learning_rules_section)
     if preference_profile_section:
         prompt_parts.append(preference_profile_section)
     if gold_examples_section:
@@ -460,34 +421,3 @@ async def phase_llm_generation(
     return llm_response
 
 
-async def _track_rules_applied(rule_ids: list) -> None:
-    """Fire-and-forget: increment times_applied for injected rules (without touching confidence).
-    Uses individual ORM updates (max 5 rules) — safe, no array binding issues.
-    """
-    if not rule_ids:
-        return
-    try:
-        import uuid as _uuid
-        from api.database import SessionLocal
-        from api.models import LearningRule
-
-        def _do_increment():
-            s = SessionLocal()
-            try:
-                for rid_str in rule_ids:
-                    try:
-                        rid = _uuid.UUID(rid_str) if isinstance(rid_str, str) else rid_str
-                    except (ValueError, AttributeError):
-                        continue
-                    rule = s.query(LearningRule).filter_by(id=rid).first()
-                    if rule:
-                        rule.times_applied = (rule.times_applied or 0) + 1
-                s.commit()
-            except Exception:
-                s.rollback()
-            finally:
-                s.close()
-
-        await asyncio.to_thread(_do_increment)
-    except Exception:
-        pass  # Never block generation for tracking

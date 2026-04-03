@@ -1,0 +1,564 @@
+{
+  "creator_id": "iris_bertran",
+  "total_messages": 20549,
+  "total_pairs": 8903,
+  "A1_length": {
+    "mean": 51.01450192223466,
+    "median": 19.0,
+    "std": 178.38398187330057,
+    "P10": 7.0,
+    "P25": 9.0,
+    "P75": 38.0,
+    "P90": 80.0,
+    "P95": 145.0,
+    "count": 20549,
+    "threshold": [
+      7.0,
+      80.0
+    ]
+  },
+  "A2_emoji": {
+    "global_rate": 0.2997226142391357,
+    "emoji_count_stats": {
+      "mean": 0.7474329651077911,
+      "median": 0.0,
+      "std": 1.693612522900935,
+      "P10": 0.0,
+      "P25": 0.0,
+      "P75": 1.0,
+      "P90": 3.0,
+      "P95": 4.0,
+      "count": 20549
+    },
+    "per_context": {
+      "MEDIA": {
+        "rate": 0.33142559833506763,
+        "count": 1922
+      },
+      "LAUGH": {
+        "rate": 0.38738738738738737,
+        "count": 555
+      },
+      "OTHER": {
+        "rate": 0.3161303802758044,
+        "count": 4786
+      },
+      "GREETING": {
+        "rate": 0.3392382639503986,
+        "count": 1129
+      },
+      "HEALTH": {
+        "rate": 0.23529411764705882,
+        "count": 85
+      },
+      "EMOTIONAL": {
+        "rate": 0.39655172413793105,
+        "count": 58
+      },
+      "QUESTION_SERVICE": {
+        "rate": 0.42857142857142855,
+        "count": 168
+      },
+      "EMOJI_ONLY": {
+        "rate": 0.315,
+        "count": 200
+      }
+    },
+    "threshold_global": [
+      0.0,
+      1.0
+    ]
+  },
+  "A3_exclamations": {
+    "rate": 0.03041510535792496,
+    "threshold": [
+      0.0,
+      0.0
+    ]
+  },
+  "A4_questions": {
+    "rate": 0.09888559053968562,
+    "threshold": [
+      0.0,
+      0.0
+    ]
+  },
+  "A5_vocabulary": {
+    "top_50": [
+      {
+        "word": "demà",
+        "score": 1093.3993
+      },
+      {
+        "word": "dia",
+        "score": 1047.548
+      },
+      {
+        "word": "mama",
+        "score": 1018.4121
+      },
+      {
+        "word": "avui",
+        "score": 979.6768
+      },
+      {
+        "word": "vaig",
+        "score": 829.6863
+      },
+      {
+        "word": "sino",
+        "score": 787.9847
+      },
+      {
+        "word": "cuka",
+        "score": 779.6424
+      },
+      {
+        "word": "canal",
+        "score": 778.4372
+      },
+      {
+        "word": "està",
+        "score": 774.0585
+      },
+      {
+        "word": "aquest",
+        "score": 755.0582
+      },
+      {
+        "word": "més",
+        "score": 709.9591
+      },
+      {
+        "word": "gràcies",
+        "score": 696.279
+      },
+      {
+        "word": "barre",
+        "score": 651.3539
+      },
+      {
+        "word": "vols",
+        "score": 636.636
+      },
+      {
+        "word": "cuca",
+        "score": 585.3359
+      },
+      {
+        "word": "hora",
+        "score": 568.2488
+      },
+      {
+        "word": "tranqui",
+        "score": 567.0152
+      },
+      {
+        "word": "això",
+        "score": 558.755
+      },
+      {
+        "word": "venir",
+        "score": 556.5996
+      },
+      {
+        "word": "dir",
+        "score": 555.7434
+      },
+      {
+        "word": "meu",
+        "score": 554.7583
+      },
+      {
+        "word": "veure",
+        "score": 552.7621
+      },
+      {
+        "word": "tens",
+        "score": 547.1235
+      },
+      {
+        "word": "així",
+        "score": 544.5427
+      },
+      {
+        "word": "zumba",
+        "score": 539.5125
+      },
+      {
+        "word": "vas",
+        "score": 523.0578
+      },
+      {
+        "word": "dius",
+        "score": 515.8818
+      },
+      {
+        "word": "bon",
+        "score": 509.3346
+      },
+      {
+        "word": "baby",
+        "score": 509.2255
+      },
+      {
+        "word": "anar",
+        "score": 472.3774
+      },
+      {
+        "word": "nada",
+        "score": 462.9033
+      },
+      {
+        "word": "pots",
+        "score": 446.0031
+      },
+      {
+        "word": "després",
+        "score": 437.4938
+      },
+      {
+        "word": "dic",
+        "score": 436.4929
+      },
+      {
+        "word": "manel",
+        "score": 431.2457
+      },
+      {
+        "word": "casa",
+        "score": 428.408
+      },
+      {
+        "word": "algo",
+        "score": 426.1309
+      },
+      {
+        "word": "ver",
+        "score": 414.8866
+      },
+      {
+        "word": "algú",
+        "score": 408.7216
+      },
+      {
+        "word": "cap",
+        "score": 407.8999
+      },
+      {
+        "word": "passa",
+        "score": 407.3934
+      },
+      {
+        "word": "alguna",
+        "score": 403.6238
+      },
+      {
+        "word": "faig",
+        "score": 397.7034
+      },
+      {
+        "word": "bcn",
+        "score": 396.4873
+      },
+      {
+        "word": "ahir",
+        "score": 396.3609
+      },
+      {
+        "word": "millor",
+        "score": 395.1603
+      },
+      {
+        "word": "vens",
+        "score": 390.3478
+      },
+      {
+        "word": "meva",
+        "score": 388.5384
+      },
+      {
+        "word": "dit",
+        "score": 386.9587
+      },
+      {
+        "word": "dormir",
+        "score": 383.4788
+      }
+    ],
+    "method": "tfidf"
+  },
+  "A6_language_ratio": {
+    "ratios": {
+      "ca": 0.2733,
+      "unknown": 0.2566,
+      "es": 0.1371,
+      "it": 0.0641,
+      "pt": 0.0377,
+      "en": 0.0294,
+      "ca-es": 0.0226,
+      "fr": 0.0214,
+      "de": 0.0195,
+      "es-pt": 0.0102,
+      "ro": 0.0091,
+      "so": 0.009,
+      "nl": 0.008,
+      "sl": 0.0078,
+      "fi": 0.0072,
+      "es-it": 0.0071,
+      "et": 0.0069,
+      "tl": 0.0059,
+      "af": 0.0051,
+      "id": 0.005,
+      "es-fr": 0.0031,
+      "hu": 0.0029,
+      "no": 0.0027,
+      "ca-pt": 0.0022,
+      "hr": 0.0021,
+      "lt": 0.002,
+      "lv": 0.0017,
+      "de-es": 0.0017,
+      "cy": 0.0016,
+      "sw": 0.0014,
+      "tr": 0.0014,
+      "es-sl": 0.0014,
+      "da": 0.0012,
+      "ca-it": 0.0012,
+      "pt-sv": 0.0012,
+      "sk": 0.0012,
+      "sv": 0.0011,
+      "es-lt": 0.0011,
+      "ca-fr": 0.0009,
+      "es-so": 0.0009,
+      "sq": 0.0008,
+      "es-fi": 0.0008,
+      "en-es": 0.0008,
+      "es-tl": 0.0007,
+      "en-sv": 0.0007,
+      "da-es": 0.0007,
+      "fr-sl": 0.0007,
+      "pl": 0.0006,
+      "cs": 0.0006,
+      "ca-sv": 0.0006,
+      "ca-sl": 0.0006,
+      "nl-sv": 0.0006,
+      "es-sk": 0.0006,
+      "es-ro": 0.0005,
+      "es-et": 0.0005,
+      "ca-fi": 0.0005,
+      "es-nl": 0.0005,
+      "es-tr": 0.0005,
+      "ca-nl": 0.0005,
+      "en-sk": 0.0005,
+      "ca-en": 0.0004,
+      "ca-tr": 0.0004,
+      "af-es": 0.0004,
+      "ca-so": 0.0004,
+      "ca-ro": 0.0003,
+      "ca-no": 0.0003,
+      "ca-hu": 0.0003,
+      "pt-ro": 0.0003,
+      "es-hu": 0.0003,
+      "ca-et": 0.0003,
+      "ca-tl": 0.0003,
+      "it-pt": 0.0003,
+      "fr-so": 0.0003,
+      "es-sv": 0.0003,
+      "es-lv": 0.0002,
+      "fr-tl": 0.0002,
+      "en-pt": 0.0002,
+      "ca-id": 0.0002,
+      "pt-sk": 0.0002,
+      "es-sw": 0.0002,
+      "af-ca": 0.0002,
+      "es-id": 0.0001,
+      "es-vi": 0.0001,
+      "de-tl": 0.0001,
+      "pt-so": 0.0001,
+      "pt-sl": 0.0001,
+      "ca-de": 0.0001,
+      "ro-so": 0.0001,
+      "fr-pt": 0.0001,
+      "vi": 0.0001,
+      "nl-pt": 0.0001,
+      "ca-cy": 0.0001,
+      "en-nl": 0.0001,
+      "es-no": 0.0001,
+      "ca-lv": 0.0001,
+      "en-so": 0.0001,
+      "ca-sk": 0.0001,
+      "fr-ro": 0.0001,
+      "cy-es": 0.0001,
+      "hu-it": 0.0001,
+      "it-tr": 0.0001,
+      "es-hr": 0.0001,
+      "en-it": 0.0001,
+      "hu-id": 0.0001,
+      "fr-tr": 0.0001,
+      "fi-it": 0.0001,
+      "ca-sw": 0.0001,
+      "et-fr": 0.0001,
+      "cs-fr": 0.0001,
+      "it-nl": 0.0,
+      "it-tl": 0.0,
+      "hu-no": 0.0,
+      "en-sw": 0.0,
+      "no-pt": 0.0,
+      "id-pt": 0.0,
+      "hu-sl": 0.0,
+      "sk-sq": 0.0,
+      "en-et": 0.0,
+      "fi-pt": 0.0,
+      "fi-so": 0.0,
+      "pt-tr": 0.0,
+      "it-sw": 0.0,
+      "cy-fr": 0.0,
+      "de-no": 0.0,
+      "af-fr": 0.0,
+      "da-so": 0.0,
+      "hu-lt": 0.0,
+      "en-sq": 0.0,
+      "da-it": 0.0,
+      "af-cy": 0.0,
+      "en-sl": 0.0,
+      "lv-pt": 0.0,
+      "fi-id": 0.0,
+      "sq-sw": 0.0,
+      "en-fr": 0.0,
+      "et-so": 0.0,
+      "cy-de": 0.0,
+      "hu-pt": 0.0,
+      "cy-pt": 0.0,
+      "et-ro": 0.0,
+      "ca-cs": 0.0,
+      "es-sq": 0.0,
+      "en-ro": 0.0,
+      "de-en": 0.0,
+      "ro-sl": 0.0,
+      "it-sk": 0.0,
+      "ca-hr": 0.0,
+      "pt-tl": 0.0,
+      "it-ro": 0.0,
+      "cs-de": 0.0,
+      "tl-tr": 0.0,
+      "sl-sv": 0.0,
+      "af-so": 0.0,
+      "it-sl": 0.0,
+      "de-pt": 0.0,
+      "fr-it": 0.0,
+      "fr-lt": 0.0,
+      "cy-sv": 0.0,
+      "et-pt": 0.0,
+      "lt-pt": 0.0,
+      "el": 0.0,
+      "cs-es": 0.0,
+      "fr-nl": 0.0
+    },
+    "total_detected": 20549
+  },
+  "A7_fragmentation": {
+    "mean": 2.2345146379044682,
+    "median": 2.0,
+    "std": 1.840468528635075,
+    "P10": 1.0,
+    "P25": 1.0,
+    "P75": 3.0,
+    "P90": 4.0,
+    "P95": 6.0,
+    "count": 9735,
+    "threshold": [
+      1.0,
+      4.0
+    ]
+  },
+  "A8_formality": {
+    "formal_rate": 4.866416857267994e-05,
+    "informal_rate": 0.008905542848800428,
+    "abbreviation_rate": 0.042873132512531026,
+    "formality_score": 0.005434782608695652
+  },
+  "A9_catchphrases": {
+    "catchphrases": [
+      {
+        "phrase": "media attachment",
+        "count": 887
+      },
+      {
+        "phrase": "bon dia",
+        "count": 169
+      },
+      {
+        "phrase": "alguna cosa",
+        "count": 154
+      },
+      {
+        "phrase": "mentioned their",
+        "count": 108
+      },
+      {
+        "phrase": "their story",
+        "count": 108
+      },
+      {
+        "phrase": "mentioned their story",
+        "count": 108
+      },
+      {
+        "phrase": "sent attachment",
+        "count": 101
+      },
+      {
+        "phrase": "dia dia",
+        "count": 72
+      },
+      {
+        "phrase": "vaig dir",
+        "count": 69
+      },
+      {
+        "phrase": "meu dia",
+        "count": 65
+      },
+      {
+        "phrase": "meu dia dia",
+        "count": 65
+      },
+      {
+        "phrase": "sent voice",
+        "count": 63
+      },
+      {
+        "phrase": "voice message",
+        "count": 63
+      },
+      {
+        "phrase": "sent voice message",
+        "count": 63
+      },
+      {
+        "phrase": "vol dir",
+        "count": 60
+      },
+      {
+        "phrase": "https www",
+        "count": 60
+      },
+      {
+        "phrase": "www instagram",
+        "count": 59
+      },
+      {
+        "phrase": "https www instagram",
+        "count": 59
+      },
+      {
+        "phrase": "bona tarda",
+        "count": 58
+      },
+      {
+        "phrase": "pasa nada",
+        "count": 56
+      }
+    ]
+  }
+}

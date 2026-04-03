@@ -57,7 +57,6 @@ class FeatureFlags:
     # === Experimental (default: disabled) ===
     self_consistency: bool = field(default_factory=lambda: _flag("ENABLE_SELF_CONSISTENCY", False))
     finetuned_model: bool = field(default_factory=lambda: _flag("ENABLE_FINETUNED_MODEL", False))
-    learning_rules: bool = field(default_factory=lambda: _flag("ENABLE_LEARNING_RULES", False))
     email_capture: bool = field(default_factory=lambda: _flag("ENABLE_EMAIL_CAPTURE", False))
     best_of_n: bool = field(default_factory=lambda: _flag("ENABLE_BEST_OF_N", False))
     gold_examples: bool = field(default_factory=lambda: _flag("ENABLE_GOLD_EXAMPLES", False))

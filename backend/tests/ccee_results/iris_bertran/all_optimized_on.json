@@ -1,0 +1,755 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260403_140544",
+  "n_runs": 3,
+  "n_cases": 42,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 71.44,
+        "detail": {
+          "A1_length": 97.88,
+          "A2_emoji": 98.04,
+          "A2_contextual": 56.63,
+          "A3_exclamations": 82.27,
+          "A4_questions": 62.63,
+          "A5_vocabulary": 68.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 50.0,
+          "A8_formality": 98.91,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 40.87,
+        "detail": {
+          "bertscore_mean": 0.8059,
+          "chrf_mean": 0.0844,
+          "bleu4_mean": 0.1366,
+          "rouge_l_mean": 0.0411,
+          "meteor_mean": 0.0283,
+          "semsim_mean": 0.8118,
+          "self_rep_mean": 0.9242,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 2.12
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 27.01,
+        "detail": {
+          "per_case": [
+            17.6,
+            17.6,
+            7.6,
+            7.6,
+            2.9,
+            14.1,
+            17.6,
+            17.6,
+            17.6,
+            11.6,
+            12.5,
+            12.5,
+            12.5,
+            12.5,
+            12.5,
+            100.0,
+            12.5,
+            12.5,
+            12.5,
+            11.6,
+            11.6,
+            100.0,
+            12.5,
+            12.5,
+            11.6,
+            12.5,
+            11.6,
+            12.5,
+            100.0,
+            11.6,
+            12.5,
+            12.5,
+            14.5,
+            14.5,
+            100.0,
+            100.0,
+            100.0,
+            13.0,
+            13.0,
+            100.0,
+            7.4,
+            7.6
+          ],
+          "mean": 27.01
+        }
+      },
+      "S4_adaptation": {
+        "score": 37.5,
+        "detail": {
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 0.0,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "composite": 45.38,
+      "weights": {
+        "S1": 0.3,
+        "S2": 0.25,
+        "S3": 0.3,
+        "S4": 0.15
+      }
+    },
+    {
+      "S1_style_fidelity": {
+        "score": 64.41,
+        "detail": {
+          "A1_length": 98.66,
+          "A2_emoji": 73.39,
+          "A2_contextual": 61.47,
+          "A3_exclamations": 82.27,
+          "A4_questions": 91.21,
+          "A5_vocabulary": 76.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 50.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 10.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 38.82,
+        "detail": {
+          "bertscore_mean": 0.8029,
+          "chrf_mean": 0.079,
+          "bleu4_mean": 0.1092,
+          "rouge_l_mean": 0.028,
+          "meteor_mean": 0.0195,
+          "semsim_mean": 0.8153,
+          "self_rep_mean": 0.8439,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 2.71
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 37.83,
+        "detail": {
+          "per_case": [
+            17.6,
+            100.0,
+            17.6,
+            100.0,
+            17.6,
+            14.1,
+            17.6,
+            100.0,
+            17.6,
+            12.5,
+            12.5,
+            12.5,
+            12.5,
+            12.5,
+            100.0,
+            11.6,
+            12.5,
+            12.5,
+            12.5,
+            12.5,
+            11.6,
+            12.5,
+            100.0,
+            100.0,
+            12.5,
+            11.6,
+            12.5,
+            12.5,
+            100.0,
+            11.6,
+            12.5,
+            12.5,
+            5.7,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            13.0,
+            100.0,
+            12.4,
+            14.8,
+            7.6
+          ],
+          "mean": 37.83
+        }
+      },
+      "S4_adaptation": {
+        "score": 62.5,
+        "detail": {
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 100.0,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "composite": 49.75,
+      "weights": {
+        "S1": 0.3,
+        "S2": 0.25,
+        "S3": 0.3,
+        "S4": 0.15
+      }
+    },
+    {
+      "S1_style_fidelity": {
+        "score": 65.27,
+        "detail": {
+          "A1_length": 99.93,
+          "A2_emoji": 92.44,
+          "A2_contextual": 58.07,
+          "A3_exclamations": 87.04,
+          "A4_questions": 72.16,
+          "A5_vocabulary": 72.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 50.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 20.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 40.47,
+        "detail": {
+          "bertscore_mean": 0.8071,
+          "chrf_mean": 0.0878,
+          "bleu4_mean": 0.1434,
+          "rouge_l_mean": 0.0297,
+          "meteor_mean": 0.0189,
+          "semsim_mean": 0.8149,
+          "self_rep_mean": 0.8484,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 2.74
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 37.89,
+        "detail": {
+          "per_case": [
+            17.6,
+            17.6,
+            100.0,
+            17.6,
+            17.6,
+            100.0,
+            17.6,
+            7.6,
+            100.0,
+            12.5,
+            11.6,
+            12.5,
+            12.5,
+            11.6,
+            12.5,
+            11.6,
+            11.6,
+            12.5,
+            12.5,
+            100.0,
+            11.6,
+            11.6,
+            11.6,
+            100.0,
+            100.0,
+            12.5,
+            100.0,
+            12.5,
+            100.0,
+            11.6,
+            12.5,
+            12.5,
+            14.5,
+            100.0,
+            13.6,
+            100.0,
+            100.0,
+            12.4,
+            13.0,
+            100.0,
+            7.4,
+            17.6
+          ],
+          "mean": 37.89
+        }
+      },
+      "S4_adaptation": {
+        "score": 62.5,
+        "detail": {
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 100.0,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "composite": 50.44,
+      "weights": {
+        "S1": 0.3,
+        "S2": 0.25,
+        "S3": 0.3,
+        "S4": 0.15
+      }
+    }
+  ],
+  "composites": [
+    45.38,
+    49.75,
+    50.44
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "INTIMATE",
+      "user_message": "[audio]",
+      "iris_real_response": "[audio]",
+      "bot_response": "Jajajaj qué rollo A la teva manera, guapa!",
+      "input_type": "MEDIA"
+    },
+    {
+      "case_idx": 22,
+      "trust_segment": "UNKNOWN",
+      "user_message": "Sisi",
+      "iris_real_response": "Que solo somos 12 i jo volia que estiguessiu les de més postu",
+      "bot_response": "Sí! 🩷 Tens alguna preferència de classe?",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "EXTRA",
+      "user_message": "[video]",
+      "iris_real_response": "Ara el\nMeu germà anirà a la farmàcia a comprar més cortisona xk se li ha acabat y le he dicho tu cabrón que no has hecho nada! Ves a la farmácia y compra drogas pa tu madre pa tener una comida de navidad tranquila🤣🤣",
+      "bot_response": "Jajaj morta",
+      "input_type": "MEDIA"
+    },
+    {
+      "case_idx": 2,
+      "trust_segment": "EXTRA",
+      "user_message": "[image]",
+      "iris_real_response": "Perfecte",
+      "bot_response": "Ostia dimeee",
+      "input_type": "MEDIA"
+    },
+    {
+      "case_idx": 40,
+      "trust_segment": "EDGE_CASE",
+      "user_message": "Mamasita need content for today",
+      "iris_real_response": "[🎤 Audio]: Erika, cariño, no habrá 24 personas. Yo creo que como máximo se apuntarán 10. La gente el domingo tiene muchas cosas que hacer en la calle.\n\nPor eso te digo, diles que se apunten unas 10. No hace falta que haya catering. Simplemente, haz algo especial, algo rápido. Si vienen 10, pues unas torradas y un smoothie, ¿sabes?\n\nSi se animan a venir, no hace falta que prepares nada más. Yo lo haría así porque no creo que nos dé tiempo a hacerlo bien.",
+      "bot_response": "Ja t’ho vaig dir, ets la meva meravella! 💪 Vols que t’ajudi a fer el content?",
+      "input_type": "EMOTIONAL",
+      "s3_score": 7.4
+    }
+  ],
+  "weights_used": {
+    "S1": 0.3,
+    "S2": 0.25,
+    "S3": 0.3,
+    "S4": 0.15
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[audio]",
+      "iris_real_response": "[audio]",
+      "bot_response": "Jajajaj qué rollo A la teva manera, guapa!",
+      "s3_score": 17.6
+    },
+    {
+      "idx": 1,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[video]",
+      "iris_real_response": "Ara el\nMeu germà anirà a la farmàcia a comprar més cortisona xk se li ha acabat y le he dicho tu cabrón que no has hecho nada! Ves a la farmácia y compra drogas pa tu madre pa tener una comida de navidad tranquila🤣🤣",
+      "bot_response": "Jajaj morta",
+      "s3_score": 17.6
+    },
+    {
+      "idx": 2,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[image]",
+      "iris_real_response": "Perfecte",
+      "bot_response": "Ostia dimeee",
+      "s3_score": 100.0
+    },
+    {
+      "idx": 3,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[audio]",
+      "iris_real_response": "He utilizado WeTransfer, la forma más sencilla de enviar y recibir archivos.\n\nHaz clic en el enlace de descarga: https://we.tl/t-WOKqc8WEu7",
+      "bot_response": "Uf que gràcia 😂😂😂",
+      "s3_score": 17.6
+    },
+    {
+      "idx": 4,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[audio]",
+      "iris_real_response": "Date golpes contra un saco de boxa😂😂😂😂😂🤘🏾",
+      "bot_response": "Ja t'entenc flor, descansa i et veig aviat",
+      "s3_score": 17.6
+    },
+    {
+      "idx": 5,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[video]",
+      "iris_real_response": "[🎤 Audio]: També et dic que si ho fas com l'altre cop, que va quedar molt guai, entenc que si hi fiques dimarts, el posaràs amb el menú rosa. Ojito amb el que poses, eh? Perquè estic horrible. Intenta que no es vegi la panxulina, vale? Si agafes alguna coseta així curta.\n\nI també et diré que prefereixo que vinguis a la barra a que acabis el meu vídeo.",
+      "bot_response": "Ostia mami😂😂😂",
+      "s3_score": 100.0
+    },
+    {
+      "idx": 6,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[audio]",
+      "iris_real_response": "Haig de preparar ls classes de demà a la barra de casa mama",
+      "bot_response": "Ja em veig que tens un dia de locos, cuca! Que et pases bé i descanses molt!",
+      "s3_score": 17.6
+    },
+    {
+      "idx": 7,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[video]",
+      "iris_real_response": "[🎤 Audio]: Cuca, el que vulguis. Avui és la sessió nova, espero que us agradi molt. A veure com ho faig, perquè estic que vomito. Entenc que volaran el vídeo i interactuaran una miqueta, saps? Però si no hi ha temps, a tomar por culo. M'entens? Poses el de pilates i ja està.",
+      "bot_response": "Jajaja m’has fet riure Què has fet?",
+      "s3_score": 7.6
+    },
+    {
+      "idx": 8,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[audio]",
+      "iris_real_response": "Que dic",
+      "bot_response": "Ostia dimeee",
+      "s3_score": 100.0
+    },
+    {
+      "idx": 9,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Siiii,tot bé",
+      "iris_real_response": "Pues dile que no nos vamos a quedar sentadas😂😂😂sino es queda nos vamos a comer fuera😂💪🏾",
+      "bot_response": "Ja veig que tens tot controlat cuca, descansa i dorm perfecte",
+      "s3_score": 12.5
+    },
+    {
+      "idx": 10,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Ah em sembla super be",
+      "iris_real_response": "https://www.instagram.com/p/DR46NdpjKoU/?igsh=cXl6NDJydDhteWJ6",
+      "bot_response": "Ja ja ja, em sembla que t'has fet un cop de geni Què vols fer avui?",
+      "s3_score": 11.6
+    },
+    {
+      "idx": 11,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Quina veu tia no millora eh",
+      "iris_real_response": "Jo tic molt contenta tranqui🩷",
+      "bot_response": "Ja veig que t'has posat amb el microfono, tia.",
+      "s3_score": 12.5
+    },
+    {
+      "idx": 12,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Pues ja saps, quitatelo de encima i descanses una mica xoxona",
+      "iris_real_response": "No",
+      "bot_response": "Ja t'ho vaig dir, descansa una mica cuca 😘",
+      "s3_score": 12.5
+    },
+    {
+      "idx": 13,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Doncs Sii",
+      "iris_real_response": "[🏷️ Sticker]",
+      "bot_response": "Ostia mami😂😂😂",
+      "s3_score": 11.6
+    },
+    {
+      "idx": 14,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Pues están que semblem corxo",
+      "iris_real_response": "No no mama",
+      "bot_response": "Ja vaig veure que estaves en descalza, que malalta.",
+      "s3_score": 12.5
+    },
+    {
+      "idx": 15,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "T’estiro???",
+      "iris_real_response": "Xk la segueixes?",
+      "bot_response": "T’estiro???",
+      "s3_score": 11.6
+    },
+    {
+      "idx": 16,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Me encantaría pero creo que estoy más lejos",
+      "iris_real_response": "Edu amor si consigo que la de las 14:30 no venga o cambiarla, me podràs cojer🥹🥹?",
+      "bot_response": "Uf, ja veig que tens la por de viure-hi 😂 T'ho puc fer per video?",
+      "s3_score": 11.6
+    },
+    {
+      "idx": 17,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Pues fent me Banks d aigual an sal descalza i ale,ja vaurem,siii es veritat que ho he vist aquet mati",
+      "iris_real_response": "Jo no et donc cap ordre simplement et dic que llegeixis bé els missatges , em fots bronca xk tu llegeixes els missatges malament i cada día no pares de trasgiversa els meus missatges xk no els llegeixes bé. Jo quan vegi que no llegeixo bé aniré al taller que em toqui anar 😂😂😂no tinc problema no com tu que a tot li dius que no.",
+      "bot_response": "Ja vaurem, cuca. 🩷",
+      "s3_score": 12.5
+    },
+    {
+      "idx": 18,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Que es al mati,no sé ja em diràs per estar a punt",
+      "iris_real_response": "Pide perdón y todo arreglado",
+      "bot_response": "Ja ta, tranquila, em diràs quan vulguis.",
+      "s3_score": 12.5
+    },
+    {
+      "idx": 19,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "[🎬 Video]",
+      "iris_real_response": "Tranqui tio",
+      "bot_response": "Tranqui cuca, no passa res",
+      "s3_score": 100.0
+    },
+    {
+      "idx": 20,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "???",
+      "iris_real_response": "[image]",
+      "bot_response": "Ja, amor? 😂",
+      "s3_score": 11.6
+    },
+    {
+      "idx": 21,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Sisi de mutuo acuerdo i ho estan fent be",
+      "iris_real_response": "#toelrato 😂😂😂🤘🏾",
+      "bot_response": "Ja veig que et va bé. T’ha cridat l’atenció alguna cosa?",
+      "s3_score": 11.6
+    },
+    {
+      "idx": 22,
+      "input_type": "OTHER",
+      "trust_score": 0.14,
+      "user_message": "Sisi",
+      "iris_real_response": "Que solo somos 12 i jo volia que estiguessiu les de més postu",
+      "bot_response": "Sí! 🩷 Tens alguna preferència de classe?",
+      "s3_score": 11.6
+    },
+    {
+      "idx": 23,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Aiiii ho canvio",
+      "iris_real_response": "[🏷️ Sticker]",
+      "bot_response": "entès",
+      "s3_score": 100.0
+    },
+    {
+      "idx": 24,
+      "input_type": "OTHER",
+      "trust_score": 0.11,
+      "user_message": "Com esta la meva cuqui flower?",
+      "iris_real_response": "Dorm i ja ta",
+      "bot_response": "Tranqui cuca, tot anarà bé",
+      "s3_score": 100.0
+    },
+    {
+      "idx": 25,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "A veure con estic Dema",
+      "iris_real_response": "Cuca tu vindràs al Brunch eee",
+      "bot_response": "Tranqui cuca, ja et veig demà.",
+      "s3_score": 12.5
+    },
+    {
+      "idx": 26,
+      "input_type": "OTHER",
+      "trust_score": 0.11,
+      "user_message": "Aixi qe si qeda alguna plaça diumenge, vindria. Pero n em guardis res, perqe no se com pot acabar el finde…😔🫂🙏🏻😘",
+      "iris_real_response": "Jo aquest finde fatal😂😂😂",
+      "bot_response": "Tranqui flor, t'espero amb els braços oberts",
+      "s3_score": 100.0
+    },
+    {
+      "idx": 27,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Vale perfe disi fem 3 preguntes a cadascu",
+      "iris_real_response": "Hola amor! Jo molt bé, i tu? 😘😘😘",
+      "bot_response": "Ja ho t’he dit, si tens dubtes et responc.",
+      "s3_score": 12.5
+    },
+    {
+      "idx": 28,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Me’n alegro molt que estigui millor 💪🏻❤️",
+      "iris_real_response": "Tu entenc que no vens e😂❤️",
+      "bot_response": "Tranqui reina, tot està anant com ha d’anar",
+      "s3_score": 100.0
+    },
+    {
+      "idx": 29,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "I pipi?",
+      "iris_real_response": "Tu juro que s’acaba mama tu mateixa",
+      "bot_response": "Ja ja ja, m'ho imagino Tia, que fàcil que és estar bé, no? I pipi, cuca?",
+      "s3_score": 11.6
+    },
+    {
+      "idx": 30,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Estic molt bé",
+      "iris_real_response": "[audio]",
+      "bot_response": "Ja veig que tens molta energia descansa i que descansis.",
+      "s3_score": 12.5
+    },
+    {
+      "idx": 31,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Shan de posar dies per aixo parla amb les nenes pels q has de fer amb elles",
+      "iris_real_response": "Que ya sabemos como esp😆😆😆",
+      "bot_response": "Ja saps, quitatelo de encima i descanses una mica xoxona",
+      "s3_score": 12.5
+    },
+    {
+      "idx": 32,
+      "input_type": "QUESTION_SERVICE",
+      "trust_score": 0.14,
+      "user_message": "Que tal tu citaaaa d’avuiii",
+      "iris_real_response": "Coje la 45",
+      "bot_response": "Uf que tens el dia ple de dubtes",
+      "s3_score": 14.5
+    },
+    {
+      "idx": 33,
+      "input_type": "LAUGH",
+      "trust_score": 1.0,
+      "user_message": "Quieres que te haga una macedonia?🤣🤣🤣",
+      "iris_real_response": "Que ese cambio de lusss hellou",
+      "bot_response": "Ostia mami",
+      "s3_score": 100.0
+    },
+    {
+      "idx": 34,
+      "input_type": "LAUGH",
+      "trust_score": 0.0,
+      "user_message": "Ai nena no ajudes! 😂😂😂",
+      "iris_real_response": "😂",
+      "bot_response": "Que vaig a barre y no puedo mirar nada ya",
+      "s3_score": 13.6
+    },
+    {
+      "idx": 35,
+      "input_type": "HEALTH",
+      "trust_score": 1.0,
+      "user_message": "Esque segur que están a tope de malalts avui era de locos la gent que havia,i ademès m'ha posat en Disabte per que segur que la gent no deu volguer i ho tenia tot ple",
+      "iris_real_response": "[image]",
+      "bot_response": "Ja veig que has tingut un dia loc. 😘",
+      "s3_score": 100.0
+    },
+    {
+      "idx": 36,
+      "input_type": "HEALTH",
+      "trust_score": 1.0,
+      "user_message": "Menjar a la nevera descongelado se,mes o mens el k fant als restaruant,no gastos ni un euro,amb menjar,es lo que hay,Jo estic perfecta i ara despré del matí a caseta m'en vaig a descansar i dormir perfecte,ach el peu res de res desinfalt total,mol gràcies disfruta el teu finde🧘🏻‍♂️💞",
+      "iris_real_response": "Ja vinc",
+      "bot_response": "Ja et vaig dir que ets una cuca.",
+      "s3_score": 100.0
+    },
+    {
+      "idx": 37,
+      "input_type": "GREETING",
+      "trust_score": 0.11,
+      "user_message": "Bon dia cuca meva",
+      "iris_real_response": "Pues venga",
+      "bot_response": "Tranqui cuca, q no et perdis res 😂",
+      "s3_score": 12.4
+    },
+    {
+      "idx": 38,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "user_message": "La mama s’ha deixat el movl",
+      "iris_real_response": "[🏷️ Sticker]",
+      "bot_response": "Uf, ja veig que esta de mal humor. No li passa res?",
+      "s3_score": 13.0
+    },
+    {
+      "idx": 39,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "user_message": "Reina!!!\nDemà normal a les 10h\nI divendres tinc Eli Pxo lo diré a veure si m’ho pit canviar per la següent setmana \nI ja et dic..",
+      "iris_real_response": "Au va😂😂😂😂😂",
+      "bot_response": "Tranqui reina, si canvis dia et diguis.",
+      "s3_score": 100.0
+    },
+    {
+      "idx": 40,
+      "input_type": "EMOTIONAL",
+      "trust_score": 1.0,
+      "user_message": "Mamasita need content for today",
+      "iris_real_response": "[🎤 Audio]: Erika, cariño, no habrá 24 personas. Yo creo que como máximo se apuntarán 10. La gente el domingo tiene muchas cosas que hacer en la calle.\n\nPor eso te digo, diles que se apunten unas 10. No hace falta que haya catering. Simplemente, haz algo especial, algo rápido. Si vienen 10, pues unas torradas y un smoothie, ¿sabes?\n\nSi se animan a venir, no hace falta que prepares nada más. Yo lo haría así porque no creo que nos dé tiempo a hacerlo bien.",
+      "bot_response": "Ja t’ho vaig dir, ets la meva meravella! 💪 Vols que t’ajudi a fer el content?",
+      "s3_score": 7.4
+    },
+    {
+      "idx": 41,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "user_message": "[image]",
+      "iris_real_response": "[🎬 Video]",
+      "bot_response": "Ja veig que t’ho estàs passant de muntanya.",
+      "s3_score": 17.6
+    }
+  ]
+}

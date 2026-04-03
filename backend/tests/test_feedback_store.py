@@ -438,3 +438,146 @@ class TestUniversal:
                 bot_response="test",
             )
             assert result is not None
+
+
+# ---------------------------------------------------------------------------
+# 5. Unified capture() Tests
+# ---------------------------------------------------------------------------
+
+class TestUnifiedCapture:
+    """Test the unified capture() entry point."""
+
+    @pytest.mark.asyncio
+    @patch("api.database.SessionLocal")
+    async def test_capture_evaluator_score(self, mock_session_cls):
+        """capture(evaluator_score) routes to save_feedback."""
+        from services.feedback_store import capture
+
+        mock_session = MagicMock()
+        mock_session_cls.return_value = mock_session
+        def set_id(obj):
+            obj.id = uuid.uuid4()
+        mock_session.add.side_effect = set_id
+
+        result = await capture(
+            signal_type="evaluator_score",
+            creator_db_id=uuid.uuid4(),
+            user_message="Hola!",
+            bot_response="Hey!",
+            metadata={
+                "evaluator_id": "manel",
+                "lo_enviarias": 4,
+                "coherencia": 3,
+            },
+        )
+
+        assert result["status"] == "created"
+        assert result["quality_score"] == 0.8  # 4/5.0
+        assert result["signal_type"] == "evaluator_score"
+
+    @pytest.mark.asyncio
+    @patch("services.preference_pairs_service.create_pairs_from_action")
+    async def test_capture_copilot_edit(self, mock_create_pairs):
+        """capture(copilot_edit) routes to create_pairs_from_action."""
+        from services.feedback_store import capture
+
+        mock_create_pairs.return_value = 1
+
+        result = await capture(
+            signal_type="copilot_edit",
+            creator_db_id=uuid.uuid4(),
+            lead_id=uuid.uuid4(),
+            user_message="Cuanto cuesta?",
+            bot_response="El precio es 199.",
+            creator_response="199! T'envio el link?",
+            metadata={
+                "intent": "question_product",
+                "source_message_id": uuid.uuid4(),
+                "edit_diff": {"length_delta": -10},
+            },
+        )
+
+        assert result["status"] == "created"
+        assert result["quality_score"] == 0.8
+        assert result["pairs_created"] == 1
+        mock_create_pairs.assert_called_once()
+        call_kwargs = mock_create_pairs.call_args
+        assert call_kwargs.kwargs["action"] == "edited"
+
+    @pytest.mark.asyncio
+    @patch("services.preference_pairs_service.create_pairs_from_action")
+    async def test_capture_copilot_approve(self, mock_create_pairs):
+        """capture(copilot_approve) → quality 0.6."""
+        from services.feedback_store import capture
+
+        mock_create_pairs.return_value = 1
+
+        result = await capture(
+            signal_type="copilot_approve",
+            creator_db_id=uuid.uuid4(),
+            bot_response="Hola! 😊",
+            metadata={"source_message_id": uuid.uuid4()},
+        )
+
+        assert result["quality_score"] == 0.6
+        assert result["pairs_created"] == 1
+
+    @pytest.mark.asyncio
+    @patch("services.preference_pairs_service.create_pairs_from_action")
+    async def test_capture_copilot_discard(self, mock_create_pairs):
+        """capture(copilot_discard) → quality 0.4."""
+        from services.feedback_store import capture
+
+        mock_create_pairs.return_value = 1
+
+        result = await capture(
+            signal_type="copilot_discard",
+            creator_db_id=uuid.uuid4(),
+            bot_response="Bad response",
+            metadata={"source_message_id": uuid.uuid4()},
+        )
+
+        assert result["quality_score"] == 0.4
+
+    @pytest.mark.asyncio
+    @patch("services.preference_pairs_service.create_pairs_from_action")
+    async def test_capture_copilot_resolved(self, mock_create_pairs):
+        """capture(copilot_resolved) → quality 0.9 (strongest signal)."""
+        from services.feedback_store import capture
+
+        mock_create_pairs.return_value = 1
+
+        result = await capture(
+            signal_type="copilot_resolved",
+            creator_db_id=uuid.uuid4(),
+            bot_response="Bot draft",
+            creator_response="Creator wrote this instead",
+            metadata={"source_message_id": uuid.uuid4()},
+        )
+
+        assert result["quality_score"] == 0.9
+
+    @pytest.mark.asyncio
+    async def test_capture_unknown_signal(self):
+        """Unknown signal_type returns error."""
+        from services.feedback_store import capture
+
+        result = await capture(
+            signal_type="invalid_type",
+            creator_db_id=uuid.uuid4(),
+        )
+
+        assert result["status"] == "error"
+        assert "Unknown signal_type" in result["message"]
+
+    def test_quality_score_computation(self):
+        """Quality scores match BeeS paper heuristic."""
+        from services.feedback_store import _compute_quality
+
+        assert _compute_quality("copilot_approve", {}) == 0.6
+        assert _compute_quality("copilot_edit", {}) == 0.8
+        assert _compute_quality("copilot_discard", {}) == 0.4
+        assert _compute_quality("copilot_resolved", {}) == 0.9
+        assert _compute_quality("historical_mine", {}) == 0.5
+        assert _compute_quality("evaluator_score", {"lo_enviarias": 3}) == 0.6
+        assert _compute_quality("evaluator_score", {}) == 0.5  # default when no score

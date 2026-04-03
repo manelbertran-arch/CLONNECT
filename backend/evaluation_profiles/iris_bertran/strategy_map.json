@@ -1,0 +1,111 @@
+{
+  "creator_id": "iris_bertran",
+  "total_sessions": 5118,
+  "total_pairs": 8999,
+  "strategy_map": {
+    "EMOJI_ONLY": {
+      "distribution": {
+        "MIRROR": 0.2157,
+        "VALIDATE": 0.1089,
+        "INFORM": 0.0282,
+        "REDIRECT": 0.1109,
+        "ASK": 0.1492,
+        "IGNORE": 0.3871
+      },
+      "count": 496,
+      "dominant": "IGNORE"
+    },
+    "GREETING": {
+      "distribution": {
+        "MIRROR": 0.1251,
+        "VALIDATE": 0.1755,
+        "INFORM": 0.0514,
+        "REDIRECT": 0.1242,
+        "ASK": 0.1298,
+        "IGNORE": 0.394
+      },
+      "count": 1071,
+      "dominant": "IGNORE"
+    },
+    "QUESTION_SERVICE": {
+      "distribution": {
+        "MIRROR": 0.1195,
+        "VALIDATE": 0.1447,
+        "INFORM": 0.0566,
+        "REDIRECT": 0.2075,
+        "ASK": 0.1006,
+        "IGNORE": 0.3711
+      },
+      "count": 159,
+      "dominant": "IGNORE"
+    },
+    "EMOTIONAL": {
+      "distribution": {
+        "MIRROR": 0.2407,
+        "VALIDATE": 0.1667,
+        "INFORM": 0.037,
+        "REDIRECT": 0.1481,
+        "ASK": 0.0741,
+        "IGNORE": 0.3333
+      },
+      "count": 54,
+      "dominant": "IGNORE"
+    },
+    "HEALTH": {
+      "distribution": {
+        "MIRROR": 0.0506,
+        "VALIDATE": 0.2911,
+        "INFORM": 0.0253,
+        "REDIRECT": 0.1392,
+        "ASK": 0.0759,
+        "IGNORE": 0.4177
+      },
+      "count": 79,
+      "dominant": "IGNORE"
+    },
+    "LAUGH": {
+      "distribution": {
+        "MIRROR": 0.1937,
+        "VALIDATE": 0.1453,
+        "INFORM": 0.0112,
+        "REDIRECT": 0.1359,
+        "ASK": 0.0801,
+        "IGNORE": 0.4339
+      },
+      "count": 537,
+      "dominant": "IGNORE"
+    },
+    "MEDIA": {
+      "distribution": {
+        "MIRROR": 0.2507,
+        "VALIDATE": 0.1758,
+        "INFORM": 0.0294,
+        "REDIRECT": 0.1406,
+        "ASK": 0.0764,
+        "IGNORE": 0.3271
+      },
+      "count": 1871,
+      "dominant": "IGNORE"
+    },
+    "OTHER": {
+      "distribution": {
+        "MIRROR": 0.1156,
+        "VALIDATE": 0.1249,
+        "INFORM": 0.0423,
+        "REDIRECT": 0.1498,
+        "ASK": 0.1156,
+        "IGNORE": 0.4518
+      },
+      "count": 4732,
+      "dominant": "IGNORE"
+    }
+  },
+  "global_strategy_distribution": {
+    "MIRROR": 0.1552,
+    "VALIDATE": 0.1439,
+    "INFORM": 0.0381,
+    "REDIRECT": 0.1428,
+    "ASK": 0.108,
+    "IGNORE": 0.4119
+  }
+}

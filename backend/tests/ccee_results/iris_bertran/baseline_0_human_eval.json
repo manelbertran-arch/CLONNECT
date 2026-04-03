@@ -1,0 +1,165 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260403_134739",
+  "n_runs": 1,
+  "n_cases": 42,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 68.79,
+        "detail": {
+          "A1_length": 96.87,
+          "A2_emoji": 59.1,
+          "A2_contextual": 63.37,
+          "A3_exclamations": 91.8,
+          "A4_questions": 57.87,
+          "A5_vocabulary": 60.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 50.0,
+          "A8_formality": 98.91,
+          "A9_catchphrases": 10.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 37.68,
+        "detail": {
+          "bertscore_mean": 0.8083,
+          "chrf_mean": 0.0681,
+          "bleu4_mean": 0.1144,
+          "rouge_l_mean": 0.015,
+          "meteor_mean": 0.0156,
+          "semsim_mean": 0.8105,
+          "self_rep_mean": 0.8374,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 4.47
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 37.55,
+        "detail": {
+          "per_case": [
+            11.6,
+            11.6,
+            11.6,
+            12.5,
+            12.5,
+            11.6,
+            11.6,
+            12.5,
+            12.5,
+            11.6,
+            100.0,
+            11.6,
+            11.6,
+            100.0,
+            100.0,
+            12.5,
+            11.6,
+            12.5,
+            11.6,
+            11.6,
+            11.6,
+            11.6,
+            14.5,
+            14.5,
+            14.5,
+            8.0,
+            17.6,
+            100.0,
+            100.0,
+            7.6,
+            100.0,
+            17.6,
+            17.6,
+            100.0,
+            7.6,
+            17.6,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            100.0,
+            14.5
+          ],
+          "mean": 37.55
+        }
+      },
+      "S4_adaptation": {
+        "score": 37.5,
+        "detail": {
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 0.0,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "composite": 46.95,
+      "weights": {
+        "S1": 0.3,
+        "S2": 0.25,
+        "S3": 0.3,
+        "S4": 0.15
+      }
+    }
+  ],
+  "composites": [
+    46.95
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "UNKNOWN",
+      "user_message": "Este último de la amiga amiga es bonisim",
+      "iris_real_response": "A rezar mami",
+      "bot_response": "Ja veig que t'agraden els bonics. Que et puc ajudar avui?",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "INTIMATE",
+      "user_message": "Eres la diva mas mimada de la exigencia",
+      "iris_real_response": "Next week doncs",
+      "bot_response": "Ostiaaa 😂😂😂 Vols que et digui què crec?",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 2,
+      "trust_segment": "EXTRA",
+      "user_message": "Ploro",
+      "iris_real_response": "Tu valora si el vols més resumit o no",
+      "bot_response": "Ploro cuca 😂",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 3,
+      "trust_segment": "EXTRA",
+      "user_message": "Et reenvio",
+      "iris_real_response": "Està de moda i es superxulo si ho fem\nBé",
+      "bot_response": "Ja vaig entendre!",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 29,
+      "trust_segment": "EDGE_CASE",
+      "user_message": "[image]",
+      "iris_real_response": "Mama com vas amb l’antibiotic i la panxa",
+      "bot_response": "Ja estàs a casa?",
+      "input_type": "MEDIA",
+      "s3_score": 7.6
+    }
+  ],
+  "weights_used": {
+    "S1": 0.3,
+    "S2": 0.25,
+    "S3": 0.3,
+    "S4": 0.15
+  }
+}

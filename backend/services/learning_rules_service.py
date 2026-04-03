@@ -1,18 +1,20 @@
 """
-Learning Rules Service — CRUD + contextual rule selection for autolearning.
+Learning Rules Service — Rule storage and retrieval.
 
-Manages learning rules extracted from creator copilot actions (edits,
-discards, manual overrides). Rules are injected into DM prompts to
-autocorrect bot behavior.
+NOTE (April 2026): Runtime injection into DM prompts has been removed per
+TextGrad (Nature'24) and RBR (NeurIPS'24) findings. Rules competed with
+Doc D persona description and showed neutral-to-negative impact.
 
-Functions:
-- create_rule(): Store a new rule with deduplication
-- get_applicable_rules(): Context-scored rule retrieval (cached)
-- update_rule_feedback(): Adjust confidence after rule application
+Rules are now consumed by PersonaCompiler (batch weekly) which compiles
+behavioral patterns into Doc D updates. The learning_rules table is
+the data source for this compilation.
+
+Functions still used:
+- create_rule(): Called by AutolearningAnalyzer + PatternAnalyzer
+- get_applicable_rules(): Called by PersonaCompiler for rule analysis
+- update_rule_feedback(): Called by copilot action handlers
 - deactivate_rule(): Soft delete with optional supersession
 - get_rules_count() / get_all_active_rules(): For consolidation
-- sanitize_rule_text(): Defense-in-depth sanitization before prompt injection
-- filter_contradictions(): Remove contradictory rules, keep highest confidence
 """
 
 import logging

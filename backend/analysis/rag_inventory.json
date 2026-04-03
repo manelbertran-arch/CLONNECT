@@ -1,0 +1,415 @@
+{
+  "analysis_date": "2026-03-21",
+  "creator": "iris_bertran",
+  "creator_uuid": "8e9d1705-4772-40bd-83b1-c6821c5593bf",
+
+  "current_rag_state": {
+    "content_chunks": {
+      "total": 118,
+      "by_source": {
+        "instagram_post": {
+          "chunks": 25,
+          "total_chars": 9804,
+          "avg_chars": 392,
+          "unique_sources": 25,
+          "embeddings_generated": 25,
+          "note": "Stored with creator_id as UUID. All 25 IG posts have corresponding chunks and embeddings."
+        },
+        "video": {
+          "chunks": 89,
+          "total_chars": 24943,
+          "avg_chars": 280,
+          "unique_sources": 49,
+          "embeddings_generated": 0,
+          "note": "Stored with creator_id as slug 'iris_bertran'. Video caption text from IG reels. NO EMBEDDINGS generated — invisible to semantic search."
+        },
+        "carousel": {
+          "chunks": 4,
+          "total_chars": 1100,
+          "avg_chars": 275,
+          "unique_sources": 4,
+          "embeddings_generated": 0,
+          "note": "Stored with creator_id as slug 'iris_bertran'. NO EMBEDDINGS — invisible to search."
+        }
+      }
+    },
+    "content_embeddings": {
+      "total_for_iris": 25,
+      "note": "Only the 25 instagram_post chunks have embeddings. The 93 video+carousel chunks have ZERO embeddings — a critical gap."
+    },
+    "rag_documents": {
+      "total_for_iris": 0,
+      "note": "Empty. This table exists but no documents have been ingested for Iris."
+    },
+    "conversation_embeddings": {
+      "total": 35687,
+      "note": "Rich conversation history embeddings (37,160 messages across 1,589 leads). Used for conversation context, not creator knowledge RAG."
+    },
+    "lead_memories": {
+      "total": 2424,
+      "with_embeddings": 1722,
+      "by_type": {
+        "personal_info": {"count": 1139, "with_embed": 818},
+        "preference": {"count": 771, "with_embed": 526},
+        "topic": {"count": 193, "with_embed": 132},
+        "commitment": {"count": 128, "with_embed": 104},
+        "objection": {"count": 117, "with_embed": 93},
+        "purchase_history": {"count": 76, "with_embed": 49}
+      },
+      "note": "Per-lead facts, NOT creator knowledge. Used for personalized responses. 702 facts lack embeddings."
+    }
+  },
+
+  "rag_architecture": {
+    "engine": "SemanticRAG (core/rag/semantic.py)",
+    "aliases": ["SimpleRAG", "HybridRAG"],
+    "singleton": "get_simple_rag() / get_semantic_rag() / get_hybrid_rag()",
+    "search_pipeline": {
+      "stage_1_semantic": {
+        "model": "text-embedding-3-small (OpenAI, 1536 dims)",
+        "storage": "pgvector cosine similarity",
+        "threshold": "0.5 (RAG_MIN_SIMILARITY env var)"
+      },
+      "stage_2_bm25_hybrid": {
+        "enabled_by_default": true,
+        "env_var": "ENABLE_BM25_HYBRID=true",
+        "weights": "70% semantic + 30% BM25",
+        "fusion": "Reciprocal Rank Fusion (RRF)"
+      },
+      "stage_3_reranking": {
+        "enabled_by_default": true,
+        "env_var": "ENABLE_RERANKING=true",
+        "method": "Cross-encoder reranking",
+        "latency": "+100-200ms"
+      }
+    },
+    "startup_hydration": {
+      "location": "api/startup/handlers.py:716-726",
+      "delay": "5s after startup",
+      "limit": "500 chunks max per creator",
+      "includes_bm25_preindex": true
+    },
+    "chunking": {
+      "module": "core/semantic_chunker.py",
+      "mode": "semantic (default, configurable via CHUNKING_MODE)",
+      "max_size": 800,
+      "min_size": 100,
+      "overlap_sentences": 2,
+      "chunk_id_format": "SHA256(creator_id:source_type:source_id:chunk_index)[:16]"
+    },
+    "skips_rag_for_intents": ["greeting", "farewell", "thanks"]
+  },
+
+  "available_content_sources": {
+    "instagram_posts": {
+      "table": "instagram_posts",
+      "count": 25,
+      "has_captions": true,
+      "media_types": ["video"],
+      "date_range": "2026-02-26 to 2026-03-19",
+      "status": "FULLY INGESTED into content_chunks",
+      "new_chunks_possible": 0,
+      "note": "All 25 posts already have chunks. Content refresh runs every 24h and picks up new posts automatically (max 20/cycle)."
+    },
+    "products": {
+      "table": "products",
+      "count": 0,
+      "status": "EMPTY",
+      "creator_product_price": 97.0,
+      "schema_highlights": {
+        "anti_hallucination_fields": ["source_url", "price_verified", "confidence"],
+        "categories": ["product", "service", "resource"],
+        "types": ["ebook", "curso", "coaching", "mentoria", "podcast", "taller", "sesion"]
+      },
+      "note": "creators.product_price is 97 EUR but no products table entries exist. Product detector requires website scraping (3+ signals). No website_url configured for Iris."
+    },
+    "booking_links": {
+      "table": "booking_links",
+      "count_for_iris": "unknown (not queried, likely 0)",
+      "schema": "meeting_type, title, duration_minutes, platform, url, price, is_active",
+      "meeting_types": ["discovery", "consultation", "coaching", "custom"],
+      "note": "Booking/calendar integration. Pipeline exists but likely empty for Iris."
+    },
+    "knowledge_base": {
+      "table": "knowledge_base",
+      "count": 0,
+      "status": "EMPTY",
+      "categories_supported": ["precios", "sesiones", "servicios", "horarios", "ubicacion", "contacto"],
+      "service_file": "services/knowledge_base.py (file-based JSON caching)",
+      "note": "Q&A pairs table. Zero entries for Iris. Used for 1-3% of messages needing factual data."
+    },
+    "website_scraping": {
+      "website_url": null,
+      "status": "NOT CONFIGURED",
+      "pipeline_exists": true,
+      "pipeline_modules": [
+        "ingestion/deterministic_scraper.py (BeautifulSoup + Playwright fallback, max 100 pages)",
+        "ingestion/v2/pipeline.py (full V2: scrape -> products -> FAQs -> tone -> chunks)",
+        "ingestion/v2/product_detector.py (signal-based, needs 3+ of: dedicated_page, CTA, price, description, payment_link, nav_listing, clear_title)",
+        "ingestion/v2/faq_extractor.py (hybrid regex+LLM: extract ¿...? patterns, filter noise, categorize)",
+        "ingestion/v2/bio_extractor.py (bio extraction from About pages)",
+        "ingestion/v2/tone_detector.py (tone profile from website content)",
+        "ingestion/v2/sanity_checker.py (verify products belong to same domain)"
+      ],
+      "note": "Full website ingestion pipeline exists and works (Stefano has 396 website chunks). Iris has NO website_url set — pipeline cannot run."
+    },
+    "personality_docs": {
+      "table": "personality_docs",
+      "count": 2,
+      "types": ["doc_d (bot config/system prompt)", "doc_e (copilot rules)"],
+      "status": "EXISTS but not chunked for RAG",
+      "note": "System prompt and copilot rules. These configure bot behavior but are not searchable via RAG."
+    },
+    "gold_examples": {
+      "table": "gold_examples",
+      "total": 5325,
+      "active": 100,
+      "by_intent": {
+        "other": 40,
+        "casual": 18,
+        "product_question": 12,
+        "greeting": 12,
+        "question_general": 10,
+        "pool_response": 4,
+        "continuation": 2,
+        "pricing": 1,
+        "objection_doubt": 1
+      },
+      "status": "Used for few-shot prompting, not RAG",
+      "note": "Rich example set but used in prompt construction, not vector search."
+    },
+    "learning_rules": {
+      "table": "learning_rules",
+      "count": 914,
+      "status": "Used for prompt injection, not RAG",
+      "note": "Behavioral rules extracted from divergence analysis. Injected into system prompt."
+    },
+    "conversation_summaries": {
+      "table": "conversation_summaries",
+      "count": 6778,
+      "status": "EXISTS but not chunked for RAG"
+    },
+    "style_profiles": {
+      "count": 1,
+      "status": "Used for prompt, not RAG"
+    },
+    "post_contexts": {
+      "table": "post_contexts",
+      "count_for_iris": 0,
+      "schema": "active_promotion, promotion_deadline, recent_topics, recent_products, availability_hint, context_instructions",
+      "ttl": "expires_at field (typically 7 days)",
+      "note": "Temporal context from recent posts. Empty for Iris — post_context_refresh job (12h, 150s delay) may not be generating these."
+    }
+  },
+
+  "chunk_estimation": {
+    "current_searchable_chunks": 25,
+    "current_total_chunks": 118,
+    "chunks_missing_embeddings": 93,
+
+    "potential_new_chunks": {
+      "fix_missing_embeddings": {
+        "source": "video + carousel chunks already in content_chunks",
+        "chunks": 93,
+        "effort": "LOW — just run _embed_new_chunks() with correct creator_id format",
+        "blocker": "creator_id mismatch: chunks stored as 'iris_bertran' (slug), _embed_new_chunks queries by UUID. Need to pass slug OR query both formats.",
+        "estimated_openai_cost": "~$0.02 (93 chunks × ~280 chars avg × $0.02/1M tokens)"
+      },
+      "website_scraping": {
+        "estimated_chunks": "200-400 (based on Stefano: 396 website chunks)",
+        "effort": "MEDIUM — set website_url on creator, run ingest_website_v2",
+        "blocker": "No website_url configured. Iris may not have a website (she's a fitness instructor using IG primarily)."
+      },
+      "products_from_ig_captions": {
+        "estimated_chunks": "5-15",
+        "effort": "MEDIUM — extract services/pricing from IG captions (barre classes, pilates, Flow4U, etc.)",
+        "blocker": "Product detector requires website pages with 3+ signals. IG captions alone won't trigger detection. Need custom extraction or manual entry.",
+        "known_services_from_ig": [
+          "Barre classes (Flow4U) — every Thursday 20:15h at Dinamic Sport Gym",
+          "Zumba classes at Dinamic Sport Gym",
+          "Pilates Reformer",
+          "Hipopresivos",
+          "Sunday bonus sessions + brunch at Dinamic Sport Gym",
+          "Choreography classes at La Caja Negra"
+        ]
+      },
+      "faq_from_conversations": {
+        "estimated_chunks": "30-80",
+        "effort": "MEDIUM — mine 37K messages for common questions and Iris's real answers",
+        "blocker": "No automated pipeline exists for conversation-based FAQ extraction. Would need a new script."
+      },
+      "audio_transcriptions": {
+        "estimated_chunks": "50-150 (49 videos with transcription potential)",
+        "effort": "HIGH — transcribe video audio for deeper content beyond captions",
+        "blocker": "Audio pipeline exists (ingestion/transcriber.py) but not wired for bulk RAG ingestion."
+      }
+    },
+
+    "total_estimated_after_fixes": {
+      "minimum_quick_fix": 118,
+      "note_minimum": "All 118 chunks searchable after embedding fix (was 25)",
+      "with_website": "300-500",
+      "with_all_sources": "500-800"
+    }
+  },
+
+  "critical_gaps": [
+    {
+      "id": "GAP-1",
+      "gap": "93 chunks without embeddings (78% of content invisible to search)",
+      "severity": "CRITICAL",
+      "root_cause": "creator_id format mismatch: video/carousel chunks stored with slug 'iris_bertran', but _embed_new_chunks() queries with UUID",
+      "fix": "Run _embed_new_chunks with creator_id='iris_bertran' (slug format) to match the 93 video/carousel chunks",
+      "impact": "4.7x increase in searchable content (25 -> 118 chunks)"
+    },
+    {
+      "id": "GAP-2",
+      "gap": "Zero products/services in DB despite known offerings",
+      "severity": "HIGH",
+      "root_cause": "No website_url configured; product_price=97 EUR exists on creator but no structured product data. Product detector requires website pages with 3+ signals.",
+      "known_services": [
+        "Barre classes (Flow4U) — Thursday 20:15h, Dinamic Sport Gym",
+        "Zumba classes — Dinamic Sport Gym",
+        "Pilates Reformer — Dinamic Sport Gym",
+        "Hipopresivos — Dinamic Sport Gym",
+        "Sunday bonus sessions + brunch",
+        "Choreography classes — La Caja Negra"
+      ],
+      "fix": "Manual product entry via admin API or custom IG caption product extractor"
+    },
+    {
+      "id": "GAP-3",
+      "gap": "Zero FAQ entries in knowledge_base",
+      "severity": "HIGH",
+      "root_cause": "FAQ extractor requires website scraping; no website configured. Conversation history (37K msgs) contains answers but no extraction pipeline for it.",
+      "fix": "Mine gold_examples (100 active, especially 12 product_question + 1 pricing) for FAQ seed data, or mine conversation history"
+    },
+    {
+      "id": "GAP-4",
+      "gap": "No website content in RAG",
+      "severity": "MEDIUM",
+      "root_cause": "creators.website_url is NULL. Pipeline fully built and working for other creators.",
+      "fix": "If Iris has a website, Linktree, or booking page, set website_url and run ingest_website_v2. If not, this gap is expected for IG-primary creators."
+    },
+    {
+      "id": "GAP-5",
+      "gap": "knowledge_about is empty ({})",
+      "severity": "MEDIUM",
+      "root_cause": "Not populated during onboarding or ingestion",
+      "fix": "Auto-populate from IG bio, captions analysis, and conversation patterns"
+    },
+    {
+      "id": "GAP-6",
+      "gap": "post_contexts table empty — no temporal context from recent posts",
+      "severity": "MEDIUM",
+      "root_cause": "post_context_refresh job (12h, 150s delay) may not be generating contexts for Iris",
+      "fix": "Verify post_context_refresh is running; may need to trigger manually for Iris"
+    },
+    {
+      "id": "GAP-7",
+      "gap": "content_performance table empty — no post analytics",
+      "severity": "LOW",
+      "root_cause": "Post analytics tracking not wired for Iris",
+      "fix": "Enable content_performance tracking in media capture job"
+    }
+  ],
+
+  "scheduler_status": {
+    "content_refresh_loop": {
+      "location": "services/content_refresh.py -> content_refresh_loop()",
+      "started_by": "api/startup/handlers.py:141 -> asyncio.create_task()",
+      "interval": "24h (CONTENT_REFRESH_INTERVAL_SECONDS=86400)",
+      "initial_delay": "120s",
+      "enabled": "CONTENT_REFRESH_ENABLED=true (default)",
+      "max_posts_per_cycle": 20,
+      "what_it_does": [
+        "1. Queries all creators with bot_active=True + instagram_token",
+        "2. Calls ingest_instagram_v2() for each (append mode, clean_before=False)",
+        "3. Generates embeddings for new chunks via _embed_new_chunks()",
+        "4. Hydrates in-memory RAG via rag.load_from_db()"
+      ],
+      "production_connection": "Uses existing DB connection pool (api/database.py, pool_size=5+7=12) and IG tokens from creators table",
+      "token_handling": "If token is EAA* (Facebook Page token), falls back to INSTAGRAM_ACCESS_TOKEN env var if it starts with IGAAT",
+      "known_issues": [
+        "creator_id passed as UUID to _embed_new_chunks, but some chunks stored with slug — embedding gap for video/carousel",
+        "Max 20 posts/cycle means initial ingestion of large accounts is slow",
+        "5s delay between creators — appropriate for 2-3 creators"
+      ]
+    },
+    "related_scheduled_jobs": {
+      "post_context_refresh": {"interval": "12h", "delay": "150s", "purpose": "Analyze recent posts for temporal context (promotions, topics)"},
+      "rag_hydration": {"delay": "5s", "purpose": "Load all content_chunks from DB into in-memory RAG (max 500/creator)"},
+      "reranker_warmup": {"delay": "10s", "purpose": "Pre-load cross-encoder model for reranking"},
+      "memory_decay": {"interval": "24h", "delay": "630s", "purpose": "Ebbinghaus decay for stale lead_memories", "status": "DISABLED"}
+    },
+    "manual_triggers": [
+      "POST /ingestion/refresh-content/{creator_id} (admin API, require_admin)",
+      "POST /content/refresh/{creator_id} (admin API, require_admin)",
+      "GET /content/refresh/status (admin API, require_admin)",
+      "POST /ingestion_v2/full-refresh/{creator_id} (full IG + website refresh)",
+      "GET /ingestion_v2/data-status/{creator_id} (data counts)",
+      "POST /content/reload/{creator_id} (reload RAG from DB)"
+    ]
+  },
+
+  "embedding_config": {
+    "model": "text-embedding-3-small (OpenAI)",
+    "dimensions": 1536,
+    "storage": "pgvector in content_embeddings table (cosine similarity, HNSW index)",
+    "similarity_threshold": 0.5,
+    "cache": "BoundedTTLCache(max_size=200, ttl=600s)",
+    "requires": "OPENAI_API_KEY env var",
+    "index_type": "HNSW (replaced IVFFlat in migration 038, works with any row count)",
+    "hnsw_params": {"m": 16, "ef_construction": 64}
+  },
+
+  "comparison_with_stefano": {
+    "stefano_chunks": {
+      "website": 396,
+      "video": 285,
+      "carousel": 217,
+      "instagram_post": 50,
+      "total": 948
+    },
+    "iris_chunks": {
+      "website": 0,
+      "video": 89,
+      "carousel": 4,
+      "instagram_post": 25,
+      "total": 118
+    },
+    "iris_searchable": 25,
+    "gap_factor": "Stefano has 8x more content chunks. Iris has 25 searchable vs Stefano's ~948. Primary difference: Stefano has 396 website chunks."
+  },
+
+  "quick_wins_priority": [
+    {
+      "priority": 1,
+      "action": "Fix embedding gap — embed 93 video/carousel chunks",
+      "effort": "LOW (1 API call fix)",
+      "impact": "4.7x searchable content (25 -> 118)",
+      "how": "Call _embed_new_chunks('iris_bertran') with slug, not UUID"
+    },
+    {
+      "priority": 2,
+      "action": "Manual product entry for known services",
+      "effort": "LOW (admin API or direct DB)",
+      "impact": "Bot can answer pricing/scheduling questions accurately",
+      "how": "Insert 5-6 products via products table with verified prices"
+    },
+    {
+      "priority": 3,
+      "action": "Seed knowledge_base from gold_examples",
+      "effort": "MEDIUM (script to extract Q&A from gold_examples with intent=product_question/pricing)",
+      "impact": "Bot handles factual queries (horarios, precios, ubicacion) without hallucinating",
+      "how": "Query gold_examples WHERE intent IN ('product_question','pricing') and insert as knowledge_base entries"
+    },
+    {
+      "priority": 4,
+      "action": "Set website_url if Iris has one (Linktree, booking page, etc.)",
+      "effort": "LOW (config change) + MEDIUM (pipeline run)",
+      "impact": "200-400 new chunks from website content",
+      "how": "UPDATE creators SET website_url = '...' WHERE id = '8e9d...' then POST /ingestion_v2/full-refresh/iris_bertran"
+    }
+  ]
+}

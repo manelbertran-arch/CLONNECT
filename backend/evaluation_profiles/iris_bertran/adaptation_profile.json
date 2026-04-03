@@ -1,0 +1,139 @@
+{
+  "creator_id": "iris_bertran",
+  "segments": {
+    "UNKNOWN": {
+      "message_count": 8823,
+      "A1_length": {
+        "mean": 46.014507537118895,
+        "median": 18.0,
+        "std": 175.18322337650508,
+        "P10": 7.0,
+        "P25": 11.0,
+        "P75": 35.0,
+        "P90": 72.0,
+        "P95": 123.0,
+        "count": 8823
+      },
+      "A2_emoji_rate": 0.34455400657372776,
+      "A3_exclamation_rate": 0.03320865918621784,
+      "A4_question_rate": 0.09214552873172391,
+      "A5_vocab_diversity": 0.2335490088105727
+    },
+    "KNOWN": {
+      "message_count": 346,
+      "A1_length": {
+        "mean": 120.3121387283237,
+        "median": 22.0,
+        "std": 309.91807741424606,
+        "P10": 7.0,
+        "P25": 9.0,
+        "P75": 59.75,
+        "P90": 361.5,
+        "P95": 742.0,
+        "count": 346
+      },
+      "A2_emoji_rate": 0.37283236994219654,
+      "A3_exclamation_rate": 0.08092485549132948,
+      "A4_question_rate": 0.19653179190751446,
+      "A5_vocab_diversity": 0.4129533678756477
+    },
+    "INTIMATE": {
+      "message_count": 10989,
+      "A1_length": {
+        "mean": 52.43197743197743,
+        "median": 20.0,
+        "std": 175.01265931959261,
+        "P10": 7.0,
+        "P25": 9.0,
+        "P75": 39.0,
+        "P90": 84.0,
+        "P95": 153.60000000000036,
+        "count": 10989
+      },
+      "A2_emoji_rate": 0.2566202566202566,
+      "A3_exclamation_rate": 0.025116025116025117,
+      "A4_question_rate": 0.09946309946309946,
+      "A5_vocab_diversity": 0.2107698054653602
+    },
+    "CLOSE": {
+      "message_count": 391,
+      "A1_length": {
+        "mean": 62.68030690537084,
+        "median": 20.0,
+        "std": 170.29244470074548,
+        "P10": 7.0,
+        "P25": 10.0,
+        "P75": 50.0,
+        "P90": 108.0,
+        "P95": 216.0,
+        "count": 391
+      },
+      "A2_emoji_rate": 0.43478260869565216,
+      "A3_exclamation_rate": 0.07161125319693094,
+      "A4_question_rate": 0.1483375959079284,
+      "A5_vocab_diversity": 0.46923076923076923
+    }
+  },
+  "adaptation": {
+    "adaptation_score": 20.0,
+    "valid_segments": 4,
+    "directions": {
+      "length_mean": {
+        "direction": "neutral",
+        "magnitude": 0.0517,
+        "values_by_segment": {
+          "UNKNOWN": 46.0145,
+          "KNOWN": 120.3121,
+          "CLOSE": 62.6803,
+          "INTIMATE": 52.432
+        }
+      },
+      "emoji_rate": {
+        "direction": "decreases_with_trust",
+        "magnitude": 0.1133,
+        "values_by_segment": {
+          "UNKNOWN": 0.3446,
+          "KNOWN": 0.3728,
+          "CLOSE": 0.4348,
+          "INTIMATE": 0.2566
+        }
+      },
+      "exclamation_rate": {
+        "direction": "neutral",
+        "magnitude": 0.0602,
+        "values_by_segment": {
+          "UNKNOWN": 0.0332,
+          "KNOWN": 0.0809,
+          "CLOSE": 0.0716,
+          "INTIMATE": 0.0251
+        }
+      },
+      "question_rate": {
+        "direction": "neutral",
+        "magnitude": 0.0251,
+        "values_by_segment": {
+          "UNKNOWN": 0.0921,
+          "KNOWN": 0.1965,
+          "CLOSE": 0.1483,
+          "INTIMATE": 0.0995
+        }
+      },
+      "vocab_diversity": {
+        "direction": "neutral",
+        "magnitude": 0.0047,
+        "values_by_segment": {
+          "UNKNOWN": 0.2335,
+          "KNOWN": 0.413,
+          "CLOSE": 0.4692,
+          "INTIMATE": 0.2108
+        }
+      }
+    }
+  },
+  "segment_counts": {
+    "UNKNOWN": 8823,
+    "KNOWN": 346,
+    "INTIMATE": 10989,
+    "CLOSE": 391
+  }
+}

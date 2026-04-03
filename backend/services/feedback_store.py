@@ -1,15 +1,19 @@
 """
-FeedbackStore — Unified facade over the 4 feedback subsystems.
+FeedbackStore — Unified FeedbackCapture facade.
 
-Consolidates: preference_pairs, learning_rules, gold_examples, evaluator_feedback.
+Single entry point for ALL feedback signals:
+  - Evaluator scores (human ratings, corrections)
+  - Copilot actions (approve, edit, discard, manual, resolved)
+  - Historical mining (backfill from old messages)
+  - Best-of-N ranking (multi-candidate comparison)
 
-Architecture (PAHF / DPRF pattern): single entry point, multiple consumption views.
-Existing 19+ callers continue importing from the original 3 services (backward compatible).
-New code imports from FeedbackStore.
+Routes each signal to the correct downstream handler
+(evaluator_feedback, preference_pairs, gold_examples).
 
 Feature flag: ENABLE_EVALUATOR_FEEDBACK (default true)
 """
 
+import asyncio
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -17,6 +21,165 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 ENABLE_EVALUATOR_FEEDBACK = os.getenv("ENABLE_EVALUATOR_FEEDBACK", "true").lower() == "true"
+
+# ---------------------------------------------------------------------------
+# Quality scores per signal type (BeeS paper heuristic, NeurIPS'25)
+# ---------------------------------------------------------------------------
+QUALITY_SCORES = {
+    "copilot_approve": 0.6,     # Weak positive — bot was good enough
+    "copilot_edit": 0.8,        # Strong — creator corrected, both versions available
+    "copilot_discard": 0.4,     # Negative signal — bot was bad
+    "copilot_manual": 0.8,      # Strong — creator wrote their own
+    "copilot_resolved": 0.9,    # Strongest — creator bypassed bot entirely
+    "historical_mine": 0.5,     # Medium — real but no A/B comparison
+    "best_of_n": 0.7,           # Good — ranked comparison available
+    # evaluator_score: dynamic → lo_enviarias / 5.0
+}
+
+# Map capture signal_type → preference_pairs action name
+_COPILOT_ACTION_MAP = {
+    "copilot_approve": "approved",
+    "copilot_edit": "edited",
+    "copilot_discard": "discarded",
+    "copilot_manual": "manual_override",
+    "copilot_resolved": "resolved_externally",
+}
+
+
+# ---------------------------------------------------------------------------
+# Unified capture() — SINGLE ENTRY POINT for all feedback signals
+# ---------------------------------------------------------------------------
+
+async def capture(
+    signal_type: str,
+    creator_db_id,
+    lead_id=None,
+    user_message: Optional[str] = None,
+    bot_response: Optional[str] = None,
+    creator_response: Optional[str] = None,
+    conversation_context: Optional[list] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Unified feedback capture — routes to correct handler by signal_type.
+
+    Args:
+        signal_type: One of: evaluator_score, copilot_approve, copilot_edit,
+            copilot_discard, copilot_manual, copilot_resolved, historical_mine,
+            best_of_n
+        creator_db_id: Creator UUID (from DB)
+        lead_id: Lead UUID (optional, for copilot actions)
+        user_message: The user/lead message that triggered the response
+        bot_response: The bot's suggested response
+        creator_response: What the creator actually wrote (for edits/manual)
+        conversation_context: Previous messages for context
+        metadata: Signal-specific data (scores, error_tags, intent, etc.)
+
+    Returns:
+        Dict with status, quality_score, and handler-specific results.
+    """
+    meta = metadata or {}
+    quality = _compute_quality(signal_type, meta)
+
+    logger.info(
+        "[CAPTURE] signal=%s creator=%s quality=%.2f",
+        signal_type, creator_db_id, quality,
+    )
+
+    # Route: evaluator scores → save_feedback (sync, needs to_thread)
+    if signal_type == "evaluator_score":
+        result = await asyncio.to_thread(
+            save_feedback,
+            creator_db_id=creator_db_id,
+            evaluator_id=meta.get("evaluator_id", "unknown"),
+            user_message=user_message or "",
+            bot_response=bot_response or "",
+            coherencia=meta.get("coherencia"),
+            lo_enviarias=meta.get("lo_enviarias"),
+            ideal_response=creator_response,
+            error_tags=meta.get("error_tags"),
+            error_free_text=meta.get("error_free_text"),
+            conversation_id=meta.get("conversation_id"),
+            source_message_id=meta.get("source_message_id"),
+            conversation_history=conversation_context,
+            intent_detected=meta.get("intent"),
+            doc_d_version=meta.get("doc_d_version"),
+            model_id=meta.get("model_id"),
+            system_prompt_hash=meta.get("system_prompt_hash"),
+        )
+        return {**result, "quality_score": quality, "signal_type": signal_type}
+
+    # Route: copilot actions → preference_pairs_service
+    if signal_type in _COPILOT_ACTION_MAP:
+        from services.preference_pairs_service import create_pairs_from_action
+        action_name = _COPILOT_ACTION_MAP[signal_type]
+        pairs_created = await create_pairs_from_action(
+            action=action_name,
+            creator_db_id=creator_db_id,
+            source_message_id=meta.get("source_message_id"),
+            lead_id=lead_id,
+            suggested_response=bot_response,
+            final_response=creator_response,
+            user_message=user_message,
+            intent=meta.get("intent"),
+            lead_stage=meta.get("lead_stage"),
+            edit_diff=meta.get("edit_diff"),
+            best_of_n_candidates=meta.get("best_of_n_candidates"),
+            chosen_confidence=meta.get("chosen_confidence"),
+            rejected_confidence=meta.get("rejected_confidence"),
+        )
+        return {
+            "status": "created",
+            "signal_type": signal_type,
+            "quality_score": quality,
+            "pairs_created": pairs_created,
+        }
+
+    # Route: best_of_n → preference_pairs (with candidates)
+    if signal_type == "best_of_n":
+        from services.preference_pairs_service import create_pairs_from_action
+        pairs_created = await create_pairs_from_action(
+            action="approved",  # base action, candidates do the work
+            creator_db_id=creator_db_id,
+            source_message_id=meta.get("source_message_id"),
+            lead_id=lead_id,
+            suggested_response=bot_response,
+            user_message=user_message,
+            intent=meta.get("intent"),
+            lead_stage=meta.get("lead_stage"),
+            best_of_n_candidates=meta.get("best_of_n_candidates"),
+        )
+        return {
+            "status": "created",
+            "signal_type": signal_type,
+            "quality_score": quality,
+            "pairs_created": pairs_created,
+        }
+
+    # Route: historical mining → mine_historical_pairs
+    if signal_type == "historical_mine":
+        from services.preference_pairs_service import mine_historical_pairs
+        creator_slug = meta.get("creator_slug", "")
+        limit = meta.get("limit", 500)
+        pairs_created = await mine_historical_pairs(
+            creator_slug, creator_db_id, limit=limit,
+        )
+        return {
+            "status": "created",
+            "signal_type": signal_type,
+            "quality_score": quality,
+            "pairs_created": pairs_created,
+        }
+
+    logger.warning("[CAPTURE] Unknown signal_type: %s", signal_type)
+    return {"status": "error", "message": f"Unknown signal_type: {signal_type}"}
+
+
+def _compute_quality(signal_type: str, metadata: dict) -> float:
+    """Compute quality score for a feedback signal."""
+    if signal_type == "evaluator_score":
+        lo = metadata.get("lo_enviarias")
+        return lo / 5.0 if lo is not None else 0.5
+    return QUALITY_SCORES.get(signal_type, 0.5)
 
 
 # ---------------------------------------------------------------------------

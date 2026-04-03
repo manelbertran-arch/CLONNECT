@@ -1,0 +1,252 @@
+{
+  "meta": {
+    "generated": "2026-03-21",
+    "creator": "iris_bertran",
+    "doc_d_source": "data/personality_extractions/8e9d1705-4772-40bd-83b1-c6821c5593bf/doc_d_bot_configuration.md",
+    "doc_d_tokens_estimated": 27886,
+    "bot_responses_analyzed": 31,
+    "real_iris_responses_analyzed": 50,
+    "bot_responses_status": "pending_approval (copilot suggestions)"
+  },
+
+  "section_classification": {
+    "§1_IDENTIDAD": {
+      "classification": "CORE",
+      "appearance_rate_pct": 100,
+      "details": "Tuteo and informal tone appear in ALL 31 bot responses. Name 'Iris' identity is implicit. BUT: bot injects Latin American vocabulary ('mi vida', 'mi reina', 'cariño', 'compa') that is NOT Iris — she's Catalan. Bilingualism (ES/CAT) appears in only 6% of bot responses vs ~40% in real Iris messages.",
+      "what_works": [
+        "Tuteo consistently used",
+        "Informal register maintained",
+        "Fitness instructor identity implicit"
+      ],
+      "what_fails": [
+        "Bot uses Latin American pet names (mi vida, mi reina, cariño) — Iris uses Catalan ones (cuca, nena, baby, carinyu, rei)",
+        "Catalan almost absent from bot responses (2/31) vs pervasive in real Iris (>40%)",
+        "Bot sounds like generic Instagram influencer, not Catalan fitness instructor"
+      ]
+    },
+
+    "§2_REGLAS_DE_ESTILO": {
+      "§2.1_longitud": {
+        "classification": "CORE",
+        "appearance_rate_pct": 0,
+        "details": "Doc D says 90% <58 chars, median 30 chars. Bot responses: median ~55 chars, many 60-90+ chars. ZERO compliance. Real Iris: median ~18 chars.",
+        "bot_avg_length_chars": 55,
+        "real_iris_avg_length_chars": 18,
+        "doc_d_target_chars": 30,
+        "verdict": "CORE rule but COMPLETELY IGNORED by bot"
+      },
+      "§2.2_fragmentacion": {
+        "classification": "CORE",
+        "appearance_rate_pct": 0,
+        "details": "Doc D says 54% of turns are multi-bubble. All 31 bot responses are SINGLE BUBBLE. Real Iris frequently sends 2-4 consecutive short messages. This is the biggest style gap.",
+        "verdict": "CORE rule but COMPLETELY IGNORED — likely a pipeline limitation, not a prompt issue"
+      },
+      "§2.3_emojis": {
+        "classification": "CORE",
+        "appearance_rate_pct": 100,
+        "details": "Doc D says 19% of messages have emojis. Bot: 100% have emojis (massive over-use). Doc D says top emojis are 😂😘❤️🫠🩷🥹. Bot uses 😘😊😉🥰😣❤️ — mixes correct (😘❤️) with non-Iris emojis (😊😉🥰😣). Real Iris top: 😂🫠🩷❤️😘🥹.",
+        "bot_emoji_rate_pct": 100,
+        "real_iris_emoji_rate_pct": 19,
+        "wrong_emojis_used": ["😊", "😉", "🥰", "😣", "💪", "🤍", "✨"],
+        "verdict": "CORE rule, partially followed (correct emoji set mentioned) but OVER-APPLIED"
+      },
+      "§2.4_puntuacion": {
+        "classification": "UTIL",
+        "appearance_rate_pct": 10,
+        "details": "Doc D says use ?? frequently, avoid formal ¿? ¡!. Bot uses standard punctuation. Only 1/31 uses ??. Some use ¡! (blacklisted). Real Iris: frequent ?? and !! without opening marks.",
+        "verdict": "UTIL rule, poorly followed"
+      },
+      "§2.5_risas": {
+        "classification": "CORE",
+        "appearance_rate_pct": 23,
+        "details": "7/31 bot responses use 'Jajaja' variants — correct form per Doc D. But bot often adds formal suffix ('qué bueno!', 'me encanta!') which Iris wouldn't. Real Iris: 'Jajajajaj brutal', 'Ostia mami😂😂😂' — much more raw.",
+        "verdict": "CORE, partially correct form but wrong context/pairing"
+      },
+      "§2.6_no_markdown": {
+        "classification": "CORE",
+        "appearance_rate_pct": 100,
+        "details": "No markdown detected in any bot response. Fully compliant.",
+        "verdict": "CORE, FULLY FOLLOWED"
+      },
+      "§2.7_repeticion_caracteres": {
+        "classification": "UTIL",
+        "appearance_rate_pct": 26,
+        "details": "8/31 use char repetition: 'Daleee', 'Holaaa', 'babyyyy', 'fuerteee'. Correct pattern per Doc D. Real Iris: 'Voyyu', 'Okaaa', 'brutalll', 'carinyu'. Bot uses some correctly.",
+        "verdict": "UTIL, decently followed when used"
+      }
+    },
+
+    "§3_TONO_CONTEXTUAL": {
+      "classification": "NUNCA_USADO",
+      "appearance_rate_pct": 3,
+      "details": "Doc D defines 6 audience-specific tone profiles (amigos, leads, B2B, fans, venta, emocional). Bot responses show NO variation — all use the same generic warm-informal tone regardless of audience type. The detailed per-audience emoji rates, length targets, and vocabulary rules are never applied. The bot doesn't distinguish between a close friend and a new lead.",
+      "subsections": {
+        "amigos_cercanos": "Bot doesn't use the raw, very short, highly catalan style Iris uses with friends",
+        "leads_clientes": "Bot over-emojis and over-questions instead of being naturally enthusiastic",
+        "b2b_colaboradores": "Not tested — no B2B conversations in sample",
+        "fans_seguidores": "Bot is generic warm, not the energetic motivational tone Doc D specifies",
+        "venta": "One sales response found but generic, not persuasive Iris style",
+        "emocional": "Bot responses to emotional contexts use 'Ay, qué lindo!' — not Iris at all"
+      },
+      "verdict": "6 detailed sub-profiles consuming ~3000 tokens of Doc D, effectively unused"
+    },
+
+    "§4_VOCABULARIO": {
+      "classification": "UTIL",
+      "appearance_rate_pct": 16,
+      "details": "Doc D provides specific vocabulary pools for saludos, despedidas, gratitud, confirmaciones with real examples and frequencies. Bot uses some greeting patterns ('Holaaa!', 'Daleee!') but mostly generates its own vocabulary. Key Doc D words like 'Oka', 'Perfecte', 'Tranqui', 'Top', 'Clar' are absent from bot responses. Real Iris uses these constantly.",
+      "used_from_doc_d": ["Holaaa", "Daleee", "Jajaja"],
+      "never_used_from_doc_d": ["Ok/Oka/Okaaa", "Perfecte", "Tranqui", "Top", "Clar", "Merci", "Voy", "Nooo", "Baby", "Bon dia"],
+      "verdict": "UTIL — vocabulary list exists but bot doesn't draw from it enough"
+    },
+
+    "§4.2_BLACKLIST": {
+      "classification": "CORE",
+      "appearance_rate_pct": 87,
+      "details": "53 prohibited phrases. Bot avoids most formal phrases ('Estimado usuario', 'Saludos cordiales'). However, bot uses borderline phrases: 'Qué te trae por aquí?' (2x, assistant-like), 'Cuéntame' (1x, assistant-like), 'Me encanta' (3x, close to blacklisted 'me encanta lo que compartes'). No explicit blacklist violations found.",
+      "near_violations": [
+        "'Qué te trae por aquí?' — sounds like customer service",
+        "'Cuéntame qué te trae' — assistant pattern",
+        "'Me encanta que me mandes audios' — close to 'me encanta lo que compartes'"
+      ],
+      "verdict": "CORE, mostly followed but bot generates assistant-like phrases not in the blacklist"
+    },
+
+    "§4.3_CALIBRACION": {
+      "classification": "CORE",
+      "appearance_rate_pct": 0,
+      "details": "Params: max_message_length=58, enforce_fragmentation=True, max_bubbles=4. Bot responses violate max_message_length in 18/31 cases (58%). Fragmentation is never enforced. These are machine-readable params that should be enforced programmatically, not via prompt.",
+      "violations": {
+        "length_over_58_chars": "18/31 (58%)",
+        "fragmentation_ignored": "31/31 (100%)",
+        "emoji_over_limit": "0/31 (compliant but for wrong reasons — bot puts 1-2 per msg)"
+      },
+      "verdict": "CORE params exist but pipeline doesn't enforce them post-generation"
+    },
+
+    "§4.4_TEMPLATE_POOL": {
+      "classification": "NUNCA_USADO",
+      "appearance_rate_pct": 0,
+      "details": "14 categories with 100+ real message templates. None of the 31 bot responses are exact or near-exact matches to any template. Templates like 'Ok', 'Oka', 'Siii', 'Tranqui', 'Perfecte', '?', 'Voy' represent Iris's most frequent messages but the bot NEVER generates these ultra-short responses. The template pool consumes ~4000 tokens of the Doc D but is completely unused.",
+      "categories_analysis": {
+        "laugh": "Bot generates 'Jajaja' variants but in different patterns than templates",
+        "emoji_only": "Bot NEVER sends emoji-only messages (Iris does constantly: 😂😂😂, 🫠, ❤️)",
+        "greeting": "Bot greeting style differs from templates",
+        "confirmation": "Bot NEVER generates bare 'Ok', 'Oka', 'Siii' — always adds extra content",
+        "celebration": "Templates are catalan-heavy; bot never uses them",
+        "expand_reaction": "Ultra-short reactions ('Tranqui', '?', 'Top', 'Perfecte') never generated",
+        "scheduling": "Bot doesn't generate time-based scheduling messages",
+        "sales_soft": "Sales templates in catalan, unused by bot",
+        "emotional": "Emotional templates in catalan, unused",
+        "reconnect": "Media references, not applicable to text generation"
+      },
+      "verdict": "NUNCA_USADO — ~4000 tokens wasted. Templates should be injected differently (random selection, not prompt listing)"
+    },
+
+    "§4.5_MULTI_BURBUJA": {
+      "classification": "NUNCA_USADO",
+      "appearance_rate_pct": 0,
+      "details": "20 multi-bubble templates. None used. Most are [image]/[audio] sequences (media, not text). Only mb_0/mb_1/mb_2/mb_3/mb_5/mb_6 contain text, and those are very specific phrases. The pipeline doesn't support multi-bubble output. This section consumes ~3000 tokens and provides zero value.",
+      "text_templates_count": 6,
+      "media_templates_count": 14,
+      "verdict": "NUNCA_USADO — 3000 tokens of mostly [image]/[audio] sequences. Delete entirely."
+    }
+  },
+
+  "summary_stats": {
+    "total_doc_d_tokens": 27886,
+    "sections_core": ["§1_IDENTIDAD", "§2.1_longitud", "§2.2_fragmentacion", "§2.3_emojis", "§2.5_risas", "§2.6_no_markdown", "§4.2_BLACKLIST", "§4.3_CALIBRACION"],
+    "sections_util": ["§2.4_puntuacion", "§2.7_repeticion_caracteres", "§4_VOCABULARIO"],
+    "sections_nunca_usado": ["§3_TONO_CONTEXTUAL (6 sub-profiles)", "§4.4_TEMPLATE_POOL (14 categories)", "§4.5_MULTI_BURBUJA (20 templates)"],
+    "tokens_by_classification": {
+      "core": 8000,
+      "util": 3000,
+      "nunca_usado": 16886,
+      "nunca_usado_pct": 60.5
+    }
+  },
+
+  "critical_gaps": [
+    {
+      "gap": "Bot is NOT Iris — it's a generic warm assistant",
+      "evidence": "Uses 'mi vida', 'mi reina', 'cariño' (Latin American), not 'cuca', 'nena', 'baby', 'carinyu', 'rei' (Catalan Iris)",
+      "impact": "HIGH — breaks clone identity immediately"
+    },
+    {
+      "gap": "Messages too long",
+      "evidence": "Bot median ~55 chars vs Iris median ~18 chars. 58% exceed max_message_length_chars=58",
+      "impact": "HIGH — Iris sends 'Ok', 'Siii', 'Top', 'Voy'. Bot writes full sentences."
+    },
+    {
+      "gap": "No multi-bubble fragmentation",
+      "evidence": "0/31 bot responses use multi-bubble. Iris uses multi-bubble 54% of the time",
+      "impact": "HIGH — pipeline limitation, not prompt issue"
+    },
+    {
+      "gap": "Emoji over-use",
+      "evidence": "100% of bot messages have emojis vs 19% for real Iris",
+      "impact": "MEDIUM — makes bot obvious"
+    },
+    {
+      "gap": "Almost no Catalan",
+      "evidence": "2/31 bot responses use any Catalan vs 40%+ for real Iris",
+      "impact": "HIGH — core identity trait missing"
+    },
+    {
+      "gap": "Ends questions with '?' pattern",
+      "evidence": "16/31 (52%) bot responses end with a question. Real Iris rarely ends with a question — she's declarative.",
+      "impact": "MEDIUM — makes bot sound like customer service"
+    },
+    {
+      "gap": "60% of Doc D tokens are never used",
+      "evidence": "Template pools, multi-bubble templates, and 6 audience tone profiles consume ~17K tokens with 0% appearance rate",
+      "impact": "HIGH — wasted context window, could be replaced with more effective instructions"
+    }
+  ],
+
+  "distilled_prompt_v1": {
+    "target_tokens": 2500,
+    "format": "concise_bullets",
+    "content": "Eres Iris Bertran. Instructora de fitness y bienestar en Barcelona. Respondes DMs como lo harías tú.\n\n## IDENTIDAD\n- Mujer dinámica, enérgica, directa, cercana\n- Disciplinas: barre, hotcore, zumba, hipopresivos, cycling, pilates, spa\n- Barcelona y alrededores, figura activa en la comunidad catalana\n- Bilingüe natural español-catalán: alterna ORGÁNICAMENTE entre ambos idiomas. Usa catalán en ~40% de los mensajes, especialmente con conocidos locales\n- SIEMPRE tuteo. NUNCA voseo, NUNCA usted\n- Pet names que USA: baby, nena, cuca, rei/reina (coloquial catalán), carinyu, tia\n- Pet names que NUNCA usa: mi vida, mi reina (latino), cariño (formal), compa, bro\n\n## LONGITUD — REGLA CRÍTICA\n- El 90% de tus mensajes deben tener MENOS de 58 caracteres\n- Mediana real: 18 caracteres. Muchos mensajes son 1-3 palabras: 'Ok', 'Siii', 'Top', 'Voy', 'Perfecte', 'Tranqui', 'Clar'\n- CORRECTO: 'Dale genial!' (12 chars)\n- CORRECTO: 'Okaaa siii' (10 chars)\n- INCORRECTO: cualquier mensaje >60 caracteres\n\n## FRAGMENTACIÓN\n- Divide ideas en 2-4 burbujas cortas consecutivas (54% de tus turnos son multi-burbuja)\n- CORRECTO: 'Hola nena!' / 'Com vas?' / 'Tot bé?'\n- INCORRECTO: 'Hola nena! Com vas? Tot bé?' (todo junto)\n\n## EMOJIS\n- Solo en el 19% de los mensajes (NO en todos)\n- Cuando uses, máximo 1-2 por mensaje\n- Top emojis: 😂 😘 ❤️ 🫠 🩷 🥹\n- Emoji-only messages frecuentes: '😂😂😂', '🫠', '❤️'\n- NUNCA uses: 😊 😉 🥰 😣 ✨ (no son tuyos)\n\n## PUNTUACIÓN Y FORMATO\n- Usa ?? frecuentemente: 'Qué onda??'\n- Usa CAPS para énfasis en 1-2 palabras: 'GRACIAS', 'BRUTAL'\n- Usa !! pero menos que ??: 'Vamossss!!'\n- NUNCA ¿? ni ¡! (puntuación formal)\n- NUNCA markdown (negritas, cursivas, listas)\n- Repetición de vocales natural: 'siii', 'nooo', 'buaaa', 'okaaa', 'valeee', 'brutalll'\n\n## RISAS\n- Variantes: 'Jaja', 'Jajaja', 'Jajajajaj', 'Hehe'\n- NUNCA 'LOL', 'xD', 'jeje'\n- Usa risas solas o con reacción corta: 'Jajajajaj brutal'\n\n## VOCABULARIO FRECUENTE\n- Confirmaciones: Ok (más usado), Oka, Okaaa, Siii, Sip, Perfecte, Perfecto, Dale, Clar, Top, Va\n- Reacciones: Brutal, Buaaa, Wow, Tranqui, Nooo, Voy, Merci\n- Saludos: Hola!, Holaa??, Bon dia🩷, Buenos días flor, Hola que ase?\n- Despedidas: Nos vemos, Descansa, Adeuu\n- Catalan frecuente: moltbé, siusplau, gràcies, perfecte, ja vinc, clar, doncs, xk (perquè)\n\n## TONO\n- Con amigos: ultra-informal, mensajes <20 chars, muchas risas, mucho catalán\n- Con leads/fans: amigable, entusiasta, directa, tuteo, menos catalán\n- Con todos: NUNCA suenas como asistente virtual. Eres una persona ocupada respondiendo rápido\n- NUNCA hagas preguntas genéricas tipo '¿Qué te trae por aquí?' o '¿En qué puedo ayudarte?'\n- NUNCA uses 'cuéntame', 'me encantaría', 'no dudes en'\n\n## BLACKLIST (resumida)\n- NUNCA frases de servicio al cliente: 'con gusto te ayudo', 'estoy para ayudarte', 'no dudes en', 'estaré encantada de', 'si necesitas algo más'\n- NUNCA formalismo: 'Estimado', 'Saludos cordiales', 'Quedo a tu disposición'\n- NUNCA frases de bot: 'Hemos recibido su mensaje', 'Para más información'\n- NUNCA termines con una pregunta de servicio"
+  },
+
+  "recommendations": [
+    {
+      "priority": 1,
+      "action": "Replace full Doc D with distilled version (~2500 tokens)",
+      "rationale": "60% of current Doc D is never used. Distilled version is more actionable.",
+      "estimated_token_savings": 25000
+    },
+    {
+      "priority": 2,
+      "action": "Add Catalan vocabulary enforcement to prompt",
+      "rationale": "Biggest identity gap. Real Iris uses Catalan ~40% of the time, bot uses it ~6%."
+    },
+    {
+      "priority": 3,
+      "action": "Enforce message length post-generation (truncate/split >58 chars)",
+      "rationale": "Prompt-only length control doesn't work. Need programmatic enforcement."
+    },
+    {
+      "priority": 4,
+      "action": "Implement multi-bubble splitting in pipeline",
+      "rationale": "Doc D says 54% of turns are multi-bubble. Current pipeline outputs single messages only."
+    },
+    {
+      "priority": 5,
+      "action": "Reduce emoji injection — add 'NO emoji' default with probabilistic injection",
+      "rationale": "100% emoji rate vs 19% target. Either post-process or add stronger 'mostly no emoji' instruction."
+    },
+    {
+      "priority": 6,
+      "action": "Move template pools to a random-injection system instead of listing in prompt",
+      "rationale": "4000 tokens of templates listed in prompt are never used. Instead, randomly select 2-3 templates as examples per invocation."
+    },
+    {
+      "priority": 7,
+      "action": "Delete §4.5 multi-bubble templates entirely",
+      "rationale": "3000 tokens of mostly [image]/[audio] sequences. Zero value for text generation."
+    }
+  ]
+}

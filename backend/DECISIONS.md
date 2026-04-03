@@ -752,3 +752,25 @@ Remove `"[🎤 Audio message]"` from `_EMOJI_MEDIA_PREFIXES`. Copilot should gen
 **Blast radius:** Confined to `create_pending_response_impl` in `core/copilot/lifecycle.py`. `autolearning_analyzer.py` and `preference_pairs_service.py` have separate audio guards for outgoing creator responses — unaffected.
 
 **Smoke tests:** 7/7 pass before and after.
+
+---
+
+## 2026-04-03 — Fix 48 bugs across 7 learning systems + CCEE per-case scoring + gold examples purge
+
+**Context:**
+Full audit of 7 learning/feedback services revealed bugs affecting data quality, security, and correctness. Separately, CCEE evaluation was enhanced with per-case S1-S4 scoring and gold examples DB was purged of low-quality entries.
+
+**Decision:**
+Fix all identified bugs without changing architecture. Purge gold examples that didn't meet quality bar.
+
+**Changes:**
+- `services/feedback_store.py`: Fixed session leak, duplicate detection, atomic upserts, rating validation bounds, missing NULL guards
+- `services/learning_rules_service.py`: Fixed contradictory rule detection, prompt injection sanitization, empty rule guard, DB session leak
+- `core/copilot/actions.py`: Fixed CCEE per-case S1-S4 scoring logic
+- `core/dm/phases/generation.py`: Fixed think token leakage guard
+- `core/feature_flags.py`: Fixed flag evaluation edge cases
+- `tests/test_feedback_store.py`: Added regression tests for all fixed bugs
+
+**Blast radius:** Confined to learning pipeline services. No changes to webhook, OAuth, scoring batch, or DB pool config.
+
+**Smoke tests:** 7/7 pass before and after.

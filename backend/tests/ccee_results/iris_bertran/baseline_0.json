@@ -1,0 +1,359 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260403_134049",
+  "n_runs": 3,
+  "n_cases": 42,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 66.16,
+        "detail": {
+          "A1_length": 98.63,
+          "A2_emoji": 54.34,
+          "A2_contextual": 65.07,
+          "A3_exclamations": 72.75,
+          "A4_questions": 57.87,
+          "A5_vocabulary": 64.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 50.0,
+          "A8_formality": 98.91,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 39.03,
+        "detail": {
+          "bertscore_mean": 0.8006,
+          "chrf_mean": 0.0548,
+          "bleu4_mean": 0.1308,
+          "rouge_l_mean": 0.0167,
+          "meteor_mean": 0.0082,
+          "semsim_mean": 0.8243,
+          "self_rep_mean": 0.8875,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 3.7
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 32.62,
+        "detail": {
+          "per_case": [
+            4.2,
+            11.6,
+            11.6,
+            11.6,
+            11.6,
+            11.6,
+            100.0,
+            100.0,
+            11.6,
+            11.6,
+            11.6,
+            11.6,
+            12.5,
+            4.2,
+            100.0,
+            11.6,
+            12.5,
+            12.5,
+            12.5,
+            12.5,
+            12.5,
+            12.5,
+            11.6,
+            12.5,
+            11.6,
+            11.6,
+            100.0,
+            7.6,
+            100.0,
+            7.6,
+            100.0,
+            17.6,
+            100.0,
+            12.5,
+            100.0,
+            100.0,
+            14.5,
+            14.5,
+            100.0,
+            10.9,
+            14.5,
+            11.6
+          ],
+          "mean": 32.62
+        }
+      },
+      "S4_adaptation": {
+        "score": 37.5,
+        "detail": {
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 0.0,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "composite": 45.02,
+      "weights": {
+        "S1": 0.3,
+        "S2": 0.25,
+        "S3": 0.3,
+        "S4": 0.15
+      }
+    },
+    {
+      "S1_style_fidelity": {
+        "score": 69.99,
+        "detail": {
+          "A1_length": 98.08,
+          "A2_emoji": 87.67,
+          "A2_contextual": 59.09,
+          "A3_exclamations": 67.99,
+          "A4_questions": 72.16,
+          "A5_vocabulary": 56.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 50.0,
+          "A8_formality": 98.91,
+          "A9_catchphrases": 10.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 39.28,
+        "detail": {
+          "bertscore_mean": 0.8092,
+          "chrf_mean": 0.079,
+          "bleu4_mean": 0.1151,
+          "rouge_l_mean": 0.0213,
+          "meteor_mean": 0.0152,
+          "semsim_mean": 0.8337,
+          "self_rep_mean": 0.9015,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 3.83
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 35.63,
+        "detail": {
+          "per_case": [
+            100.0,
+            11.6,
+            11.6,
+            11.6,
+            100.0,
+            11.6,
+            12.5,
+            100.0,
+            12.5,
+            12.5,
+            12.5,
+            11.6,
+            12.5,
+            100.0,
+            100.0,
+            12.5,
+            12.5,
+            11.6,
+            11.6,
+            12.5,
+            11.6,
+            12.5,
+            12.5,
+            100.0,
+            12.5,
+            11.6,
+            11.6,
+            14.1,
+            17.6,
+            7.6,
+            17.6,
+            17.6,
+            100.0,
+            13.0,
+            100.0,
+            100.0,
+            14.5,
+            14.5,
+            100.0,
+            100.0,
+            14.5,
+            12.5
+          ],
+          "mean": 35.63
+        }
+      },
+      "S4_adaptation": {
+        "score": 37.5,
+        "detail": {
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 0.0,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "composite": 47.13,
+      "weights": {
+        "S1": 0.3,
+        "S2": 0.25,
+        "S3": 0.3,
+        "S4": 0.15
+      }
+    },
+    {
+      "S1_style_fidelity": {
+        "score": 69.19,
+        "detail": {
+          "A1_length": 97.85,
+          "A2_emoji": 68.63,
+          "A2_contextual": 62.34,
+          "A3_exclamations": 72.75,
+          "A4_questions": 67.4,
+          "A5_vocabulary": 64.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 50.0,
+          "A8_formality": 98.91,
+          "A9_catchphrases": 10.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 39.38,
+        "detail": {
+          "bertscore_mean": 0.8059,
+          "chrf_mean": 0.0718,
+          "bleu4_mean": 0.1025,
+          "rouge_l_mean": 0.0226,
+          "meteor_mean": 0.0158,
+          "semsim_mean": 0.8214,
+          "self_rep_mean": 0.8824,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 2.76
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 28.7,
+        "detail": {
+          "per_case": [
+            100.0,
+            11.6,
+            12.5,
+            12.5,
+            100.0,
+            12.5,
+            100.0,
+            11.6,
+            12.5,
+            12.5,
+            12.5,
+            12.5,
+            11.6,
+            11.6,
+            12.5,
+            12.5,
+            4.2,
+            11.6,
+            12.5,
+            12.5,
+            12.5,
+            12.5,
+            12.5,
+            11.6,
+            12.5,
+            11.6,
+            12.5,
+            7.6,
+            17.6,
+            7.6,
+            100.0,
+            17.6,
+            7.6,
+            100.0,
+            100.0,
+            13.0,
+            14.5,
+            8.0,
+            100.0,
+            100.0,
+            14.5,
+            12.5
+          ],
+          "mean": 28.7
+        }
+      },
+      "S4_adaptation": {
+        "score": 62.5,
+        "detail": {
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 100.0,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "composite": 48.59,
+      "weights": {
+        "S1": 0.3,
+        "S2": 0.25,
+        "S3": 0.3,
+        "S4": 0.15
+      }
+    }
+  ],
+  "composites": [
+    45.02,
+    47.13,
+    48.59
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "INTIMATE",
+      "user_input": "Quedem 18 doncs?",
+      "ground_truth": "😭😭😭",
+      "bot_response": "vale",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 18,
+      "trust_segment": "UNKNOWN",
+      "user_input": "Iris cuca",
+      "ground_truth": "A descansar com em vas dir🩷",
+      "bot_response": "Ja m’agafaré un bikini, què no et preocupis! 😘",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 16,
+      "trust_segment": "EDGE_CASE",
+      "user_input": "Nooo, es de fa 5 dies",
+      "ground_truth": "[🎤 Audio]: Voy a ponerme música para animarme y probar algunos de estos dos filtros. Mi cara es un mapa, pero es lo que hay.",
+      "bot_response": "Ja ja, doncs quedem 19:30. Un cop confirmat et faig el missatge.",
+      "input_type": "OTHER",
+      "s3_score": 4.2
+    }
+  ],
+  "weights_used": {
+    "S1": 0.3,
+    "S2": 0.25,
+    "S3": 0.3,
+    "S4": 0.15
+  }
+}
