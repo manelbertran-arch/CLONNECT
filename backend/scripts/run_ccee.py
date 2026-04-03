@@ -206,9 +206,23 @@ def _format_table(results: Dict) -> str:
 
     s3 = results["S3_strategic_alignment"]
     lines.append(f"{'S3 Strategic Alignment':<25} {s3['score']:>8.2f}")
+    if isinstance(s3.get("detail"), dict):
+        d = s3["detail"]
+        lines.append(f"  {'E1 per-case':<23} {d.get('e1_per_case_mean', 0):>8.2f}")
+        lines.append(f"  {'E2 distribution':<23} {d.get('e2_distribution_match', 0):>8.2f}")
 
     s4 = results["S4_adaptation"]
     lines.append(f"{'S4 Adaptation':<25} {s4['score']:>8.2f}")
+
+    j1 = results.get("J1_memory_recall", {})
+    if j1:
+        lines.append(f"{'J1 Memory Recall':<25} {j1.get('score', 50):>8.2f}")
+    j2 = results.get("J2_multiturn_consistency", {})
+    if j2:
+        lines.append(f"{'J2 Multi-turn Consist.':<25} {j2.get('score', 50):>8.2f}")
+    j_cog = results.get("J_cognitive_fidelity")
+    if j_cog is not None:
+        lines.append(f"{'J  Cognitive Fidelity':<25} {j_cog:>8.2f}")
 
     lines.append("-" * 75)
     lines.append(f"{'COMPOSITE':<25} {results['composite']:>8.2f}")
@@ -406,7 +420,8 @@ def main():
         print(f"  Mean composite: {np.mean(agg_composites):.2f}")
         print(f"  Std:  {np.std(agg_composites):.2f}")
         for key in ["S1_style_fidelity", "S2_response_quality",
-                     "S3_strategic_alignment", "S4_adaptation"]:
+                     "S3_strategic_alignment", "S4_adaptation",
+                     "J1_memory_recall", "J2_multiturn_consistency"]:
             scores = [r[key]["score"] for r in all_run_results]
             print(f"  {key}: {np.mean(scores):.2f} +/- {np.std(scores):.2f}")
 

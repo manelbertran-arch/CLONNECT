@@ -4,6 +4,25 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-03 — CCEE v2: Phase 1 bug fixes + TwinVoice gaps (21→28 params)
+
+**Problem**: CCEE had 42 designed params but only 21 implemented. D6 SemSim had a bug (bot-vs-user instead of bot-vs-GT). A7/F2/E2 had data available but scorer ignored it. No cognitive fidelity metrics (memory, consistency).
+
+**Changes (7 fixes)**:
+1. **D6 SemSim bug**: `semsim_scores` now computed against `ground_truths` (was `user_inputs`). Added separate C4 contextual relevance (bot-vs-user).
+2. **F2 vocabulary adaptation**: Wired `A5_vocab_diversity` from adaptation profile into `score_s4_per_case()`.
+3. **F3 length adaptation**: Isolated as separate metric in S4 detail output.
+4. **A7 fragmentation**: Replaced hardcoded 50.0 with newline-fragment-count scored against profile P10/P90.
+5. **E2 strategy distribution**: Added JSD between bot aggregate and creator global strategy distributions. S3 = 0.7*E1 + 0.3*E2.
+6. **J1 memory recall**: Extracts facts (numbers, capitalized names) from conversation history, checks if bot references them.
+7. **J2 multi-turn consistency**: Measures style variance (length std, emoji rate, question rate) across all bot responses vs creator's own variance.
+
+**Composite formula**: S1(0.25) + S2(0.20) + S3(0.25) + S4(0.15) + J(0.15) where J = 0.5*J1 + 0.5*J2.
+
+**Files**: `core/evaluation/ccee_scorer.py`, `scripts/run_ccee.py`, `tests/test_ccee.py`
+
+---
+
 ## 2026-04-03 — Fix S4 Adaptation Scorer (always returned 50.0)
 
 **Problem**: `score_s4_adaptation()` returned exactly 50.0 in every CCEE run because:

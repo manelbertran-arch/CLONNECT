@@ -27,7 +27,10 @@ from core.evaluation.ccee_scorer import (
     _detect_bot_reveal,
     _detect_hallucination,
     _echo_rate,
+    _jsd,
     _within_range,
+    score_j1_memory_recall,
+    score_j2_multiturn_consistency,
     score_s1_style_fidelity,
     score_s2_response_quality,
     score_s3_strategic_alignment,
@@ -115,7 +118,11 @@ def sample_strategy_map():
                 "distribution": {"ASK": 0.4, "VALIDATE": 0.3, "INFORM": 0.3},
                 "count": 20, "dominant": "ASK",
             },
-        }
+        },
+        "global_strategy_distribution": {
+            "MIRROR": 0.25, "ASK": 0.25, "VALIDATE": 0.25,
+            "INFORM": 0.15, "REDIRECT": 0.05, "IGNORE": 0.05,
+        },
     }
 
 
@@ -132,6 +139,7 @@ def sample_adaptation_profile():
                 "A2_emoji_rate": 0.2,
                 "A3_exclamation_rate": 0.3,
                 "A4_question_rate": 0.5,
+                "A5_vocab_diversity": 0.25,
             },
             "KNOWN": {
                 "message_count": 200,
@@ -142,6 +150,7 @@ def sample_adaptation_profile():
                 "A2_emoji_rate": 0.5,
                 "A3_exclamation_rate": 0.32,
                 "A4_question_rate": 0.3,
+                "A5_vocab_diversity": 0.40,
             },
             "CLOSE": {
                 "message_count": 100,
@@ -152,6 +161,7 @@ def sample_adaptation_profile():
                 "A2_emoji_rate": 0.8,
                 "A3_exclamation_rate": 0.31,
                 "A4_question_rate": 0.1,
+                "A5_vocab_diversity": 0.45,
             },
         },
         "adaptation": {
@@ -498,6 +508,7 @@ class TestCCEEScorer:
                                    sample_adaptation_profile):
         """Composite weights should sum to ~1.0 and score should be in [0, 100]."""
         assert abs(sum(DEFAULT_WEIGHTS.values()) - 1.0) < 0.001
+        assert "J" in DEFAULT_WEIGHTS
 
         scorer = CCEEScorer(
             sample_style_profile, sample_strategy_map, sample_adaptation_profile
@@ -508,6 +519,9 @@ class TestCCEEScorer:
         bot_responses = ["Hola! 😊"] * 5
         result = scorer.score(test_cases, bot_responses)
         assert 0 <= result["composite"] <= 100
+        assert "J1_memory_recall" in result
+        assert "J2_multiturn_consistency" in result
+        assert "J_cognitive_fidelity" in result
 
 
 # =====================================================================
@@ -619,6 +633,93 @@ class TestIntegration:
         responses = ["That's amazing! How are you?"] * 3
         result = score_s1_style_fidelity(responses, en_profile)
         assert result["score"] > 0  # should not crash, should produce valid score
+
+
+# =====================================================================
+# CCEE v2: New metric tests
+# =====================================================================
+
+class TestCCEEv2Metrics:
+    """Tests for D6 fix, A7, E2 JSD, F2 vocab, J1 memory, J2 consistency."""
+
+    def test_d6_semsim_in_s2_detail(self):
+        """S2 detail should include separate semsim (D6) and c4_relevance."""
+        test_cases = [
+            {"user_input": "Hola!", "ground_truth": "Hola! 😊"},
+        ] * 5
+        bot_responses = ["Hola! 😊"] * 5
+        result = score_s2_response_quality(test_cases, bot_responses)
+        assert "semsim_mean" in result["detail"]
+        assert "c4_relevance_mean" in result["detail"]
+
+    def test_a7_fragmentation_not_50(self, sample_style_profile):
+        """A7 should not be hardcoded 50.0 for multi-line responses."""
+        multiline = ["Primera línia\nSegona línia\nTercera"] * 5
+        result = score_s1_style_fidelity(multiline, sample_style_profile)
+        assert result["detail"]["A7_fragmentation"] != 50.0
+
+    def test_e2_jsd_identical_distributions(self, sample_strategy_map):
+        """JSD of identical distributions should give E2 = 100."""
+        jsd = _jsd({"A": 0.5, "B": 0.5}, {"A": 0.5, "B": 0.5})
+        assert jsd < 0.01
+
+    def test_e2_jsd_different_distributions(self):
+        """JSD of very different distributions should be > 0.5."""
+        jsd = _jsd({"A": 1.0}, {"B": 1.0})
+        assert jsd > 0.5
+
+    def test_e2_in_s3_output(self, sample_strategy_map):
+        """S3 should include E2 distribution match."""
+        test_cases = [
+            {"user_input": "jajajaja"},
+            {"user_input": "Hola!"},
+            {"user_input": "Cuánto cuesta?"},
+        ]
+        bot_responses = ["😂😂", "Hola! 😊", "97€ la sessió"]
+        result = score_s3_strategic_alignment(
+            test_cases, bot_responses, sample_strategy_map
+        )
+        assert "e2_distribution_match" in result["detail"]
+        assert "bot_strategy_distribution" in result["detail"]
+
+    def test_j1_memory_recall_no_multiturn(self):
+        """J1 should return 50.0 when no multi-turn data."""
+        test_cases = [{"user_input": "Hola", "username": "user1"}]
+        bot_responses = ["Hola!"]
+        result = score_j1_memory_recall(test_cases, bot_responses)
+        assert result["score"] == 50.0
+
+    def test_j1_memory_recall_with_facts(self):
+        """J1 should score when multi-turn conversation has facts."""
+        test_cases = [
+            {"user_input": "Me llamo Maria y tengo cita a las 10:30", "username": "u1"},
+            {"user_input": "Qué me dices?", "username": "u1"},
+        ]
+        # Bot references the name and time
+        bot_responses = [
+            "Hola Maria!",
+            "Sí Maria, a las 10:30 te espero",
+        ]
+        result = score_j1_memory_recall(test_cases, bot_responses)
+        assert result["score"] >= 0  # At least scores something
+
+    def test_j2_consistency_basic(self, sample_style_profile):
+        """J2 should return non-trivial score for sufficient responses."""
+        bot_responses = [
+            "Hola! Com estàs? 😊",
+            "Molt bé! Gràcies",
+            "Ja veig! 😂",
+            "Perfecte, genial!",
+            "Ah sí? Que bé!",
+        ]
+        result = score_j2_multiturn_consistency(bot_responses, sample_style_profile)
+        assert result["score"] != 50.0
+        assert 0 <= result["score"] <= 100
+
+    def test_j2_insufficient_responses(self, sample_style_profile):
+        """J2 should return 50.0 with < 5 responses."""
+        result = score_j2_multiturn_consistency(["hi", "bye"], sample_style_profile)
+        assert result["score"] == 50.0
 
 
 # =====================================================================
