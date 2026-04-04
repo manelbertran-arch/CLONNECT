@@ -179,17 +179,9 @@ def call_google(
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
     ]
 
-    # Gemma 4 tends to generate structured analysis instead of responding in-character.
-    # Use a model-turn prefill with a natural opener to force immediate in-character response.
-    # The prefill starts Iris's response so the model just continues it.
-    contents_with_prefill = list(contents) + [
-        {"role": "model", "parts": [{"text": "Iris: "}]}
-    ]
-
-    def _make_payload(use_system_instruction: bool, use_prefill: bool = True) -> Dict[str, Any]:
-        used_contents = contents_with_prefill if use_prefill else contents
+    def _make_payload(use_system_instruction: bool) -> Dict[str, Any]:
         p: Dict[str, Any] = {
-            "contents": used_contents,
+            "contents": contents,
             "generationConfig": {
                 "maxOutputTokens": max_tokens,
                 "temperature": temperature,
@@ -201,13 +193,13 @@ def call_google(
         elif not use_system_instruction and system_content:
             # Prepend system prompt as first user turn if model doesn't support system instruction
             system_turn = {"role": "user", "parts": [{"text": f"[System context]\n{system_content}"}]}
-            p["contents"] = [system_turn] + (contents_with_prefill if use_prefill else contents)
+            p["contents"] = [system_turn] + contents
         return p
 
     # Try with systemInstruction first; fall back if model doesn't support it
     for use_sys in [True, False]:
         payload = _make_payload(use_sys)
-        resp = _requests.post(url, json=payload, timeout=60)
+        resp = _requests.post(url, json=payload, timeout=120)
         if resp.status_code == 400:
             data_err = resp.json()
             err_msg = data_err.get("error", {}).get("message", "")
@@ -232,7 +224,9 @@ def call_google(
     if not parts:
         raise RuntimeError("Google AI candidate has no parts")
 
-    return parts[0].get("text", "")
+    # Filter out thinking/reasoning parts (gemma-4 returns thought=True for CoT blocks)
+    text_parts = [p.get("text", "") for p in parts if not p.get("thought")]
+    return " ".join(text_parts).strip()
 
 
 def call_huggingface(
