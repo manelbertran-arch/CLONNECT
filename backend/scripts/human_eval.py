@@ -173,14 +173,39 @@ def _save_cache(creator_id: str, cache: Dict[str, str]) -> None:
         json.dump(cache, f, indent=2, ensure_ascii=False)
 
 
+def _is_fake_or_error(val: str) -> bool:
+    """Return True if a cached response is a dry-run fake or a previous error."""
+    return val == "FAKE BOT RESPONSE" or val.startswith("[ERROR:")
+
+
 def _generate_bot_responses(
     creator_id: str,
     cases: List[Dict],
     dry_run: bool = False,
+    regenerate: bool = False,
 ) -> Dict[str, str]:
-    """Generate bot responses for all cases. Loads cache, skips already-generated ones."""
-    cache = _load_cache(creator_id)
-    missing = [c for c in cases if c["id"] not in cache]
+    """Generate bot responses for all cases. Loads cache, skips already-generated ones.
+
+    In real (non-dry-run) mode, cached entries that are fake placeholders or
+    errors from previous runs are treated as missing and regenerated.
+    Pass regenerate=True to wipe the entire cache and regenerate everything.
+    """
+    if regenerate:
+        cache: Dict[str, str] = {}
+        _save_cache(creator_id, cache)
+        print("  Cache limpiado — regenerando todas las respuestas.")
+    else:
+        cache = _load_cache(creator_id)
+
+    def _needs_regen(case_id: str) -> bool:
+        if case_id not in cache:
+            return True
+        # In real mode, don't trust fake/error entries from previous dry-runs
+        if not dry_run and _is_fake_or_error(cache[case_id]):
+            return True
+        return False
+
+    missing = [c for c in cases if _needs_regen(c["id"])]
 
     if not missing:
         print(f"  Respuestas cacheadas para {len(cases)} casos — no se regeneran.")
@@ -333,7 +358,7 @@ def _present_case(
     turns = conv.get("turns", [])
     if turns:
         print()
-        print("  HISTORIAL:")
+        print("  HISTORIAL (últimos turnos):")
         print(_format_history(turns))
 
     # Lead message
@@ -377,10 +402,12 @@ def _present_case(
             break
         if al in ("back", "quit", "q"):
             return None if al in ("quit", "q") else "back"
+        if al == "skip":
+            return "skip"
         if auto_answer:
             ans = "A"
             break
-        print("     → Escribe A o B (o back/quit)")
+        print("     → Escribe A o B (o back/quit/skip)")
 
     iris_choice = ans.upper()
     iris_correct = (iris_choice == ("B" if bot_is_A else "A"))
@@ -577,6 +604,10 @@ def main():
         "--dry-run", action="store_true",
         help="Use fake bot responses, auto-answer first 2 cases, no real pipeline"
     )
+    parser.add_argument(
+        "--regenerate", action="store_true",
+        help="Clear bot-response cache and regenerate all responses via pipeline"
+    )
     args = parser.parse_args()
 
     creator = args.creator
@@ -598,7 +629,7 @@ def main():
 
     # ── Generate / load bot responses ────────────────────────────────────────
     print()
-    bot_cache = _generate_bot_responses(creator, valid_cases, dry_run=dry_run)
+    bot_cache = _generate_bot_responses(creator, valid_cases, dry_run=dry_run, regenerate=args.regenerate)
 
     # ── Resume logic ─────────────────────────────────────────────────────────
     progress = _load_progress(creator)
@@ -645,6 +676,7 @@ def main():
     print("  - Una es el bot, la otra es Iris real — adivina cuál")
     print("  - Puntúa cada respuesta del 1 al 5 (¿la enviarías como Iris?)")
     print("  - Escribe 'back' para ir al caso anterior")
+    print("  - Escribe 'skip' para saltar el caso actual")
     print("  - Escribe 'quit' para guardar y salir")
     if dry_run:
         print("\n  [dry-run] Solo se procesan 2 casos con respuestas auto.")
@@ -678,6 +710,11 @@ def main():
             # Quit
             print("\n  Guardando progreso y saliendo...")
             break
+
+        if result == "skip":
+            print(f"  [saltado] Caso {case_num} omitido.")
+            cursor += 1
+            continue
 
         if result == "back":
             if cursor > 0:
