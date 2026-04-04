@@ -1,0 +1,862 @@
+{
+  "qwen3_14b": {
+    "B2_persona_consistency": 67.5,
+    "B5_emotional_signature": 50.0,
+    "C2_naturalness": 67.5,
+    "C3_contextual_appropriateness": 33.75,
+    "H1_turing_test_rate": 75.0,
+    "n_cases": 20,
+    "total_time_seconds": 1011.5,
+    "model": "hf.co/mradermacher/M-Prometheus-14B-GGUF:Q6_K",
+    "per_case": [
+      {
+        "case_idx": 0,
+        "B2": 0.0,
+        "B5": 0.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 1,
+        "B2": 25.0,
+        "B5": 50.0,
+        "C2": 75.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 2,
+        "B2": 100.0,
+        "B5": 50.0,
+        "C2": 75.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 3,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 4,
+        "B2": 25.0,
+        "B5": 75.0,
+        "C2": 75.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 5,
+        "B2": 25.0,
+        "B5": 0.0,
+        "C2": 0.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 6,
+        "B2": 25.0,
+        "B5": 50.0,
+        "C2": 0.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 7,
+        "B2": 100.0,
+        "B5": 75.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 8,
+        "B2": 75.0,
+        "B5": 100.0,
+        "C2": 25.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 9,
+        "B2": 100.0,
+        "B5": 0.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 10,
+        "B2": 0.0,
+        "B5": 0.0,
+        "C2": 0.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 11,
+        "B2": 100.0,
+        "B5": 25.0,
+        "C2": 75.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 12,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 13,
+        "B2": 100.0,
+        "B5": 75.0,
+        "C2": 100.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 14,
+        "B2": 100.0,
+        "B5": 25.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 15,
+        "B2": 100.0,
+        "B5": 0.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 16,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 17,
+        "B2": 50.0,
+        "B5": 75.0,
+        "C2": 100.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 18,
+        "B2": 25.0,
+        "B5": 0.0,
+        "C2": 25.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 19,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 0.0,
+        "C3": 100.0,
+        "H1_fooled": false
+      }
+    ]
+  },
+  "gemma4_e2b": {
+    "B2_persona_consistency": 43.75,
+    "B5_emotional_signature": 37.5,
+    "C2_naturalness": 55.0,
+    "C3_contextual_appropriateness": 16.25,
+    "H1_turing_test_rate": 70.0,
+    "n_cases": 20,
+    "total_time_seconds": 919.2,
+    "model": "hf.co/mradermacher/M-Prometheus-14B-GGUF:Q6_K",
+    "per_case": [
+      {
+        "case_idx": 0,
+        "B2": 0.0,
+        "B5": 0.0,
+        "C2": 0.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 1,
+        "B2": 25.0,
+        "B5": 25.0,
+        "C2": 25.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 2,
+        "B2": 100.0,
+        "B5": 25.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 3,
+        "B2": 100.0,
+        "B5": 50.0,
+        "C2": 75.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 4,
+        "B2": 50.0,
+        "B5": 50.0,
+        "C2": 0.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 5,
+        "B2": 0.0,
+        "B5": 25.0,
+        "C2": 25.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 6,
+        "B2": 50.0,
+        "B5": 75.0,
+        "C2": 75.0,
+        "C3": 100.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 7,
+        "B2": 75.0,
+        "B5": 75.0,
+        "C2": 100.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 8,
+        "B2": 75.0,
+        "B5": 0.0,
+        "C2": 0.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 9,
+        "B2": 100.0,
+        "B5": 25.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 10,
+        "B2": 0.0,
+        "B5": 25.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 11,
+        "B2": 25.0,
+        "B5": 25.0,
+        "C2": 0.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 12,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 25.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 13,
+        "B2": 25.0,
+        "B5": 0.0,
+        "C2": 25.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 14,
+        "B2": 0.0,
+        "B5": 0.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 15,
+        "B2": 50.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 16,
+        "B2": 0.0,
+        "B5": 25.0,
+        "C2": 0.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 17,
+        "B2": 0.0,
+        "B5": 75.0,
+        "C2": 75.0,
+        "C3": 75.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 18,
+        "B2": 25.0,
+        "B5": 50.0,
+        "C2": 100.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 19,
+        "B2": 75.0,
+        "B5": 0.0,
+        "C2": 75.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      }
+    ]
+  },
+  "gemma4_e4b": {
+    "B2_persona_consistency": 72.5,
+    "B5_emotional_signature": 52.5,
+    "C2_naturalness": 78.75,
+    "C3_contextual_appropriateness": 52.5,
+    "H1_turing_test_rate": 50.0,
+    "n_cases": 20,
+    "total_time_seconds": 1159.5,
+    "model": "hf.co/mradermacher/M-Prometheus-14B-GGUF:Q6_K",
+    "per_case": [
+      {
+        "case_idx": 0,
+        "B2": 50.0,
+        "B5": 0.0,
+        "C2": 75.0,
+        "C3": 25.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 1,
+        "B2": 75.0,
+        "B5": 25.0,
+        "C2": 75.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 2,
+        "B2": 100.0,
+        "B5": 50.0,
+        "C2": 75.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 3,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 4,
+        "B2": 75.0,
+        "B5": 50.0,
+        "C2": 100.0,
+        "C3": 75.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 5,
+        "B2": 100.0,
+        "B5": 0.0,
+        "C2": 25.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 6,
+        "B2": 25.0,
+        "B5": 25.0,
+        "C2": 25.0,
+        "C3": 50.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 7,
+        "B2": 75.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 8,
+        "B2": 100.0,
+        "B5": 25.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 9,
+        "B2": 75.0,
+        "B5": 25.0,
+        "C2": 100.0,
+        "C3": 25.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 10,
+        "B2": 100.0,
+        "B5": 25.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 11,
+        "B2": 0.0,
+        "B5": 50.0,
+        "C2": 25.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 12,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 75.0,
+        "C3": 100.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 13,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 14,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 15,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 16,
+        "B2": 75.0,
+        "B5": 50.0,
+        "C2": 100.0,
+        "C3": 25.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 17,
+        "B2": 25.0,
+        "B5": 50.0,
+        "C2": 75.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 18,
+        "B2": 75.0,
+        "B5": 25.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 19,
+        "B2": 0.0,
+        "B5": 50.0,
+        "C2": 25.0,
+        "C3": 25.0,
+        "H1_fooled": false
+      }
+    ]
+  },
+  "gemma4_26b": {
+    "B2_persona_consistency": 76.25,
+    "B5_emotional_signature": 62.5,
+    "C2_naturalness": 81.25,
+    "C3_contextual_appropriateness": 28.75,
+    "H1_turing_test_rate": 70.0,
+    "n_cases": 20,
+    "total_time_seconds": 1023.5,
+    "model": "hf.co/mradermacher/M-Prometheus-14B-GGUF:Q6_K",
+    "per_case": [
+      {
+        "case_idx": 0,
+        "B2": 100.0,
+        "B5": 25.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 1,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 2,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 3,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 0.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 4,
+        "B2": 100.0,
+        "B5": 75.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 5,
+        "B2": 0.0,
+        "B5": 0.0,
+        "C2": 0.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 6,
+        "B2": 25.0,
+        "B5": 0.0,
+        "C2": 75.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 7,
+        "B2": 25.0,
+        "B5": 0.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 8,
+        "B2": 100.0,
+        "B5": 75.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 9,
+        "B2": 100.0,
+        "B5": 75.0,
+        "C2": 100.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 10,
+        "B2": 50.0,
+        "B5": 75.0,
+        "C2": 75.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 11,
+        "B2": 75.0,
+        "B5": 100.0,
+        "C2": 75.0,
+        "C3": 100.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 12,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 13,
+        "B2": 50.0,
+        "B5": 75.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 14,
+        "B2": 100.0,
+        "B5": 0.0,
+        "C2": 0.0,
+        "C3": 25.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 15,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 16,
+        "B2": 100.0,
+        "B5": 75.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 17,
+        "B2": 0.0,
+        "B5": 50.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 18,
+        "B2": 100.0,
+        "B5": 25.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 19,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": false
+      }
+    ]
+  },
+  "gemma4_31b": {
+    "B2_persona_consistency": 75.0,
+    "B5_emotional_signature": 53.75,
+    "C2_naturalness": 83.75,
+    "C3_contextual_appropriateness": 20.0,
+    "H1_turing_test_rate": 70.0,
+    "n_cases": 20,
+    "total_time_seconds": 950.6,
+    "model": "hf.co/mradermacher/M-Prometheus-14B-GGUF:Q6_K",
+    "per_case": [
+      {
+        "case_idx": 0,
+        "B2": 100.0,
+        "B5": 75.0,
+        "C2": 75.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 1,
+        "B2": 0.0,
+        "B5": 50.0,
+        "C2": 75.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 2,
+        "B2": 100.0,
+        "B5": 25.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 3,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 4,
+        "B2": 100.0,
+        "B5": 75.0,
+        "C2": 0.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 5,
+        "B2": 25.0,
+        "B5": 0.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 6,
+        "B2": 100.0,
+        "B5": 75.0,
+        "C2": 100.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 7,
+        "B2": 0.0,
+        "B5": 0.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 8,
+        "B2": 100.0,
+        "B5": 25.0,
+        "C2": 25.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 9,
+        "B2": 100.0,
+        "B5": 25.0,
+        "C2": 75.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 10,
+        "B2": 100.0,
+        "B5": 75.0,
+        "C2": 100.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 11,
+        "B2": 100.0,
+        "B5": 0.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 12,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 25.0,
+        "C3": 100.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 13,
+        "B2": 75.0,
+        "B5": 75.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 14,
+        "B2": 100.0,
+        "B5": 25.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 15,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 100.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 16,
+        "B2": 0.0,
+        "B5": 50.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": false
+      },
+      {
+        "case_idx": 17,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 18,
+        "B2": 0.0,
+        "B5": 0.0,
+        "C2": 100.0,
+        "C3": 25.0,
+        "H1_fooled": true
+      },
+      {
+        "case_idx": 19,
+        "B2": 100.0,
+        "B5": 100.0,
+        "C2": 100.0,
+        "C3": 0.0,
+        "H1_fooled": true
+      }
+    ]
+  }
+}

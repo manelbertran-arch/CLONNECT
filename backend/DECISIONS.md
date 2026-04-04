@@ -4,6 +4,26 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-04 — M-Prometheus 14B as LLM judge for naked baseline comparison
+
+**Goal**: Add subjective quality metrics (B2/B5/C2/C3/H1) to the 5-model naked baseline comparison using a local LLM judge.
+
+**Model**: M-Prometheus 14B Q6_K (12GB) via Ollama. Based on Qwen2.5-14B, trained on 20+ languages, supports Prometheus eval format (instruction + response + reference + rubric → feedback + [RESULT] 1-5). Runs on Apple Silicon GPU at ~50s/call.
+
+**New file**: `core/evaluation/m_prometheus_judge.py` — 5 judge functions (B2 persona consistency, B5 emotional signature, C2 naturalness, C3 contextual appropriateness, H1 Turing test pairwise). All rubrics in Spanish to match content language.
+
+**Results** (20 cases per model):
+- Gemma4-26B wins B2 (76.2) + B5 (62.5) — best persona & emotional match
+- Gemma4-31B wins C2 (83.8) — most natural sounding
+- Gemma4-E4B wins C3 (52.5) — best contextual appropriateness
+- Qwen3-14B wins H1 (75%) — fools judge most often
+- Overall Comp37 winner: Gemma4-26B (35.3)
+- LLM judge ranking differs from deterministic: 26B overtakes 31B when subjective quality is included
+
+**Key insight**: C3 (contextual appropriateness) scores are low across all models (16-52), suggesting naked baselines struggle with context without the full Clonnect pipeline. This is expected — the pipeline adds conversation history, trust scoring, and strategy selection.
+
+---
+
 ## 2026-04-04 — Human Eval v2 + Prometheus as Primary LLM Judge
 
 **Problem**: `scripts/human_eval.py` had the same 5 problems as the LLM judge (wrong test set, no media filter, no history, fake blind A/B, only 5 cases). Additionally lacked: free-text notes, back navigation, quit/resume, end summary.
