@@ -1,0 +1,40 @@
+{
+  "model_id": "qwen3_14b",
+  "model_name": "Qwen3 14B (DeepInfra)",
+  "architecture": "dense",
+  "provider": {
+    "name": "deepinfra",
+    "api_key_env": "DEEPINFRA_API_KEY",
+    "model_string": "Qwen/Qwen3-14B",
+    "base_url": "https://api.deepinfra.com/v1/openai"
+  },
+  "sampling": {
+    "temperature": 0.7,
+    "top_p": 1.0,
+    "max_tokens": 400,
+    "frequency_penalty": 0.0,
+    "presence_penalty": 0.0
+  },
+  "runtime": {
+    "timeout_seconds": 30,
+    "max_retries": 2
+  },
+  "chat_template": {
+    "filter_thought_blocks": false,
+    "strip_thinking_artifacts": true
+  },
+  "thinking": {
+    "enabled": false,
+    "no_think_suffix": "/no_think"
+  },
+  "system_prompt": {
+    "system_prompt_mode": "system_instruction"
+  },
+  "safety": {
+    "harassment": "BLOCK_ONLY_HIGH",
+    "hate_speech": "BLOCK_ONLY_HIGH",
+    "sexually_explicit": "BLOCK_ONLY_HIGH",
+    "dangerous_content": "BLOCK_ONLY_HIGH"
+  },
+  "notes": "PRODUCTION SNAPSHOT 2026-04-07. Source of values: Railway env vars (scanned 2026-04-07) + core/providers/deepinfra_provider.py function-arg defaults at time of capture. Railway sets: DEEPINFRA_MODEL=Qwen/Qwen3-14B, DEEPINFRA_TIMEOUT=30, DEEPINFRA_INCLUDE_REASONING=false, DEEPINFRA_NO_FALLBACK=false. Railway does NOT set any sampling params (temperature/top_p/max_tokens/penalties) — those come from call_deepinfra() arg defaults: temperature=0.7, max_tokens=400, frequency_penalty=0.0 (via DEEPINFRA_FREQUENCY_PENALTY env var, also unset, default 0.0). top_p=1.0 is not passed to the API today (inherits OpenAI SDK default). Note: call sites ALWAYS override max_tokens from per-creator calibration or hardcoded caller values (e.g. dm_agent_v2.py passes 150; SBS retry passes soft_max+20), so the 400 default is rarely hit in prod. CB threshold=3/cooldown=120s stay per-provider env vars (DEEPINFRA_CB_THRESHOLD/COOLDOWN) per DECISIONS.md #6, NOT in this config. thinking.no_think_suffix=/no_think replaces hardcoded substring detection in deepinfra_provider.py:116. Used for: (a) one-release backward compat after refactor, (b) reproducing prod baseline, (c) CCEE benchmark continuity."
+}

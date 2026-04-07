@@ -1,0 +1,38 @@
+{
+  "model_id": "default",
+  "model_name": "Conservative fallback",
+  "provider": {
+    "name": "",
+    "api_key_env": "",
+    "model_string": ""
+  },
+  "sampling": {
+    "temperature": 0.5,
+    "top_p": 0.9,
+    "top_k": 40,
+    "max_tokens": 120,
+    "frequency_penalty": 0.0,
+    "presence_penalty": 0.0
+  },
+  "runtime": {
+    "timeout_seconds": 15,
+    "max_retries": 2
+  },
+  "chat_template": {
+    "filter_thought_blocks": false,
+    "strip_thinking_artifacts": false
+  },
+  "thinking": {
+    "enabled": false
+  },
+  "system_prompt": {
+    "system_prompt_mode": "system_instruction"
+  },
+  "safety": {
+    "harassment": "BLOCK_ONLY_HIGH",
+    "hate_speech": "BLOCK_ONLY_HIGH",
+    "sexually_explicit": "BLOCK_ONLY_HIGH",
+    "dangerous_content": "BLOCK_ONLY_HIGH"
+  },
+  "notes": "Conservative last-resort fallback. Used when load_model_config(unknown_id) is called and no specific config exists. Safe values: lower temp, mid-range top_p, small max_tokens to prevent runaway cost."
+}
