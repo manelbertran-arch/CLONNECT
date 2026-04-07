@@ -16,6 +16,7 @@ COST REFERENCE (as of 2026-03):
 import logging
 import os
 import re
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,42 @@ TOGETHER_MODEL: str = os.getenv("TOGETHER_MODEL", "Qwen/Qwen3-32B")
 FIREWORKS_MODEL: str = os.getenv("FIREWORKS_MODEL", "accounts/fireworks/models/qwen3-8b")
 
 # ---------------------------------------------------------------------------
+# GOOGLE AI STUDIO MODEL — override via GOOGLE_AI_STUDIO_MODEL env var
+# Used when LLM_PRIMARY_PROVIDER=google_ai_studio (Gemma 4 and similar)
+# GOOGLE_AI_STUDIO_MODEL_ID is the config file ID (e.g. "gemma4_26b_a4b")
+# ---------------------------------------------------------------------------
+GOOGLE_AI_STUDIO_MODEL: str = os.getenv("GOOGLE_AI_STUDIO_MODEL", "gemma-4-26b-a4b-it")
+GOOGLE_AI_STUDIO_MODEL_ID: str = os.getenv("GOOGLE_AI_STUDIO_MODEL_ID", "gemma4_26b_a4b")
+
+# ---------------------------------------------------------------------------
+# ACTIVE MODEL SELECTION (preferred over LLM_PRIMARY_PROVIDER cascade)
+# When set, LLM_MODEL_NAME selects a config from config/models/{name}.json
+# and dispatches to the matching provider via generate_dm_response().
+# When unset, the legacy LLM_PRIMARY_PROVIDER + per-provider env var path
+# is used (current Railway behavior).
+# Available configs: qwen3_14b, gemini_flash_lite, gemma4_26b_a4b, gemma4_31b,
+#                    openrouter_default, fireworks_default, together_default, default
+# ---------------------------------------------------------------------------
+LLM_MODEL_NAME: Optional[str] = os.getenv("LLM_MODEL_NAME")
+
+
+def get_active_model_config() -> Optional[dict]:
+    """Return the active model config dict if LLM_MODEL_NAME is set, else None.
+
+    Reads LLM_MODEL_NAME live from os.environ so tests can monkeypatch the
+    env var without re-importing this module.
+    """
+    name = os.getenv("LLM_MODEL_NAME") or LLM_MODEL_NAME
+    if not name:
+        return None
+    try:
+        from core.providers.model_config import load_model_config
+        return load_model_config(name)
+    except FileNotFoundError as e:
+        logger.error("[LLM CONFIG] LLM_MODEL_NAME=%s but config not found: %s", name, e)
+        return None
+
+# ---------------------------------------------------------------------------
 # BLOCKED MODELS — too expensive for production DM inference
 # Any code path that tries to use these is redirected to GEMINI_PRIMARY_MODEL
 # ---------------------------------------------------------------------------
@@ -78,6 +115,16 @@ def safe_model(requested: str) -> str:
 
 def log_model_config() -> None:
     """Log current model config at startup. Call once from api/main.py."""
+    if LLM_MODEL_NAME:
+        active_cfg = get_active_model_config()
+        if active_cfg:
+            prov = active_cfg.get("provider", {}) or {}
+            logger.warning(
+                "[LLM CONFIG] Active model: %s (provider=%s, model_string=%s)",
+                LLM_MODEL_NAME,
+                prov.get("name"),
+                prov.get("model_string"),
+            )
     logger.warning("[LLM CONFIG] Primary provider: %s", LLM_PRIMARY_PROVIDER)
     logger.warning("[LLM CONFIG] Gemini model: %s", GEMINI_PRIMARY_MODEL)
     if LLM_PRIMARY_PROVIDER == "together":
@@ -92,6 +139,11 @@ def log_model_config() -> None:
         logger.warning("[LLM CONFIG] Fireworks model: %s", FIREWORKS_MODEL)
         has_key = bool(os.getenv("FIREWORKS_API_KEY"))
         logger.warning("[LLM CONFIG] FIREWORKS_API_KEY: %s", "set" if has_key else "NOT SET")
+    elif LLM_PRIMARY_PROVIDER == "google_ai_studio":
+        logger.warning("[LLM CONFIG] Google AI Studio model: %s", GOOGLE_AI_STUDIO_MODEL)
+        logger.warning("[LLM CONFIG] Google AI Studio model ID: %s", GOOGLE_AI_STUDIO_MODEL_ID)
+        has_key = bool(os.getenv("GOOGLE_API_KEY"))
+        logger.warning("[LLM CONFIG] GOOGLE_API_KEY: %s", "set" if has_key else "NOT SET")
     env_val = os.getenv("GEMINI_MODEL", "(not set — using default)")
     logger.warning("[LLM CONFIG] GEMINI_MODEL env var: %s", env_val)
     _model_key_hints = {"MODEL", "LLM", "GEMINI", "GPT", "OPENAI", "PROVIDER", "DEEPINFRA", "TOGETHER", "FIREWORKS"}

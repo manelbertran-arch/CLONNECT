@@ -209,3 +209,41 @@ Only `core/providers/google_provider.py` already loads from `config/models/{mode
 **Blast radius:** Affects current PROD path. With `LLM_MODEL_NAME` unset, every code path through `call_deepinfra()` flows through the legacy branch which is functionally identical to pre-refactor (same /no_think substring detection, same `strip_thinking_artifacts` always-on, same env-var-driven freq_pen and timeout). The only difference is the function default values for `max_tokens`/`temperature` are now `None` and resolved to `400`/`0.7` in the legacy branch — equal to the prior literal defaults.
 
 ---
+
+## 2026-04-07 — Step 8: Gemini provider config-driven + LLM_MODEL_NAME routing
+
+**Context:** Final batch-2 step. Activates `LLM_MODEL_NAME` as the unified active-model selector, with `generate_dm_response()` dispatching based on the active config's `provider.name`.
+
+**Decision:**
+
+1. **`core/config/llm_models.py`** — added `LLM_MODEL_NAME: Optional[str] = os.getenv("LLM_MODEL_NAME")` and `get_active_model_config()` helper that loads `config/models/{LLM_MODEL_NAME}.json` via the shared loader (returns None if env var unset). `log_model_config()` now logs the active model when set. The helper re-reads `os.environ["LLM_MODEL_NAME"]` on each call so tests can monkeypatch without re-import.
+
+2. **`core/providers/gemini_provider.py::_call_gemini`** — added `model_id: Optional[str] = None`. When set, `frequency_penalty`/`presence_penalty` come from `cfg.sampling.*` and safety thresholds come from `cfg.safety.*`. Legacy path (model_id=None) preserves the existing `GEMINI_*_PENALTY` env-var reads and the `BLOCK_ONLY_HIGH` defaults.
+
+3. **`generate_response_gemini`** — added `model_id` kwarg. When set, reads `provider.api_key_env` and `provider.model_string` from config. Forwards `model_id` to `_call_gemini`.
+
+4. **`generate_dm_response`** — added a "step 0" dispatch at the top: if `get_active_model_config()` returns a config, route based on `cfg.provider.name` to the matching `_try_*` (deepinfra/together/openrouter/gemini/google_ai_studio) passing `model_id`. On failure of the active provider, falls through to the GPT-4o-mini fallback (NOT through the legacy LLM_PRIMARY_PROVIDER cascade). When `LLM_MODEL_NAME` is unset, the legacy cascade runs unchanged. The public signature of `generate_dm_response` is unchanged — only optional internal kwargs were added to the underlying `_try_*` helpers.
+
+5. **`_try_deepinfra` / `_try_together` / `_try_openrouter`** — added optional `model_id` kwarg, forwarded to the respective `call_*` function.
+
+6. **`.env.example`** — added a documented `LLM_MODEL_NAME` section explaining the available config names.
+
+**Public signature guarantee:** `generate_dm_response(messages, max_tokens=60, temperature=0.7)` — unchanged. The patch targets in `tests/test_score_before_speak.py`, `tests/unit/test_ppa.py`, `tests/test_battery_realista.py`, `tests/test_e2e_pipeline.py` continue to mock the function as a whole and remain compatible.
+
+**Files added/modified:**
+- `core/config/llm_models.py` — added `LLM_MODEL_NAME`, `get_active_model_config()`, updated `log_model_config()` (incorporates pre-existing google_ai_studio additions in working tree)
+- `core/providers/gemini_provider.py` — `_call_gemini` config-driven, `generate_response_gemini` config-driven, `generate_dm_response` LLM_MODEL_NAME dispatch, `_try_*` helpers accept `model_id` (incorporates pre-existing google_ai_studio + openrouter routing additions in working tree)
+- `.env.example` — added LLM_MODEL_NAME section (incorporates pre-existing edits in working tree)
+- `tests/unit/test_gemini_provider.py` — new file, 5 tests covering: legacy unset cascade, qwen3_14b → deepinfra dispatch, gemini_flash_lite → gemini dispatch, _call_gemini env-var penalties (legacy), _call_gemini config penalties + safety overrides
+
+**Verification:**
+- Smoke test 7/7 PASS
+- Unit tests: 101/103 PASS across model_config + 4 refactored providers + new gemini tests + ppa
+- Pre-existing failures (2 in test_score_before_speak) UNCHANGED — verified at HEAD before Step 7 commit
+- Public `generate_dm_response` signature unchanged — `tests/unit/test_ppa.py` (which patches it) passes
+
+**Pre-existing modifications in working tree:** The `gemini_provider.py`, `llm_models.py`, and `.env.example` files were already modified in the working tree from earlier google_ai_studio + openrouter routing work (not yet committed). Step 8 changes layer ON TOP of those pre-existing edits in a single commit, since both sets of changes converge on the same code paths and are functionally complementary.
+
+**Blast radius:** With `LLM_MODEL_NAME` unset (current Railway state), behavior is byte-identical to today: `_call_gemini` reads `GEMINI_PRESENCE_PENALTY`/`GEMINI_FREQUENCY_PENALTY` env vars (both 0.0 in prod), uses BLOCK_ONLY_HIGH safety, and `generate_dm_response` runs the existing `LLM_PRIMARY_PROVIDER` cascade (deepinfra → gemini → openai-fallback). Activation of `LLM_MODEL_NAME=qwen3_14b` in staging is the next gate (Step 9).
+
+---

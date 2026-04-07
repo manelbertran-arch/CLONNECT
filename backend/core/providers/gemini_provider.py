@@ -117,13 +117,57 @@ async def _call_gemini(
     temperature: float,
     max_retries: int = 2,
     contents: Optional[list] = None,
+    model_id: Optional[str] = None,
 ) -> Optional[str]:
     """Call Google Gemini API with fast retry (fail fast for interactive use).
 
     If `contents` is provided (multi-turn format), it takes priority over `user_message`.
     `contents` should be a list of {"role": "user"|"model", "parts": [{"text": "..."}]}.
+
+    When `model_id` is provided, frequency_penalty / presence_penalty / safety
+    settings are loaded from config/models/{model_id}.json. Otherwise, the
+    legacy GEMINI_*_PENALTY env vars and BLOCK_ONLY_HIGH safety defaults apply.
     """
     url = f"{GEMINI_API_URL}/{model}:generateContent?key={api_key}"
+
+    # ── Optional config-driven sampling/safety ──
+    cfg_sampling: dict = {}
+    cfg_safety: dict = {}
+    if model_id is not None:
+        try:
+            from core.providers.model_config import (
+                load_model_config,
+                get_sampling,
+                get_safety,
+            )
+            cfg = load_model_config(model_id)
+            cfg_sampling = get_sampling(cfg)
+            cfg_safety = get_safety(cfg)
+        except FileNotFoundError as e:
+            logger.error("[Gemini] config load failed for %s: %s", model_id, e)
+            # Fall through to legacy defaults below
+
+    if cfg_sampling:
+        _presence_penalty = float(cfg_sampling.get("presence_penalty", 0.0) or 0.0)
+        _frequency_penalty = float(cfg_sampling.get("frequency_penalty", 0.0) or 0.0)
+    else:
+        _presence_penalty = float(os.getenv("GEMINI_PRESENCE_PENALTY", "0.0"))
+        _frequency_penalty = float(os.getenv("GEMINI_FREQUENCY_PENALTY", "0.0"))
+
+    if cfg_safety:
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": cfg_safety["harassment"]},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": cfg_safety["hate_speech"]},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": cfg_safety["sexually_explicit"]},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": cfg_safety["dangerous_content"]},
+        ]
+    else:
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+        ]
 
     payload = {
         "contents": contents if contents is not None else [{"parts": [{"text": user_message}]}],
@@ -134,18 +178,13 @@ async def _call_gemini(
             # Anti-loop penalties: disabled by default (0.0) because presence_penalty
             # penalizes legitimate repetition in Iris's style ("ja ja ja", "amor amor").
             # Enable carefully via env vars only after style-specific calibration.
-            "presencePenalty": float(os.getenv("GEMINI_PRESENCE_PENALTY", "0.0")),
-            "frequencyPenalty": float(os.getenv("GEMINI_FREQUENCY_PENALTY", "0.0")),
+            "presencePenalty": _presence_penalty,
+            "frequencyPenalty": _frequency_penalty,
         },
         # Relax safety filters: fitness/dance coaching uses emotional/physical language
         # that can trigger Gemini's default thresholds. BLOCK_ONLY_HIGH still prevents
         # genuinely harmful content while allowing "amor", "cariño", exercise terminology.
-        "safetySettings": [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
-        ],
+        "safetySettings": safety_settings,
     }
 
     for attempt in range(max_retries):
@@ -239,18 +278,38 @@ async def generate_response_gemini(
     messages: list[dict],
     max_tokens: int = 60,
     temperature: float = 0.7,
+    model_id: Optional[str] = None,
 ) -> Optional[str]:
     """Call Gemini Flash-Lite. Accepts OpenAI-format messages for compatibility.
 
     Converts OpenAI-format multi-turn messages to Gemini's contents format,
     supporting full conversation history for better context utilization.
+
+    When `model_id` is provided, the per-model JSON config drives provider
+    selection (api_key_env, model_string) and Gemini sampling/safety.
     """
-    api_key = os.getenv("GOOGLE_API_KEY")
+    # ── Optional config-driven provider info ──
+    cfg_api_key_env = "GOOGLE_API_KEY"
+    cfg_model_string: Optional[str] = None
+    if model_id is not None:
+        try:
+            from core.providers.model_config import load_model_config, get_provider_info
+            cfg = load_model_config(model_id)
+            prov = get_provider_info(cfg)
+            cfg_api_key_env = prov.get("api_key_env") or "GOOGLE_API_KEY"
+            cfg_model_string = prov.get("model_string") or None
+        except FileNotFoundError as e:
+            logger.error("[Gemini] config load failed for %s: %s", model_id, e)
+
+    api_key = os.getenv(cfg_api_key_env)
     if not api_key:
-        logger.error("GOOGLE_API_KEY not set")
+        logger.error("%s not set", cfg_api_key_env)
         return None
 
-    model = safe_model(os.getenv("GEMINI_MODEL", GEMINI_PRIMARY_MODEL))
+    if cfg_model_string:
+        model = safe_model(cfg_model_string)
+    else:
+        model = safe_model(os.getenv("GEMINI_MODEL", GEMINI_PRIMARY_MODEL))
 
     # Build system prompt and multi-turn contents from OpenAI-format messages.
     # Gemini uses "model" for assistant role; content must alternate user/model.
@@ -273,6 +332,7 @@ async def generate_response_gemini(
     result = await _call_gemini(
         model, api_key, system_prompt, "",
         max_tokens, temperature, contents=contents,
+        model_id=model_id,
     )
     return result  # dict or None
 
@@ -293,12 +353,20 @@ async def generate_simple(
     messages.append({"role": "user", "content": prompt})
 
     # 1. Try alternative provider if configured as primary
-    if LLM_PRIMARY_PROVIDER == "together":
+    if LLM_PRIMARY_PROVIDER == "google_ai_studio":
+        result = await _try_google_ai(messages, "background")
+        if result and result.get("content"):
+            return result["content"]
+    elif LLM_PRIMARY_PROVIDER == "together":
         result = await _try_together(messages, max_tokens, temperature, "background")
         if result and result.get("content"):
             return result["content"]
     elif LLM_PRIMARY_PROVIDER == "deepinfra":
         result = await _try_deepinfra(messages, max_tokens, temperature, "background")
+        if result and result.get("content"):
+            return result["content"]
+    elif LLM_PRIMARY_PROVIDER == "openrouter":
+        result = await _try_openrouter(messages, max_tokens, temperature, "background")
         if result and result.get("content"):
             return result["content"]
 
@@ -425,11 +493,43 @@ def _add_fallback_guard(messages: list[dict]) -> list[dict]:
 # Alternative primary providers (when LLM_PRIMARY_PROVIDER != gemini)
 # =============================================================================
 
+async def _try_google_ai(
+    messages: list[dict],
+    call_type: str,
+) -> Optional[dict]:
+    """Try Google AI Studio (Gemma 4) as primary provider.
+
+    Sampling params are driven by the model config JSON — not by caller params.
+    This is intentional: Gemma 4 optimal sampling (temp=1.0, top_k=64) differs
+    from the Gemini Flash-Lite defaults.
+    """
+    try:
+        from core.config.llm_models import GOOGLE_AI_STUDIO_MODEL_ID
+        from core.providers.google_provider import call_google_ai
+
+        model_id = GOOGLE_AI_STUDIO_MODEL_ID
+        timeout = float(os.getenv("GOOGLE_AI_TIMEOUT", "15"))
+        result = await asyncio.wait_for(
+            call_google_ai(messages, model_id=model_id),
+            timeout=timeout,
+        )
+        if result:
+            asyncio.create_task(_async_log_usage(result, call_type))
+            return result
+        logger.warning("GoogleAI returned empty, falling back to Gemini")
+    except asyncio.TimeoutError:
+        logger.warning("GoogleAI timeout, falling back to Gemini")
+    except Exception as e:
+        logger.warning("GoogleAI failed: %s, falling back to Gemini", e)
+    return None
+
+
 async def _try_deepinfra(
     messages: list[dict],
     max_tokens: int,
     temperature: float,
     call_type: str,
+    model_id: Optional[str] = None,
 ) -> Optional[dict]:
     """Try DeepInfra as primary provider. Returns result dict or None."""
     try:
@@ -437,7 +537,7 @@ async def _try_deepinfra(
 
         timeout = float(os.getenv("DEEPINFRA_TIMEOUT", "8"))
         result = await asyncio.wait_for(
-            call_deepinfra(messages, max_tokens, temperature),
+            call_deepinfra(messages, max_tokens, temperature, model_id=model_id),
             timeout=timeout,
         )
         if result:
@@ -456,6 +556,7 @@ async def _try_together(
     max_tokens: int,
     temperature: float,
     call_type: str,
+    model_id: Optional[str] = None,
 ) -> Optional[dict]:
     """Try Together AI as primary provider. Returns result dict or None."""
     try:
@@ -463,7 +564,7 @@ async def _try_together(
 
         timeout = float(os.getenv("TOGETHER_TIMEOUT", "15"))
         result = await asyncio.wait_for(
-            call_together(messages, max_tokens, temperature),
+            call_together(messages, max_tokens, temperature, model_id=model_id),
             timeout=timeout,
         )
         if result:
@@ -474,6 +575,33 @@ async def _try_together(
         logger.warning("Together timeout, falling back to Gemini")
     except Exception as e:
         logger.warning("Together failed: %s, falling back to Gemini", e)
+    return None
+
+
+async def _try_openrouter(
+    messages: list[dict],
+    max_tokens: int,
+    temperature: float,
+    call_type: str,
+    model_id: Optional[str] = None,
+) -> Optional[dict]:
+    """Try OpenRouter as primary provider. Returns result dict or None."""
+    try:
+        from core.providers.openrouter_provider import call_openrouter
+
+        timeout = float(os.getenv("OPENROUTER_TIMEOUT", "120"))
+        result = await asyncio.wait_for(
+            call_openrouter(messages, max_tokens, temperature, model_id=model_id),
+            timeout=timeout,
+        )
+        if result:
+            asyncio.create_task(_async_log_usage(result, call_type))
+            return result
+        logger.warning("OpenRouter returned empty, falling back to Gemini")
+    except asyncio.TimeoutError:
+        logger.warning("OpenRouter timeout, falling back to Gemini")
+    except Exception as e:
+        logger.warning("OpenRouter failed: %s, falling back to Gemini", e)
     return None
 
 
@@ -498,8 +626,84 @@ async def generate_dm_response(
 
     Called from dm_agent_v2.py for all DM responses.
     """
+    # 0. LLM_MODEL_NAME dispatch (preferred path).
+    # When set, the active model config picks the provider; the legacy
+    # LLM_PRIMARY_PROVIDER cascade is bypassed for the primary attempt.
+    # Falls through to Gemini→GPT-4o-mini fallback if the active provider fails.
+    from core.config.llm_models import get_active_model_config
+    _active_cfg = get_active_model_config()
+    if _active_cfg:
+        from core.config.llm_models import LLM_MODEL_NAME as _LMN_static
+        _model_id = os.getenv("LLM_MODEL_NAME") or _LMN_static
+        _prov_name = (_active_cfg.get("provider", {}) or {}).get("name", "")
+        if _prov_name == "deepinfra":
+            result = await _try_deepinfra(messages, max_tokens, temperature, "dm_response", model_id=_model_id)
+            if result:
+                return result
+        elif _prov_name == "together":
+            result = await _try_together(messages, max_tokens, temperature, "dm_response", model_id=_model_id)
+            if result:
+                return result
+        elif _prov_name == "openrouter":
+            result = await _try_openrouter(messages, max_tokens, temperature, "dm_response", model_id=_model_id)
+            if result:
+                return result
+            if os.getenv("CCEE_NO_FALLBACK"):
+                logger.info("[CCEE] Fallback disabled — OpenRouter failed, returning None")
+                return None
+        elif _prov_name in ("gemini", "google"):
+            if not _gemini_circuit_is_open():
+                try:
+                    primary_timeout = float(os.getenv("LLM_PRIMARY_TIMEOUT", "5"))
+                    result = await asyncio.wait_for(
+                        generate_response_gemini(messages, max_tokens, temperature, model_id=_model_id),
+                        timeout=primary_timeout,
+                    )
+                    if result:
+                        _gemini_record_success()
+                        asyncio.create_task(_async_log_usage(result, "dm_response"))
+                        return result
+                    _gemini_record_failure()
+                except asyncio.TimeoutError:
+                    _gemini_record_failure()
+                except Exception as e:
+                    logger.warning("Gemini (config-driven) failed: %s", e)
+                    _gemini_record_failure()
+        elif _prov_name == "google_ai_studio":
+            result = await _try_google_ai(messages, "dm_response")
+            if result:
+                return result
+            if os.getenv("CCEE_NO_FALLBACK"):
+                logger.info("[CCEE] Fallback disabled — primary provider failed, returning None")
+                return None
+        else:
+            logger.warning("[LLM CONFIG] Unknown provider '%s' in active config — falling through to legacy cascade", _prov_name)
+        # Active provider failed → fall through to GPT-4o-mini fallback below
+        # (skip the legacy LLM_PRIMARY_PROVIDER cascade and the bare Gemini retry)
+        logger.warning("[LLM-FALLBACK] Active model %s failed, using OpenAI GPT-4o-mini", _model_id)
+        try:
+            result = await _call_openai_mini(messages, max_tokens, temperature)
+            if result:
+                if isinstance(result, dict):
+                    result["provider"] = "openai-fallback"
+                asyncio.create_task(_async_log_usage(result, "dm_response"))
+                return result
+        except Exception as e:
+            logger.error("GPT-4o-mini fallback failed: %s", e)
+        logger.critical("[LLM-ALL-DOWN] No LLM provider available — active model and GPT-4o-mini both failed")
+        return None
+
     # 1. PRIMARY: route based on LLM_PRIMARY_PROVIDER
-    if LLM_PRIMARY_PROVIDER == "together":
+    if LLM_PRIMARY_PROVIDER == "google_ai_studio":
+        result = await _try_google_ai(messages, "dm_response")
+        if result:
+            return result
+        # CCEE_NO_FALLBACK: evaluation mode — return None instead of mixing models.
+        # Set this when running CCEE benchmarks to ensure response purity.
+        if os.getenv("CCEE_NO_FALLBACK"):
+            logger.info("[CCEE] Fallback disabled — primary provider failed, returning None")
+            return None
+    elif LLM_PRIMARY_PROVIDER == "together":
         result = await _try_together(messages, max_tokens, temperature, "dm_response")
         if result:
             return result
@@ -507,6 +711,13 @@ async def generate_dm_response(
         result = await _try_deepinfra(messages, max_tokens, temperature, "dm_response")
         if result:
             return result
+    elif LLM_PRIMARY_PROVIDER == "openrouter":
+        result = await _try_openrouter(messages, max_tokens, temperature, "dm_response")
+        if result:
+            return result
+        if os.getenv("CCEE_NO_FALLBACK"):
+            logger.info("[CCEE] Fallback disabled — OpenRouter failed, returning None")
+            return None
 
     # 2. GEMINI: primary (default) or secondary (when alt provider is primary)
     if _gemini_circuit_is_open():
