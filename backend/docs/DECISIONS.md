@@ -156,3 +156,27 @@ Only `core/providers/google_provider.py` already loads from `config/models/{mode
 **Blast radius:** Zero. File was untracked WIP, not imported on prod path. `_try_openrouter()` in gemini_provider.py still works because it passes positional args.
 
 ---
+
+## 2026-04-07 — Step 6: Fireworks + Together provider config-driven refactor
+
+**Context:** Step 6 applies the OpenRouter pattern (Step 5) to the next two providers in the cascade. Neither is on the Railway prod path (`LLM_PRIMARY_PROVIDER=deepinfra`), so blast radius remains low.
+
+**Decision:** Add `model_id: Optional[str] = None` kwarg to both `call_fireworks()` and `call_together()`. When set, sampling/runtime/provider info loads from `config/models/{model_id}.json` via the shared accessor helpers. Caller-supplied `temperature`/`max_tokens` always win. Circuit breaker stays per-provider env vars.
+
+**Files added/modified:**
+- `core/providers/fireworks_provider.py` — refactored
+- `core/providers/together_provider.py` — refactored
+- `config/models/fireworks_default.json` — placeholder snapshot (max_tokens=60, temp=0.7, timeout=15s, model_string=accounts/fireworks/models/qwen3-8b)
+- `config/models/together_default.json` — placeholder snapshot (max_tokens=60, temp=0.7, timeout=15s, model_string=Qwen/Qwen3-32B)
+- `tests/unit/test_fireworks_provider.py` — extended with 5 config-driven tests
+- `tests/unit/test_together_provider.py` — extended with 5 config-driven tests
+
+**Public signature change:** `max_tokens: int = 60` → `max_tokens: Optional[int] = None` and `temperature: float = 0.7` → `temperature: Optional[float] = None`. Legacy callers passing positional ints/floats are unaffected; passing nothing now uses the same 60/0.7 values via the legacy fallback branch (`cfg_sampling.get(..., 60)` etc.). `_try_fireworks` and `_try_together` in `gemini_provider.py` always pass positional values.
+
+**Verification:**
+- Smoke test 7/7 PASS
+- Unit tests: 55/55 PASS (2 live-API skipped) across model_config + openrouter + fireworks + together
+
+**Blast radius:** Zero on prod path. Both providers are non-primary in Railway today.
+
+---

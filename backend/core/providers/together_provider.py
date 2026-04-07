@@ -54,33 +54,83 @@ def _record_failure():
 
 async def call_together(
     messages: list[dict],
-    max_tokens: int = 60,
-    temperature: float = 0.7,
+    max_tokens: Optional[int] = None,
+    temperature: Optional[float] = None,
     model: Optional[str] = None,
+    model_id: Optional[str] = None,
 ) -> Optional[dict]:
     """Call Together AI via OpenAI-compatible API.
 
     Args:
         messages: OpenAI-format messages [{role, content}, ...]
-        max_tokens: max output tokens
-        temperature: sampling temperature
+        max_tokens: max output tokens (None → config or 60 legacy default)
+        temperature: sampling temperature (None → config or 0.7 legacy default)
         model: override model (defaults to TOGETHER_MODEL env var)
+        model_id: optional config file name to load sampling/runtime/provider
+                  from config/models/{model_id}.json. Caller-supplied
+                  temperature/max_tokens still win.
 
     Returns:
         dict with {content, model, provider, latency_ms, tokens_in, tokens_out}
         or None on failure.
     """
-    api_key = os.getenv("TOGETHER_API_KEY")
+    # ── Config-driven path ──
+    cfg_sampling: dict = {}
+    cfg_runtime: dict = {}
+    cfg_provider: dict = {}
+    if model_id is not None:
+        try:
+            from core.providers.model_config import (
+                load_model_config,
+                get_provider_info,
+                get_sampling,
+                get_runtime,
+            )
+            cfg = load_model_config(model_id)
+            cfg_provider = get_provider_info(cfg)
+            cfg_sampling = get_sampling(cfg)
+            cfg_runtime = get_runtime(cfg)
+            logger.info(
+                "[Together] using config: %s, model_string=%s, temp=%s, max_tokens=%s",
+                model_id,
+                cfg_provider.get("model_string"),
+                cfg_sampling.get("temperature"),
+                cfg_sampling.get("max_tokens"),
+            )
+        except FileNotFoundError as e:
+            logger.error("[Together] config load failed for %s: %s", model_id, e)
+            return None
+
+    api_key_env = cfg_provider.get("api_key_env") or "TOGETHER_API_KEY"
+    api_key = os.getenv(api_key_env)
     if not api_key:
-        logger.debug("TOGETHER_API_KEY not set, Together AI unavailable")
+        logger.debug("%s not set, Together AI unavailable", api_key_env)
         return None
 
     if _circuit_is_open():
         logger.info("Together circuit breaker open, skipping")
         return None
 
-    model = model or TOGETHER_MODEL
-    timeout = float(os.getenv("TOGETHER_TIMEOUT", "15"))
+    if model is None:
+        if cfg_provider.get("model_string"):
+            model = cfg_provider["model_string"]
+        else:
+            model = TOGETHER_MODEL
+
+    _temperature = temperature
+    if _temperature is None:
+        _temperature = cfg_sampling.get("temperature", 0.7) if cfg_sampling else 0.7
+    _max_tokens = max_tokens
+    if _max_tokens is None:
+        _max_tokens = cfg_sampling.get("max_tokens", 60) if cfg_sampling else 60
+
+    if cfg_runtime:
+        timeout = float(cfg_runtime.get("timeout_seconds", 15))
+    else:
+        timeout = float(os.getenv("TOGETHER_TIMEOUT", "15"))
+
+    base_url = cfg_provider.get("base_url") or TOGETHER_BASE_URL
+
     start = time.monotonic()
 
     try:
@@ -88,16 +138,25 @@ async def call_together(
 
         client = AsyncOpenAI(
             api_key=api_key,
-            base_url=TOGETHER_BASE_URL,
+            base_url=base_url,
         )
 
+        create_kwargs: dict = dict(
+            model=model,
+            messages=messages,
+            max_tokens=_max_tokens,
+            temperature=_temperature,
+        )
+        if cfg_sampling:
+            fp = float(cfg_sampling.get("frequency_penalty", 0.0) or 0.0)
+            pp = float(cfg_sampling.get("presence_penalty", 0.0) or 0.0)
+            if fp > 0:
+                create_kwargs["frequency_penalty"] = fp
+            if pp > 0:
+                create_kwargs["presence_penalty"] = pp
+
         response = await asyncio.wait_for(
-            client.chat.completions.create(
-                model=model,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-            ),
+            client.chat.completions.create(**create_kwargs),
             timeout=timeout,
         )
 

@@ -147,6 +147,125 @@ class TestCallFireworks:
                 assert call_kwargs["model"] == "accounts/my-org/models/iris-lora-v1"
 
 
+class TestCallFireworksConfigDriven:
+    """Config-driven path: model_id loads sampling/runtime/provider from JSON."""
+
+    def setup_method(self):
+        import core.providers.fireworks_provider as fp
+        fp._fw_consecutive_failures = 0
+        fp._fw_circuit_open_until = 0.0
+        from core.providers import model_config as _mc
+        _mc.clear_cache()
+
+    @pytest.mark.asyncio
+    async def test_legacy_path_unchanged(self):
+        """model_id=None → existing behavior preserved."""
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Hi"
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+        mock_response.usage = MagicMock(prompt_tokens=5, completion_tokens=2)
+        mock_create = AsyncMock(return_value=mock_response)
+        with patch.dict(os.environ, {"FIREWORKS_API_KEY": "test-key"}):
+            with patch("openai.AsyncOpenAI") as MockClient:
+                instance = MagicMock()
+                instance.chat.completions.create = mock_create
+                MockClient.return_value = instance
+
+                result = await call_fireworks(
+                    [{"role": "user", "content": "Hi"}],
+                    max_tokens=60,
+                    temperature=0.7,
+                )
+                assert result is not None
+                kwargs = mock_create.call_args.kwargs
+                assert kwargs["max_tokens"] == 60
+                assert kwargs["temperature"] == 0.7
+                assert "frequency_penalty" not in kwargs
+                assert "presence_penalty" not in kwargs
+
+    @pytest.mark.asyncio
+    async def test_loads_config_values(self):
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Hi"
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+        mock_response.usage = MagicMock(prompt_tokens=5, completion_tokens=2)
+        mock_create = AsyncMock(return_value=mock_response)
+        with patch.dict(os.environ, {"FIREWORKS_API_KEY": "test-key"}):
+            with patch("openai.AsyncOpenAI") as MockClient:
+                instance = MagicMock()
+                instance.chat.completions.create = mock_create
+                MockClient.return_value = instance
+
+                result = await call_fireworks(
+                    [{"role": "user", "content": "Hi"}],
+                    model_id="fireworks_default",
+                )
+                assert result is not None
+                kwargs = mock_create.call_args.kwargs
+                assert kwargs["model"] == "accounts/fireworks/models/qwen3-8b"
+                assert kwargs["max_tokens"] == 60
+                assert kwargs["temperature"] == 0.7
+
+    @pytest.mark.asyncio
+    async def test_caller_override_wins_over_config(self):
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Hi"
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+        mock_response.usage = MagicMock(prompt_tokens=5, completion_tokens=2)
+        mock_create = AsyncMock(return_value=mock_response)
+        with patch.dict(os.environ, {"FIREWORKS_API_KEY": "test-key"}):
+            with patch("openai.AsyncOpenAI") as MockClient:
+                instance = MagicMock()
+                instance.chat.completions.create = mock_create
+                MockClient.return_value = instance
+
+                await call_fireworks(
+                    [{"role": "user", "content": "Hi"}],
+                    temperature=0.3,
+                    max_tokens=42,
+                    model_id="fireworks_default",
+                )
+                kwargs = mock_create.call_args.kwargs
+                assert kwargs["temperature"] == 0.3
+                assert kwargs["max_tokens"] == 42
+
+    @pytest.mark.asyncio
+    async def test_unknown_model_id_falls_back_to_default(self):
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Hi"
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+        mock_response.usage = MagicMock(prompt_tokens=5, completion_tokens=2)
+        mock_create = AsyncMock(return_value=mock_response)
+        with patch.dict(os.environ, {"FIREWORKS_API_KEY": "test-key"}):
+            with patch("openai.AsyncOpenAI") as MockClient:
+                instance = MagicMock()
+                instance.chat.completions.create = mock_create
+                MockClient.return_value = instance
+
+                result = await call_fireworks(
+                    [{"role": "user", "content": "Hi"}],
+                    model_id="nonexistent_xyz",
+                )
+                assert result is not None
+                kwargs = mock_create.call_args.kwargs
+                assert kwargs["temperature"] == 0.5
+                assert kwargs["max_tokens"] == 120
+
+    @pytest.mark.asyncio
+    async def test_missing_api_key_with_config(self):
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("FIREWORKS_API_KEY", None)
+            result = await call_fireworks(
+                [{"role": "user", "content": "Hi"}],
+                model_id="fireworks_default",
+            )
+            assert result is None
+
+
 class TestCircuitBreaker:
     def setup_method(self):
         import core.providers.fireworks_provider as fp

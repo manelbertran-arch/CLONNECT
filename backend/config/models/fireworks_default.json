@@ -1,0 +1,32 @@
+{
+  "model_id": "fireworks_default",
+  "model_name": "Fireworks Qwen3-8B (LoRA serverless)",
+  "provider": {
+    "name": "fireworks",
+    "api_key_env": "FIREWORKS_API_KEY",
+    "model_string": "accounts/fireworks/models/qwen3-8b",
+    "base_url": "https://api.fireworks.ai/inference/v1"
+  },
+  "sampling": {
+    "temperature": 0.7,
+    "top_p": 1.0,
+    "max_tokens": 60,
+    "frequency_penalty": 0.0,
+    "presence_penalty": 0.0
+  },
+  "runtime": {
+    "timeout_seconds": 15,
+    "max_retries": 2
+  },
+  "chat_template": {
+    "filter_thought_blocks": false,
+    "strip_thinking_artifacts": false
+  },
+  "thinking": {
+    "enabled": false
+  },
+  "system_prompt": {
+    "system_prompt_mode": "system_instruction"
+  },
+  "notes": "Placeholder snapshot 2026-04-07 capturing call_fireworks() arg defaults: max_tokens=60, temperature=0.7, FIREWORKS_TIMEOUT default 15s, model_string=FIREWORKS_MODEL default. CB threshold/cooldown stay per-provider env vars per DECISIONS.md #6."
+}
