@@ -129,3 +129,30 @@ Only `core/providers/google_provider.py` already loads from `config/models/{mode
 - Each step gates on `python3 tests/smoke_test_endpoints.py` PASS before proceeding
 
 ---
+
+## 2026-04-07 — Step 5: OpenRouter provider config-driven refactor
+
+**Context:** Batch 2 of the model-config refactor begins with OpenRouter — lowest blast radius (file was untracked, not on prod path) so it's the safe place to establish the per-provider refactor pattern that DeepInfra and Gemini will copy in Steps 7–8.
+
+**Decision:** Refactor `call_openrouter()` to accept an optional `model_id: Optional[str] = None` kwarg. When set, sampling/runtime/provider info are loaded from `config/models/{model_id}.json` via the shared `core.providers.model_config` accessor helpers. When unset, behavior is byte-identical to today (env var + arg defaults). Caller-supplied `temperature` / `max_tokens` always win over config values. Circuit breaker stays per-provider env-var per DECISIONS.md #6 (not in config).
+
+**Schema additions actually consumed by this provider:**
+- `provider.api_key_env`, `provider.model_string`, `provider.base_url`
+- `sampling.temperature`, `sampling.max_tokens`, `sampling.frequency_penalty`, `sampling.presence_penalty` (penalties only included in payload when > 0)
+- `runtime.timeout_seconds`
+
+**Files added/modified:**
+- `core/providers/openrouter_provider.py` — refactored (was untracked, pre-existing WIP)
+- `config/models/openrouter_default.json` — placeholder snapshot capturing today's arg defaults (max_tokens=78, temp=0.7, timeout=120s, model_string=google/gemma-4-31b-it)
+- `tests/unit/test_openrouter_provider.py` — new file, 13 tests covering legacy path, config-driven path, caller-override semantics, fallback to default_config.json, missing API key, circuit breaker
+
+**Rationale for `max_tokens`/`temperature` default change to `Optional[int]`/`Optional[float]`:** the old hardcoded defaults (78/0.7) move into the legacy fallback branch (`cfg_sampling.get(..., 78)` etc.), so legacy callers passing positional values are unaffected and callers passing nothing now get config values when `model_id` is set. `_try_openrouter()` in `gemini_provider.py` always passes positional `max_tokens, temperature` from its caller, so no breakage.
+
+**Verification:**
+- Smoke test 7/7 PASS after refactor
+- Unit tests: 13/13 new + 12/12 existing model_config = 25/25 PASS
+- Public signature: only additive (`model_id` kwarg added, `max_tokens`/`temperature` types widened to Optional with same legacy default behavior)
+
+**Blast radius:** Zero. File was untracked WIP, not imported on prod path. `_try_openrouter()` in gemini_provider.py still works because it passes positional args.
+
+---

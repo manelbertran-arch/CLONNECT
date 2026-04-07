@@ -1,0 +1,32 @@
+{
+  "model_id": "openrouter_default",
+  "model_name": "OpenRouter default (Gemma 4 31B)",
+  "provider": {
+    "name": "openrouter",
+    "api_key_env": "OPENROUTER_API_KEY",
+    "model_string": "google/gemma-4-31b-it",
+    "base_url": "https://openrouter.ai/api/v1"
+  },
+  "sampling": {
+    "temperature": 0.7,
+    "top_p": 1.0,
+    "max_tokens": 78,
+    "frequency_penalty": 0.0,
+    "presence_penalty": 0.0
+  },
+  "runtime": {
+    "timeout_seconds": 120,
+    "max_retries": 2
+  },
+  "chat_template": {
+    "filter_thought_blocks": false,
+    "strip_thinking_artifacts": false
+  },
+  "thinking": {
+    "enabled": false
+  },
+  "system_prompt": {
+    "system_prompt_mode": "system_instruction"
+  },
+  "notes": "Placeholder snapshot 2026-04-07 capturing call_openrouter() arg defaults: max_tokens=78, temperature=0.7, OPENROUTER_TIMEOUT default 120s. model_string mirrors OPENROUTER_MODEL default (google/gemma-4-31b-it). CB threshold/cooldown stay per-provider env vars per DECISIONS.md #6."
+}
