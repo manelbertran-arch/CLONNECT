@@ -180,3 +180,32 @@ Only `core/providers/google_provider.py` already loads from `config/models/{mode
 **Blast radius:** Zero on prod path. Both providers are non-primary in Railway today.
 
 ---
+
+## 2026-04-07 — Step 7: DeepInfra provider config-driven refactor (PROD path)
+
+**Context:** Step 7 is the point of no return for production-on-Qwen3-14B. DeepInfra is the current primary provider in Railway (`LLM_PRIMARY_PROVIDER=deepinfra`, `DEEPINFRA_MODEL=Qwen/Qwen3-14B`). Behavior must remain byte-identical when `LLM_MODEL_NAME` is unset.
+
+**Decision:** Add `model_id: Optional[str] = None` kwarg to `call_deepinfra()`. The refactor preserves three subtle behaviors:
+
+1. **`/no_think` suffix injection** — moved under config control via `thinking.no_think_suffix`. When `model_id` provided AND suffix non-empty → inject. When `model_id` provided with empty suffix → no injection. When `model_id` is None (legacy) → keep the existing hardcoded `"Qwen3" in model` substring detection.
+2. **`strip_thinking_artifacts` post-processing** — moved under config control via `chat_template.strip_thinking_artifacts`. Legacy path (model_id=None) always strips (preserves prod behavior). Config path follows the config flag (default true via `qwen3_14b.json`).
+3. **`frequency_penalty`** — caller arg > config > env var (`DEEPINFRA_FREQUENCY_PENALTY`) > 0.0. Config path uses `cfg.sampling.frequency_penalty`.
+
+**Caller-override semantics preserved:** explicit `temperature=0.5` (SBS retry), `max_tokens=150` (calibration-derived), `frequency_penalty=...` all win over config when not None.
+
+**Public signature change:** `max_tokens: int = 400` → `Optional[int] = None`, `temperature: float = 0.7` → `Optional[float] = None`. Legacy callers passing positional ints/floats are unaffected. The single internal caller (`_try_deepinfra` in `gemini_provider.py`) passes positional values.
+
+**Files added/modified:**
+- `core/providers/deepinfra_provider.py` — refactored
+- `tests/unit/test_deepinfra_provider.py` — new file, 10 tests covering legacy path, config-driven path, /no_think behavior (both legacy substring + config-driven via no_think_suffix + empty suffix skipping injection), caller override, model_string from config overriding env var, missing API key
+
+**Verification:**
+- Smoke test 7/7 PASS
+- Unit tests: 96/98 PASS (2 pre-existing failures in `tests/test_score_before_speak.py::test_bad_response_triggers_refinement` and `::test_failed_refinement_triggers_retry`. Both were verified failing at HEAD before this commit via `git stash`. Not introduced by Step 7.)
+- New deepinfra tests: 10/10 PASS
+
+**Pre-existing failures noted:** `tests/test_score_before_speak.py` has 2 failing tests at HEAD (`assert 1 >= 2` on `total_llm_calls`). Verified pre-existing via `git stash` round-trip on the working tree minus Step 7. Not blocking Step 7 commit; will report under OPEN ISSUES.
+
+**Blast radius:** Affects current PROD path. With `LLM_MODEL_NAME` unset, every code path through `call_deepinfra()` flows through the legacy branch which is functionally identical to pre-refactor (same /no_think substring detection, same `strip_thinking_artifacts` always-on, same env-var-driven freq_pen and timeout). The only difference is the function default values for `max_tokens`/`temperature` are now `None` and resolved to `400`/`0.7` in the legacy branch — equal to the prior literal defaults.
+
+---

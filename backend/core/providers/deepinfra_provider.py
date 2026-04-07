@@ -79,70 +79,152 @@ def _record_failure():
 
 async def call_deepinfra(
     messages: list[dict],
-    max_tokens: int = 400,
-    temperature: float = 0.7,
+    max_tokens: Optional[int] = None,
+    temperature: Optional[float] = None,
     model: Optional[str] = None,
     frequency_penalty: Optional[float] = None,
+    model_id: Optional[str] = None,
 ) -> Optional[dict]:
     """Call DeepInfra via OpenAI-compatible API.
 
     Args:
         messages: OpenAI-format messages [{role, content}, ...]
-        max_tokens: max output tokens
-        temperature: sampling temperature
-        model: override model (defaults to DEEPINFRA_MODEL env var)
-        frequency_penalty: penalize repeated tokens (0.0-2.0, default from env)
+        max_tokens: max output tokens (None → config or 400 legacy default)
+        temperature: sampling temperature (None → config or 0.7 legacy default)
+        model: override model string (defaults to DEEPINFRA_MODEL env var)
+        frequency_penalty: penalize repeated tokens (None → config or env var)
+        model_id: optional config file name (e.g. "qwen3_14b") to load
+                  sampling/runtime/provider/thinking from
+                  config/models/{model_id}.json. Caller-supplied
+                  temperature/max_tokens/frequency_penalty still win.
 
     Returns:
         dict with {content, model, provider, latency_ms, tokens_in, tokens_out}
         or None on failure.
     """
-    api_key = os.getenv("DEEPINFRA_API_KEY")
+    # ── Config-driven path ──
+    cfg_sampling: dict = {}
+    cfg_runtime: dict = {}
+    cfg_provider: dict = {}
+    cfg_thinking: dict = {}
+    cfg_chat_template: dict = {}
+    cfg_loaded = False
+    if model_id is not None:
+        try:
+            from core.providers.model_config import (
+                load_model_config,
+                get_provider_info,
+                get_sampling,
+                get_runtime,
+                get_thinking,
+                get_chat_template,
+            )
+            cfg = load_model_config(model_id)
+            cfg_provider = get_provider_info(cfg)
+            cfg_sampling = get_sampling(cfg)
+            cfg_runtime = get_runtime(cfg)
+            cfg_thinking = get_thinking(cfg)
+            cfg_chat_template = get_chat_template(cfg)
+            cfg_loaded = True
+            logger.info(
+                "[DeepInfra] using config: %s, model_string=%s, temp=%s, max_tokens=%s, no_think_suffix=%r",
+                model_id,
+                cfg_provider.get("model_string"),
+                cfg_sampling.get("temperature"),
+                cfg_sampling.get("max_tokens"),
+                cfg_thinking.get("no_think_suffix", ""),
+            )
+        except FileNotFoundError as e:
+            logger.error("[DeepInfra] config load failed for %s: %s", model_id, e)
+            return None
+
+    api_key_env = cfg_provider.get("api_key_env") or "DEEPINFRA_API_KEY"
+    api_key = os.getenv(api_key_env)
     if not api_key:
-        logger.debug("DEEPINFRA_API_KEY not set, DeepInfra unavailable")
+        logger.debug("%s not set, DeepInfra unavailable", api_key_env)
         return None
 
     if _circuit_is_open():
         logger.info("DeepInfra circuit breaker open, skipping")
         return None
 
-    model = model or DEEPINFRA_MODEL
-    timeout = float(os.getenv("DEEPINFRA_TIMEOUT", "8"))
+    if model is None:
+        if cfg_provider.get("model_string"):
+            model = cfg_provider["model_string"]
+        else:
+            model = DEEPINFRA_MODEL
+
+    _temperature = temperature
+    if _temperature is None:
+        _temperature = cfg_sampling.get("temperature", 0.7) if cfg_sampling else 0.7
+    _max_tokens = max_tokens
+    if _max_tokens is None:
+        _max_tokens = cfg_sampling.get("max_tokens", 400) if cfg_sampling else 400
+
+    if cfg_runtime:
+        timeout = float(cfg_runtime.get("timeout_seconds", 8))
+    else:
+        timeout = float(os.getenv("DEEPINFRA_TIMEOUT", "8"))
+
+    base_url = cfg_provider.get("base_url") or DEEPINFRA_BASE_URL
+
     start = time.monotonic()
 
-    # Qwen3 thinking models: append /no_think to last user message to skip
-    # the chain-of-thought block and get direct responses at ~400ms vs ~5s.
-    send_messages = messages
-    if "Qwen3" in model or "qwen3" in model.lower():
-        send_messages = []
-        for i, msg in enumerate(messages):
-            if i == len(messages) - 1 and msg.get("role") == "user":
-                content = msg["content"].rstrip()
-                if not content.endswith("/no_think"):
-                    msg = {**msg, "content": content + " /no_think"}
-            send_messages.append(msg)
+    # /no_think suffix injection.
+    # Config-driven path: use cfg_thinking.no_think_suffix (empty string → no injection).
+    # Legacy path: keep hardcoded Qwen3 substring detection for backward compat.
+    if cfg_loaded:
+        no_think_suffix = cfg_thinking.get("no_think_suffix", "") or ""
+        if no_think_suffix:
+            send_messages = []
+            for i, msg in enumerate(messages):
+                if i == len(messages) - 1 and msg.get("role") == "user":
+                    content = msg["content"].rstrip()
+                    if not content.endswith(no_think_suffix):
+                        msg = {**msg, "content": content + " " + no_think_suffix}
+                send_messages.append(msg)
+        else:
+            send_messages = messages
+    else:
+        send_messages = messages
+        if "Qwen3" in model or "qwen3" in model.lower():
+            send_messages = []
+            for i, msg in enumerate(messages):
+                if i == len(messages) - 1 and msg.get("role") == "user":
+                    content = msg["content"].rstrip()
+                    if not content.endswith("/no_think"):
+                        msg = {**msg, "content": content + " /no_think"}
+                send_messages.append(msg)
 
     try:
         from openai import AsyncOpenAI
 
         client = AsyncOpenAI(
             api_key=api_key,
-            base_url=DEEPINFRA_BASE_URL,
+            base_url=base_url,
         )
 
-        # frequency_penalty: from param, env var, or 0.0 (no penalty)
+        # frequency_penalty: caller arg > config > env var > 0.0
         _freq_pen = frequency_penalty
         if _freq_pen is None:
-            _freq_pen = float(os.getenv("DEEPINFRA_FREQUENCY_PENALTY", "0.0"))
+            if cfg_sampling:
+                _freq_pen = float(cfg_sampling.get("frequency_penalty", 0.0) or 0.0)
+            else:
+                _freq_pen = float(os.getenv("DEEPINFRA_FREQUENCY_PENALTY", "0.0"))
 
         create_kwargs = dict(
             model=model,
             messages=send_messages,
-            max_tokens=max_tokens,
-            temperature=temperature,
+            max_tokens=_max_tokens,
+            temperature=_temperature,
         )
         if _freq_pen > 0:
             create_kwargs["frequency_penalty"] = _freq_pen
+        # presence_penalty from config (only when > 0)
+        if cfg_sampling:
+            pp = float(cfg_sampling.get("presence_penalty", 0.0) or 0.0)
+            if pp > 0:
+                create_kwargs["presence_penalty"] = pp
 
         response = await asyncio.wait_for(
             client.chat.completions.create(**create_kwargs),
@@ -150,7 +232,14 @@ async def call_deepinfra(
         )
 
         content = (response.choices[0].message.content or "").strip()
-        content = strip_thinking_artifacts(content)
+        # strip_thinking_artifacts is config-controlled. Legacy path always strips
+        # (preserves current prod behavior). Config path follows
+        # chat_template.strip_thinking_artifacts (default true via qwen3_14b.json).
+        if cfg_loaded:
+            if cfg_chat_template.get("strip_thinking_artifacts", True):
+                content = strip_thinking_artifacts(content)
+        else:
+            content = strip_thinking_artifacts(content)
         latency_ms = int((time.monotonic() - start) * 1000)
         usage = response.usage
         tokens_in = usage.prompt_tokens if usage else 0
