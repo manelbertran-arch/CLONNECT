@@ -1,0 +1,338 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260406_135140",
+  "n_runs": 1,
+  "n_cases": 5,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 45.19,
+        "detail": {
+          "A1_length": 69.04,
+          "A2_emoji": 40.01,
+          "A2_contextual": 68.09,
+          "A3_exclamations": 93.91,
+          "A4_questions": 79.73,
+          "A5_vocabulary": 0.0,
+          "A6_language": 0.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 30.39,
+        "detail": {
+          "bertscore_mean": 0.8001,
+          "chrf_mean": 0.0555,
+          "bleu4_mean": 0.1482,
+          "rouge_l_mean": 0.01,
+          "meteor_mean": 0.0042,
+          "semsim_mean": 0.8001,
+          "c4_relevance_mean": 0.8262,
+          "self_rep_mean": 0.938,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 10.67,
+          "per_case": [
+            52.16,
+            15.58,
+            12.86,
+            34.58,
+            36.75
+          ]
+        },
+        "score_enhanced": 36.27
+      },
+      "S3_strategic_alignment": {
+        "score": 34.52,
+        "detail": {
+          "e1_per_case_mean": 28.69,
+          "e2_distribution_match": 48.1,
+          "bot_strategy_distribution": {
+            "ASK": 0.2,
+            "VALIDATE": 0.6,
+            "INFORM": 0.2
+          },
+          "per_case": [
+            12.3,
+            12.5,
+            4.2,
+            14.5,
+            100.0
+          ],
+          "mean": 34.52
+        }
+      },
+      "S4_adaptation": {
+        "score": 53.82,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 53.82,
+          "proximity_n": 5
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 47.5,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 5,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 27.47,
+        "H2": {
+          "score": 27.47,
+          "detail": {
+            "cosine_similarity": 0.2747,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              1.282,
+              0.0,
+              0.0,
+              0.2,
+              0.0,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 51.76,
+        "detail": {
+          "length_consistency": 45.15,
+          "emoji_consistency": 40.01,
+          "question_consistency": 79.73,
+          "exclamation_consistency": 93.91,
+          "cv_match": 0.0,
+          "bot_length_std": 373.36,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 50.88,
+      "composite": 44.31,
+      "params_active": 32,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "LLM_judge": {
+        "B2_persona_consistency": {
+          "score": 20.0,
+          "per_case": [
+            100.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "B5_emotional_signature": {
+          "score": 20.0,
+          "per_case": [
+            100.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "C2_naturalness": {
+          "score": 80.0,
+          "per_case": [
+            100.0,
+            100.0,
+            0.0,
+            100.0,
+            100.0
+          ]
+        },
+        "C3_contextual_appropriateness": {
+          "score": 20.0,
+          "per_case": [
+            100.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "aggregate": 35.0,
+        "timing_seconds": 50.8,
+        "estimated_cost_usd": 0.0027,
+        "total_llm_calls": 20
+      }
+    }
+  ],
+  "composites": [
+    44.31
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "INTIMATE",
+      "user_message": "Hola baby",
+      "iris_real_response": "[🏷️ Sticker]",
+      "bot_response": "Holaa??",
+      "input_type": "GREETING"
+    },
+    {
+      "case_idx": 3,
+      "trust_segment": "UNKNOWN",
+      "user_message": "Ajjaja",
+      "iris_real_response": "Te guardat 2",
+      "bot_response": "User input: \"Ajjaja\"  User: +34636022878 (Family relationship, high trust).",
+      "input_type": "LAUGH"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "EXTRA",
+      "user_message": "A celebrar mi precumple fabuloso",
+      "iris_real_response": "I que tens una parella",
+      "bot_response": "Lead: èrica . Message: \"A celebrar mi precumple fabuloso\" (Celebrating my fabulous pre-birthday).",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 2,
+      "trust_segment": "EXTRA",
+      "user_message": "Vale pues hacemos así",
+      "iris_real_response": "Oka",
+      "bot_response": "User (Lead) sent an audio (content not provided in the last prompt, but the previous context shows a conversation about Reformer, soreness/agujetas, and scheduling). The user's last message provided in the prompt is \"Vale pues hacemos así\" (which seems to be the lead's text or the prompt asking me to respond to an audio that is followed by \"Vale pues hacemos así\"). Actually, looking at the prompt structure: - User says: [Lead envio un audio] - System says: [ Audio]: Hola, no te voy a llamar, tranquila, qué gracia me haces. (Wait, the system is mimicking the audio transcription). - Then the user says: Responde de forma neutra y amigable sin asumir el intent del mensaje. No hagas upsell ni CTA. Responde en el idioma del lead. Vale pues hacemos así Wait, \"Vale pues hacemos así\" is the lead's message. Context: The lead was talking about being sore (agujetas) and wanting Reformer tomorrow or Thursday at 7:20. Current Lead message: \"Vale pues hacemos así\" (Okay, let's do it like that). Pe...",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 2,
+      "trust_segment": "EDGE_CASE",
+      "user_message": "Vale pues hacemos así",
+      "iris_real_response": "Oka",
+      "bot_response": "User (Lead) sent an audio (content not provided in the last prompt, but the previous context shows a conversation about Reformer, soreness/agujetas, and scheduling). The user's last message provided in the prompt is \"Vale pues hacemos así\" (which seems to be the lead's text or the prompt asking me to respond to an audio that is followed by \"Vale pues hacemos así\"). Actually, looking at the prompt structure: - User says: [Lead envio un audio] - System says: [ Audio]: Hola, no te voy a llamar, tranquila, qué gracia me haces. (Wait, the system is mimicking the audio transcription). - Then the user says: Responde de forma neutra y amigable sin asumir el intent del mensaje. No hagas upsell ni CTA. Responde en el idioma del lead. Vale pues hacemos así Wait, \"Vale pues hacemos así\" is the lead's message. Context: The lead was talking about being sore (agujetas) and wanting Reformer tomorrow or Thursday at 7:20. Current Lead message: \"Vale pues hacemos así\" (Okay, let's do it like that). Pe...",
+      "input_type": "OTHER",
+      "s3_score": 4.2
+    }
+  ],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "user_message": "Hola baby",
+      "iris_real_response": "[🏷️ Sticker]",
+      "bot_response": "Holaa??",
+      "s1_score": 46.95,
+      "s2_score": 52.16,
+      "s3_score": 12.3,
+      "s4_score": 49.17
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "A celebrar mi precumple fabuloso",
+      "iris_real_response": "I que tens una parella",
+      "bot_response": "Lead: èrica . Message: \"A celebrar mi precumple fabuloso\" (Celebrating my fabulous pre-birthday).",
+      "s1_score": 50.35,
+      "s2_score": 15.58,
+      "s3_score": 12.5,
+      "s4_score": 60.02
+    },
+    {
+      "idx": 2,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "user_message": "Vale pues hacemos así",
+      "iris_real_response": "Oka",
+      "bot_response": "User (Lead) sent an audio (content not provided in the last prompt, but the previous context shows a conversation about Reformer, soreness/agujetas, and scheduling). The user's last message provided in the prompt is \"Vale pues hacemos así\" (which seems to be the lead's text or the prompt asking me to respond to an audio that is followed by \"Vale pues hacemos así\"). Actually, looking at the prompt structure: - User says: [Lead envio un audio] - System says: [ Audio]: Hola, no te voy a llamar, tranquila, qué gracia me haces. (Wait, the system is mimicking the audio transcription). - Then the user says: Responde de forma neutra y amigable sin asumir el intent del mensaje. No hagas upsell ni CTA. Responde en el idioma del lead. Vale pues hacemos así Wait, \"Vale pues hacemos así\" is the lead's message. Context: The lead was talking about being sore (agujetas) and wanting Reformer tomorrow or Thursday at 7:20. Current Lead message: \"Vale pues hacemos así\" (Okay, let's do it like that). Pe...",
+      "s1_score": 42.68,
+      "s2_score": 12.86,
+      "s3_score": 4.2,
+      "s4_score": 44.93
+    },
+    {
+      "idx": 3,
+      "input_type": "LAUGH",
+      "trust_score": 0.11,
+      "user_message": "Ajjaja",
+      "iris_real_response": "Te guardat 2",
+      "bot_response": "User input: \"Ajjaja\"  User: +34636022878 (Family relationship, high trust).",
+      "s1_score": 52.21,
+      "s2_score": 34.58,
+      "s3_score": 14.5,
+      "s4_score": 64.1
+    },
+    {
+      "idx": 4,
+      "input_type": "HEALTH",
+      "trust_score": 0.11,
+      "user_message": "Me duele todo",
+      "iris_real_response": "Es que ahir tornant , llegint-te , la mama que no para de parlar xk todo el día està sola, pues no vaig entendre benne😞❤️‍🩹perdó",
+      "bot_response": "User: +34636022878 (Family relationship, high trust). Current input: \"Me duele todo\" (I hurt all over).",
+      "s1_score": 50.61,
+      "s2_score": 36.75,
+      "s3_score": 100.0,
+      "s4_score": 50.9
+    }
+  ]
+}

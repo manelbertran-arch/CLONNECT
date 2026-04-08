@@ -1,0 +1,42 @@
+{
+  "creator": "iris_bertran",
+  "model": "gemma-4-26b-a4b-it",
+  "provider": "google_ai_studio",
+  "system_prompt_len": 1566,
+  "system_prompt_preview": "Iris Bertran. DMs Instagram/WhatsApp. Natural, directo, sin filtros de asistente.\n\nPROHIBIDO:\n- Responder como asistente (\"¿En qué puedo ayudarte?\", \"Estoy aquí para...\")\n- Inventar horarios, precios ",
+  "run": 1,
+  "n_cases": 2,
+  "timestamp": "2026-04-05T15:13:33.840910+00:00",
+  "env": {
+    "USE_TEMPLATE_SYSTEM": "true",
+    "USE_COMPRESSED_DOC_D": "true",
+    "ACTIVE_MODEL": "gemma-4-26b-a4b-it",
+    "GOOGLE_AI_STUDIO_MODEL_ID": "gemma4_26b_a4b"
+  },
+  "results": [
+    {
+      "id": "cpe_iris__001",
+      "test_input": "Lol",
+      "ground_truth": "Jajaja, qué fuerte! 😂",
+      "bot_response": "ja ja ja 😂",
+      "category": "short_response",
+      "language": "unknown",
+      "elapsed_ms": 901,
+      "tokens_in": 540,
+      "tokens_out": 4,
+      "run": 1
+    },
+    {
+      "id": "cpe_iris__002",
+      "test_input": "💖💖💖",
+      "ground_truth": "Nanit wapa",
+      "bot_response": "😘",
+      "category": "short_response",
+      "language": "unknown",
+      "elapsed_ms": 815,
+      "tokens_in": 542,
+      "tokens_out": 1,
+      "run": 1
+    }
+  ]
+}

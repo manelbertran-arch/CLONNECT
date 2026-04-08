@@ -1,0 +1,203 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260406_191438",
+  "n_runs": 1,
+  "n_cases": 2,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 48.3,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 40.01,
+          "A2_contextual": 67.73,
+          "A3_exclamations": 93.91,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 0.0,
+          "A6_language": 0.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 47.3,
+        "detail": {
+          "bertscore_mean": 0.8194,
+          "chrf_mean": 0.0974,
+          "bleu4_mean": 0.2681,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0,
+          "semsim_mean": 0.8194,
+          "c4_relevance_mean": 0.8123,
+          "self_rep_mean": 0.8719,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            48.37,
+            46.22
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 56.0,
+        "detail": {
+          "e1_per_case_mean": 58.86,
+          "e2_distribution_match": 49.34,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.5,
+            "REDIRECT": 0.5
+          },
+          "per_case": [
+            17.7,
+            100.0
+          ],
+          "mean": 56.0
+        }
+      },
+      "S4_adaptation": {
+        "score": 69.98,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 69.98,
+          "proximity_n": 2
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 2,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 24.84,
+        "H2": {
+          "score": 24.84,
+          "detail": {
+            "cosine_similarity": 0.2484,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.1525,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 50.0,
+        "detail": "insufficient responses (need >= 5)"
+      },
+      "J_cognitive_fidelity": 50.0,
+      "composite": 56.52,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    56.52
+  ],
+  "human_eval_cases": [],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "[audio]",
+      "iris_real_response": "A vale perfessto",
+      "bot_response": "jajajajajaja me encantaaa",
+      "s1_score": 52.58,
+      "s2_score": 48.37,
+      "s3_score": 17.7,
+      "s4_score": 68.24
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "Jo soc igual he daprendre a ser puntual",
+      "iris_real_response": "Bueno confia en ti🤣🤣",
+      "bot_response": "haaa ya veo está bien aprender esooo",
+      "s1_score": 54.04,
+      "s2_score": 46.22,
+      "s3_score": 100.0,
+      "s4_score": 71.73
+    }
+  ],
+  "generate_only": true
+}

@@ -1,0 +1,302 @@
+[
+  {
+    "user_input": "Pues vaig a lapso amb dues amigues",
+    "iris_real": "I quina hora",
+    "input_type": "OTHER",
+    "trust_score": 0.11
+  },
+  {
+    "user_input": "Vale guay",
+    "iris_real": "[audio]",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "El coche de él , lo tengo hasta que lo den el 3 grado",
+    "iris_real": "Ok",
+    "input_type": "OTHER",
+    "trust_score": 0.9400000000000001
+  },
+  {
+    "user_input": "I si, el principi es de gancho mola",
+    "iris_real": "Que tens negre x deixar-me",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Oki",
+    "iris_real": "[image]",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Perfecto 🩷🩷",
+    "iris_real": "[audio]",
+    "input_type": "OTHER",
+    "trust_score": 0.11
+  },
+  {
+    "user_input": "Tia jo estava mirant el video en bucle i dic em putu falla alho",
+    "iris_real": "Kit de influ",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Emprenys",
+    "iris_real": "Demà agafes de la Teresa i que li faig l'ingrés. Jo no li puc fer des del meu número de compte perquè no tinc ni un duro.",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "HAS VISTO EL PRESO MAMASITA",
+    "iris_real": "[audio]",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Volia provar de venir un dia a barre amb calma",
+    "iris_real": "A part el te aprop de casa",
+    "input_type": "OTHER",
+    "trust_score": 0.12000000000000001
+  },
+  {
+    "user_input": "Espectacular diva maxima",
+    "iris_real": "Funcionen moltbé",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "*oblidar",
+    "iris_real": "[contact]",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Oki",
+    "iris_real": "Mercii",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Ostres ho reviso!!!",
+    "iris_real": "Com em vas dir que naves a full",
+    "input_type": "OTHER",
+    "trust_score": 0.14
+  },
+  {
+    "user_input": "Ya pero el pantalon peesonalizado tiene q ser contigo hombre",
+    "iris_real": "[🎤 Audio]: Cuca, que em posaràs així alguna coseta tonta de la nau? No sé, una història així guai d'avui. Si tens algun moment, eh? Si no, toma pel saco.",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Per diumenge confirmam q vols tropicoqueta",
+    "iris_real": "#toelrato 😂😂😂🤘🏾",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Es un putu espectacle com et queda aquest vestit tia",
+    "iris_real": "Lo que hicimos contigo",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Barre a on?",
+    "iris_real": "Cap problem",
+    "input_type": "OTHER",
+    "trust_score": 0.11
+  },
+  {
+    "user_input": "Solo faltaria tia",
+    "iris_real": "Mira aquest escrit",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Es medio influ x lo q entendi??",
+    "iris_real": "La vols tirar avui",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Gracies cuki anims a les 2",
+    "iris_real": "[audio]",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Pues a bailar",
+    "iris_real": "🤣🤣🤣🤣🤣😘😘😘",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Igual q el finde de zumba sas?",
+    "iris_real": "Vale, que me encanta, lo que pasa que otro día tendré en cuenta que voy al concerto de Rosalía y me pondré esta música de fondo. Ahora tía, es que voy a grabar todo con el fondo de la de Sánchez y entonces por eso ha pasado esto. Bueno, cosas que no cuadran, pero tú lo arreglas todo. Muchas gracias, Cuca. Es muy chulo, me ha dado mucho. Es muy guay, es que acababa de discutir con mi madre ¿Sabes? Pues claro, llegar a la playa Y que esté cruzada Pues es una alegría Amor Que sea mi suerte para estos tres días",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Es mes q res per avisar si anem o no",
+    "iris_real": "Si si por eso que paso",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "No havia llegit be",
+    "iris_real": "[audio]",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Solo q me molesta, q cueste tanto encajar nose",
+    "iris_real": "¡Claro que sí Frank Me encanta que te animes. Justo hablé de esto en un post, el baile es donde me encuentro conmigo y el cuerpo dice todo.",
+    "input_type": "OTHER",
+    "trust_score": 0.0
+  },
+  {
+    "user_input": "Total tia",
+    "iris_real": "No puedo con esta foto",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Molt bé,ven fet,si",
+    "iris_real": "Haig de preparar ls classes de demà a la barra de casa mama",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Tampoco",
+    "iris_real": "[sticker]",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Fabulossooooo lo programo pa mañana",
+    "iris_real": "Muy LUX",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Perfecte 💪🏻\nGràcies 🫶🏻",
+    "iris_real": "Xk estic kao🫠",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Fabuloso",
+    "iris_real": "[audio]",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Que es una bacteria",
+    "iris_real": "[audio]",
+    "input_type": "OTHER",
+    "trust_score": 0.14
+  },
+  {
+    "user_input": "Este no lo pongo no bella durmiente?🤣",
+    "iris_real": "De verdad???",
+    "input_type": "LAUGH",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Vaya por donde🤣🤣🤣 ahir vam faltar les de sempre",
+    "iris_real": "[🏷️ Sticker]",
+    "input_type": "LAUGH",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Ei guapa dema no podré venir a barre!!! Ens veiem divendres al migdia!!!😘😘",
+    "iris_real": "Pero x mi ta perfect tuto",
+    "input_type": "GREETING",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "La noia del whatsapp q en vas enviar",
+    "iris_real": "Mirarà si li pose  tractament",
+    "input_type": "GREETING",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Als supermercsts si q hi es ovbiament pro no si ho han extes",
+    "iris_real": "Es la teva foto",
+    "input_type": "GREETING",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "[image]",
+    "iris_real": "No sé si la faré més llarga xo es muy guaixiii",
+    "input_type": "MEDIA",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "[audio]",
+    "iris_real": "O sea dentro la taquilla",
+    "input_type": "MEDIA",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "[sticker]",
+    "iris_real": "Ya tu chave",
+    "input_type": "MEDIA",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "[audio]",
+    "iris_real": "Ha vingut 2’dies i ni t’ajudat en res",
+    "input_type": "MEDIA",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "[audio]",
+    "iris_real": "[audio]",
+    "input_type": "MEDIA",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "[Media/Attachment]",
+    "iris_real": "Sent an attachment",
+    "input_type": "MEDIA",
+    "trust_score": 0.0
+  },
+  {
+    "user_input": "[audio]",
+    "iris_real": "I quina hora",
+    "input_type": "MEDIA",
+    "trust_score": 0.11
+  },
+  {
+    "user_input": "[📷 Photo]",
+    "iris_real": "A me la pela quan puguis",
+    "input_type": "MEDIA",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Avui l'Dolors ha marxat la seva mare ,Jo m'la estimada molt si li vols donar el condol",
+    "iris_real": "Però acostama’t a fer-ho quan et lleves amb el cafe",
+    "input_type": "HEALTH",
+    "trust_score": 1.0
+  },
+  {
+    "user_input": "Quantes sou?",
+    "iris_real": "[audio]",
+    "input_type": "QUESTION_SERVICE",
+    "trust_score": 0.14
+  },
+  {
+    "user_input": "Qe va jo ara haure de fer gym aquestes hores perqe n tinc temps",
+    "iris_real": "[🎤 Audio]: Buen día, Flor. Bueno, te mando el audio como... Amparo la que vende cupones, eh. Porque tengo una voz, es que si no te lo fallaré, que se me pasará. Hoy estaba escuchando el audio, ahora he tomado con el coche, con la calma. Porque obviamente cuando me envío un mensaje así, me gusta escucharlo atentamente. Y lo escuché mientras me ponía cuatro yopros de proteína y ocho paquetitos de unas tostadas de baí. Son muy buenas, increíblemente fines. Es como, no sé, pero bueno, cada tres tiene 79 calorías. tranquila me comí ocho paquetes con cuatro yopros que hoy me voy a tirar unos peos que flipas y llevamos con tanto tiempo explicamos la otra cosa y yo pensando déjate de tonterías que estamos todos igual lo pasará la única suerte tuya es tu jerética. Siempre te lo he dicho. Mi jerética no me apoya. Siempre pasa igual. Cuando comienzo a estar una mica bien, esto me aporto meses así, es como que me vean bien aquel día y entonces aquel día será el día de la tracón. Porque es como, ¿sabes? No me puedo permitir, no pasa nada. Me he primado y pues torno. O sea, hoy es que no puedo ni mirarme. O sea, mala perla, ¿eh? Mala perla bastante. O sea, tanto me hace. Tía, yo pensaba que lo de la hospital sería como un reto que me aguantarías y te agradaría. No te agrada gens, ¿eh? Tía, hostia puta. Es lo que te agrada, tía, la dona. Y yo hostia puta est todos all Y yo pensaba que ya era como O sea s que vas entrar como sustituir a esta dona porque me vas explicar Pero pensaba que tú ya te pudieras quedar allá. ¿Sabes? O sea, voy a entender que había una plaza para tú. Que entiendo que no es así. Porque por eso vols marxar. Porque tienes la opción de poderlo hacer. cariño, no sé qué decirte porque entonces es volver a estructurar todos los entrenos, los entrenos que te haías dejado, ¿no? Algunos no sé si has dejado algunos o has dejado en un grupo bueno, esta vida a él se está poniendo muy chunga y nos tocará trabajar mucho o sea ya te lo digo ahora yo abans en 20 euros pasaba a ir y volver a Barcelona dos veces y pasaba toda la semana Ahora, con 20 euros, solo voy y estoy en reserva, pero en reserva ya de final Y esto va por largo Y ahí una guruda de estas que tengo Va a decir que comienza a comprar llaunes Por si acaso, yo solo te lo digo, pero que tengas unas llaunetas, Iris Te lo digo porque te estimo mucho, es la madre de mi amiga, la María Y también te lo digo a ti que tal vez ya te lo han dicho porque tú tienes muchas amigas pero por si acaso ahora no te plantees muchas cosas ¿sabes? porque si sobrevivimos a esta guerra ya será mucho que no ha de pasar nada pero por si acaso otra cosa que yo te dije es que este año celebraré el meu aniversario ¿vale? voy a decir que que si tienes algo sobre aquellas dates y estás dient que no, veus todos los peces que me estoy tirando, puedo patir por la proteína. Que lo haces tranquilamente. Aquest año lo que hago es dejarme gente que me dijo que me reservo estos días. Ya está, estoy cansada de dar. Estoy cansada, ya me estaba creando angocia de comenzar a estalviar. me voy a gastar muchos dinero el a pasado bueno siempre me gasto muchos dinero y muy feliz pero aquel a hay mucha gente que no tiene ganas de tenerla entonces es como aquel momento que queda muy violento de convidar un sí y un no, que ya sé que me la pela, pero mira, André y la Aida me van a decir, reserva el 5, 6 y 7 de junio, y pues de puta madre, sabes? En un primer momento les voy a decir que no, porque era el cap de semana que quería hacer el cumple, como siempre. Pero después de ahí pensar, ¿me voy a llevar un día, tío? Y yo voy a hacer esto y le voy a decir que no al Leo, porque cada dos meses me demandan más de 500 euros. Y yo le voy a decir que no me daba la puta gana de darles los nuevos dinero del diumenge. Y estoy estalviando, por un cop en la vida, bueno, a ver, estalviando 1.400 euros, pero para mí es mucho, después de todo lo de mi madre, porque porto un desfalto muy grande. Y no me da la gana, tío, o sea, de gastarlo con 40 personas que como por ejemplo, yo que soy el patrón desde que tiene nóvia, yo no he reunido un mensaje de cómo está mi madre entonces si lo invito a él tengo que invitar también a la Cristina y tengo, ¿sabes? no, no tengo ganas la Jordina Closa, no sé nada, ella ni ella sabe de mí ¿entens qué voy a decir? entonces, como es un momento muy meu de ver realmente ¿saps? Pues como lo iba a la Mary, pues un día a Mary nos anemos tú y yo a la platja con la Eli, un día, ¿saps? tú y yo nos anemos a hacer algo que veis que yo qué sé, que nos motiva ¿saps? No sé, es que ahora a l'estido farán tantas ediciones especiales alguna cosa de lapsos en branche o alguna cosa y después nos quedamos a hacer un postureito o si nos anemos a la platja ¿saps? ¿saps? con los mis la Cira y la Mónica ya me van a decir por ejemplo de ir a sopar y salir por igualada, y eso más igualada pues ya está, el Albert y la Gemma en farán pues como siempre algo y ya está y la vida tiene que ser así hemos de comenzar a pensar en nosotros hemos de comenzar a llençar mochilas porque si no nos crea mucha ansiedad yo sé que lo de ahí pues bueno, aparte de eso que me pasa mucho que llevo un beb y llavors menjo bueno eso me va agafar un chispazo a examen Los dos copos lo voy a hacer como el cul. La clase había ido muy bien, pero no pasa nada. Porque el ver ya ha visto que esta cueva la porto bien y lo importante es que no me agafo la semana que viene, que tengo el dimecres que viene, que tengo la grabación. ¿Sabes? Así que go with the flow. Y tú, cariño, farás lo que necesitas hacer cuando toquen. Y ya está. Cuando tú crees que has de hacer, de decir, prou, ¿fins aquí? Pues prou, ¿fins aquí? Que tú un día vols venir a Frau Forgeo, vens a Frau Forgeo. Que vens a Barre, vens a Barre. A mí no me has de dar explicaciones, Eli, cariño. A mí no me has de decir, ¿sabes? O sea, vine cuando quieras. Que no vengas un bar, no pasa nada. Yo ya sé qué pasa. y ya está, el que no quiero es ver tu angustado o ver, donar-me explicaciones de por qué una cosa o por qué una otra no, no, no, a mi res, a mi absolutamente res y lo del diumenge ya lo acabo y seguramente este será el último diumenge porque hay muy poquita gente apuntada no trabajaré el diumenge, o sea, he estado haciendo soledad cada diumenge super feliz, pero ya está, la gente el diumenge se hace sol y entonces tampoco no voy a hacer clase para 10 personas y no la traigo porque esto es tupe si no, ¿sabes? porque a mí me crea más ansiedad que nada y ya está ¿vale, cariño? así que re, que tengas un buen día no te agobis fes el que hagas a hacer en un hospital y ya está y si este no era el tuyo camino porque no de eso, sortirá otra cosa ¿Vale? Ya lo has probado, lo has intentado, has hecho un paso, te han visto por allá, todo el mundo sabe que te ha fijado a la hospital, o sea, ya está, ¿sabes? Uy, voy muy tarde. Te mando un visito, nos vemos el domingo. Que por cierto, sí que voy a dinar al casinete con el Manel, que ahir lo vamos corroborar, pero con la mamá. Anem porque el Manuel también Volve a ver y Desconnectar Pero bueno, que tengo unas ganas cero De meterme un puto atracón en el casinet Pero bueno, ya está Con este pedito te digo Bon día",
+    "input_type": "OTHER",
+    "trust_score": 0.11
+  },
+  {
+    "user_input": "La portada nose si tagradara, pq jo hauria triat el microfinal con lenguitapero digo a ver si el dinamic va a poner pegas pa colab",
+    "iris_real": "😂😂😂😂 lalalala",
+    "input_type": "OTHER",
+    "trust_score": 1.0
+  }
+]

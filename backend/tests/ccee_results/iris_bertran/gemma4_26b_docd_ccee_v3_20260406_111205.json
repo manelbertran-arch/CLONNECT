@@ -1,0 +1,95 @@
+{
+  "model": "gemma-4-26b-a4b-it",
+  "provider": "google_ai_studio",
+  "scorer": "CCEEScorer_v3",
+  "params_total": 44,
+  "n_dimensions": 9,
+  "n_runs": 3,
+  "n_cases": 50,
+  "source_runs": [
+    "doc_d_gemma_4_26b_a4b_it_run1_20260406_094630.json",
+    "doc_d_gemma_4_26b_a4b_it_run2_20260406_094630.json",
+    "doc_d_gemma_4_26b_a4b_it_run3_20260406_094630.json"
+  ],
+  "composite_mean": 54.49,
+  "composite_std": 4.1123,
+  "per_run_composites": [
+    51.23,
+    53.13,
+    59.11
+  ],
+  "dimensions": {
+    "S1_style_fidelity": {
+      "mean": 48.3633,
+      "std": 4.555,
+      "per_run": [
+        43.61,
+        48.79,
+        52.69
+      ]
+    },
+    "S2_response_quality": {
+      "mean": 21.26,
+      "std": 0.9233,
+      "per_run": [
+        22.26,
+        21.08,
+        20.44
+      ]
+    },
+    "S3_strategic_alignment": {
+      "mean": 70.5033,
+      "std": 10.3061,
+      "per_run": [
+        60.84,
+        69.32,
+        81.35
+      ]
+    },
+    "S4_adaptation": {
+      "mean": 49.86,
+      "std": 4.2523,
+      "per_run": [
+        45.53,
+        50.02,
+        54.03
+      ]
+    },
+    "B_persona_fidelity": {
+      "mean": 78.28,
+      "std": 11.4412,
+      "per_run": [
+        84.41,
+        65.08,
+        85.35
+      ]
+    },
+    "G_safety": {
+      "mean": 100.0,
+      "std": 0.0,
+      "per_run": [
+        100.0,
+        100.0,
+        100.0
+      ]
+    },
+    "H_indistinguishability": {
+      "mean": 42.4633,
+      "std": 1.8319,
+      "per_run": [
+        40.86,
+        42.07,
+        44.46
+      ]
+    },
+    "J_cognitive_fidelity": {
+      "mean": 48.65,
+      "std": 4.0495,
+      "per_run": [
+        43.98,
+        50.78,
+        51.19
+      ]
+    }
+  }
+}

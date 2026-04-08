@@ -1,0 +1,113 @@
+{
+  "creator": "iris_bertran",
+  "model": "gemma-4-26b-a4b-it",
+  "provider": "google",
+  "n_runs": 1,
+  "n_cases": 2,
+  "timestamp": "2026-04-05T15:06:57.713074+00:00",
+  "aggregated_metrics": {
+    "l1_overall": [
+      0.143,
+      0.0
+    ],
+    "l3_bleu4": [
+      0.0,
+      0.0
+    ],
+    "l3_rouge_l": [
+      0.003,
+      0.0
+    ],
+    "l3_chrf": [
+      0.0161,
+      0.0
+    ],
+    "l3_vocab_overlap": [
+      0.003,
+      0.0
+    ]
+  },
+  "per_run_l1": [
+    {
+      "overall": 0.143,
+      "passed": 1,
+      "total": 7,
+      "n_responses": 2,
+      "bot_emoji_rate": 100.0,
+      "bot_excl_rate": 50.0,
+      "bot_q_rate": 100.0,
+      "bot_len_mean": 1762,
+      "bot_len_median": 1762.0,
+      "bot_ca_rate": 0.0,
+      "vocab_jaccard": 0.0035,
+      "details": {
+        "emoji_rate": {
+          "bot": 100.0,
+          "iris": 22.6,
+          "div": 77.4,
+          "ok": false
+        },
+        "excl_rate": {
+          "bot": 50.0,
+          "iris": 1.8,
+          "div": 48.2,
+          "ok": false
+        },
+        "q_rate": {
+          "bot": 100.0,
+          "iris": 14.2,
+          "div": 85.8,
+          "ok": false
+        },
+        "len_mean": {
+          "bot": 1762,
+          "iris": 95.2,
+          "div": 1750.84,
+          "ok": false
+        },
+        "len_median": {
+          "bot": 1762.0,
+          "iris": 26.0,
+          "div": 6676.92,
+          "ok": false
+        },
+        "ca_rate": {
+          "bot": 0.0,
+          "iris": 43.5,
+          "div": 43.5,
+          "ok": false
+        },
+        "vocab_jac": {
+          "bot": 0.35,
+          "iris": 5.0,
+          "div": 4.65,
+          "ok": true
+        }
+      }
+    }
+  ],
+  "per_run_l3": [
+    {
+      "bleu4": 0.0,
+      "rouge_l": 0.003,
+      "chrf": 0.0161,
+      "vocab_overlap": 0.003,
+      "n_pairs": 2,
+      "_bleu4_scores": [
+        0.0,
+        0.0
+      ],
+      "_rougel_scores": [
+        0.006,
+        0.0
+      ],
+      "_chrf_scores": [
+        0.0194,
+        0.0128
+      ]
+    }
+  ],
+  "run_files": [
+    "tests/ccee_results/iris_bertran/gemma4_gemma_4_26b_a4b_it_run1_20260405_150634.json"
+  ]
+}

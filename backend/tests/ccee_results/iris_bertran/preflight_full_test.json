@@ -1,0 +1,219 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260407_185226",
+  "n_runs": 1,
+  "n_cases": 2,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 48.78,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 40.01,
+          "A2_contextual": 72.51,
+          "A3_exclamations": 93.91,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 0.0,
+          "A6_language": 0.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 38.81,
+        "detail": {
+          "bertscore_mean": 0.7679,
+          "chrf_mean": 0.0662,
+          "bleu4_mean": 0.0956,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0167,
+          "semsim_mean": 0.7679,
+          "c4_relevance_mean": 0.8047,
+          "self_rep_mean": 0.8376,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            45.33,
+            32.29
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 84.8,
+        "detail": {
+          "e1_per_case_mean": 100.0,
+          "e2_distribution_match": 49.34,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.5,
+            "REDIRECT": 0.5
+          },
+          "per_case": [
+            100.0,
+            100.0
+          ],
+          "mean": 84.8
+        }
+      },
+      "S4_adaptation": {
+        "score": 69.87,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 69.87,
+          "proximity_n": 2
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 50.0,
+        "B1": {
+          "score": 0.0,
+          "detail": {
+            "cosine_similarity": 0.0,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.2222
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 2,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 26.95,
+        "H2": {
+          "score": 26.95,
+          "detail": {
+            "cosine_similarity": 0.2695,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.15,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.3,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 50.0,
+        "detail": "insufficient responses (need >= 5)"
+      },
+      "J_cognitive_fidelity": 50.0,
+      "composite": 58.81,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    58.81
+  ],
+  "human_eval_cases": [],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "HEALTH",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "+34660042310",
+      "user_message": "El hospital está ple de virus i no vull que tú entris jóoo",
+      "iris_real_response": "Reflexiona tu com et portes amb mi, xk tot el que jo faig ho faig malament.",
+      "bot_response": "Uf qué miedo\nT'entenc total",
+      "s1_score": 53.48,
+      "s2_score": 45.33,
+      "s3_score": 100.0,
+      "s4_score": 68.87
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 0.11,
+      "trust_segment": "UNKNOWN",
+      "username": "+34636022878",
+      "user_message": "Qe he aparcat a pekin",
+      "iris_real_response": "17:30-19:30",
+      "bot_response": "Ostia qué bien, ya estás por aquí",
+      "s1_score": 52.7,
+      "s2_score": 32.29,
+      "s3_score": 100.0,
+      "s4_score": 70.87
+    }
+  ],
+  "generate_only": true
+}

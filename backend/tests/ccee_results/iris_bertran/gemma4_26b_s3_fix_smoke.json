@@ -1,0 +1,350 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260407_224230",
+  "n_runs": 1,
+  "n_cases": 10,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 61.72,
+        "detail": {
+          "A1_length": 99.04,
+          "A2_emoji": 99.99,
+          "A2_contextual": 58.06,
+          "A3_exclamations": 86.09,
+          "A4_questions": 99.73,
+          "A5_vocabulary": 0.0,
+          "A6_language": 73.21,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 41.16,
+        "detail": {
+          "bertscore_mean": 0.7307,
+          "chrf_mean": 0.0638,
+          "bleu4_mean": 0.2024,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0,
+          "semsim_mean": 0.7307,
+          "c4_relevance_mean": 0.7369,
+          "self_rep_mean": 0.8169,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 1.5,
+          "per_case": [
+            39.75,
+            51.36,
+            33.05,
+            32.71,
+            44.91,
+            54.77,
+            42.15,
+            17.5,
+            48.11,
+            47.25
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 48.9,
+        "detail": {
+          "e1_per_case_mean": 39.11,
+          "e2_distribution_match": 71.73,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.6,
+            "ASK": 0.1,
+            "IGNORE": 0.3
+          },
+          "per_case": [
+            12.5,
+            12.5,
+            12.5,
+            12.5,
+            12.5,
+            12.3,
+            100.0,
+            100.0,
+            100.0,
+            16.1
+          ],
+          "mean": 48.9
+        }
+      },
+      "S4_adaptation": {
+        "score": 63.02,
+        "detail": {
+          "mode": "blended",
+          "proximity_mean": 63.37,
+          "proximity_n": 10,
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 100.0,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 10,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 29.25,
+        "H2": {
+          "score": 29.25,
+          "detail": {
+            "cosine_similarity": 0.2925,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.113,
+              0.3,
+              0.1,
+              0.1,
+              0.0,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 67.9,
+        "detail": {
+          "length_consistency": 53.71,
+          "emoji_consistency": 99.99,
+          "question_consistency": 99.73,
+          "exclamation_consistency": 86.09,
+          "cv_match": 0.0,
+          "bot_length_std": 13.21,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 58.95,
+      "composite": 57.32,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    57.32
+  ],
+  "human_eval_cases": [],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 0.11,
+      "trust_segment": "UNKNOWN",
+      "username": "+34636022878",
+      "user_message": "Pero vine a fer la presso cuca directament",
+      "iris_real_response": "Dímelo mami",
+      "bot_response": "Ja si ho sé, m'he perdut 😂",
+      "s1_score": 44.96,
+      "s2_score": 39.75,
+      "s3_score": 12.5,
+      "s4_score": 63.13
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "I si",
+      "iris_real_response": "Aea\nAra amb el xotxe t’escric tik acabant",
+      "bot_response": "Jajaja que fuerte. Te flipa la propuesta.",
+      "s1_score": 54.04,
+      "s2_score": 51.36,
+      "s3_score": 12.5,
+      "s4_score": 73.32
+    },
+    {
+      "idx": 2,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "Tinc aixo",
+      "iris_real_response": "Eso",
+      "bot_response": "thought waybackthought Jajaja mami que fuerte",
+      "s1_score": 52.97,
+      "s2_score": 33.05,
+      "s3_score": 12.5,
+      "s4_score": 74.59
+    },
+    {
+      "idx": 3,
+      "input_type": "OTHER",
+      "trust_score": 0.14,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_34669156565",
+      "user_message": "panxitos no hay?",
+      "iris_real_response": "✨ Bebidas a elegir una: batido o Matcha\n✨ Tostada o Pancakes",
+      "bot_response": "Buaaa que va 😂😂😂 No hi ha!",
+      "s1_score": 45.57,
+      "s2_score": 32.71,
+      "s3_score": 12.5,
+      "s4_score": 47.57
+    },
+    {
+      "idx": 4,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "Joer no the vist he sortit ara",
+      "iris_real_response": "Tamos sincro",
+      "bot_response": "Jajaja mami que fuerte",
+      "s1_score": 54.04,
+      "s2_score": 44.91,
+      "s3_score": 12.5,
+      "s4_score": 67.29
+    },
+    {
+      "idx": 5,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "Hola baby",
+      "iris_real_response": "[image]",
+      "bot_response": "Holaa??",
+      "s1_score": 46.95,
+      "s2_score": 54.77,
+      "s3_score": 12.3,
+      "s4_score": 49.17
+    },
+    {
+      "idx": 6,
+      "input_type": "MEDIA",
+      "trust_score": 0.11,
+      "trust_segment": "UNKNOWN",
+      "username": "+34636022878",
+      "user_message": "[🎤 Audio]: No es que me guste en especial, pero he pensado: \"tío, es muy zombera esta canción\". No es fea, es bailable, pero no me encanta como para escucharla. Y he pensado: \"ay, le pasaré el Ajris porque la veo muy del estilo zombero\". Ni he visto el vídeo. Estoy muerta. ¿Ana del Quantum hoy o qué, tú? Yo ahora pliego.",
+      "iris_real_response": "No tendré suerte y será en la tarde no?😂",
+      "bot_response": "Que me ajudi",
+      "s1_score": 52.53,
+      "s2_score": 42.15,
+      "s3_score": 100.0,
+      "s4_score": 63.22
+    },
+    {
+      "idx": 7,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "[audio]",
+      "iris_real_response": "[🎤 Audio]: Erika cariño, si vens, espero que sí, porque estoy animando a todos que venguis, al menos llegaremos a 15, espero. ¿Puedes venir sobre las 7.40? 7.40, sí, 7.40. Si puedes venir, ¿vale? Porque hay gente que va más tarde, hay gente que va a la última quarta hora. Bueno, la meia clase es un festival. si puedes venir sobre esta hora pues guay, ¿vale? si no tienes mucha presa, pues bueno, pues a gara y media pero yo arribando a i40 ya de sobre es Erika gracias",
+      "bot_response": "",
+      "s1_score": 54.12,
+      "s2_score": 17.5,
+      "s3_score": 100.0,
+      "s4_score": 68.46
+    },
+    {
+      "idx": 8,
+      "input_type": "EMOJI_ONLY",
+      "trust_score": 0.0,
+      "trust_segment": "UNKNOWN",
+      "username": "ericadelo",
+      "user_message": "💖💖💖💖",
+      "iris_real_response": "Madre miaaaaa",
+      "bot_response": "Buaaa que intensitat.",
+      "s1_score": 62.58,
+      "s2_score": 48.11,
+      "s3_score": 100.0,
+      "s4_score": 66.5
+    },
+    {
+      "idx": 9,
+      "input_type": "QUESTION_SERVICE",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "Baby recorda agendar cita amb nude studi",
+      "iris_real_response": "Algo hemos podido aprovechar no?",
+      "bot_response": "Jajaja mami que fuerte 😂😂😂",
+      "s1_score": 47.65,
+      "s2_score": 47.25,
+      "s3_score": 16.1,
+      "s4_score": 60.46
+    }
+  ],
+  "generate_only": true
+}

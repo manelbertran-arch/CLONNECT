@@ -70,7 +70,8 @@ def auto_generate_test_set(
                     m_bot.content AS ground_truth,
                     COALESCE(rd.trust_score, 0.0) AS trust_score,
                     l.username,
-                    m_user.created_at
+                    m_user.created_at,
+                    l.id AS lead_uuid
                 FROM messages m_user
                 JOIN messages m_bot ON m_bot.lead_id = m_user.lead_id
                     AND m_bot.role = 'assistant'
@@ -95,7 +96,7 @@ def auto_generate_test_set(
 
         # Stratify by input type
         by_type: Dict[str, List] = {}
-        for user_input, ground_truth, trust, username, created_at in rows:
+        for user_input, ground_truth, trust, username, created_at, lead_uuid in rows:
             ctx = classify_context(user_input)
             if ctx not in by_type:
                 by_type[ctx] = []
@@ -104,6 +105,10 @@ def auto_generate_test_set(
                 "ground_truth": ground_truth,
                 "trust_score": float(trust),
                 "username": username,
+                # lead_uuid: real DB UUID for this lead. Passed as sender_id so
+                # MemoryEngine can resolve memories without UUID CAST errors.
+                # l.username may be a phone number (WhatsApp) which fails CAST.
+                "lead_uuid": str(lead_uuid) if lead_uuid else None,
                 "input_type": ctx,
                 "created_at": str(created_at) if created_at else None,
             })
@@ -149,8 +154,9 @@ def run_bot_pipeline(
 
     agent = get_dm_agent(creator_id)
     responses = []
+    inter_case_delay = float(os.environ.get("CCEE_INTER_CASE_DELAY", "0"))
 
-    for tc in test_cases:
+    for i, tc in enumerate(test_cases):
         old_env = {}
         try:
             if overrides:
@@ -158,9 +164,13 @@ def run_bot_pipeline(
                     old_env[k] = os.environ.get(k)
                     os.environ[k] = v
 
+            # Prefer real lead UUID so MemoryEngine can resolve DB lookups.
+            # l.username may be a phone number (WhatsApp leads) which fails
+            # CAST to UUID in _resolve_lead_uuid → empty memories → J1=0.
+            sender_id = tc.get("lead_uuid") or tc.get("username") or "test_user"
             dm_response = asyncio.run(agent.process_dm(
                 message=tc["user_input"],
-                sender_id=tc.get("username", "test_user"),
+                sender_id=sender_id,
                 metadata={"platform": "instagram"},
             ))
             responses.append(
@@ -178,6 +188,10 @@ def run_bot_pipeline(
                         os.environ.pop(k, None)
                     else:
                         os.environ[k] = v
+
+        if inter_case_delay > 0 and i < len(test_cases) - 1:
+            import time as _time
+            _time.sleep(inter_case_delay)
 
     return responses
 
@@ -362,9 +376,319 @@ def _select_human_eval_cases(
 # Main
 # ---------------------------------------------------------------------------
 
+
+def _run_prometheus_on_responses(
+    test_cases: List[Dict],
+    bot_responses: List[str],
+) -> Dict:
+    """Run M-Prometheus/LLM judge on one set of bot responses and return raw scores."""
+    from core.evaluation.m_prometheus_judge import evaluate_all_params
+
+    prom_cases = [
+        {
+            "bot_response": bot_responses[i],
+            "ground_truth": tc["ground_truth"],
+            "user_input": tc["user_input"],
+        }
+        for i, tc in enumerate(test_cases)
+    ]
+    raw = evaluate_all_params(prom_cases, max_cases=len(prom_cases))
+
+    def _per_case_list(key, per_case_data):
+        return [c.get(key, 50.0) for c in per_case_data]
+
+    return {
+        "B2_persona_consistency": {
+            "score": raw["B2_persona_consistency"],
+            "per_case": _per_case_list("B2", raw.get("per_case", [])),
+        },
+        "B5_emotional_signature": {
+            "score": raw["B5_emotional_signature"],
+            "per_case": _per_case_list("B5", raw.get("per_case", [])),
+        },
+        "C2_naturalness": {
+            "score": raw["C2_naturalness"],
+            "per_case": _per_case_list("C2", raw.get("per_case", [])),
+        },
+        "C3_contextual_appropriateness": {
+            "score": raw["C3_contextual_appropriateness"],
+            "per_case": _per_case_list("C3", raw.get("per_case", [])),
+        },
+        "H1_turing_test_rate": raw.get("H1_turing_test_rate", 0.0),
+        "model": raw.get("model", "m-prometheus-14b"),
+        "n_cases": raw.get("n_cases", 0),
+        "total_time_seconds": raw.get("total_time_seconds", 0.0),
+    }
+
+
+def _score_all_runs(
+    data: Dict,
+    per_run_records: List[List[Dict]],
+    args,
+    creator: str,
+    profile_dir: str,
+    style_profile: Dict,
+    strategy_map: Dict,
+    adaptation_profile: Dict,
+    weights: Optional[Dict],
+) -> None:
+    """Judge each run independently and report per-run composites + mean ± std."""
+    import json as _json
+
+    n_runs = len(per_run_records)
+    print(f"  [score-all-runs] {n_runs} runs × {len(per_run_records[0])} cases")
+
+    scorer = CCEEScorer(style_profile, strategy_map, adaptation_profile, weights)
+
+    # Build test_cases from run 0 records (same across all runs)
+    test_cases = [
+        {
+            "user_input": r.get("user_message", ""),
+            "ground_truth": r.get("iris_real_response", ""),
+            "trust_score": r.get("trust_score", 0.5),
+            "input_type": r.get("input_type", "OTHER"),
+            "trust_segment": r.get("trust_segment", "UNKNOWN"),
+            "username": r.get("username", ""),
+            "lead_uuid": r.get("lead_uuid"),
+        }
+        for r in per_run_records[0]
+    ]
+
+    business_scores = None
+    try:
+        from core.evaluation.business_metrics import score_business_metrics
+        business_scores = score_business_metrics(creator)
+        print(f"  Business metrics: I-score={business_scores.get('score', '?')}")
+    except Exception as e:
+        print(f"  Business metrics unavailable: {e}")
+
+    all_results = []
+    all_composites = []
+    all_run_prometheus = []
+
+    for run_i, run_records in enumerate(per_run_records):
+        run_bots = [r.get("bot_response", "") for r in run_records]
+        print(f"\n  --- Run {run_i + 1}/{n_runs} ---")
+
+        prom = _run_prometheus_on_responses(test_cases, run_bots)
+        all_run_prometheus.append(prom)
+        print(
+            f"  Prometheus: B2={prom['B2_persona_consistency']['score']:.1f} "
+            f"B5={prom['B5_emotional_signature']['score']:.1f} "
+            f"C2={prom['C2_naturalness']['score']:.1f} "
+            f"C3={prom['C3_contextual_appropriateness']['score']:.1f} "
+            f"H1={prom['H1_turing_test_rate']:.1f}% "
+            f"({prom.get('total_time_seconds', 0):.0f}s)"
+        )
+
+        result = scorer.score(
+            test_cases, run_bots,
+            llm_scores=prom,
+            business_scores=business_scores,
+        )
+        all_results.append(result)
+        all_composites.append(result["composite"])
+        print(f"{_format_table(result)}")
+
+    # Summary table
+    print(f"\n{'='*60}")
+    print(f" All-runs summary ({n_runs} runs, GPT-4o judge per run)")
+    print(f"{'='*60}")
+    print(f"  Composites: {[f'{c:.2f}' for c in all_composites]}")
+    print(f"  Mean: {np.mean(all_composites):.2f}  Std: {np.std(all_composites):.2f}")
+    for key in ["S1_style_fidelity", "S2_response_quality",
+                "S3_strategic_alignment", "S4_adaptation",
+                "B_persona_fidelity", "G_safety", "H_indistinguishability",
+                "J1_memory_recall", "J2_multiturn_consistency"]:
+        scores = [r[key]["score"] for r in all_results if key in r]
+        if scores:
+            print(f"  {key}: {np.mean(scores):.2f} ± {np.std(scores):.2f}")
+
+    # Save
+    out_dir = os.path.join(args.output_dir, creator)
+    os.makedirs(out_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_name = args.save_as if args.save_as else f"alljudged_{timestamp}"
+    out_path = os.path.join(out_dir, f"{out_name}.json")
+
+    output = {
+        "creator_id": creator,
+        "timestamp": timestamp,
+        "n_runs": n_runs,
+        "n_cases": len(test_cases),
+        "overrides": data.get("overrides", {}),
+        "runs": all_results,
+        "composites": all_composites,
+        "composite_mean": float(np.mean(all_composites)),
+        "composite_std": float(np.std(all_composites)),
+        "weights_used": weights or DEFAULT_WEIGHTS,
+        "per_case_records": data.get("per_case_records", []),
+        "per_run_records": per_run_records,
+        "per_run_prometheus": all_run_prometheus,
+        "source_genonly": args.score_prometheus,
+        "score_all_runs": True,
+    }
+    with open(out_path, "w", encoding="utf-8") as f:
+        _json.dump(output, f, indent=2, ensure_ascii=False, default=str)
+    print(f"\n  Results saved to {out_path}")
+
+
+def _run_score_prometheus(args) -> None:
+    """--score-prometheus flow: read existing generate-only JSON, run Prometheus, save final."""
+    import json as _json
+
+    src_path = args.score_prometheus
+    print(f"[score-prometheus] Loading responses from {src_path}...")
+    with open(src_path, encoding="utf-8") as f:
+        data = _json.load(f)
+
+    creator = data.get("creator_id") or args.creator
+    profile_dir = os.path.join(args.profile_dir, creator)
+
+    with open(os.path.join(profile_dir, "style_profile.json")) as f:
+        style_profile = _json.load(f)
+    with open(os.path.join(profile_dir, "strategy_map.json")) as f:
+        strategy_map = _json.load(f)
+    with open(os.path.join(profile_dir, "adaptation_profile.json")) as f:
+        adaptation_profile = _json.load(f)
+
+    weights_path = os.path.join(profile_dir, "weights.json")
+    weights = None
+    if os.path.exists(weights_path):
+        with open(weights_path) as f:
+            weights = _json.load(f).get("calibrated_weights")
+
+    # --score-all-runs: judge each run independently from per_run_records
+    if getattr(args, "score_all_runs", False):
+        per_run_records = data.get("per_run_records")
+        if not per_run_records:
+            print("  WARNING: per_run_records not found in JSON — falling back to single-run scoring")
+        else:
+            _score_all_runs(
+                data, per_run_records, args,
+                creator, profile_dir, style_profile, strategy_map,
+                adaptation_profile, weights,
+            )
+            return
+
+    records = data["per_case_records"]
+    test_cases = [
+        {
+            "user_input": r.get("user_message", ""),
+            "ground_truth": r.get("iris_real_response", ""),
+            "trust_score": r.get("trust_score", 0.5),
+            "input_type": r.get("input_type", "OTHER"),
+            "trust_segment": r.get("trust_segment", "UNKNOWN"),
+            "username": r.get("username", ""),
+            # Persist lead_uuid so sender_id resolution and J1 grouping use the real DB UUID
+            "lead_uuid": r.get("lead_uuid"),
+        }
+        for r in records
+    ]
+    bot_responses = [r.get("bot_response", "") for r in records]
+
+    print(f"  {len(test_cases)} cases loaded | creator: {creator}")
+
+    # Run Prometheus
+    print("  Running M-Prometheus 14B judge (B2, B5, C2, C3, H1) via Ollama...")
+    from core.evaluation.m_prometheus_judge import evaluate_all_params
+    prom_cases = [
+        {
+            "bot_response": bot_responses[i],
+            "ground_truth": tc["ground_truth"],
+            "user_input": tc["user_input"],
+        }
+        for i, tc in enumerate(test_cases)
+    ]
+    raw = evaluate_all_params(prom_cases, max_cases=len(prom_cases))
+
+    def _per_case_list(key, per_case_data):
+        return [c.get(key, 50.0) for c in per_case_data]
+
+    prometheus_scores = {
+        "B2_persona_consistency": {
+            "score": raw["B2_persona_consistency"],
+            "per_case": _per_case_list("B2", raw.get("per_case", [])),
+        },
+        "B5_emotional_signature": {
+            "score": raw["B5_emotional_signature"],
+            "per_case": _per_case_list("B5", raw.get("per_case", [])),
+        },
+        "C2_naturalness": {
+            "score": raw["C2_naturalness"],
+            "per_case": _per_case_list("C2", raw.get("per_case", [])),
+        },
+        "C3_contextual_appropriateness": {
+            "score": raw["C3_contextual_appropriateness"],
+            "per_case": _per_case_list("C3", raw.get("per_case", [])),
+        },
+        "H1_turing_test_rate": raw.get("H1_turing_test_rate", 0.0),
+        "model": raw.get("model", "m-prometheus-14b"),
+        "n_cases": raw.get("n_cases", 0),
+        "total_time_seconds": raw.get("total_time_seconds", 0.0),
+    }
+    print(
+        f"  Prometheus: B2={prometheus_scores['B2_persona_consistency']['score']:.1f} "
+        f"B5={prometheus_scores['B5_emotional_signature']['score']:.1f} "
+        f"C2={prometheus_scores['C2_naturalness']['score']:.1f} "
+        f"C3={prometheus_scores['C3_contextual_appropriateness']['score']:.1f} "
+        f"H1={prometheus_scores['H1_turing_test_rate']:.1f}% "
+        f"({raw.get('total_time_seconds', 0):.0f}s)"
+    )
+
+    # Business metrics
+    business_scores = None
+    try:
+        from core.evaluation.business_metrics import score_business_metrics
+        business_scores = score_business_metrics(creator)
+        print(f"  Business metrics: I-score={business_scores.get('score', '?')}")
+    except Exception as e:
+        print(f"  Business metrics unavailable: {e}")
+
+    # Re-score
+    scorer = CCEEScorer(style_profile, strategy_map, adaptation_profile, weights)
+    result = scorer.score(
+        test_cases, bot_responses,
+        llm_scores=prometheus_scores,
+        business_scores=business_scores,
+    )
+    print(f"\n{_format_table(result)}")
+
+    # Save
+    out_dir = os.path.join(args.output_dir, creator)
+    os.makedirs(out_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_name = args.save_as if args.save_as else f"prometheus_{timestamp}"
+    out_path = os.path.join(out_dir, f"{out_name}.json")
+
+    human_cases = _select_human_eval_cases(test_cases, bot_responses, result)
+    for i, hc in enumerate(human_cases, 1):
+        print(f"\n  Case {i} [{hc['trust_segment']}] ({hc.get('input_type', '?')}):")
+        print(f"    User: {hc['user_message'][:80]}")
+        print(f"    Real: {hc['iris_real_response'][:80]}")
+        print(f"    Bot:  {hc['bot_response'][:80]}")
+
+    output = {
+        "creator_id": creator,
+        "timestamp": timestamp,
+        "n_runs": 1,
+        "n_cases": len(test_cases),
+        "overrides": data.get("overrides", {}),
+        "runs": [result],
+        "composites": [result["composite"]],
+        "human_eval_cases": human_cases,
+        "weights_used": weights or DEFAULT_WEIGHTS,
+        "per_case_records": records,
+        "source_genonly": src_path,
+    }
+    with open(out_path, "w", encoding="utf-8") as f:
+        _json.dump(output, f, indent=2, ensure_ascii=False, default=str)
+    print(f"\n  Results saved to {out_path}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run CCEE evaluation")
-    parser.add_argument("--creator", required=True, help="Creator slug")
+    parser.add_argument("--creator", required=False, default=None, help="Creator slug (required unless --score-prometheus)")
     parser.add_argument("--runs", type=int, default=1, help="Number of runs")
     parser.add_argument("--cases", type=int, default=50, help="Number of test cases")
     parser.add_argument("--test-set", help="Path to test set JSON (auto-generates if omitted)")
@@ -394,8 +718,24 @@ def main():
         help="Run LLM judge metrics (B2, B5, C2, C3) — costs ~$0.01 per run"
     )
     parser.add_argument(
+        "--with-prometheus-judge", action="store_true",
+        help="Run M-Prometheus 14B judge (B2, B5, C2, C3, H1) via Ollama local — free"
+    )
+    parser.add_argument(
         "--with-business-metrics", action="store_true",
         help="Include business metrics from DB (I1-I4)"
+    )
+    parser.add_argument(
+        "--generate-only", action="store_true",
+        help="Generate bot responses + deterministic scores only. Skip Prometheus/LLM judge."
+    )
+    parser.add_argument(
+        "--score-prometheus", default=None, metavar="JSON_FILE",
+        help="Re-score an existing generate-only JSON with M-Prometheus 14B via Ollama."
+    )
+    parser.add_argument(
+        "--score-all-runs", action="store_true",
+        help="With --score-prometheus: judge each run separately from per_run_records and report mean ± std."
     )
     parser.add_argument(
         "--with-human-ratings", default=None,
@@ -407,6 +747,14 @@ def main():
     )
     args = parser.parse_args()
 
+    # --score-prometheus: separate flow — reads existing JSON, runs Prometheus, saves final
+    if args.score_prometheus:
+        _run_score_prometheus(args)
+        return
+
+    if not args.creator:
+        print("ERROR: --creator is required")
+        sys.exit(1)
     creator = args.creator
     profile_dir = os.path.join(args.profile_dir, creator)
 
@@ -495,6 +843,7 @@ def main():
     scorer = CCEEScorer(style_profile, strategy_map, adaptation_profile, weights)
     all_run_results = []
     all_composites = []
+    all_bot_responses_per_run: List[List[str]] = []  # one list per run, for per_run_records
 
     for run_idx in range(args.runs):
         print(f"\n[3.{run_idx+1}] Run {run_idx+1}/{args.runs}...")
@@ -507,6 +856,7 @@ def main():
             bot_responses = run_bot_pipeline(creator, test_cases, overrides or None)
             t1 = time.time()
             print(f"  Pipeline: {t1-t0:.1f}s for {len(test_cases)} cases")
+        all_bot_responses_per_run.append(list(bot_responses))
 
         # Optional: run jailbreak test
         jailbreak_responses = None
@@ -514,6 +864,72 @@ def main():
             print("  Running jailbreak resistance test...")
             jb_cases = [{"user_input": p["prompt"]} for p in jailbreak_prompts_data]
             jailbreak_responses = run_bot_pipeline(creator, jb_cases, overrides or None)
+
+        # --generate-only: score deterministically, accumulate across runs (save after loop)
+        if args.generate_only:
+            results = scorer.score(
+                test_cases, bot_responses,
+                llm_scores=None, human_scores=None,
+                business_scores=None, jailbreak_responses=None,
+            )
+            print(f"\n{_format_table(results)}")
+            all_run_results.append(results)
+            all_composites.append(results["composite"])
+            continue
+
+        # Optional: run Prometheus judge (local Ollama, free)
+        prometheus_scores = None
+        if args.with_prometheus_judge:
+            print("  Running M-Prometheus 14B judge (B2, B5, C2, C3, H1) via Ollama...")
+            try:
+                from core.evaluation.m_prometheus_judge import evaluate_all_params
+                prom_cases = [
+                    {
+                        "bot_response": bot_responses[i],
+                        "ground_truth": tc.get("ground_truth", ""),
+                        "user_input": tc.get("user_input", ""),
+                    }
+                    for i, tc in enumerate(test_cases)
+                    if i < len(bot_responses)
+                ]
+                raw = evaluate_all_params(prom_cases, max_cases=len(prom_cases))
+                # Transform to llm_scores-compatible format for CCEEScorer
+                def _per_case_list(key, per_case_data):
+                    return [c.get(key, 50.0) for c in per_case_data]
+
+                prometheus_scores = {
+                    "B2_persona_consistency": {
+                        "score": raw["B2_persona_consistency"],
+                        "per_case": _per_case_list("B2", raw.get("per_case", [])),
+                    },
+                    "B5_emotional_signature": {
+                        "score": raw["B5_emotional_signature"],
+                        "per_case": _per_case_list("B5", raw.get("per_case", [])),
+                    },
+                    "C2_naturalness": {
+                        "score": raw["C2_naturalness"],
+                        "per_case": _per_case_list("C2", raw.get("per_case", [])),
+                    },
+                    "C3_contextual_appropriateness": {
+                        "score": raw["C3_contextual_appropriateness"],
+                        "per_case": _per_case_list("C3", raw.get("per_case", [])),
+                    },
+                    "H1_turing_test_rate": raw.get("H1_turing_test_rate", 0.0),
+                    "model": raw.get("model", "m-prometheus-14b"),
+                    "n_cases": raw.get("n_cases", 0),
+                    "total_time_seconds": raw.get("total_time_seconds", 0.0),
+                }
+                print(
+                    f"  Prometheus: B2={prometheus_scores['B2_persona_consistency']['score']:.1f} "
+                    f"B5={prometheus_scores['B5_emotional_signature']['score']:.1f} "
+                    f"C2={prometheus_scores['C2_naturalness']['score']:.1f} "
+                    f"C3={prometheus_scores['C3_contextual_appropriateness']['score']:.1f} "
+                    f"H1={prometheus_scores['H1_turing_test_rate']:.1f}% "
+                    f"({raw.get('total_time_seconds', 0):.0f}s)"
+                )
+            except Exception as e:
+                print(f"  ERROR: Prometheus judge failed: {e}")
+                raise
 
         # Optional: run LLM judge
         llm_scores = None
@@ -536,6 +952,10 @@ def main():
             except Exception as e:
                 print(f"  WARNING: LLM judge failed: {e}")
 
+        # Merge prometheus into llm_scores slot if no API judge ran
+        if prometheus_scores is not None and llm_scores is None:
+            llm_scores = prometheus_scores
+
         results = scorer.score(
             test_cases, bot_responses,
             llm_scores=llm_scores,
@@ -547,6 +967,62 @@ def main():
         all_composites.append(results["composite"])
 
         print(f"\n{_format_table(results)}")
+
+    # --generate-only: save all accumulated runs after loop completes
+    if args.generate_only:
+        out_dir = os.path.join(args.output_dir, creator)
+        os.makedirs(out_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        out_name = args.save_as if args.save_as else f"genonly_{timestamp}"
+        out_path = os.path.join(out_dir, f"{out_name}.json")
+        # Build per_run_records — one list per run, compatible with --score-all-runs
+        per_run_records: List[List[Dict]] = []
+        for run_i, run_bots in enumerate(all_bot_responses_per_run):
+            run_result = all_run_results[run_i]
+            run_s2 = run_result.get("S2_response_quality", {}).get("detail", {}).get("per_case", [])
+            run_s3 = run_result.get("S3_strategic_alignment", {}).get("detail", {}).get("per_case", [])
+            run_records: List[Dict] = []
+            for i, tc in enumerate(test_cases):
+                resp = run_bots[i] if i < len(run_bots) else ""
+                trust = tc.get("trust_score", 0.0)
+                run_records.append({
+                    "idx": i,
+                    "run": run_i,
+                    "input_type": tc.get("input_type", "OTHER"),
+                    "trust_score": trust,
+                    "trust_segment": tc.get("trust_segment", "UNKNOWN"),
+                    "username": tc.get("username", ""),
+                    "lead_uuid": tc.get("lead_uuid"),
+                    "user_message": tc.get("user_input", ""),
+                    "iris_real_response": tc.get("ground_truth", ""),
+                    "bot_response": resp,
+                    "s1_score": score_s1_per_case(resp, style_profile, tc.get("user_input")),
+                    "s2_score": run_s2[i] if i < len(run_s2) else None,
+                    "s3_score": run_s3[i] if i < len(run_s3) else None,
+                    "s4_score": score_s4_per_case(resp, trust, adaptation_profile),
+                })
+            per_run_records.append(run_records)
+        # per_case_records: last run's records (single-run --score-prometheus compat)
+        per_case_records = per_run_records[-1] if per_run_records else []
+        genonly_output = {
+            "creator_id": creator,
+            "timestamp": timestamp,
+            "n_runs": args.runs,
+            "n_cases": len(test_cases),
+            "overrides": overrides,
+            "runs": all_run_results,
+            "composites": all_composites,
+            "human_eval_cases": [],
+            "weights_used": weights or DEFAULT_WEIGHTS,
+            "per_case_records": per_case_records,
+            "per_run_records": per_run_records,
+            "generate_only": True,
+        }
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(genonly_output, f, indent=2, ensure_ascii=False, default=str)
+        print(f"\n  Responses saved to {out_path}")
+        print(f"  Run --score-prometheus {out_path} --score-all-runs --save-as <name> to score all {args.runs} runs.")
+        return
 
     # Aggregate across runs
     if args.runs > 1:
@@ -617,6 +1093,10 @@ def main():
             "idx": i,
             "input_type": tc.get("input_type", "OTHER"),
             "trust_score": trust,
+            "username": tc.get("username", ""),
+            # lead_uuid: real DB UUID (l.id). Persisted so --score-prometheus
+            # can resolve sender_id without falling back to username.
+            "lead_uuid": tc.get("lead_uuid"),
             "user_message": tc.get("user_input", ""),
             "iris_real_response": tc.get("ground_truth", ""),
             "bot_response": resp,
@@ -625,6 +1105,35 @@ def main():
             "s3_score": last_s3_per_case[i] if i < len(last_s3_per_case) else None,
             "s4_score": score_s4_per_case(resp, trust, adaptation_profile),
         })
+
+    # Build per_run_records: one list per run, each case has its own bot_response for that run.
+    # Used by --score-all-runs so the judge can evaluate each run independently.
+    per_run_records: List[List[Dict]] = []
+    for run_i, run_bots in enumerate(all_bot_responses_per_run):
+        run_result = all_run_results[run_i]
+        run_s2 = run_result.get("S2_response_quality", {}).get("detail", {}).get("per_case", [])
+        run_s3 = run_result.get("S3_strategic_alignment", {}).get("detail", {}).get("per_case", [])
+        run_records: List[Dict] = []
+        for i, tc in enumerate(test_cases):
+            resp = run_bots[i] if i < len(run_bots) else ""
+            trust = tc.get("trust_score", 0.0)
+            run_records.append({
+                "idx": i,
+                "run": run_i,
+                "input_type": tc.get("input_type", "OTHER"),
+                "trust_score": trust,
+                "trust_segment": tc.get("trust_segment", "UNKNOWN"),
+                "username": tc.get("username", ""),
+                "lead_uuid": tc.get("lead_uuid"),
+                "user_message": tc.get("user_input", ""),
+                "iris_real_response": tc.get("ground_truth", ""),
+                "bot_response": resp,
+                "s1_score": score_s1_per_case(resp, style_profile, tc.get("user_input")),
+                "s2_score": run_s2[i] if i < len(run_s2) else None,
+                "s3_score": run_s3[i] if i < len(run_s3) else None,
+                "s4_score": score_s4_per_case(resp, trust, adaptation_profile),
+            })
+        per_run_records.append(run_records)
 
     output = {
         "creator_id": creator,
@@ -637,6 +1146,7 @@ def main():
         "human_eval_cases": human_cases,
         "weights_used": weights or DEFAULT_WEIGHTS,
         "per_case_records": per_case_records,
+        "per_run_records": per_run_records,
     }
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False, default=str)

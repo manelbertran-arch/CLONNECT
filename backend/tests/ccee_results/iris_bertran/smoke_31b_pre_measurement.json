@@ -1,0 +1,241 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260408_120912",
+  "n_runs": 1,
+  "n_cases": 3,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 54.72,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 26.66,
+          "A2_contextual": 45.25,
+          "A3_exclamations": 93.91,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 0.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 45.21,
+        "detail": {
+          "bertscore_mean": 0.8295,
+          "chrf_mean": 0.0889,
+          "bleu4_mean": 0.1207,
+          "rouge_l_mean": 0.0392,
+          "meteor_mean": 0.0147,
+          "semsim_mean": 0.8295,
+          "c4_relevance_mean": 0.802,
+          "self_rep_mean": 0.7636,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            43.64,
+            45.29,
+            46.71
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 88.49,
+        "detail": {
+          "e1_per_case_mean": 100.0,
+          "e2_distribution_match": 61.64,
+          "bot_strategy_distribution": {
+            "IGNORE": 1.0
+          },
+          "per_case": [
+            100.0,
+            100.0,
+            100.0
+          ],
+          "mean": 88.49
+        }
+      },
+      "S4_adaptation": {
+        "score": 61.36,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 61.36,
+          "proximity_n": 3
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 50.0,
+        "B1": {
+          "score": 0.0,
+          "detail": {
+            "cosine_similarity": 0.0,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.1429,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 3,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 30.74,
+        "H2": {
+          "score": 30.74,
+          "detail": {
+            "cosine_similarity": 0.3074,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.1017,
+              0.6667,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 31.0,
+        "detail": {
+          "cases_scored": 1,
+          "mean": 0.0,
+          "length_adjusted": "length_median=19 → weight=0.38"
+        }
+      },
+      "J2_multiturn_consistency": {
+        "score": 50.0,
+        "detail": "insufficient responses (need >= 5)"
+      },
+      "J_cognitive_fidelity": 40.5,
+      "composite": 60.15,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    60.15
+  ],
+  "human_eval_cases": [],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_34666722290",
+      "lead_uuid": "7b8a6206-501c-487c-a204-24871916d301",
+      "user_message": "Ara em posaré a mirar una mica de netflix i chill",
+      "iris_real_response": "Es com\nUn video de ball tu el poses i el segueixes i ja està",
+      "bot_response": "Disfruta nenaaa 😂😘",
+      "s1_score": 45.3,
+      "s2_score": 43.64,
+      "s3_score": 100.0,
+      "s4_score": 57.92
+    },
+    {
+      "idx": 1,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "[🎤 Audio]: Te digo si querías que te confirmara si querías que hiciera algo de las cosas que te he hecho yo, o yo lo que he pensado era una de las tomas que os he cogido aquí todas en la calle y poniendo la canción de Spice Girls, obvio.",
+      "iris_real_response": "[🏷️ Sticker]",
+      "bot_response": "Ostia mami😂😂 me flipa",
+      "s1_score": 45.13,
+      "s2_score": 45.29,
+      "s3_score": 100.0,
+      "s4_score": 58.87
+    },
+    {
+      "idx": 2,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Vale perfe",
+      "iris_real_response": "[🎤 Audio]: Erika cariño, espera que no se le tenga la otra vez.",
+      "bot_response": "Me flipa la idea, tia.",
+      "s1_score": 62.67,
+      "s2_score": 46.71,
+      "s3_score": 100.0,
+      "s4_score": 67.29
+    }
+  ],
+  "generate_only": true
+}

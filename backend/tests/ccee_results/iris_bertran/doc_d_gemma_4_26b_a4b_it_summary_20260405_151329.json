@@ -1,0 +1,115 @@
+{
+  "creator": "iris_bertran",
+  "model": "gemma-4-26b-a4b-it",
+  "provider": "google_ai_studio",
+  "system_prompt": "doc_d",
+  "doc_d_len": 1566,
+  "n_runs": 1,
+  "n_cases": 2,
+  "timestamp": "2026-04-05T15:13:33.843625+00:00",
+  "aggregated_metrics": {
+    "l1_overall": [
+      0.429,
+      0.0
+    ],
+    "l3_bleu4": [
+      0.0,
+      0.0
+    ],
+    "l3_rouge_l": [
+      0.0,
+      0.0
+    ],
+    "l3_chrf": [
+      0.0863,
+      0.0
+    ],
+    "l3_vocab_overlap": [
+      0.0,
+      0.0
+    ]
+  },
+  "per_run_l1": [
+    {
+      "overall": 0.429,
+      "passed": 3,
+      "total": 7,
+      "n_responses": 2,
+      "bot_emoji_rate": 100.0,
+      "bot_excl_rate": 0.0,
+      "bot_q_rate": 0.0,
+      "bot_len_mean": 5.5,
+      "bot_len_median": 5.5,
+      "bot_ca_rate": 0.0,
+      "vocab_jaccard": 0.02,
+      "details": {
+        "emoji_rate": {
+          "bot": 100.0,
+          "iris": 22.6,
+          "div": 77.4,
+          "ok": false
+        },
+        "excl_rate": {
+          "bot": 0.0,
+          "iris": 1.8,
+          "div": 1.8,
+          "ok": true
+        },
+        "q_rate": {
+          "bot": 0.0,
+          "iris": 14.2,
+          "div": 14.2,
+          "ok": true
+        },
+        "len_mean": {
+          "bot": 5.5,
+          "iris": 95.2,
+          "div": 94.22,
+          "ok": false
+        },
+        "len_median": {
+          "bot": 5.5,
+          "iris": 26.0,
+          "div": 78.85,
+          "ok": false
+        },
+        "ca_rate": {
+          "bot": 0.0,
+          "iris": 43.5,
+          "div": 43.5,
+          "ok": false
+        },
+        "vocab_jac": {
+          "bot": 2.0,
+          "iris": 5.0,
+          "div": 3.0,
+          "ok": true
+        }
+      }
+    }
+  ],
+  "per_run_l3": [
+    {
+      "bleu4": 0.0,
+      "rouge_l": 0.0,
+      "chrf": 0.0863,
+      "vocab_overlap": 0.0,
+      "n_pairs": 2,
+      "_bleu4_scores": [
+        0.0,
+        0.0
+      ],
+      "_rougel_scores": [
+        0.0,
+        0.0
+      ],
+      "_chrf_scores": [
+        0.1424,
+        0.0303
+      ]
+    }
+  ],
+  "run_files": [
+    "/Users/manelbertranluque/Clonnect/backend/tests/ccee_results/iris_bertran/doc_d_gemma_4_26b_a4b_it_run1_20260405_151329.json"
+  ]
+}

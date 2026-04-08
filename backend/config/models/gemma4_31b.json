@@ -6,16 +6,14 @@
   "active_params": "31B",
   "context_window": 256000,
   "sliding_window": 1024,
-
   "provider": {
     "name": "google_ai_studio",
     "api_key_env": "GOOGLE_API_KEY",
     "model_string": "gemma-4-31b-it",
     "sdk": "google-generativeai"
   },
-
   "sampling": {
-    "temperature": 0.7,
+    "temperature": 0.9,
     "top_p": 0.95,
     "top_k": 64,
     "max_tokens": 78,
@@ -23,44 +21,41 @@
     "frequency_penalty": 0.0,
     "presence_penalty": 0.0
   },
-
   "runtime": {
     "timeout_seconds": 30,
     "max_retries": 3
   },
-
   "safety": {
     "harassment": "BLOCK_ONLY_HIGH",
     "hate_speech": "BLOCK_ONLY_HIGH",
     "sexually_explicit": "BLOCK_ONLY_HIGH",
     "dangerous_content": "BLOCK_ONLY_HIGH"
   },
-
   "thinking": {
     "enabled": false,
     "token": "<|think|>",
     "filter_from_history": true,
     "low_thinking_instruction": "Think efficiently and concisely."
   },
-
   "few_shot": {
     "few_shot_count": 3,
     "format": "conversation"
   },
-
   "system_prompt": {
     "native_system_role": false,
     "system_prompt_mode": "user_message",
     "max_length_chars": 2000,
     "template_file": "config/doc_d_templates/gemma4_26b.txt"
   },
-
   "chat_template": {
-    "roles": ["system", "user", "assistant"],
+    "roles": [
+      "system",
+      "user",
+      "assistant"
+    ],
     "turn_separator": "<|turn|>",
     "filter_thought_blocks": true
   },
-
   "quantization": {
     "recommended": "Q4_K_M",
     "vram_q4": "22GB",

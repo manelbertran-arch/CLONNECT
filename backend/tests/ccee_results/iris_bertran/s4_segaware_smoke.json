@@ -1,0 +1,349 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260407_234356",
+  "n_runs": 1,
+  "n_cases": 10,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 62.43,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 99.99,
+          "A2_contextual": 56.42,
+          "A3_exclamations": 93.91,
+          "A4_questions": 99.73,
+          "A5_vocabulary": 0.0,
+          "A6_language": 73.21,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 43.38,
+        "detail": {
+          "bertscore_mean": 0.8,
+          "chrf_mean": 0.0809,
+          "bleu4_mean": 0.2176,
+          "rouge_l_mean": 0.02,
+          "meteor_mean": 0.01,
+          "semsim_mean": 0.8,
+          "c4_relevance_mean": 0.8145,
+          "self_rep_mean": 0.7758,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.8,
+          "per_case": [
+            46.87,
+            43.16,
+            38.94,
+            47.45,
+            48.25,
+            35.7,
+            48.17,
+            44.36,
+            40.73,
+            40.17
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 27.74,
+        "detail": {
+          "e1_per_case_mean": 22.25,
+          "e2_distribution_match": 40.55,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.9,
+            "ASK": 0.1
+          },
+          "per_case": [
+            12.5,
+            12.5,
+            11.5,
+            12.5,
+            12.5,
+            12.5,
+            16.1,
+            14.5,
+            17.7,
+            100.0
+          ],
+          "mean": 27.74
+        }
+      },
+      "S4_adaptation": {
+        "score": 53.28,
+        "detail": {
+          "mode": "blended",
+          "proximity_mean": 63.81,
+          "proximity_n": 10,
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 0.0,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 10,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 29.19,
+        "H2": {
+          "score": 29.19,
+          "detail": {
+            "cosine_similarity": 0.2919,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.1125,
+              0.3,
+              0.0,
+              0.1,
+              0.0,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 69.01,
+        "detail": {
+          "length_consistency": 51.42,
+          "emoji_consistency": 99.99,
+          "question_consistency": 99.73,
+          "exclamation_consistency": 93.91,
+          "cv_match": 0.0,
+          "bot_length_std": 5.04,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 59.51,
+      "composite": 52.4,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    52.4
+  ],
+  "human_eval_cases": [],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "Esque QUE HOMBRE",
+      "iris_real_response": "Si una miqueta ee no nos pasemos",
+      "bot_response": "Jajaja qué fuerte 😂😂",
+      "s1_score": 46.33,
+      "s2_score": 46.87,
+      "s3_score": 12.5,
+      "s4_score": 58.55
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 0.14,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_34654148949",
+      "user_message": "Me pondre snop dog de camino al rescue",
+      "iris_real_response": "Doncs vine",
+      "bot_response": "Ja ja ja que biennn",
+      "s1_score": 52.74,
+      "s2_score": 43.16,
+      "s3_score": 12.5,
+      "s4_score": 65.77
+    },
+    {
+      "idx": 2,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_41779950952",
+      "user_message": "De e a 6 meses",
+      "iris_real_response": "Moltbeee cuca",
+      "bot_response": "Ja, ok. I què busques x especial?",
+      "s1_score": 54.65,
+      "s2_score": 38.94,
+      "s3_score": 11.5,
+      "s4_score": 57.43
+    },
+    {
+      "idx": 3,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "Manel",
+      "user_message": "Bueno i que fem doncs",
+      "iris_real_response": "Nooo jo ja mmhe apuntat",
+      "bot_response": "Doncs no sé, ja veurem",
+      "s1_score": 62.67,
+      "s2_score": 47.45,
+      "s3_score": 12.5,
+      "s4_score": 67.29
+    },
+    {
+      "idx": 4,
+      "input_type": "OTHER",
+      "trust_score": 0.0,
+      "trust_segment": "UNKNOWN",
+      "username": "emi_ojeda006",
+      "user_message": "Vos??",
+      "iris_real_response": "Primero al concierto y después ya playukiiii",
+      "bot_response": "Ja ja ja q guay. Disfruta mami.",
+      "s1_score": 52.67,
+      "s2_score": 48.25,
+      "s3_score": 12.5,
+      "s4_score": 70.14
+    },
+    {
+      "idx": 5,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "Venga suerte",
+      "iris_real_response": "Merci",
+      "bot_response": "Ostiaaa qué fuerte 😂😂",
+      "s1_score": 45.17,
+      "s2_score": 35.7,
+      "s3_score": 12.5,
+      "s4_score": 58.87
+    },
+    {
+      "idx": 6,
+      "input_type": "QUESTION_SERVICE",
+      "trust_score": 0.14,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_34654148949",
+      "user_message": "Nomes puc reservar a la 13h del migdia",
+      "iris_real_response": "Tas preparada",
+      "bot_response": "Ja ja jaa ostiaaa",
+      "s1_score": 51.42,
+      "s2_score": 48.17,
+      "s3_score": 16.1,
+      "s4_score": 65.04
+    },
+    {
+      "idx": 7,
+      "input_type": "LAUGH",
+      "trust_score": 0.0,
+      "trust_segment": "UNKNOWN",
+      "username": "ericadelo",
+      "user_message": "JAAJAJAJAJAJAJQJQJQJQJQ",
+      "iris_real_response": "Lucito felisss",
+      "bot_response": "Ja ja ja qué fuerte 😂😂",
+      "s1_score": 47.09,
+      "s2_score": 44.36,
+      "s3_score": 14.5,
+      "s4_score": 61.68
+    },
+    {
+      "idx": 8,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "[audio]",
+      "iris_real_response": "He utilizado WeTransfer, la forma más sencilla de enviar y recibir archivos.\n\nHaz clic en el enlace de descarga: https://we.tl/t-7JZtHBwkrUQp802V",
+      "bot_response": "Jajaja qué fuerte mami",
+      "s1_score": 53.88,
+      "s2_score": 40.73,
+      "s3_score": 17.7,
+      "s4_score": 67.29
+    },
+    {
+      "idx": 9,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "Se q dius aquesta oi?",
+      "iris_real_response": "Tranqui",
+      "bot_response": "Jajaja que fuerte.",
+      "s1_score": 53.78,
+      "s2_score": 40.17,
+      "s3_score": 100.0,
+      "s4_score": 66.01
+    }
+  ],
+  "generate_only": true
+}

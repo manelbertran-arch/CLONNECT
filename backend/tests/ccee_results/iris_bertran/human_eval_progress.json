@@ -1,0 +1,109 @@
+{
+  "ratings": [
+    {
+      "case_id": "cpe_iris__001",
+      "case_num": 1,
+      "test_input": "Lol",
+      "bot_response": "FAKE BOT RESPONSE",
+      "ground_truth": "Jajaja, qué fuerte! 😂",
+      "category": "short_response",
+      "language": "unknown",
+      "trust_segment": "UNKNOWN",
+      "bot_is_A": false,
+      "iris_choice": "A",
+      "iris_identified_correctly": true,
+      "score_A": 3,
+      "score_B": 4,
+      "bot_would_send_score": 4,
+      "iris_would_send_score": 3,
+      "notes_bot": null,
+      "notes_iris": null,
+      "timestamp": "2026-04-03T23:20:04.845504+00:00"
+    },
+    {
+      "case_id": "cpe_iris__002",
+      "case_num": 2,
+      "test_input": "💖💖💖",
+      "bot_response": "FAKE BOT RESPONSE",
+      "ground_truth": "Nanit wapa",
+      "category": "short_response",
+      "language": "unknown",
+      "trust_segment": "UNKNOWN",
+      "bot_is_A": true,
+      "iris_choice": "A",
+      "iris_identified_correctly": false,
+      "score_A": 3,
+      "score_B": 4,
+      "bot_would_send_score": 3,
+      "iris_would_send_score": 4,
+      "notes_bot": null,
+      "notes_iris": null,
+      "timestamp": "2026-04-03T23:20:04.845818+00:00"
+    },
+    {
+      "case_id": "cpe_iris__004",
+      "case_num": 3,
+      "test_input": "Si",
+      "bot_response": "FAKE BOT RESPONSE",
+      "ground_truth": "Bueno després et confirmo que creo que me he liao de dia😂😂😂😂",
+      "category": "short_response",
+      "language": "unknown",
+      "trust_segment": "UNKNOWN",
+      "bot_is_A": true,
+      "iris_choice": "A",
+      "iris_identified_correctly": false,
+      "score_A": 3,
+      "score_B": 4,
+      "bot_would_send_score": 3,
+      "iris_would_send_score": 4,
+      "notes_bot": null,
+      "notes_iris": null,
+      "timestamp": "2026-04-04T08:31:55.335629+00:00"
+    },
+    {
+      "case_id": "cpe_iris__006",
+      "case_num": 4,
+      "test_input": "Obvioo",
+      "bot_response": "FAKE BOT RESPONSE",
+      "ground_truth": "Buenos días rey🌈 café y te veo",
+      "category": "short_response",
+      "language": "unknown",
+      "trust_segment": "UNKNOWN",
+      "bot_is_A": true,
+      "iris_choice": "A",
+      "iris_identified_correctly": false,
+      "score_A": 3,
+      "score_B": 4,
+      "bot_would_send_score": 3,
+      "iris_would_send_score": 4,
+      "notes_bot": null,
+      "notes_iris": null,
+      "timestamp": "2026-04-04T08:31:55.335963+00:00"
+    }
+  ],
+  "scores": {
+    "H1_turing": {
+      "accuracy_pct": 25.0,
+      "correct": 1,
+      "total": 4
+    },
+    "bot_would_send": {
+      "mean_1_5": 3.25,
+      "score_0_100": 56.2,
+      "n": 4
+    },
+    "iris_would_send": {
+      "mean_1_5": 3.75,
+      "score_0_100": 68.8,
+      "n": 4
+    }
+  },
+  "metadata": {
+    "creator": "iris_bertran",
+    "completed": "2026-04-04T08:31:55.336117+00:00",
+    "total_rated": 4,
+    "total_valid_cases": 39,
+    "dry_run": true,
+    "cache_path": "/Users/manelbertranluque/Clonnect/backend/tests/ccee_results/iris_bertran/human_eval_responses_cache.json"
+  }
+}

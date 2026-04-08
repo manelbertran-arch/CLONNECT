@@ -1,0 +1,282 @@
+{
+  "model_name": "gemma-4-26b-a4b-it",
+  "provider": "google",
+  "creator_id": "iris_bertran",
+  "timestamp": "2026-04-04T12:28:19.966280",
+  "n_runs": 1,
+  "n_cases": 3,
+  "system_prompt": "Eres Iris Bertran, una profesora de fitness y danza en Barcelona. Respondes DMs de Instagram y WhatsApp. Hablas en catalán y español mezclados. Eres cercana, directa, usas emojis. Responde como ella respondería.",
+  "temperature": 0.8,
+  "max_tokens": 300,
+  "params_measured": 38,
+  "params_total": 44,
+  "composites": [
+    30.55
+  ],
+  "scores": {
+    "S1_style_fidelity": {
+      "mean": 5.14,
+      "std": 0.0
+    },
+    "S2_response_quality": {
+      "mean": 32.72,
+      "std": 0.0
+    },
+    "S3_strategic_alignment": {
+      "mean": 15.35,
+      "std": 0.0
+    },
+    "S4_adaptation": {
+      "mean": 17.94,
+      "std": 0.0
+    },
+    "J1_memory_recall": {
+      "mean": 50.0,
+      "std": 0.0
+    },
+    "J2_multiturn_consistency": {
+      "mean": 50.0,
+      "std": 0.0
+    },
+    "B_persona_fidelity": {
+      "mean": 65.81,
+      "std": 0.0
+    },
+    "G_safety": {
+      "mean": 100.0,
+      "std": 0.0
+    },
+    "H_indistinguishability": {
+      "mean": 32.8,
+      "std": 0.0
+    },
+    "composite": {
+      "mean": 30.55,
+      "std": 0.0
+    },
+    "B1": {
+      "mean": 31.62,
+      "std": 0.0
+    },
+    "B4": {
+      "mean": 100.0,
+      "std": 0.0
+    },
+    "G1": {
+      "mean": 100.0,
+      "std": 0.0
+    },
+    "H2": {
+      "mean": 32.8,
+      "std": 0.0
+    }
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "short_response",
+      "trust_score": 0.0,
+      "user_message": "Lol",
+      "ground_truth": "Jajaja, qué fuerte! 😂",
+      "bot_response": "*   User Input: \"JAJAJJAJAJes diu jonathan?Lol\"\n    *   Persona: Iris Bertran (Fitness & Dance teacher in Barcelona).\n    *   Style: Mixed Catalan/Spanish, close, direct, emojis, informal.\n    *   Constraint: Respond *ONLY* with the DM message. No analysis, no explanations, no bullets.\n\n    *   The user is laughing at the previous joke about the name Jonathan/gray eyebrows.\n    *   Iris needs to keep the vibe going, maybe tease a bit or just laugh along.\n\n    *   Option 1: \"Es que no puedo, te juro que me muero 😂😂😂 No es broma, es que me ha dado un ataque de risa!\"\n    *   Option 2: \"JAJAJA de veritat! 💀 No hi ha res més patètic que un Jonathan amb canes! 😂\"\n    *   Option 3: \"Total! 😂😂😂 No m'ho pots dir, és que es queda un personatge!\"\n\n    *   \"JAJAJA de veritat! 😂💀 No m'ho pots dir, és que es queda un personatge! Me muero, de veritat 🤣🤣\"\n\n    *   Mixed Catalan/Spanish? Yes.\n    *   Close/Direct? Yes.\n    *   Emojis? Yes.\n    *   No analysis/explanation? Yes.\n\n    \"JAJAJA de veritat! 😂💀 No m'ho pots dir, és que es queda un personatge! Me muero, de veritat 🤣🤣\" -> Let's make it a bit more \"Iris\".\n\n    \"JAJAJA total! 😂💀 No m'ho pots dir, és que es queda un personatge! Me muero, de veritat 🤣🤣\"\n\n    *Self-correction:* The user's prompt was \"Jes diu jonathan?\".\n    Response: \"JAJAJA total! 😂💀 No m'ho pots dir, és que es queda un personatge! Me muero, de veritat 🤣🤣\"\n\n    Wait, let's try something even more natural for a Barcelona fitness/dance teacher.\n    \"JAJAJA de veritat! 😂💀 No m'ho pots dir, és que es queda un personatge! Me muero, te lo juro 🤣🤣\"\n\n    Actually, let's keep it punchy.\n    \"JAJAJA total! 😂💀 No m'ho pots dir, és que es queda un personatge! Me muero, de veritat 🤣🤣\"",
+      "composite": 30.55,
+      "s2_score": 33.16,
+      "s3_score": 7.5
+    },
+    {
+      "idx": 1,
+      "input_type": "short_response",
+      "trust_score": 0.0,
+      "user_message": "💖💖💖",
+      "ground_truth": "Nanit wapa",
+      "bot_response": "*   User's input: \"Jajaajajajajaj😂😂😂Vale genial 🙂💖💖💖\" (The user is reacting to something, likely a previous interaction where I was being playful or just being \"Iris\").\n    *   Persona: Iris Bertran (Fitness & Dance teacher in Barcelona).\n    *   Language: Mixed Catalan and Spanish (Spanglish/Catalan-Spanish blend).\n    *   Tone: Close, direct, uses emojis.\n    *   Constraint: Respond ONLY with the DM text. No analysis, no explanations.\n\n    *   The user said \"Vale genial\" (Okay great).\n    *   This implies agreement or confirmation of a plan/info.\n    *   Iris's response should be a warm sign-off or an enthusiastic confirmation.\n    *   Examples of Iris's style: \"D'acord, peton!\", \"Perfecte, ens veiem!\", \"Genial, canya!\", \"Vinga, a tope!\".\n\n    *   Option 1: \"Perfecte! Nos vemos pronto, un peton! 😘✨\"\n    *   Option 2: \"Genial! Ja et diré què tal, petonets! 💖💃\"\n    *   Option 3: \"D'acord, petó! Ànims amb la setmana! 💪🔥\"\n\n    *   \"Perfecte! Ja ens anem veient, un peton! 😘💖✨\"\n\n    *   Is it mixed? Yes (Perfecte - Catalan / Ya nos vamos viendo - Spanish context/vibe).\n    *   Is it direct? Yes.\n    *   Does it have emojis? Yes.\n    *   Is it only the message? Yes.\n\n    *Self-correction:* The user's message is \"Vale genial\". A natural response from a teacher/friend would be \"Perfecte! Nos vemos pronto/ens veiem!\" or \"Genial! Un petó!\".\n\n    Let's go with something very \"Iris\":\n    \"Perfecte! Ja et diré què tal, un petó! 😘💖✨\"\n\n    Actually, let's make it even more authentic to the Barcelona vibe:\n    \"Perfecte! Ja ens veiem, un petó! 😘💖✨\"\n\n    Wait, let's check the language blend again.\n    \"Perfecte! Ja ens veiem, un peton! 😘💖✨\" (Perfecte is Catalan, the rest is common).\n\n    Let's try: \"Genial! Ja ens veiem, un petó! 😘💖✨\"\n\n    Final selection: \"Perfecte! Ja ens veiem, un peton! 😘💖✨\"",
+      "composite": 30.55,
+      "s2_score": 31.47,
+      "s3_score": 14.2
+    },
+    {
+      "idx": 2,
+      "input_type": "short_response",
+      "trust_score": 0.0,
+      "user_message": "Si",
+      "ground_truth": "Bueno després et confirmo que creo que me he liao de dia😂😂😂😂",
+      "bot_response": "*   User input: \"Si\"\n    *   Context: The user (client) is agreeing to the appointment proposed in the previous message (\"Cuca podem fer dimecres a les 10:00🙏🏽\").\n    *   Persona: Iris Bertran (fitness/dance teacher in Barcelona).\n    *   Style: Mix of Catalan and Spanish, close, direct, emojis, Instagram/WhatsApp DM style.\n\n    *   Iris proposed Wednesday at 10:00.\n    *   The client said \"Si\".\n    *   Iris needs to confirm, maybe say \"Perfect\", \"Genial\", or \"Vist\".\n\n    *   *Option 1:* Genial! T'hi veiem dimecres ales 10! 💪🏼✨\n    *   *Option 2:* Perfecte! Anotada! Veiem dimecres ales 10:00 💖💃🏼\n    *   *Option 3:* Perfecte, t'hi espero dimecres ales 10! 💪🏼✨\n\n    *   \"Perfecte! Anotada! T'hi espero dimecres ales 10:00 💪🏼✨💖\"\n\n    *   \"Perfecte! Anotada! T'hi espero dimecres ales 10:00 💪🏼✨💖\"\n\n    *   No analysis, no explanations, no bullets. Just the DM text.\n\n    *Self-Correction during drafting:* Use \"T'hi espero\" or \"Veiem dimecres\". \"Perfecte, anotada! 💖 T'hi espero dimecres ales 10:00! 💪🏼✨\" looks very natural for her persona.",
+      "composite": 30.55,
+      "s2_score": 33.53,
+      "s3_score": 4.2
+    }
+  ],
+  "comparison_vs_reference": null,
+  "flags": {
+    "with_llm_judge": false,
+    "with_jailbreak": false
+  },
+  "runs_raw": [
+    {
+      "S1_style_fidelity": {
+        "score": 5.14,
+        "detail": {
+          "A1_length": 0.0,
+          "A2_emoji": 0.0,
+          "A2_contextual": 34.28,
+          "A3_exclamations": 0.0,
+          "A4_questions": 0.0,
+          "A5_vocabulary": 16.0,
+          "A6_language": 0.0,
+          "A7_fragmentation": 0.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 32.72,
+        "detail": {
+          "bertscore_mean": 0.7752,
+          "chrf_mean": 0.0173,
+          "bleu4_mean": 0.0047,
+          "rouge_l_mean": 0.0024,
+          "meteor_mean": 0.0055,
+          "semsim_mean": 0.7752,
+          "c4_relevance_mean": 0.7507,
+          "self_rep_mean": 0.92,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            33.16,
+            31.47,
+            33.53
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 15.35,
+        "detail": {
+          "e1_per_case_mean": 8.62,
+          "e2_distribution_match": 31.06,
+          "bot_strategy_distribution": {
+            "ASK": 0.6667,
+            "INFORM": 0.3333
+          },
+          "per_case": [
+            7.5,
+            14.2,
+            4.2
+          ],
+          "mean": 15.35
+        }
+      },
+      "S4_adaptation": {
+        "score": 17.94,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 17.94,
+          "proximity_n": 3
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 65.81,
+        "B1": {
+          "score": 31.62,
+          "detail": {
+            "cosine_similarity": 0.3162,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.0,
+              0.0,
+              0.0168,
+              0.0056,
+              0.0
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 3,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 32.8,
+        "H2": {
+          "score": 32.8,
+          "detail": {
+            "cosine_similarity": 0.328,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              7.5983,
+              1.0,
+              1.0,
+              0.6667,
+              0.08,
+              1.0,
+              4.1333,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 50.0,
+        "detail": "insufficient responses (need >= 5)"
+      },
+      "J_cognitive_fidelity": 50.0,
+      "composite": 30.55,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ]
+}

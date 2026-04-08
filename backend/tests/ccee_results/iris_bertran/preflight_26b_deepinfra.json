@@ -1,0 +1,208 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260408_195155",
+  "n_runs": 1,
+  "n_cases": 1,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 48.38,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 40.01,
+          "A2_contextual": 68.55,
+          "A3_exclamations": 93.91,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 0.0,
+          "A6_language": 0.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 39.8,
+        "detail": {
+          "bertscore_mean": 0.8228,
+          "chrf_mean": 0.0852,
+          "bleu4_mean": 0.1349,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0,
+          "semsim_mean": 0.8228,
+          "c4_relevance_mean": 0.7761,
+          "self_rep_mean": 1.0,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            39.8
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 18.16,
+        "detail": {
+          "e1_per_case_mean": 12.54,
+          "e2_distribution_match": 31.26,
+          "bot_strategy_distribution": {
+            "VALIDATE": 1.0
+          },
+          "per_case": [
+            12.5
+          ],
+          "mean": 18.16
+        }
+      },
+      "S4_adaptation": {
+        "score": 69.51,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 69.51,
+          "proximity_n": 1
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 1,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 24.75,
+        "H2": {
+          "score": 24.75,
+          "detail": {
+            "cosine_similarity": 0.2475,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.145,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 50.0,
+        "detail": "insufficient responses (need >= 5)"
+      },
+      "J_cognitive_fidelity": 50.0,
+      "composite": 47.33,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    47.33
+  ],
+  "human_eval_cases": [],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "run": 0,
+      "input_type": "OTHER",
+      "trust_score": 0.99,
+      "trust_segment": "UNKNOWN",
+      "username": "+34636022878",
+      "lead_uuid": "c9a93563-be70-4445-b9f4-7cc3e2d743c9",
+      "user_message": "Divendres!",
+      "iris_real_response": "Es horrible",
+      "bot_response": "Ja ja ja ja que eres una loca",
+      "s1_score": 54.04,
+      "s2_score": 39.8,
+      "s3_score": 12.5,
+      "s4_score": 69.51
+    }
+  ],
+  "per_run_records": [
+    [
+      {
+        "idx": 0,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 0.99,
+        "trust_segment": "UNKNOWN",
+        "username": "+34636022878",
+        "lead_uuid": "c9a93563-be70-4445-b9f4-7cc3e2d743c9",
+        "user_message": "Divendres!",
+        "iris_real_response": "Es horrible",
+        "bot_response": "Ja ja ja ja que eres una loca",
+        "s1_score": 54.04,
+        "s2_score": 39.8,
+        "s3_score": 12.5,
+        "s4_score": 69.51
+      }
+    ]
+  ],
+  "generate_only": true
+}

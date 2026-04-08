@@ -1,0 +1,260 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260407_220306",
+  "n_runs": 1,
+  "n_cases": 5,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 51.9,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 80.01,
+          "A2_contextual": 60.27,
+          "A3_exclamations": 93.91,
+          "A4_questions": 79.73,
+          "A5_vocabulary": 4.0,
+          "A6_language": 0.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 42.19,
+        "detail": {
+          "bertscore_mean": 0.8118,
+          "chrf_mean": 0.0483,
+          "bleu4_mean": 0.2127,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0,
+          "semsim_mean": 0.8118,
+          "c4_relevance_mean": 0.8116,
+          "self_rep_mean": 0.7613,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 1.14,
+          "per_case": [
+            49.73,
+            43.52,
+            34.41,
+            41.85,
+            41.44
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 54.42,
+        "detail": {
+          "e1_per_case_mean": 48.35,
+          "e2_distribution_match": 68.6,
+          "bot_strategy_distribution": {
+            "IGNORE": 0.2,
+            "ASK": 0.2,
+            "VALIDATE": 0.6
+          },
+          "per_case": [
+            100.0,
+            11.5,
+            12.5,
+            100.0,
+            17.7
+          ],
+          "mean": 54.42
+        }
+      },
+      "S4_adaptation": {
+        "score": 62.01,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 62.01,
+          "proximity_n": 5
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 5,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 29.24,
+        "H2": {
+          "score": 29.24,
+          "detail": {
+            "cosine_similarity": 0.2924,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.097,
+              0.2,
+              0.0,
+              0.2,
+              0.02,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 61.1,
+        "detail": {
+          "length_consistency": 51.86,
+          "emoji_consistency": 80.01,
+          "question_consistency": 79.73,
+          "exclamation_consistency": 93.91,
+          "cv_match": 0.0,
+          "bot_length_std": 6.62,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 55.55,
+      "composite": 56.12,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    56.12
+  ],
+  "human_eval_cases": [],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "+34638287533",
+      "user_message": "Iris tú descansa y duerme. Yo iré a las 9:30 con Edu y hacia las 12 y pico subiré a Odena vale? Estaré un rato hasta las dos o así y luego vuelvo a casa",
+      "iris_real_response": "Hipopilates también?😌",
+      "bot_response": "D'acord reina, descansa. 😂",
+      "s1_score": 44.97,
+      "s2_score": 49.73,
+      "s3_score": 100.0,
+      "s4_score": 60.46
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 0.14,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_34682882838",
+      "user_message": "Aquests colors sempre et queden súper bé",
+      "iris_real_response": "Si us enganxo em\nPixu😂😂😂",
+      "bot_response": "Ja ho sé, et agrada?",
+      "s1_score": 44.65,
+      "s2_score": 43.52,
+      "s3_score": 11.5,
+      "s4_score": 52.52
+    },
+    {
+      "idx": 2,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_34629258733",
+      "user_message": "Dema?",
+      "iris_real_response": "[audio]",
+      "bot_response": "Tranqui nena, ja et trobem.",
+      "s1_score": 53.27,
+      "s2_score": 34.41,
+      "s3_score": 12.5,
+      "s4_score": 68.87
+    },
+    {
+      "idx": 3,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "Tia tho juro tanava a dir el mateix",
+      "iris_real_response": "Tranqui",
+      "bot_response": "Ja te ho decía",
+      "s1_score": 52.79,
+      "s2_score": 41.85,
+      "s3_score": 100.0,
+      "s4_score": 64.74
+    },
+    {
+      "idx": 4,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "+34660042310",
+      "user_message": "[audio]",
+      "iris_real_response": "I una merda moure cap fil més, sino tens els resultats pel dia 16 adeu reina. Es més si avui no vas anulo l’hora i xim pum.",
+      "bot_response": "Qué fuerte",
+      "s1_score": 52.72,
+      "s2_score": 41.44,
+      "s3_score": 17.7,
+      "s4_score": 63.47
+    }
+  ],
+  "generate_only": true
+}

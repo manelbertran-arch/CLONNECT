@@ -1,0 +1,264 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260408_114221",
+  "n_runs": 1,
+  "n_cases": 5,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 55.5,
+        "detail": {
+          "A1_length": 92.33,
+          "A2_emoji": 40.01,
+          "A2_contextual": 66.18,
+          "A3_exclamations": 93.91,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 8.0,
+          "A6_language": 73.21,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 22.9,
+        "detail": {
+          "bertscore_mean": 0.1588,
+          "chrf_mean": 0.0198,
+          "bleu4_mean": 0.027,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0,
+          "semsim_mean": 0.1588,
+          "c4_relevance_mean": 0.1638,
+          "self_rep_mean": 1.0,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.63,
+          "per_case": [
+            17.5,
+            44.49,
+            17.5,
+            17.5,
+            17.5
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 79.67,
+        "detail": {
+          "e1_per_case_mean": 82.51,
+          "e2_distribution_match": 73.05,
+          "bot_strategy_distribution": {
+            "IGNORE": 0.8,
+            "VALIDATE": 0.2
+          },
+          "per_case": [
+            100.0,
+            12.5,
+            100.0,
+            100.0,
+            100.0
+          ],
+          "mean": 79.67
+        }
+      },
+      "S4_adaptation": {
+        "score": 68.29,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 68.29,
+          "proximity_n": 5
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 5,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 25.65,
+        "H2": {
+          "score": 25.65,
+          "detail": {
+            "cosine_similarity": 0.2565,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.031,
+              0.0,
+              0.0,
+              0.0,
+              0.04,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 53.53,
+        "detail": {
+          "length_consistency": 53.48,
+          "emoji_consistency": 40.01,
+          "question_consistency": 80.27,
+          "exclamation_consistency": 93.91,
+          "cv_match": 0.0,
+          "bot_length_std": 12.4,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 51.77,
+      "composite": 59.22,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    59.22
+  ],
+  "human_eval_cases": [],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Espera q estic programant coses ara et passo portades",
+      "iris_real_response": "K hija de pu🤣🤣🤣🤣",
+      "bot_response": "",
+      "s1_score": 54.28,
+      "s2_score": 17.5,
+      "s3_score": 100.0,
+      "s4_score": 68.46
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "user_message": "Iris no cal,Jo crec i ha de ser aixi que si els peus están inflats....no en fan mal,es problema de que faig molt poc pipi i s'acumula liquid,ella já m'ho va dir,jó volia comentar li al tiet,peró,primer t'ho volia dir a tú",
+      "iris_real_response": "Es petita y quadrada",
+      "bot_response": "Clar, m'ho pots dir a mi primer",
+      "s1_score": 63.87,
+      "s2_score": 44.49,
+      "s3_score": 12.5,
+      "s4_score": 70.14
+    },
+    {
+      "idx": 2,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Bon dia cuqui",
+      "iris_real_response": "Gràcies eee🩷🩷🩷🩷",
+      "bot_response": "",
+      "s1_score": 54.02,
+      "s2_score": 17.5,
+      "s3_score": 100.0,
+      "s4_score": 68.46
+    },
+    {
+      "idx": 3,
+      "input_type": "LAUGH",
+      "trust_score": 0.14,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_34654148949",
+      "lead_uuid": "72e24413-79c5-4ddf-a001-be1e98baa0aa",
+      "user_message": "Jajajajajajajajaja me encantaaaaa 😂😂😍😍😍🥰🥰🥰🥰",
+      "iris_real_response": "Más 2 sprites esos de cafeina",
+      "bot_response": "",
+      "s1_score": 53.52,
+      "s2_score": 17.5,
+      "s3_score": 100.0,
+      "s4_score": 65.92
+    },
+    {
+      "idx": 4,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "user_message": "[audio]",
+      "iris_real_response": "Ja queda menos",
+      "bot_response": "",
+      "s1_score": 54.12,
+      "s2_score": 17.5,
+      "s3_score": 100.0,
+      "s4_score": 68.46
+    }
+  ],
+  "generate_only": true
+}

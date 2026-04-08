@@ -1,0 +1,13 @@
+{
+  "ratings": [],
+  "scores": {},
+  "metadata": {
+    "creator": "iris_bertran",
+    "seed": 42,
+    "source_results": null,
+    "source_test_set": "/Users/manelbertranluque/Clonnect/backend/tests/cpe_data/iris_bertran/test_set_v2_stratified.json",
+    "completed": "2026-04-03T23:10:43.580681+00:00",
+    "total_rated": 0,
+    "total_cases": 39
+  }
+}

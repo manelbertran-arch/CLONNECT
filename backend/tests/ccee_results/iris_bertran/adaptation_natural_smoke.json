@@ -1,0 +1,275 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260408_080623",
+  "n_runs": 1,
+  "n_cases": 5,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 51.93,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 79.99,
+          "A2_contextual": 53.91,
+          "A3_exclamations": 0.0,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 4.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 42.17,
+        "detail": {
+          "bertscore_mean": 0.806,
+          "chrf_mean": 0.0645,
+          "bleu4_mean": 0.0598,
+          "rouge_l_mean": 0.0095,
+          "meteor_mean": 0.0028,
+          "semsim_mean": 0.806,
+          "c4_relevance_mean": 0.7879,
+          "self_rep_mean": 0.7975,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            38.64,
+            46.89,
+            40.92,
+            42.5,
+            41.9
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 51.11,
+        "detail": {
+          "e1_per_case_mean": 48.56,
+          "e2_distribution_match": 57.05,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.8,
+            "IGNORE": 0.2
+          },
+          "per_case": [
+            12.5,
+            100.0,
+            12.5,
+            100.0,
+            17.7
+          ],
+          "mean": 51.11
+        }
+      },
+      "S4_adaptation": {
+        "score": 54.06,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 54.06,
+          "proximity_n": 5
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 100.0,
+        "B1": {
+          "score": 100.0,
+          "detail": {
+            "cosine_similarity": 1.0,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0909,
+              0.0
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 5,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 27.89,
+        "H2": {
+          "score": 27.89,
+          "detail": {
+            "cosine_similarity": 0.2789,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.104,
+              0.4,
+              0.6,
+              0.0,
+              0.02,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 42.36,
+        "detail": {
+          "length_consistency": 51.53,
+          "emoji_consistency": 79.99,
+          "question_consistency": 80.27,
+          "exclamation_consistency": 0.0,
+          "cv_match": 0.0,
+          "bot_length_std": 5.46,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 46.18,
+      "composite": 56.16,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    56.16
+  ],
+  "human_eval_cases": [],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_34670537178",
+      "user_message": "Perfecte",
+      "iris_real_response": "[🏷️ Sticker]",
+      "bot_response": "Ja et diré l'hora exacta, amor",
+      "s1_score": 63.27,
+      "s2_score": 38.64,
+      "s3_score": 12.5,
+      "s4_score": 69.83
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 0.14,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_34654148949",
+      "user_message": "Xiii",
+      "iris_real_response": "Yo cojeria el de pareja",
+      "bot_response": "Ostiaaa mare!",
+      "s1_score": 43.35,
+      "s2_score": 46.89,
+      "s3_score": 100.0,
+      "s4_score": 48.02
+    },
+    {
+      "idx": 2,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "Res xurri",
+      "iris_real_response": "Escolta’m els del\nBrunc li diem per anar a fer el brunch després de barre o tu este domingo no estás sino el otro o no sé anulo algún entreno ok",
+      "bot_response": "Ja ja ja que xula! 😂😂",
+      "s1_score": 35.66,
+      "s2_score": 40.92,
+      "s3_score": 12.5,
+      "s4_score": 43.05
+    },
+    {
+      "idx": 3,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "user_message": "Y tu tienes oido de bailarina queria",
+      "iris_real_response": "[🎤 Audio]: Muy chulo, ¿qué tal? Aún no he visto lo del chándal. No sé tanta historia con eso. No has publicado nada, me he enterado. O es porque surgió muy a los míos. Ay, que está la Lola aquí.",
+      "bot_response": "Jajaja que fuerte. 😂😂",
+      "s1_score": 46.59,
+      "s2_score": 42.5,
+      "s3_score": 100.0,
+      "s4_score": 58.87
+    },
+    {
+      "idx": 4,
+      "input_type": "MEDIA",
+      "trust_score": 0.99,
+      "trust_segment": "UNKNOWN",
+      "username": "+34636022878",
+      "user_message": "[audio]",
+      "iris_real_response": "11:30 Joanna Carvajal\n12:30 Ingrid Cucurella\n13:30 Carmen navajas",
+      "bot_response": "Ja m'ho explicaràs!",
+      "s1_score": 53.12,
+      "s2_score": 41.9,
+      "s3_score": 17.7,
+      "s4_score": 50.51
+    }
+  ],
+  "generate_only": true
+}

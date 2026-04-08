@@ -1,8 +1,12 @@
 """
-M-Prometheus 14B LLM Judge (B2, B5, C2, C3, H1)
+LLM Judge (B2, B5, C2, C3, H1)
 
-Uses M-Prometheus 14B (Q6_K) via local Ollama for evaluation.
-Based on Prometheus evaluation format: instruction + response + reference + rubric.
+Supports two backends, selected via LLM_JUDGE_PROVIDER env var:
+  openai  — GPT-4o (default)
+  gemini  — Gemini 2.5 Pro
+
+Same Prometheus rubric format: instruction + response + reference + rubric.
+Drop-in replacement for the previous M-Prometheus 14B / Ollama implementation.
 
 Params measured:
   B2 — Persona Consistency (direct assessment 1-5)
@@ -12,22 +16,50 @@ Params measured:
   H1 — TTR Turing Test Rate (pairwise comparison)
 """
 
-import json
 import logging
+import os
 import random
 import re
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-import requests
+import openai
 
 logger = logging.getLogger(__name__)
 
-# Model config
-OLLAMA_URL = "http://localhost:11434/api/chat"
-MODEL_NAME = "hf.co/mradermacher/M-Prometheus-14B-GGUF:Q6_K"
-TIMEOUT = 180  # seconds per call (CPU inference is slow)
-MAX_RETRIES = 2
+# ---------------------------------------------------------------------------
+# Provider config  (LLM_JUDGE_PROVIDER=openai|gemini, default: openai)
+# ---------------------------------------------------------------------------
+
+_PROVIDER = os.environ.get("LLM_JUDGE_PROVIDER", "openai").lower()
+
+# OpenAI / GPT-4o
+_OPENAI_MODEL = "gpt-4o"
+_OPENAI_COST_PER_1K_INPUT  = 0.0025   # $2.50 per 1M input tokens
+_OPENAI_COST_PER_1K_OUTPUT = 0.01     # $10.00 per 1M output tokens
+
+# Gemini 2.5 Pro
+_GEMINI_MODEL = "gemini-2.5-pro"
+_GEMINI_COST_PER_1K_INPUT  = 0.00125  # $1.25 per 1M input tokens (≤200k ctx)
+_GEMINI_COST_PER_1K_OUTPUT = 0.01     # $10.00 per 1M output tokens
+
+MODEL_NAME = _GEMINI_MODEL if _PROVIDER == "gemini" else _OPENAI_MODEL
+
+TIMEOUT = 30
+MAX_RETRIES = 3
+
+# Cost tracking (cumulative for this session)
+_total_input_tokens = 0
+_total_output_tokens = 0
+_total_cost_usd = 0.0
+
+
+def _get_openai_client() -> openai.OpenAI:
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY not set")
+    return openai.OpenAI(api_key=api_key, timeout=TIMEOUT)
+
 
 # ---------------------------------------------------------------------------
 # Rubrics (Spanish — matches content language)
@@ -64,33 +96,126 @@ RUBRIC_C3 = """\
 
 
 # ---------------------------------------------------------------------------
-# Core Ollama call
+# Backend: OpenAI (GPT-4o)
 # ---------------------------------------------------------------------------
 
-def _call_ollama(prompt: str) -> Optional[str]:
-    """Call Ollama with M-Prometheus model. Returns raw text or None."""
-    payload = {
-        "model": MODEL_NAME,
-        "messages": [{"role": "user", "content": prompt}],
-        "stream": False,
-        "options": {"temperature": 0.1, "num_predict": 1024},
-    }
-    try:
-        resp = requests.post(OLLAMA_URL, json=payload, timeout=TIMEOUT)
-        if resp.status_code == 200:
-            data = resp.json()
-            return data.get("message", {}).get("content", "")
-        else:
-            logger.warning(f"Ollama returned {resp.status_code}: {resp.text[:200]}")
-    except requests.exceptions.Timeout:
-        logger.warning(f"Ollama timeout after {TIMEOUT}s")
-    except Exception as e:
-        logger.warning(f"Ollama error: {e}")
+_SYSTEM_PROMPT = (
+    "You are an expert evaluator. After your analysis, "
+    "you MUST end your response with exactly: [RESULT] N "
+    "(where N is your score 1-5). This format is mandatory."
+)
+
+def _call_openai(prompt: str) -> Optional[str]:
+    """Call GPT-4o via OpenAI API. Returns raw text or None."""
+    global _total_input_tokens, _total_output_tokens, _total_cost_usd
+    client = _get_openai_client()
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            resp = client.chat.completions.create(
+                model=_OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.1,
+                max_tokens=512,
+            )
+            usage = resp.usage
+            if usage:
+                in_tok = usage.prompt_tokens
+                out_tok = usage.completion_tokens
+                cost = (in_tok / 1000 * _OPENAI_COST_PER_1K_INPUT) + (out_tok / 1000 * _OPENAI_COST_PER_1K_OUTPUT)
+                _total_input_tokens += in_tok
+                _total_output_tokens += out_tok
+                _total_cost_usd += cost
+                logger.debug(f"OpenAI call: in={in_tok} out={out_tok} cost=${cost:.5f} total=${_total_cost_usd:.4f}")
+            return resp.choices[0].message.content or ""
+        except openai.RateLimitError as e:
+            wait = 2 ** attempt
+            logger.warning(f"RateLimit (attempt {attempt+1}/{MAX_RETRIES}), retrying in {wait}s: {e}")
+            time.sleep(wait)
+        except openai.APITimeoutError as e:
+            logger.warning(f"Timeout (attempt {attempt+1}/{MAX_RETRIES}): {e}")
+        except openai.APIError as e:
+            logger.warning(f"OpenAI API error (attempt {attempt+1}/{MAX_RETRIES}): {e}")
+            time.sleep(1)
     return None
 
 
+# ---------------------------------------------------------------------------
+# Backend: Gemini 2.5 Pro
+# ---------------------------------------------------------------------------
+
+_GEMINI_SAFETY_SETTINGS = [
+    {"category": "HARM_CATEGORY_HARASSMENT",        "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH",        "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",  "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT",  "threshold": "BLOCK_NONE"},
+]
+
+
+def _call_gemini(prompt: str) -> Optional[str]:
+    """Call Gemini 2.5 Pro via google-generativeai. Returns raw text or None."""
+    global _total_input_tokens, _total_output_tokens, _total_cost_usd
+    import google.generativeai as genai
+
+    api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_AI_STUDIO_API_KEY")
+    if not api_key:
+        raise RuntimeError("GOOGLE_API_KEY not set")
+    genai.configure(api_key=api_key)
+
+    model = genai.GenerativeModel(
+        model_name=_GEMINI_MODEL,
+        system_instruction=_SYSTEM_PROMPT,
+        generation_config=genai.GenerationConfig(
+            temperature=0.1,
+            max_output_tokens=2048,
+        ),
+    )
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            resp = model.generate_content(
+                prompt,
+                safety_settings=_GEMINI_SAFETY_SETTINGS,
+            )
+            text = resp.text if hasattr(resp, "text") else ""
+            # Track tokens if available
+            if hasattr(resp, "usage_metadata") and resp.usage_metadata:
+                meta = resp.usage_metadata
+                in_tok = getattr(meta, "prompt_token_count", 0) or 0
+                out_tok = getattr(meta, "candidates_token_count", 0) or 0
+                cost = (in_tok / 1000 * _GEMINI_COST_PER_1K_INPUT) + (out_tok / 1000 * _GEMINI_COST_PER_1K_OUTPUT)
+                _total_input_tokens += in_tok
+                _total_output_tokens += out_tok
+                _total_cost_usd += cost
+                logger.debug(f"Gemini call: in={in_tok} out={out_tok} cost=${cost:.5f} total=${_total_cost_usd:.4f}")
+            return text
+        except Exception as e:
+            logger.warning(f"Gemini error (attempt {attempt+1}/{MAX_RETRIES}): {e}")
+            time.sleep(2 ** attempt)
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Unified dispatcher
+# ---------------------------------------------------------------------------
+
+def _call_judge(prompt: str) -> Optional[str]:
+    """Route to active backend (openai or gemini)."""
+    if _PROVIDER == "gemini":
+        return _call_gemini(prompt)
+    return _call_openai(prompt)
+
+
+def get_total_cost() -> float:
+    """Return cumulative USD cost of all judge calls this session."""
+    return _total_cost_usd
+
+
 def _parse_result_score(text: str) -> Optional[int]:
-    """Extract [RESULT] N from Prometheus-format output."""
+    """Extract 1-5 rating from judge output."""
     if not text:
         return None
     # Primary: [RESULT] N
@@ -99,18 +224,22 @@ def _parse_result_score(text: str) -> Optional[int]:
         val = int(m.group(1))
         if 1 <= val <= 5:
             return val
-    # Fallback: "score is N" or "overall score is N"
+    # "Score: N" or "Rating: N"
+    m = re.search(r'(?:Score|Rating|Puntuación|Nota)\s*[:=]\s*(\d)', text, re.IGNORECASE)
+    if m:
+        val = int(m.group(1))
+        if 1 <= val <= 5:
+            return val
+    # "score is N" / "nota es N"
     m = re.search(r'(?:score|puntuación|nota)\s+(?:is|es|de)\s+(\d)', text, re.IGNORECASE)
     if m:
         val = int(m.group(1))
         if 1 <= val <= 5:
             return val
-    # Last resort: "So the overall score is N."
-    m = re.search(r'score is (\d)', text)
-    if m:
-        val = int(m.group(1))
-        if 1 <= val <= 5:
-            return val
+    # Last resort: final standalone digit 1-5 in text
+    digits = re.findall(r'\b([1-5])\b', text)
+    if digits:
+        return int(digits[-1])
     return None
 
 
@@ -118,13 +247,25 @@ def _parse_pairwise_result(text: str) -> Optional[str]:
     """Extract [RESULT] A or B from pairwise output."""
     if not text:
         return None
+    # Primary: [RESULT] A/B
     m = re.search(r'\[RESULT\]\s*([AB])', text, re.IGNORECASE)
     if m:
         return m.group(1).upper()
-    # Fallback
+    # "Respuesta A/B" or "Response A/B" patterns
+    m = re.search(r'[Rr]espue?sta\s+([AB])\b', text)
+    if m:
+        return m.group(1).upper()
+    m = re.search(r'[Rr]esponse\s+([AB])\b', text)
+    if m:
+        return m.group(1).upper()
+    # "better/mejor/choose/elijo" + A/B
     m = re.search(r'(?:better|mejor|choose|elijo)\s+(?:response\s+)?([AB])', text, re.IGNORECASE)
     if m:
         return m.group(1).upper()
+    # Last resort: final standalone A or B
+    letters = re.findall(r'\b([AB])\b', text)
+    if letters:
+        return letters[-1].upper()
     return None
 
 
@@ -208,7 +349,7 @@ def judge_persona_consistency(
 
     for attempt in range(MAX_RETRIES):
         t0 = time.time()
-        raw = _call_ollama(prompt)
+        raw = _call_judge(prompt)
         elapsed = time.time() - t0
         if raw:
             score = _parse_result_score(raw)
@@ -234,7 +375,7 @@ def judge_emotional_signature(
 
     for attempt in range(MAX_RETRIES):
         t0 = time.time()
-        raw = _call_ollama(prompt)
+        raw = _call_judge(prompt)
         elapsed = time.time() - t0
         if raw:
             score = _parse_result_score(raw)
@@ -258,7 +399,7 @@ def judge_naturalness(
 
     for attempt in range(MAX_RETRIES):
         t0 = time.time()
-        raw = _call_ollama(prompt)
+        raw = _call_judge(prompt)
         elapsed = time.time() - t0
         if raw:
             score = _parse_result_score(raw)
@@ -286,7 +427,7 @@ def judge_contextual_appropriateness(
 
     for attempt in range(MAX_RETRIES):
         t0 = time.time()
-        raw = _call_ollama(prompt)
+        raw = _call_judge(prompt)
         elapsed = time.time() - t0
         if raw:
             score = _parse_result_score(raw)
@@ -325,12 +466,11 @@ def judge_turing_test(
 
     for attempt in range(MAX_RETRIES):
         t0 = time.time()
-        raw = _call_ollama(prompt)
+        raw = _call_judge(prompt)
         elapsed = time.time() - t0
         if raw:
             chosen = _parse_pairwise_result(raw)
             if chosen:
-                # Bot picked as human = judge chose the position where bot is
                 bot_picked = (chosen == "A" and bot_is_a) or (chosen == "B" and not bot_is_a)
                 logger.info(f"H1: chosen={chosen}, bot_is_A={bot_is_a}, fooled={bot_picked}, time={elapsed:.1f}s")
                 return bot_picked, chosen, raw
@@ -344,17 +484,16 @@ def judge_turing_test(
 
 def evaluate_all_params(
     cases: List[Dict],
-    max_cases: int = 20,
+    max_cases: int = 50,
 ) -> Dict[str, Any]:
     """Run all 5 judge params on a list of per_case_records.
 
     Each case dict must have: bot_response, ground_truth, user_input (or test_input).
     Returns aggregate scores and per-case details.
     """
-    # Limit cases for CPU performance
     eval_cases = cases[:max_cases]
     n = len(eval_cases)
-    print(f"  Evaluating {n} cases with M-Prometheus 14B...")
+    print(f"  Evaluating {n} cases with GPT-5 (OpenAI)...")
 
     b2_scores, b5_scores, c2_scores, c3_scores = [], [], [], []
     h1_results = []
@@ -394,9 +533,10 @@ def evaluate_all_params(
         h1_results.append(h1_fooled)
 
         case_time = time.time() - case_start
+        cost_so_far = get_total_cost()
         print(
             f"  Case {i+1}/{n} | B2={b2:.0f} B5={b5:.0f} C2={c2:.0f} C3={c3:.0f} "
-            f"H1={'✓' if h1_fooled else '✗'} | {case_time:.1f}s"
+            f"H1={'✓' if h1_fooled else '✗'} | {case_time:.1f}s | cost=${cost_so_far:.4f}"
         )
 
         per_case.append({
@@ -412,6 +552,9 @@ def evaluate_all_params(
 
     h1_rate = sum(1 for x in h1_results if x) / max(len(h1_results), 1) * 100
 
+    final_cost = get_total_cost()
+    print(f"  GPT-5 judge total cost: ${final_cost:.4f} | time: {total_time:.1f}s")
+
     return {
         "B2_persona_consistency": _mean(b2_scores),
         "B5_emotional_signature": _mean(b5_scores),
@@ -420,6 +563,7 @@ def evaluate_all_params(
         "H1_turing_test_rate": round(h1_rate, 1),
         "n_cases": n,
         "total_time_seconds": round(total_time, 1),
+        "total_cost_usd": round(final_cost, 4),
         "model": MODEL_NAME,
         "per_case": per_case,
     }

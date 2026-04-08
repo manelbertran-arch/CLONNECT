@@ -1,0 +1,265 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260408_113856",
+  "n_runs": 1,
+  "n_cases": 5,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 60.62,
+        "detail": {
+          "A1_length": 98.08,
+          "A2_emoji": 80.01,
+          "A2_contextual": 58.15,
+          "A3_exclamations": 93.91,
+          "A4_questions": 79.73,
+          "A5_vocabulary": 12.0,
+          "A6_language": 73.21,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 10.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 40.24,
+        "detail": {
+          "bertscore_mean": 0.6453,
+          "chrf_mean": 0.0838,
+          "bleu4_mean": 0.0646,
+          "rouge_l_mean": 0.0174,
+          "meteor_mean": 0.0074,
+          "semsim_mean": 0.6453,
+          "c4_relevance_mean": 0.6516,
+          "self_rep_mean": 0.9165,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.67,
+          "per_case": [
+            17.5,
+            44.84,
+            45.5,
+            51.18,
+            42.19
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 56.7,
+        "detail": {
+          "e1_per_case_mean": 47.73,
+          "e2_distribution_match": 77.63,
+          "bot_strategy_distribution": {
+            "IGNORE": 0.4,
+            "VALIDATE": 0.4,
+            "ASK": 0.2
+          },
+          "per_case": [
+            100.0,
+            100.0,
+            12.5,
+            8.4,
+            17.7
+          ],
+          "mean": 56.7
+        }
+      },
+      "S4_adaptation": {
+        "score": 64.37,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 64.37,
+          "proximity_n": 5
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 5,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 34.75,
+        "H2": {
+          "score": 34.75,
+          "detail": {
+            "cosine_similarity": 0.3475,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.114,
+              0.2,
+              0.0,
+              0.2,
+              0.06,
+              1.0,
+              0.2,
+              0.1,
+              0.05
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 61.68,
+        "detail": {
+          "length_consistency": 54.73,
+          "emoji_consistency": 80.01,
+          "question_consistency": 79.73,
+          "exclamation_consistency": 93.91,
+          "cv_match": 0.0,
+          "bot_length_std": 16.86,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 55.84,
+      "composite": 58.69,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    58.69
+  ],
+  "human_eval_cases": [],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 0.14,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_34682882838",
+      "lead_uuid": "860896f4-56e7-425d-9b5c-78d6463a3313",
+      "user_message": "I la Lara m’ha dit que vingui",
+      "iris_real_response": "Tu vols matcha amb avena?",
+      "bot_response": "",
+      "s1_score": 54.28,
+      "s2_score": 17.5,
+      "s3_score": 100.0,
+      "s4_score": 65.92
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_41779950952",
+      "lead_uuid": "77f24981-82ca-47f8-85f0-48038d12dad9",
+      "user_message": "Ok jo li dic",
+      "iris_real_response": "Demà pel mati hauries d’anar a fer aquest analitica🙏🏽",
+      "bot_response": "Oka nena, me avises",
+      "s1_score": 52.67,
+      "s2_score": 44.84,
+      "s3_score": 100.0,
+      "s4_score": 66.33
+    },
+    {
+      "idx": 2,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "user_message": "Siiii,el mal  jo crec que ha vingut per quedar se pero bé,algo em de tenir😣",
+      "iris_real_response": "Mama avui 15:15 Raul ok",
+      "bot_response": "Clar, tot passa per alguna cosa 🙂",
+      "s1_score": 66.16,
+      "s2_score": 45.5,
+      "s3_score": 12.5,
+      "s4_score": 62.68
+    },
+    {
+      "idx": 3,
+      "input_type": "QUESTION_SERVICE",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "*PREGUNTES BARRE*\n\n👉 ¿Si no soy socia del gimnasio puedo venir a barre?\n👉 ¿Y si soy socia, está incluido en la cuota mensual o tiene un coste aparte?\n👉 ¿Cómo se puede pagar Barre? (Clase suelta o boni)\n👉 ¿cuanto vale la clase? (Socio/nosocio) ¿y el bono?\n👉 ¿Como puedo reservar la clase? \n👉 ¿Con cuánta antelación puedo reservarla?\n👉 ¿Y con cuánta antelación recomiendas hacerlo para no quedarse sin plaza?\n👉 Se trabaja baile o se trabaja con tempos? (Ejemplo 3/1…)\n👉 ¿En la clase se barre?",
+      "iris_real_response": "Jajajajajja no😂😂Martina me dio unos iguales i no me’ls he posat mai",
+      "bot_response": "Ostia mami me flipa. Tienes alguna hora en mente?",
+      "s1_score": 44.52,
+      "s2_score": 51.18,
+      "s3_score": 8.4,
+      "s4_score": 62.51
+    },
+    {
+      "idx": 4,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "user_message": "[audio]",
+      "iris_real_response": "Ara a les 11:30 l’aniré a buscar a casa la Angie que està la Maria que em farà la recepta.",
+      "bot_response": "Ostiaaa jajaj",
+      "s1_score": 52.58,
+      "s2_score": 42.19,
+      "s3_score": 17.7,
+      "s4_score": 64.43
+    }
+  ],
+  "generate_only": true
+}

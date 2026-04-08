@@ -1,0 +1,407 @@
+{
+  "creator": "iris_bertran",
+  "model": "gemma-4-26b-a4b-it",
+  "provider": "google_ai_studio",
+  "system_prompt": "doc_d",
+  "doc_d_len": 1582,
+  "n_runs": 3,
+  "n_cases": 50,
+  "timestamp": "2026-04-05T16:31:04.535096+00:00",
+  "aggregated_metrics": {
+    "l1_overall": [
+      0.476,
+      0.2971
+    ],
+    "l3_bleu4": [
+      0.0,
+      0.0
+    ],
+    "l3_rouge_l": [
+      0.0048,
+      0.0026
+    ],
+    "l3_chrf": [
+      0.0417,
+      0.0056
+    ],
+    "l3_vocab_overlap": [
+      0.0045,
+      0.0009
+    ]
+  },
+  "per_run_l1": [
+    {
+      "overall": 0.143,
+      "passed": 1,
+      "total": 7,
+      "n_responses": 50,
+      "bot_emoji_rate": 46.0,
+      "bot_excl_rate": 12.0,
+      "bot_q_rate": 38.0,
+      "bot_len_mean": 763.2,
+      "bot_len_median": 615.0,
+      "bot_ca_rate": 10.0,
+      "vocab_jaccard": 0.0413,
+      "details": {
+        "emoji_rate": {
+          "bot": 46.0,
+          "iris": 22.6,
+          "div": 23.4,
+          "ok": false
+        },
+        "excl_rate": {
+          "bot": 12.0,
+          "iris": 1.8,
+          "div": 10.2,
+          "ok": false
+        },
+        "q_rate": {
+          "bot": 38.0,
+          "iris": 14.2,
+          "div": 23.8,
+          "ok": false
+        },
+        "len_mean": {
+          "bot": 763.16,
+          "iris": 95.2,
+          "div": 701.64,
+          "ok": false
+        },
+        "len_median": {
+          "bot": 615.0,
+          "iris": 26.0,
+          "div": 2265.38,
+          "ok": false
+        },
+        "ca_rate": {
+          "bot": 10.0,
+          "iris": 43.5,
+          "div": 33.5,
+          "ok": false
+        },
+        "vocab_jac": {
+          "bot": 4.13,
+          "iris": 5.0,
+          "div": 0.87,
+          "ok": true
+        }
+      }
+    },
+    {
+      "overall": 0.571,
+      "passed": 4,
+      "total": 7,
+      "n_responses": 50,
+      "bot_emoji_rate": 26.0,
+      "bot_excl_rate": 8.0,
+      "bot_q_rate": 14.0,
+      "bot_len_mean": 404.9,
+      "bot_len_median": 0.0,
+      "bot_ca_rate": 4.0,
+      "vocab_jaccard": 0.0319,
+      "details": {
+        "emoji_rate": {
+          "bot": 26.0,
+          "iris": 22.6,
+          "div": 3.4,
+          "ok": true
+        },
+        "excl_rate": {
+          "bot": 8.0,
+          "iris": 1.8,
+          "div": 6.2,
+          "ok": true
+        },
+        "q_rate": {
+          "bot": 14.0,
+          "iris": 14.2,
+          "div": 0.2,
+          "ok": true
+        },
+        "len_mean": {
+          "bot": 404.92,
+          "iris": 95.2,
+          "div": 325.34,
+          "ok": false
+        },
+        "len_median": {
+          "bot": 0.0,
+          "iris": 26.0,
+          "div": 100.0,
+          "ok": false
+        },
+        "ca_rate": {
+          "bot": 4.0,
+          "iris": 43.5,
+          "div": 39.5,
+          "ok": false
+        },
+        "vocab_jac": {
+          "bot": 3.19,
+          "iris": 5.0,
+          "div": 1.81,
+          "ok": true
+        }
+      }
+    },
+    {
+      "overall": 0.714,
+      "passed": 5,
+      "total": 7,
+      "n_responses": 50,
+      "bot_emoji_rate": 6.0,
+      "bot_excl_rate": 0.0,
+      "bot_q_rate": 2.0,
+      "bot_len_mean": 108.0,
+      "bot_len_median": 0.0,
+      "bot_ca_rate": 4.0,
+      "vocab_jaccard": 0.087,
+      "details": {
+        "emoji_rate": {
+          "bot": 6.0,
+          "iris": 22.6,
+          "div": 16.6,
+          "ok": true
+        },
+        "excl_rate": {
+          "bot": 0.0,
+          "iris": 1.8,
+          "div": 1.8,
+          "ok": true
+        },
+        "q_rate": {
+          "bot": 2.0,
+          "iris": 14.2,
+          "div": 12.2,
+          "ok": true
+        },
+        "len_mean": {
+          "bot": 107.96,
+          "iris": 95.2,
+          "div": 13.4,
+          "ok": true
+        },
+        "len_median": {
+          "bot": 0.0,
+          "iris": 26.0,
+          "div": 100.0,
+          "ok": false
+        },
+        "ca_rate": {
+          "bot": 4.0,
+          "iris": 43.5,
+          "div": 39.5,
+          "ok": false
+        },
+        "vocab_jac": {
+          "bot": 8.7,
+          "iris": 5.0,
+          "div": 3.7,
+          "ok": true
+        }
+      }
+    }
+  ],
+  "per_run_l3": [
+    {
+      "bleu4": 0.0,
+      "rouge_l": 0.0051,
+      "chrf": 0.0354,
+      "vocab_overlap": 0.0048,
+      "n_pairs": 27,
+      "_bleu4_scores": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "_rougel_scores": [
+        0.0,
+        0.0,
+        0.0,
+        0.0036,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0349,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.029,
+        0.0,
+        0.0073,
+        0.0,
+        0.0,
+        0.0,
+        0.0131,
+        0.0,
+        0.0,
+        0.0276,
+        0.0,
+        0.0,
+        0.0229
+      ],
+      "_chrf_scores": [
+        0.0304,
+        0.0139,
+        0.0068,
+        0.0444,
+        0.0441,
+        0.0273,
+        0.0095,
+        0.0209,
+        0.1419,
+        0.0044,
+        0.0054,
+        0.0058,
+        0.0053,
+        0.008,
+        0.0966,
+        0.0146,
+        0.0395,
+        0.0674,
+        0.087,
+        0.0162,
+        0.0626,
+        0.0096,
+        0.0063,
+        0.087,
+        0.0228,
+        0.0181,
+        0.0611
+      ]
+    },
+    {
+      "bleu4": 0.0,
+      "rouge_l": 0.0072,
+      "chrf": 0.0437,
+      "vocab_overlap": 0.0052,
+      "n_pairs": 17,
+      "_bleu4_scores": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "_rougel_scores": [
+        0.0,
+        0.0,
+        0.0,
+        0.0193,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0686,
+        0.0,
+        0.0,
+        0.0136,
+        0.0,
+        0.0,
+        0.0216,
+        0.0
+      ],
+      "_chrf_scores": [
+        0.0241,
+        0.0149,
+        0.0084,
+        0.1126,
+        0.0176,
+        0.0558,
+        0.0124,
+        0.0009,
+        0.0612,
+        0.1538,
+        0.0153,
+        0.0118,
+        0.0657,
+        0.0221,
+        0.0781,
+        0.0787,
+        0.0102
+      ]
+    },
+    {
+      "bleu4": 0.0,
+      "rouge_l": 0.002,
+      "chrf": 0.0461,
+      "vocab_overlap": 0.0035,
+      "n_pairs": 8,
+      "_bleu4_scores": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "_rougel_scores": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0162,
+        0.0,
+        0.0
+      ],
+      "_chrf_scores": [
+        0.0696,
+        0.0217,
+        0.1433,
+        0.0053,
+        0.0141,
+        0.0895,
+        0.0094,
+        0.0161
+      ]
+    }
+  ],
+  "run_files": [
+    "/Users/manelbertranluque/Clonnect/backend/tests/ccee_results/iris_bertran/doc_d_gemma_4_26b_a4b_it_run1_20260405_162629.json",
+    "/Users/manelbertranluque/Clonnect/backend/tests/ccee_results/iris_bertran/doc_d_gemma_4_26b_a4b_it_run2_20260405_162629.json",
+    "/Users/manelbertranluque/Clonnect/backend/tests/ccee_results/iris_bertran/doc_d_gemma_4_26b_a4b_it_run3_20260405_162629.json"
+  ]
+}

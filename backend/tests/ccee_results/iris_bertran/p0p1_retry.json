@@ -1,0 +1,510 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260407_152152",
+  "n_runs": 1,
+  "n_cases": 19,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 50.56,
+        "detail": {
+          "A1_length": 94.3,
+          "A2_emoji": 50.54,
+          "A2_contextual": 67.14,
+          "A3_exclamations": 85.04,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 8.0,
+          "A6_language": 19.26,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 33.49,
+        "detail": {
+          "bertscore_mean": 0.638,
+          "chrf_mean": 0.0611,
+          "bleu4_mean": 0.0565,
+          "rouge_l_mean": 0.0155,
+          "meteor_mean": 0.0149,
+          "semsim_mean": 0.638,
+          "c4_relevance_mean": 0.6352,
+          "self_rep_mean": 0.9166,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.3,
+          "per_case": [
+            33.47,
+            32.59,
+            47.84,
+            31.19,
+            33.45,
+            49.84,
+            35.87,
+            17.5,
+            33.66,
+            40.01,
+            38.75,
+            34.28,
+            17.5,
+            34.53,
+            35.97,
+            51.67,
+            33.15,
+            17.5,
+            17.5
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 57.12,
+        "detail": {
+          "e1_per_case_mean": 50.71,
+          "e2_distribution_match": 72.08,
+          "bot_strategy_distribution": {
+            "REDIRECT": 0.2105,
+            "VALIDATE": 0.5789,
+            "IGNORE": 0.2105
+          },
+          "per_case": [
+            100.0,
+            100.0,
+            12.5,
+            12.5,
+            100.0,
+            12.5,
+            12.5,
+            100.0,
+            12.5,
+            100.0,
+            17.7,
+            17.7,
+            100.0,
+            17.7,
+            17.7,
+            13.8,
+            16.1,
+            100.0,
+            100.0
+          ],
+          "mean": 57.12
+        }
+      },
+      "S4_adaptation": {
+        "score": 64.35,
+        "detail": {
+          "mode": "blended",
+          "proximity_mean": 65.58,
+          "proximity_n": 19,
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 100.0,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 100.0,
+        "B1": {
+          "score": 100.0,
+          "detail": {
+            "cosine_similarity": 1.0,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0286,
+              0.0
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 19,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 30.54,
+        "H2": {
+          "score": 30.54,
+          "detail": {
+            "cosine_similarity": 0.3054,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.2961,
+              0.0526,
+              0.1053,
+              0.0,
+              0.04,
+              1.0,
+              0.2421,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 55.03,
+        "detail": {
+          "length_consistency": 59.32,
+          "emoji_consistency": 50.54,
+          "question_consistency": 80.27,
+          "exclamation_consistency": 85.04,
+          "cv_match": 0.0,
+          "bot_length_std": 33.19,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 52.52,
+      "composite": 57.66,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    57.66
+  ],
+  "human_eval_cases": [],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 0.11,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "Perfecto 🩷🩷",
+      "iris_real_response": "[audio]",
+      "bot_response": "A ver qué dice el Dinamic, pero yo creo que va de diez.",
+      "s1_score": 53.5,
+      "s2_score": 33.47,
+      "s3_score": 100.0,
+      "s4_score": 72.15
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "Oki",
+      "iris_real_response": "Mercii",
+      "bot_response": "A ver qué dice el Dinamic, pero yo creo que va a estar ok.",
+      "s1_score": 53.5,
+      "s2_score": 32.59,
+      "s3_score": 100.0,
+      "s4_score": 75.21
+    },
+    {
+      "idx": 2,
+      "input_type": "OTHER",
+      "trust_score": 0.14,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "Ostres ho reviso!!!",
+      "iris_real_response": "Com em vas dir que naves a full",
+      "bot_response": "Ostres, lo siento muchísimo.\nQué mal, de verdad.",
+      "s1_score": 52.67,
+      "s2_score": 47.84,
+      "s3_score": 12.5,
+      "s4_score": 74.7
+    },
+    {
+      "idx": 3,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "Es medio influ x lo q entendi??",
+      "iris_real_response": "La vols tirar avui",
+      "bot_response": "Buaaa, nooo. Qué bajón lo de la madre de Dolors... Dale mi pésame, de verdad.",
+      "s1_score": 52.7,
+      "s2_score": 31.19,
+      "s3_score": 12.5,
+      "s4_score": 69.18
+    },
+    {
+      "idx": 4,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "Gracies cuki anims a les 2",
+      "iris_real_response": "[audio]",
+      "bot_response": "Buaaa qué pena lo de la madre de Dolors Ánimo para las dos, de verdad. Un beso enorme",
+      "s1_score": 52.09,
+      "s2_score": 33.45,
+      "s3_score": 100.0,
+      "s4_score": 66.42
+    },
+    {
+      "idx": 5,
+      "input_type": "OTHER",
+      "trust_score": 0.0,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "Solo q me molesta, q cueste tanto encajar nose",
+      "iris_real_response": "¡Claro que sí Frank Me encanta que te animes. Justo hablé de esto en un post, el baile es donde me encuentro conmigo y el cuerpo dice todo.",
+      "bot_response": "Buaaa, te entiendo mil. Es una mierd. que sea así, ja.",
+      "s1_score": 52.78,
+      "s2_score": 49.84,
+      "s3_score": 12.5,
+      "s4_score": 72.51
+    },
+    {
+      "idx": 6,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "Total tia",
+      "iris_real_response": "No puedo con esta foto",
+      "bot_response": "Buaaa, qué fuerte lo de Dolors.\nLo siento un montón, de verdad.\nLe mando todo mi cariño.",
+      "s1_score": 51.61,
+      "s2_score": 35.87,
+      "s3_score": 12.5,
+      "s4_score": 64.82
+    },
+    {
+      "idx": 7,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "Tampoco",
+      "iris_real_response": "[sticker]",
+      "bot_response": "",
+      "s1_score": 54.28,
+      "s2_score": 17.5,
+      "s3_score": 100.0,
+      "s4_score": 68.46
+    },
+    {
+      "idx": 8,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "Fabuloso",
+      "iris_real_response": "[audio]",
+      "bot_response": "Burbuja 1: Total, nena.\nBurbuja 2: A veces cuesta un montón encajar las piezas, ja.",
+      "s1_score": 52.26,
+      "s2_score": 33.66,
+      "s3_score": 12.5,
+      "s4_score": 67.28
+    },
+    {
+      "idx": 9,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "La noia del whatsapp q en vas enviar",
+      "iris_real_response": "Mirarà si li pose  tractament",
+      "bot_response": "Buaaa, te entiendo. Es un embole cuando cuesta tanto encajar las cosas, ja.",
+      "s1_score": 52.41,
+      "s2_score": 40.01,
+      "s3_score": 100.0,
+      "s4_score": 69.82
+    },
+    {
+      "idx": 10,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "[audio]",
+      "iris_real_response": "Ha vingut 2’dies i ni t’ajudat en res",
+      "bot_response": "Buaaa nooo! Me muero de la risa, ja! Te entiendo mil, nena. Es una pesadeeez total, de verdad.",
+      "s1_score": 41.21,
+      "s2_score": 38.75,
+      "s3_score": 17.7,
+      "s4_score": 45.8
+    },
+    {
+      "idx": 11,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "[audio]",
+      "iris_real_response": "[audio]",
+      "bot_response": "Buaaa, te entiendo tantooo Total, es una pesadez. Pero bueno, no te rayes, reina.",
+      "s1_score": 53.74,
+      "s2_score": 34.28,
+      "s3_score": 17.7,
+      "s4_score": 67.91
+    },
+    {
+      "idx": 12,
+      "input_type": "MEDIA",
+      "trust_score": 0.0,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "[Media/Attachment]",
+      "iris_real_response": "Sent an attachment",
+      "bot_response": "",
+      "s1_score": 54.12,
+      "s2_score": 17.5,
+      "s3_score": 100.0,
+      "s4_score": 65.92
+    },
+    {
+      "idx": 13,
+      "input_type": "MEDIA",
+      "trust_score": 0.11,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "[audio]",
+      "iris_real_response": "I quina hora",
+      "bot_response": "Buaaa, te entiendo mil. Es una pesadeza que sea así, de verdad. Qué bajón, nena.",
+      "s1_score": 52.61,
+      "s2_score": 34.53,
+      "s3_score": 17.7,
+      "s4_score": 60.99
+    },
+    {
+      "idx": 14,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "[📷 Photo]",
+      "iris_real_response": "A me la pela quan puguis",
+      "bot_response": "Buaaa, te entiendo tanto. Es una mierda cuando pasa eso, de verdad. No te rayes, nena.",
+      "s1_score": 51.79,
+      "s2_score": 35.97,
+      "s3_score": 17.7,
+      "s4_score": 65.89
+    },
+    {
+      "idx": 15,
+      "input_type": "HEALTH",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "Avui l'Dolors ha marxat la seva mare ,Jo m'la estimada molt si li vols donar el condol",
+      "iris_real_response": "Però acostama’t a fer-ho quan et lleves amb el cafe",
+      "bot_response": "Oh, nooo! Quina notícia més trista. Moltes condolències per a ella.",
+      "s1_score": 54.67,
+      "s2_score": 51.67,
+      "s3_score": 13.8,
+      "s4_score": 56.54
+    },
+    {
+      "idx": 16,
+      "input_type": "QUESTION_SERVICE",
+      "trust_score": 0.14,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "Quantes sou?",
+      "iris_real_response": "[audio]",
+      "bot_response": "Buaaa, qué fuerte lo de Dolors... Lo siento muchísimo, de verdad. 🩷 Le mando todo mi cariño. 🫠",
+      "s1_score": 44.4,
+      "s2_score": 33.15,
+      "s3_score": 16.1,
+      "s4_score": 48.02
+    },
+    {
+      "idx": 17,
+      "input_type": "OTHER",
+      "trust_score": 0.11,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "Qe va jo ara haure de fer gym aquestes hores perqe n tinc temps",
+      "iris_real_response": "[🎤 Audio]: Buen día, Flor. Bueno, te mando el audio como... Amparo la que vende cupones, eh. Porque tengo una voz, es que si no te lo fallaré, que se me pasará. Hoy estaba escuchando el audio, ahora he tomado con el coche, con la calma. Porque obviamente cuando me envío un mensaje así, me gusta escucharlo atentamente. Y lo escuché mientras me ponía cuatro yopros de proteína y ocho paquetitos de unas tostadas de baí. Son muy buenas, increíblemente fines. Es como, no sé, pero bueno, cada tres tiene 79 calorías. tranquila me comí ocho paquetes con cuatro yopros que hoy me voy a tirar unos peos que flipas y llevamos con tanto tiempo explicamos la otra cosa y yo pensando déjate de tonterías que estamos todos igual lo pasará la única suerte tuya es tu jerética. Siempre te lo he dicho. Mi jerética no me apoya. Siempre pasa igual. Cuando comienzo a estar una mica bien, esto me aporto meses así, es como que me vean bien aquel día y entonces aquel día será el día de la tracón. Porque es como, ¿sabes? No me puedo permitir, no pasa nada. Me he primado y pues torno. O sea, hoy es que no puedo ni mirarme. O sea, mala perla, ¿eh? Mala perla bastante. O sea, tanto me hace. Tía, yo pensaba que lo de la hospital sería como un reto que me aguantarías y te agradaría. No te agrada gens, ¿eh? Tía, hostia puta. Es lo que te agrada, tía, la dona. Y yo hostia puta est todos all Y yo pensaba que ya era como O sea s que vas entrar como sustituir a esta dona porque me vas explicar Pero pensaba que tú ya te pudieras quedar allá. ¿Sabes? O sea, voy a entender que había una plaza para tú. Que entiendo que no es así. Porque por eso vols marxar. Porque tienes la opción de poderlo hacer. cariño, no sé qué decirte porque entonces es volver a estructurar todos los entrenos, los entrenos que te haías dejado, ¿no? Algunos no sé si has dejado algunos o has dejado en un grupo bueno, esta vida a él se está poniendo muy chunga y nos tocará trabajar mucho o sea ya te lo digo ahora yo abans en 20 euros pasaba a ir y volver a Barcelona dos veces y pasaba toda la semana Ahora, con 20 euros, solo voy y estoy en reserva, pero en reserva ya de final Y esto va por largo Y ahí una guruda de estas que tengo Va a decir que comienza a comprar llaunes Por si acaso, yo solo te lo digo, pero que tengas unas llaunetas, Iris Te lo digo porque te estimo mucho, es la madre de mi amiga, la María Y también te lo digo a ti que tal vez ya te lo han dicho porque tú tienes muchas amigas pero por si acaso ahora no te plantees muchas cosas ¿sabes? porque si sobrevivimos a esta guerra ya será mucho que no ha de pasar nada pero por si acaso otra cosa que yo te dije es que este año celebraré el meu aniversario ¿vale? voy a decir que que si tienes algo sobre aquellas dates y estás dient que no, veus todos los peces que me estoy tirando, puedo patir por la proteína. Que lo haces tranquilamente. Aquest año lo que hago es dejarme gente que me dijo que me reservo estos días. Ya está, estoy cansada de dar. Estoy cansada, ya me estaba creando angocia de comenzar a estalviar. me voy a gastar muchos dinero el a pasado bueno siempre me gasto muchos dinero y muy feliz pero aquel a hay mucha gente que no tiene ganas de tenerla entonces es como aquel momento que queda muy violento de convidar un sí y un no, que ya sé que me la pela, pero mira, André y la Aida me van a decir, reserva el 5, 6 y 7 de junio, y pues de puta madre, sabes? En un primer momento les voy a decir que no, porque era el cap de semana que quería hacer el cumple, como siempre. Pero después de ahí pensar, ¿me voy a llevar un día, tío? Y yo voy a hacer esto y le voy a decir que no al Leo, porque cada dos meses me demandan más de 500 euros. Y yo le voy a decir que no me daba la puta gana de darles los nuevos dinero del diumenge. Y estoy estalviando, por un cop en la vida, bueno, a ver, estalviando 1.400 euros, pero para mí es mucho, después de todo lo de mi madre, porque porto un desfalto muy grande. Y no me da la gana, tío, o sea, de gastarlo con 40 personas que como por ejemplo, yo que soy el patrón desde que tiene nóvia, yo no he reunido un mensaje de cómo está mi madre entonces si lo invito a él tengo que invitar también a la Cristina y tengo, ¿sabes? no, no tengo ganas la Jordina Closa, no sé nada, ella ni ella sabe de mí ¿entens qué voy a decir? entonces, como es un momento muy meu de ver realmente ¿saps? Pues como lo iba a la Mary, pues un día a Mary nos anemos tú y yo a la platja con la Eli, un día, ¿saps? tú y yo nos anemos a hacer algo que veis que yo qué sé, que nos motiva ¿saps? No sé, es que ahora a l'estido farán tantas ediciones especiales alguna cosa de lapsos en branche o alguna cosa y después nos quedamos a hacer un postureito o si nos anemos a la platja ¿saps? ¿saps? con los mis la Cira y la Mónica ya me van a decir por ejemplo de ir a sopar y salir por igualada, y eso más igualada pues ya está, el Albert y la Gemma en farán pues como siempre algo y ya está y la vida tiene que ser así hemos de comenzar a pensar en nosotros hemos de comenzar a llençar mochilas porque si no nos crea mucha ansiedad yo sé que lo de ahí pues bueno, aparte de eso que me pasa mucho que llevo un beb y llavors menjo bueno eso me va agafar un chispazo a examen Los dos copos lo voy a hacer como el cul. La clase había ido muy bien, pero no pasa nada. Porque el ver ya ha visto que esta cueva la porto bien y lo importante es que no me agafo la semana que viene, que tengo el dimecres que viene, que tengo la grabación. ¿Sabes? Así que go with the flow. Y tú, cariño, farás lo que necesitas hacer cuando toquen. Y ya está. Cuando tú crees que has de hacer, de decir, prou, ¿fins aquí? Pues prou, ¿fins aquí? Que tú un día vols venir a Frau Forgeo, vens a Frau Forgeo. Que vens a Barre, vens a Barre. A mí no me has de dar explicaciones, Eli, cariño. A mí no me has de decir, ¿sabes? O sea, vine cuando quieras. Que no vengas un bar, no pasa nada. Yo ya sé qué pasa. y ya está, el que no quiero es ver tu angustado o ver, donar-me explicaciones de por qué una cosa o por qué una otra no, no, no, a mi res, a mi absolutamente res y lo del diumenge ya lo acabo y seguramente este será el último diumenge porque hay muy poquita gente apuntada no trabajaré el diumenge, o sea, he estado haciendo soledad cada diumenge super feliz, pero ya está, la gente el diumenge se hace sol y entonces tampoco no voy a hacer clase para 10 personas y no la traigo porque esto es tupe si no, ¿sabes? porque a mí me crea más ansiedad que nada y ya está ¿vale, cariño? así que re, que tengas un buen día no te agobis fes el que hagas a hacer en un hospital y ya está y si este no era el tuyo camino porque no de eso, sortirá otra cosa ¿Vale? Ya lo has probado, lo has intentado, has hecho un paso, te han visto por allá, todo el mundo sabe que te ha fijado a la hospital, o sea, ya está, ¿sabes? Uy, voy muy tarde. Te mando un visito, nos vemos el domingo. Que por cierto, sí que voy a dinar al casinete con el Manel, que ahir lo vamos corroborar, pero con la mamá. Anem porque el Manuel también Volve a ver y Desconnectar Pero bueno, que tengo unas ganas cero De meterme un puto atracón en el casinet Pero bueno, ya está Con este pedito te digo Bon día",
+      "bot_response": "",
+      "s1_score": 54.28,
+      "s2_score": 17.5,
+      "s3_score": 100.0,
+      "s4_score": 65.92
+    },
+    {
+      "idx": 18,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "test_user",
+      "user_message": "La portada nose si tagradara, pq jo hauria triat el microfinal con lenguitapero digo a ver si el dinamic va a poner pegas pa colab",
+      "iris_real_response": "😂😂😂😂 lalalala",
+      "bot_response": "",
+      "s1_score": 54.28,
+      "s2_score": 17.5,
+      "s3_score": 100.0,
+      "s4_score": 68.46
+    }
+  ],
+  "generate_only": true
+}

@@ -1,0 +1,261 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260407_215930",
+  "n_runs": 1,
+  "n_cases": 5,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 47.95,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 79.99,
+          "A2_contextual": 52.01,
+          "A3_exclamations": 66.09,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 0.0,
+          "A6_language": 0.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 38.24,
+        "detail": {
+          "bertscore_mean": 0.8019,
+          "chrf_mean": 0.0686,
+          "bleu4_mean": 0.1353,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0,
+          "semsim_mean": 0.8019,
+          "c4_relevance_mean": 0.7949,
+          "self_rep_mean": 0.7825,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            31.12,
+            41.82,
+            42.7,
+            41.19,
+            34.37
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 70.68,
+        "detail": {
+          "e1_per_case_mean": 64.54,
+          "e2_distribution_match": 85.0,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.2,
+            "IGNORE": 0.2,
+            "REDIRECT": 0.4,
+            "MIRROR": 0.2
+          },
+          "per_case": [
+            11.2,
+            100.0,
+            100.0,
+            11.5,
+            100.0
+          ],
+          "mean": 70.68
+        }
+      },
+      "S4_adaptation": {
+        "score": 60.76,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 60.76,
+          "proximity_n": 5
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 5,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 29.43,
+        "H2": {
+          "score": 29.43,
+          "detail": {
+            "cosine_similarity": 0.2943,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.106,
+              0.4,
+              0.2,
+              0.0,
+              0.0,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 55.87,
+        "detail": {
+          "length_consistency": 53.0,
+          "emoji_consistency": 79.99,
+          "question_consistency": 80.27,
+          "exclamation_consistency": 66.09,
+          "cv_match": 0.0,
+          "bot_length_std": 10.68,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 52.94,
+      "composite": 57.69,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    57.69
+  ],
+  "human_eval_cases": [],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "EMOJI_ONLY",
+      "trust_score": 0.11,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_34646387451",
+      "user_message": "🤣🤣🤣🤣🤣",
+      "iris_real_response": "😂😂",
+      "bot_response": "Ja ja ja qué risa",
+      "s1_score": 52.8,
+      "s2_score": 31.12,
+      "s3_score": 11.2,
+      "s4_score": 65.04
+    },
+    {
+      "idx": 1,
+      "input_type": "LAUGH",
+      "trust_score": 0.0,
+      "trust_segment": "UNKNOWN",
+      "username": "danielssss_",
+      "user_message": "Jajajajajajajja",
+      "iris_real_response": "Normal sino te lo has cuidado bien",
+      "bot_response": "Qué risa",
+      "s1_score": 54.48,
+      "s2_score": 41.82,
+      "s3_score": 100.0,
+      "s4_score": 61.76
+    },
+    {
+      "idx": 2,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_41779950952",
+      "user_message": "I tu desarrolles",
+      "iris_real_response": "T’estimu he anat de cul aquests dies perdona😘 parlem el finde si et va benne🙏🏽ets el millor! Ojalà segueixis💪🏾 x la teva salut",
+      "bot_response": "Holaaa. Que bueno saludarte ❤️",
+      "s1_score": 44.97,
+      "s2_score": 42.7,
+      "s3_score": 100.0,
+      "s4_score": 61.73
+    },
+    {
+      "idx": 3,
+      "input_type": "OTHER",
+      "trust_score": 0.0,
+      "trust_segment": "UNKNOWN",
+      "username": "ericadelo",
+      "user_message": "Fabulosa",
+      "iris_real_response": "Yeaaa",
+      "bot_response": "Esaaa reina! 😍",
+      "s1_score": 35.64,
+      "s2_score": 41.19,
+      "s3_score": 11.5,
+      "s4_score": 43.2
+    },
+    {
+      "idx": 4,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "Manel",
+      "user_message": "Jo no se ni si demà finalment aniré a casa la tieta o potser pujo ja cap a bcn aquesta dona esta totalment desequilibrada",
+      "iris_real_response": "Ja ho sé",
+      "bot_response": "thought://thought Ostia mami, que lio",
+      "s1_score": 52.67,
+      "s2_score": 34.37,
+      "s3_score": 100.0,
+      "s4_score": 72.05
+    }
+  ],
+  "generate_only": true
+}
