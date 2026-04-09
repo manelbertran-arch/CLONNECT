@@ -1,40 +1,46 @@
 """Compressed Doc D — Universal personality prompt builder.
 
-Generates a ~2-3K char personality prompt from:
+Generates a ~3K char personality prompt from:
 - BFI profile (tests/cpe_data/{creator}/bfi_profile.json)
 - Baseline metrics (tests/cpe_data/{creator}/baseline_metrics.json)
 - Creator DB data (name, products)
-- Calibration few-shot examples (calibrations/{creator}.json)
 
-Based on:
-- PersonaGym (EMNLP 2025): 150-300 word structured descriptions outperform
-  verbose documents. Quantitative constraints need behavioral examples.
-- RoleLLM (ACL 2024): 3-5 few-shot examples are the #1 lever for style fidelity.
-- CharacterEval (ACL 2024): Structured sections beat prose paragraphs.
-
-Structure: Identity → Personality → Style → Examples → Constraints
+Based on PersonaGym (ACL 2025): short structured descriptions outperform
+verbose 38K-char personality documents. Quantitative style constraints
+replace post-processing enforcement.
 """
 
 import json
 import logging
 import os
-import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-# Canonical stopwords — imported from vocabulary_extractor (single source of truth)
-from services.vocabulary_extractor import STOPWORDS as _STOP_WORDS
+# Grammatical stop words to filter from vocabulary (ES + CA + PT)
+# Only pure function words — content words are kept as potentially characteristic
+_STOP_WORDS = {
+    "que", "de", "la", "el", "en", "y", "a", "los", "las", "del",
+    "un", "una", "unos", "unas", "es", "se", "no", "por", "con",
+    "para", "como", "más", "pero", "su", "sus", "al", "lo", "le",
+    "si", "o", "me", "mi", "tu", "te", "ni", "ha", "he", "hay",
+    # Catalan
+    "i", "o", "els", "les", "una", "uns", "unes", "amb", "per",
+    "però", "perquè", "que", "qui", "com", "quan", "on",
+    "jo", "tu", "ell", "ella", "nosaltres", "vosaltres",
+    "és", "ser", "estar", "ser", "han", "hem",
+    # PT
+    "e", "da", "do", "das", "dos", "em", "com", "por",
+}
 
-# BFI trait labels (Big Five Inventory) — gender-neutral phrasing
-# Each label must read naturally after "muy " prefix
+# BFI trait labels (Big Five Inventory)
 _BFI_LABELS = {
-    "O": ("Openness", "abierta/o a nuevas experiencias", "convencional y práctica/o"),
-    "C": ("Conscientiousness", "organizada/o y disciplinada/o", "espontánea/o y flexible"),
-    "E": ("Extraversion", "sociable y extrovertida/o", "reservada/o e introvertida/o"),
-    "A": ("Agreeableness", "empática/o y cooperativa/o", "directa/o y competitiva/o"),
-    "N": ("Neuroticism", "emocionalmente reactiva/o", "emocionalmente estable"),
+    "O": ("Openness", "abierta a nuevas experiencias", "convencional y práctica"),
+    "C": ("Conscientiousness", "organizada y disciplinada", "espontánea y flexible"),
+    "E": ("Extraversion", "extrovertida y sociable", "reservada e introspectiva"),
+    "A": ("Agreeableness", "empática y cooperativa", "directa y competitiva"),
+    "N": ("Neuroticism", "emocionalmente reactiva", "emocionalmente estable"),
 }
 
 
@@ -148,218 +154,55 @@ def _get_length_divergence(creator_id: str) -> Optional[float]:
     return None
 
 
-def _get_characteristic_vocab(metrics: Dict[str, Any]) -> str:
-    """Extract characteristic vocabulary from creator's data.
+def _get_catchphrases(metrics: Dict[str, Any]) -> str:
+    """Extract characteristic expressions from creator's vocabulary and greeting patterns.
 
-    Merges top_50 vocabulary + greeting openers, filters stop words,
-    deduplicates, and returns a single compact section.
+    Filters stop words from top_50 vocabulary and grabs notable opener tokens.
+    Returns a compact, comma-separated string of characteristic words/expressions.
     """
     lines = []
 
+    # 1. Characteristic vocabulary (top_50 minus stop words)
     vocab = metrics.get("vocabulary", {})
     top_words = vocab.get("top_50", [])
-
-    # Filter stop words and short tokens, keep characteristic words only
     char_words = [
         w[0] for w in top_words
         if w[0].lower() not in _STOP_WORDS and len(w[0]) > 1
-    ][:15]
+    ][:12]
     if char_words:
-        lines.append(f"- Vocabulario habitual: {', '.join(char_words)}")
+        lines.append(f"- Palabras características: {', '.join(char_words)}")
 
-    # Opener expressions (deduplicated vs vocab)
+    # 2. Opener expressions from greeting patterns
     greeting = metrics.get("greeting_patterns", {})
     openers = greeting.get("top_15_openers", [])
-    seen = set(w.lower() for w in char_words)
     char_openers = [
         o[0] for o in openers
-        if o[0].lower() not in _STOP_WORDS
-        and len(o[0]) > 1
-        and o[0].lower() not in seen
-    ][:5]
+        if o[0].lower() not in _STOP_WORDS and len(o[0]) > 1
+    ][:8]
     if char_openers:
         lines.append(f"- Expresiones de apertura: {', '.join(char_openers)}")
+
+    # 3. Filler / discourse markers from vocab (short tokens that survived stop word filter)
+    fillers = [
+        w[0] for w in top_words
+        if len(w[0]) <= 4 and w[0].lower() not in _STOP_WORDS
+    ][:6]
+    if fillers:
+        lines.append(f"- Muletillas / partículas: {', '.join(fillers)}")
 
     return "\n".join(lines)
 
 
-def _get_few_shot_examples(
-    creator_id: str,
-    baseline: Optional[Dict] = None,
-    n: int = 5,
-) -> str:
-    """Load few-shot examples with stratified sampling by length + intent.
-
-    Selection strategy (based on RoleLLM + CharacterEval):
-    1. Define length buckets from creator's real percentiles (p25, p75)
-    2. Sample proportionally: ~25% short, ~50% medium, ~25% long
-    3. Maximize intent/context diversity (no duplicate contexts)
-    4. Within each bucket: prefer no-emoji majority (mirrors real distribution)
-
-    Args:
-        creator_id: Creator slug
-        baseline: Baseline metrics dict (optional, used for length percentiles)
-        n: Number of examples to select (default 5)
-    """
-    try:
-        from services.calibration_loader import load_calibration
-
-        cal = load_calibration(creator_id)
-        if not cal:
-            return ""
-
-        examples = cal.get("few_shot_examples", [])
-        if not examples:
-            return ""
-
-        # --- Length buckets from creator's real distribution ---
-        p25, p75 = 13, 53  # defaults (Iris-like)
-        if baseline and baseline.get("metrics"):
-            length_m = baseline["metrics"].get("length", {})
-            p25 = length_m.get("char_p25", 13)
-            p75 = length_m.get("char_p75", 53)
-
-        # Bucket assignment
-        def _bucket(ex):
-            resp_len = len(ex.get("response", ""))
-            if resp_len < p25:
-                return "short"
-            elif resp_len <= p75:
-                return "medium"
-            else:
-                return "long"
-
-        # Split into buckets
-        buckets = {"short": [], "medium": [], "long": []}
-        for ex in examples:
-            if len(ex.get("response", "")) >= 3:  # skip empty/trivial
-                buckets[_bucket(ex)].append(ex)
-
-        # Target allocation: match real distribution (25/50/25)
-        n_short = max(1, round(n * 0.25))
-        n_long = max(1, round(n * 0.25))
-        n_medium = n - n_short - n_long
-
-        # --- Intent-diverse selection within each bucket ---
-        emoji_pat = re.compile(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]")
-
-        def _pick_diverse(
-            pool: List[Dict], count: int, seen_contexts: set, seen_responses: set,
-        ) -> List[Dict]:
-            """Pick examples maximizing context + response diversity."""
-            if not pool:
-                return []
-
-            # Sort: no-emoji first (majority), then by response length (ascending)
-            pool_sorted = sorted(
-                pool,
-                key=lambda ex: (
-                    bool(emoji_pat.search(ex.get("response", ""))),  # no-emoji first
-                    len(ex.get("response", "")),
-                ),
-            )
-
-            picked = []
-            for ex in pool_sorted:
-                if len(picked) >= count:
-                    break
-                ctx = ex.get("context", "unknown")
-                resp = ex.get("response", "").strip()
-                # Skip duplicate responses
-                if resp in seen_responses:
-                    continue
-                # Prefer unseen contexts for diversity
-                if ctx not in seen_contexts:
-                    picked.append(ex)
-                    seen_contexts.add(ctx)
-                    seen_responses.add(resp)
-
-            # If not enough unique contexts, fill from remaining
-            for ex in pool_sorted:
-                if len(picked) >= count:
-                    break
-                resp = ex.get("response", "").strip()
-                if ex not in picked and resp not in seen_responses:
-                    picked.append(ex)
-                    seen_responses.add(resp)
-
-            return picked
-
-        seen_ctx = set()
-        seen_resp = set()
-        selected = []
-        # Pick medium first (largest allocation, most representative)
-        selected.extend(_pick_diverse(buckets["medium"], n_medium, seen_ctx, seen_resp))
-        # Then short and long
-        selected.extend(_pick_diverse(buckets["short"], n_short, seen_ctx, seen_resp))
-        selected.extend(_pick_diverse(buckets["long"], n_long, seen_ctx, seen_resp))
-
-        if not selected:
-            return ""
-
-        # Ensure at least 1 emoji example if creator uses emoji (>5%)
-        emoji_rate = 50  # default
-        if baseline and baseline.get("metrics"):
-            emoji_rate = baseline["metrics"].get("emoji", {}).get("emoji_rate_pct", 50)
-        has_any_emoji = any(emoji_pat.search(ex.get("response", "")) for ex in selected)
-        if emoji_rate > 5 and not has_any_emoji and len(selected) >= 3:
-            # Swap one MEDIUM example (largest bucket) for an emoji example
-            # from the same bucket to preserve length diversity
-            emoji_candidates = [
-                ex for ex in buckets["medium"]
-                if emoji_pat.search(ex.get("response", ""))
-                and ex.get("response", "").strip() not in seen_resp
-            ]
-            if emoji_candidates:
-                pick = emoji_candidates[0]
-                # Replace a medium-bucket no-emoji example (not the first one)
-                for i in range(len(selected) - 1, -1, -1):
-                    if _bucket(selected[i]) == "medium":
-                        selected[i] = pick
-                        break
-
-        # Sort final selection by length for natural reading order (short→long)
-        selected.sort(key=lambda ex: len(ex.get("response", "")))
-
-        lines = []
-        for ex in selected:
-            user = ex.get("user_message", "")[:60]
-            resp = ex.get("response", "")
-            lines.append(f"Lead: \"{user}\"\nTú: \"{resp}\"")
-
-        return "\n".join(lines)
-
-    except Exception as e:
-        logger.debug("Failed to load few-shot for %s: %s", creator_id, e)
-        return ""
-
-
-def _detect_prompt_language(metrics: Dict[str, Any]) -> str:
-    """Detect the dominant language for prompt instructions.
-
-    Returns 'es' (Spanish), 'ca' (Catalan), 'pt' (Portuguese), 'en' (English).
-    """
-    detected = metrics.get("languages", {}).get("detected", [])
-    if not detected:
-        return "es"
-
-    # Check if there's a clear dominant language
-    top = detected[0]
-    lang = top.get("lang", "es").lower()
-
-    # Map to supported prompt languages (we write instructions in ES for now)
-    # This is a future hook — when we add i18n, we'll use this
-    return lang
-
-
 def build_compressed_doc_d(creator_id: str) -> str:
-    """Build a compressed personality prompt for any creator.
+    """Build a compressed ~3K char personality prompt for any creator.
 
-    Structure follows CharacterEval + PersonaGym best practices:
-    Identity → Personality → Style → Examples → Constraints
+    Combines:
+    - BFI personality profile → natural language summary
+    - Baseline quantitative metrics → style constraints
+    - Creator DB data → name, products
 
     Returns:
-        Compressed Doc D string (~2-3K chars including few-shot)
+        Compressed Doc D string (~2-3K chars)
     """
     # Load data sources (DB first, then local file fallback)
     baseline = _load_profile_with_db_fallback(creator_id, "baseline_metrics", "baseline_metrics.json")
@@ -368,13 +211,13 @@ def build_compressed_doc_d(creator_id: str) -> str:
     creator_name = _get_creator_display_name(creator_id)
     products_str = _get_creator_products(creator_id)
 
-    # === Build sections (ordered per literature: Identity → Style → Examples → Constraints) ===
+    # === Build sections ===
     sections = []
 
-    # 1. Identity (1 line) — gender-neutral wording
+    # 1. Identity (1 line)
     sections.append(
         f"Eres {creator_name}. Respondes DMs de Instagram y WhatsApp "
-        f"como si fueras tú — natural, sin filtros de asistente."
+        f"como si fueras tú — natural, directa, sin filtros de asistente."
     )
 
     # 2. Personality from BFI
@@ -389,9 +232,10 @@ def build_compressed_doc_d(creator_id: str) -> str:
         emoji = m.get("emoji", {})
         punct = m.get("punctuation", {})
         lang = m.get("languages", {})
+        vocab = m.get("vocabulary", {})
         formality = m.get("formality", {})
 
-        style_lines = ["ESTILO (respeta estas frecuencias):"]
+        style_lines = ["ESTILO CUANTITATIVO (respeta estas frecuencias):"]
 
         # Length — adaptive wording based on measured divergence
         median = length.get("char_median", 30)
@@ -399,75 +243,60 @@ def build_compressed_doc_d(creator_id: str) -> str:
         p75 = length.get("char_p75", 60)
         length_div = _get_length_divergence(creator_id)
         if length_div is not None and length_div <= 1.5:
+            # Measured divergence is acceptable — soft wording (validated)
             style_lines.append(
                 f"- Longitud típica: {p25}-{p75} caracteres (mediana {median}). "
-                f"Mensajes CORTOS."
+                f"Mensajes CORTOS y directos."
             )
         else:
+            # No data or high divergence — strict wording to overcorrect
             style_lines.append(
                 f"- Longitud: MÁXIMO {p75} caracteres. Mediana real: {median}. "
                 f"Regla estricta — sé breve."
             )
 
-        # Emoji — behavioral constraint (quantitative alone fails per Layer 1 data)
+        # Emoji — strongest constraint (models over-emoji by default)
         emoji_rate = emoji.get("emoji_rate_pct", 20)
+        avg_emoji = emoji.get("avg_emoji_count", 0.5)
         no_emoji_rate = 100 - emoji_rate
         top_emojis = emoji.get("top_20_emojis", [])
-        # Filter out skin tone modifiers (U+1F3FB-1F3FF) that appear as standalone
-        emoji_list = " ".join(
-            e[0] for e in top_emojis[:8]
-            if len(e[0]) > 0 and not (len(e[0]) == 1 and 0x1F3FB <= ord(e[0]) <= 0x1F3FF)
-        ) if top_emojis else ""
-        n_with = max(1, round(5 * emoji_rate / 100))
-        n_without = 5 - n_with
+        emoji_list = " ".join(e[0] for e in top_emojis[:8]) if top_emojis else ""
         style_lines.append(
-            f"- Emoji: tu DEFAULT es NO poner emoji. "
-            f"Solo {emoji_rate:.0f}% de tus mensajes reales llevan emoji — "
-            f"el {no_emoji_rate:.0f}% van SIN NINGUNO. "
-            f"De cada 5 mensajes, {n_without} van sin emoji y solo "
-            f"{n_with} {'lleva' if n_with == 1 else 'llevan'} emoji."
+            f"- Emoji: SOLO {emoji_rate:.0f}% de tus mensajes llevan emoji. "
+            f"El {no_emoji_rate:.0f}% NO llevan NINGÚN emoji. "
+            f"De cada 5 mensajes, {max(1, round(5 * emoji_rate / 100))} llevan emoji y "
+            f"{5 - max(1, round(5 * emoji_rate / 100))} van SIN emoji."
         )
         if emoji_list:
-            style_lines.append(f"- Si pones emoji (raro): {emoji_list}")
+            style_lines.append(f"- Cuando SÍ uses emoji, usa: {emoji_list}")
 
-        # Exclamation — behavioral framing (74% failure in L1 shows numbers don't work)
+        # Punctuation — exclamation is heavily over-generated by LLMs
         excl_rate = punct.get("exclamation_rate_pct", 10)
-        if excl_rate < 10:
-            style_lines.append(
-                f"- Exclamaciones (!): CASI NUNCA (solo {excl_rate:.0f}% de mensajes reales). "
-                f"Tu tono natural es tranquilo, sin '!' al final."
-            )
-        else:
-            style_lines.append(
-                f"- Exclamaciones (!): {excl_rate:.0f}% de mensajes."
-            )
-
-        # Questions
         q_rate = punct.get("question_rate_pct", 15)
-        style_lines.append(f"- Preguntas (?): {q_rate:.0f}% de mensajes.")
-
-        # CAPS — use creator's actual examples if available from top_50
         caps_rate = punct.get("all_caps_rate_pct", 3)
+        style_lines.append(
+            f"- Exclamaciones (!): {excl_rate:.0f}% de tus mensajes usan '!'. "
+            f"Úsalas solo cuando el contexto pide énfasis emocional — no como defecto."
+        )
+        style_lines.append(f"- Preguntas (?): {q_rate:.0f}% de mensajes.")
         if caps_rate > 2:
-            # Try to find actual CAPS words from the creator's vocabulary
-            vocab = m.get("vocabulary", {})
-            top_words = vocab.get("top_50", [])
-            caps_examples = [w[0] for w in top_words if w[0].isupper() and len(w[0]) > 2][:4]
-            if caps_examples:
-                style_lines.append(
-                    f"- CAPS para énfasis: {caps_rate:.0f}% de mensajes. "
-                    f"Ej: {', '.join(caps_examples)}"
-                )
-            else:
-                style_lines.append(
-                    f"- CAPS para énfasis: {caps_rate:.0f}% de mensajes."
-                )
+            style_lines.append(
+                f"- Mayúsculas para énfasis (CAPS): {caps_rate:.0f}% de mensajes. "
+                f"Ejemplo: 'NOOOO', 'AVUI', 'QUE FUEEERT', 'AYYYY'. "
+                f"Úsalas cuando quieras expresar sorpresa, énfasis o emoción fuerte."
+            )
 
         # Languages
         detected = lang.get("detected", [])
         if detected:
             lang_parts = [f"{d['lang'].upper()} {d['pct']:.0f}%" for d in detected[:3]]
             style_lines.append(f"- Idiomas: {', '.join(lang_parts)}.")
+
+        # Vocabulary
+        top_words = vocab.get("top_50", [])
+        if top_words:
+            word_list = ", ".join(w[0] for w in top_words[:15])
+            style_lines.append(f"- Palabras frecuentes: {word_list}")
 
         # Formality
         if formality.get("dominant"):
@@ -477,42 +306,24 @@ def build_compressed_doc_d(creator_id: str) -> str:
 
         sections.append("\n".join(style_lines))
 
-    # 4. Characteristic vocabulary (merged, stop-words filtered)
-    if baseline and baseline.get("metrics"):
-        char_vocab = _get_characteristic_vocab(baseline["metrics"])
-        if char_vocab:
-            sections.append(f"VOCABULARIO:\n{char_vocab}")
-
-    # 5. Products
+    # 4. Products
     if products_str:
         sections.append(f"PRODUCTOS/SERVICIOS:\n{products_str}")
 
-    # 6. Few-shot examples (RoleLLM: #1 lever for style fidelity)
-    few_shot = _get_few_shot_examples(creator_id, baseline=baseline, n=5)
-    if few_shot:
-        sections.append(
-            f"EJEMPLOS REALES (imita este estilo exacto):\n{few_shot}"
-        )
-
-    # 7. Anti-patterns (max 5 per CharacterEval — recency position for enforcement)
-    # Adapt rules to creator's actual metrics
-    emoji_rate_val = 50  # default: assume high
-    excl_rate_val = 50
+    # 5. Catchphrases & behavioral patterns (RoleLLM: primary lexical consistency driver)
     if baseline and baseline.get("metrics"):
-        emoji_rate_val = baseline["metrics"].get("emoji", {}).get("emoji_rate_pct", 50)
-        excl_rate_val = baseline["metrics"].get("punctuation", {}).get("exclamation_rate_pct", 50)
+        catchphrases = _get_catchphrases(baseline["metrics"])
+        if catchphrases:
+            sections.append(f"FRASES Y EXPRESIONES CARACTERÍSTICAS:\n{catchphrases}")
 
-    rules = ["REGLAS (si no las cumples, se nota que eres IA):"]
-    if emoji_rate_val < 40:
-        rules.append("- NO pongas emoji por defecto. La mayoría de tus mensajes van SIN emoji.")
-    rules.append("- NO respondas como asistente ('¿En qué puedo ayudarte?', 'Estoy aquí para...')")
-    if excl_rate_val < 15:
-        rules.append("- NO pongas '!' por defecto. Tu tono es tranquilo.")
-    rules.append("- NO inventes horarios, precios ni nombres que no estén en el contexto")
-    rules.append("- Mensajes cortos — 1-2 frases")
-    rules.append("- NUNCA repitas lo que dice el lead. Si no sabes qué decir, responde con una reacción breve (ja, vale, uf).")
-    rules.append("- Usa SOLO vocabulario que aparece en tus ejemplos reales. NO inventes expresiones ni palabras que no uses.")
-    sections.append("\n".join(rules))
+    # 6. Anti-patterns (universal + emoji emphasis)
+    sections.append(
+        "REGLAS CRÍTICAS (si no las cumples, se nota que eres IA):\n"
+        "- La MAYORÍA de tus mensajes van SIN emoji. No pongas emoji por defecto.\n"
+        "- NO respondas como asistente ('¿En qué puedo ayudarte?', 'Estoy aquí para...')\n"
+        "- NO inventes precios, horarios o datos que no tengas\n"
+        "- Mensajes cortos — la mayoría son 1-2 frases"
+    )
 
     result = "\n\n".join(sections)
     logger.info(

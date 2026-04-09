@@ -4,6 +4,25 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-09 — Universal Clone Factory: zero hardcoding across all post-processing
+
+**Goal**: Make the entire clone pipeline work for ANY creator without code changes. Every threshold, fallback list, and default must come from the creator's mined data profile.
+
+**Changes** (8 files, 8 subsystems):
+1. **Fallback guard** (`gemini_provider.py`, `generation.py`): `DISABLE_FALLBACK=true` env guard blocks all LLM fallback cascades. Prevents Gemini contamination during evaluation.
+2. **Judge default** (`m_prometheus_judge.py`): Default provider changed from OpenAI to DeepInfra Qwen3-30B-A3B. max_tokens=1500, /no_think suffix. ~100x cheaper.
+3. **Doc D** (`compressed_doc_d.py`): Reverted to pre-audit version without embedded few-shots. Hybrid experiment caused B1 OCEAN instability (0→66→83 across runs).
+4. **Question remover** (`question_remover.py`): Removed hardcoded `question_rate=0.10` default. Now loads from creator baseline profile; skips if no data.
+5. **Anti-echo** (`postprocessing.py`): Replaced hardcoded `["ja", "vale", "uf", "ok", "entès", "vaja"]` with creator's `short_response_pool` from calibration.
+6. **Style normalizer** (`style_normalizer.py`): Removed `0.50` emoji fallback and `86%` exclamation fallback. Skips normalization if no profile data.
+7. **Length controller** (`length_controller.py`): Removed Stefan's 2,967-message defaults and hardcoded `SHORT_REPLACEMENTS`. All thresholds from per-creator calibration; skips if missing.
+8. **Style Anchor** (`generation.py`): New — injects quantitative style reminder (raw numbers from profile) into prompt when `ENABLE_STYLE_ANCHOR=true`.
+9. **Emoji Adaptation** (`style_normalizer.py`): New — relationship-level emoji behavior from creator's calibration data.
+
+**Principle**: If data doesn't exist for a creator → skip that function + log warning. Never invent a default number.
+
+---
+
 ## 2026-04-04 — M-Prometheus 14B as LLM judge for naked baseline comparison
 
 **Goal**: Add subjective quality metrics (B2/B5/C2/C3/H1) to the 5-model naked baseline comparison using a local LLM judge.

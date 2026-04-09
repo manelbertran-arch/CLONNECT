@@ -98,6 +98,49 @@ def _maybe_question_hint(creator_id: str) -> str:
         return ""
 
 
+def _build_style_anchor(creator_id: str) -> str:
+    """Build a style anchor from creator's profile data.
+
+    Returns a short reminder string with raw numbers from the profile,
+    or empty string if no profile data exists.
+    """
+    try:
+        from core.dm.style_normalizer import _load_baseline
+
+        baseline = _load_baseline(creator_id)
+        if not baseline:
+            logger.warning("style_anchor: no profile for %s, skipping", creator_id)
+            return ""
+
+        parts = []
+        length = baseline.get("length", {})
+        emoji = baseline.get("emoji", {})
+        punct = baseline.get("punctuation", {})
+
+        median_len = length.get("char_median")
+        if median_len is not None:
+            parts.append(f"mensajes de ~{median_len} chars")
+
+        emoji_rate = emoji.get("emoji_rate_pct")
+        if emoji_rate is not None:
+            parts.append(f"emoji rate: {emoji_rate:.0f}%")
+
+        question_rate = punct.get("has_question_msg_pct", punct.get("question_rate_pct"))
+        if question_rate is not None:
+            parts.append(f"question rate: {question_rate:.0f}%")
+
+        excl_rate = punct.get("exclamation_rate_pct", punct.get("has_exclamation_msg_pct"))
+        if excl_rate is not None:
+            parts.append(f"exclamation rate: {excl_rate:.0f}%")
+
+        if parts:
+            return "RECUERDA: " + ", ".join(parts) + "."
+        return ""
+    except Exception as e:
+        logger.debug("style_anchor: failed for %s: %s", creator_id, e)
+        return ""
+
+
 async def phase_llm_generation(
     agent, message: str, full_prompt: str, system_prompt: str,
     context: ContextBundle, cognitive_metadata: Dict,
@@ -238,6 +281,14 @@ async def phase_llm_generation(
 
     prompt_parts.append(message)
     full_prompt = "\n\n".join(prompt_parts)
+
+    # Style Anchor: inject quantitative style reminder from creator profile
+    if os.environ.get("ENABLE_STYLE_ANCHOR") == "true":
+        _anchor = _build_style_anchor(agent.creator_id)
+        if _anchor:
+            full_prompt += "\n" + _anchor
+            cognitive_metadata["style_anchor"] = True
+
     # Store for SBS retry — allows regenerating with identical prompt at lower temperature
     cognitive_metadata["_full_prompt"] = full_prompt
 
@@ -330,7 +381,7 @@ async def phase_llm_generation(
         if _cal_baseline.get("temperature") is not None:
             _llm_temperature = float(_cal_baseline["temperature"])
         # max_tokens: read from calibration (per-creator optimal), fallback 100.
-        # Calibration-derived limit (e.g. iris_bertran=100) prevents Gemini
+        # Calibration-derived limit prevents Gemini
         # repetition loops from running long before truncation.
         _llm_max_tokens = int(_cal_baseline["max_tokens"]) if _cal_baseline.get("max_tokens") else 100
         _msg_category = _classify_user_message(message)
@@ -381,6 +432,10 @@ async def phase_llm_generation(
             },
         )
     else:
+        # CCEE evaluation mode or DISABLE_FALLBACK: never fall through to emergency fallback.
+        if os.environ.get("CCEE_NO_FALLBACK") or os.environ.get("DISABLE_FALLBACK") == "true":
+            logger.error("[NO-FALLBACK] Primary provider returned None and fallback disabled — raising to skip case")
+            raise RuntimeError("Primary provider returned empty, no fallback allowed (CCEE_NO_FALLBACK or DISABLE_FALLBACK)")
         # Both Flash-Lite and GPT-4o-mini failed — emergency fallback
         logger.error("Primary cascade failed, using llm_service emergency fallback")
         llm_response = await agent.llm_service.generate(

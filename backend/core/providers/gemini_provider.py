@@ -680,6 +680,12 @@ async def generate_dm_response(
             logger.warning("[LLM CONFIG] Unknown provider '%s' in active config — falling through to legacy cascade", _prov_name)
         # Active provider failed → fall through to GPT-4o-mini fallback below
         # (skip the legacy LLM_PRIMARY_PROVIDER cascade and the bare Gemini retry)
+        if os.environ.get("DISABLE_FALLBACK") == "true":
+            logger.error("[DISABLE_FALLBACK] Active model %s failed and DISABLE_FALLBACK=true, raising", _model_id)
+            return None
+        if os.getenv("CCEE_NO_FALLBACK"):
+            logger.info("[CCEE] Fallback disabled — active model %s failed, returning None", _model_id)
+            return None
         logger.warning("[LLM-FALLBACK] Active model %s failed, using OpenAI GPT-4o-mini", _model_id)
         try:
             result = await _call_openai_mini(messages, max_tokens, temperature)
@@ -720,6 +726,9 @@ async def generate_dm_response(
             return None
 
     # 2. GEMINI: primary (default) or secondary (when alt provider is primary)
+    if os.environ.get("DISABLE_FALLBACK") == "true":
+        logger.error("[DISABLE_FALLBACK] Primary provider failed and DISABLE_FALLBACK=true, returning None")
+        return None
     if _gemini_circuit_is_open():
         logger.info("Circuit breaker open — skipping Gemini")
     else:
@@ -747,6 +756,9 @@ async def generate_dm_response(
     # The system prompt already contains all identity/style rules for every provider.
     # Adding an extra "don't hallucinate" instruction was causing GPT-4o-mini to
     # generate overly cautious, generic responses (conv_015: "perrito" hallucination).
+    if os.environ.get("DISABLE_FALLBACK") == "true":
+        logger.error("[DISABLE_FALLBACK] All primary providers failed and DISABLE_FALLBACK=true, returning None")
+        return None
     logger.warning("[LLM-FALLBACK] Primary providers failed, using OpenAI GPT-4o-mini")
     try:
         result = await _call_openai_mini(messages, max_tokens, temperature)

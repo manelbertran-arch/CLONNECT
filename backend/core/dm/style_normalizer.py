@@ -152,6 +152,80 @@ def _load_bot_natural_rates(creator_id: str) -> Optional[dict]:
         return None
 
 
+# Cache for emoji adaptation config
+_emoji_adapt_cache: dict = {}
+
+
+def get_emoji_adaptation(creator_id: str, relationship_level: Optional[str] = None) -> Optional[dict]:
+    """Load creator's emoji adaptation config from calibration data.
+
+    Returns dict with:
+        emoji_rate: overall rate (0-1)
+        top_emojis: list of most-used emojis
+        description: natural language description of emoji behavior
+    Or None if no data exists.
+    """
+    cache_key = f"{creator_id}:{relationship_level or 'default'}"
+    if cache_key in _emoji_adapt_cache:
+        return _emoji_adapt_cache[cache_key]
+
+    result = None
+    try:
+        baseline = _load_baseline(creator_id)
+        if not baseline:
+            logger.warning("emoji_adapt: no baseline for %s, skipping", creator_id)
+            _emoji_adapt_cache[cache_key] = None
+            return None
+
+        emoji_data = baseline.get("emoji", {})
+        overall_rate = emoji_data.get("emoji_rate_pct")
+        if overall_rate is None:
+            _emoji_adapt_cache[cache_key] = None
+            return None
+
+        top_emojis = [e[0] for e in emoji_data.get("top_20_emojis", [])[:8] if e]
+
+        # Try relationship-level data if available
+        emoji_by_rel = emoji_data.get("emoji_by_relationship", {})
+        if relationship_level and relationship_level in emoji_by_rel:
+            rel_rate = emoji_by_rel[relationship_level]
+            rate = float(rel_rate)
+        else:
+            rate = float(overall_rate)
+
+        # Build natural description from data (auto-generated, not hardcoded)
+        desc_parts = []
+        if rate < 10:
+            desc_parts.append("raramente usa emojis")
+        elif rate > 40:
+            desc_parts.append("usa emojis frecuentemente")
+        if top_emojis:
+            desc_parts.append(f"favoritos: {' '.join(top_emojis[:5])}")
+
+        # Compare across relationship levels if data exists
+        if len(emoji_by_rel) >= 2:
+            sorted_levels = sorted(emoji_by_rel.items(), key=lambda x: float(x[1]), reverse=True)
+            if len(sorted_levels) >= 2:
+                high_level, high_rate = sorted_levels[0]
+                low_level, low_rate = sorted_levels[-1]
+                if float(high_rate) - float(low_rate) > 10:
+                    desc_parts.append(
+                        f"más emojis con {high_level} ({float(high_rate):.0f}%), "
+                        f"menos con {low_level} ({float(low_rate):.0f}%)"
+                    )
+
+        result = {
+            "emoji_rate": rate / 100.0,
+            "top_emojis": top_emojis,
+            "description": ". ".join(desc_parts) if desc_parts else "",
+        }
+    except Exception as e:
+        logger.debug("emoji_adapt: failed for %s: %s", creator_id, e)
+
+    _emoji_adapt_cache[cache_key] = result
+    return result
+
+
 def _has_emoji(text: str) -> bool:
     """Check if text contains any emoji."""
     return any(is_emoji_char(c) for c in text)
@@ -199,62 +273,54 @@ def normalize_style(
 
     # ── 1. Exclamation normalization ─────────────────────────────────────────
     # Per-message probabilistic decision: keep_prob = creator_rate / bot_natural_rate.
-    # Requires baseline; skipped gracefully when no profile exists.
+    # Requires baseline AND bot natural rates; skipped if either is missing.
     if "!" in result:
         baseline = _load_baseline(creator_id)
         if baseline:
             punct = baseline.get("punctuation", {})
-            excl_rate = punct.get("has_exclamation_msg_pct", punct.get("exclamation_rate_pct", 50))
-            bot_rates = _load_bot_natural_rates(creator_id)
-            if bot_rates and bot_rates.get("excl_rate") is not None:
-                model_excl_rate = float(bot_rates["excl_rate"])
-                logger.debug("[STYLE-NORM] excl natural rate from DB: %.1f%% for %s", model_excl_rate, creator_id)
+            excl_rate = punct.get("has_exclamation_msg_pct", punct.get("exclamation_rate_pct"))
+            if excl_rate is None:
+                logger.warning("[STYLE-NORM] exclamation_rate not in profile for %s, skipping", creator_id)
             else:
-                model_excl_rate = float(os.getenv("STYLE_NORM_MODEL_EXCL_RATE", "86"))
-                logger.debug("[STYLE-NORM] excl natural rate FALLBACK: %.1f%% for %s", model_excl_rate, creator_id)
-            if model_excl_rate > 0 and excl_rate < model_excl_rate:
-                keep_prob = min(1.0, excl_rate / model_excl_rate)
-                if random.random() > keep_prob:
-                    result = re.sub(r"!+", ".", result)
-                    if "¡" in result:
-                        result = result.replace("¡", "")
-                    result = re.sub(r"\.{2,}", ".", result)
+                bot_rates = _load_bot_natural_rates(creator_id)
+                if bot_rates and bot_rates.get("excl_rate") is not None:
+                    model_excl_rate = float(bot_rates["excl_rate"])
+                    logger.debug("[STYLE-NORM] excl natural rate from DB: %.1f%% for %s", model_excl_rate, creator_id)
+                    if model_excl_rate > 0 and excl_rate < model_excl_rate:
+                        keep_prob = min(1.0, excl_rate / model_excl_rate)
+                        if random.random() > keep_prob:
+                            result = re.sub(r"!+", ".", result)
+                            if "¡" in result:
+                                result = result.replace("¡", "")
+                            result = re.sub(r"\.{2,}", ".", result)
+                else:
+                    logger.warning("[STYLE-NORM] no bot_natural_rates for %s, skipping exclamation normalization", creator_id)
 
     # ── 2. Emoji normalization ───────────────────────────────────────────────
     # Direct-rate formula: keep_prob = creator_emoji_rate (0-1 fraction).
     # For each response: if random() > keep_prob → strip all emojis.
-    # This guarantees output distribution matches creator rate without
-    # needing bot-natural-rate measurements.
-    #
-    # Source priority for keep_prob:
-    #   1. evaluation_profiles/{creator_id}_style.json  → "emoji_rate"
-    #   2. DB / local baseline_metrics               → emoji.emoji_rate_pct / 100
-    #   3. Fallback 0.50  (conservative: keep emoji in half of responses)
+    # Skipped entirely if no emoji_rate data exists for this creator.
     if _has_emoji(result):
         keep_prob = _get_creator_emoji_rate(creator_id)
         if keep_prob is None:
-            keep_prob = 0.50   # conservative fallback
-            logger.debug("[STYLE-NORM] emoji keep_prob FALLBACK=0.50 for %s", creator_id)
+            logger.warning("[STYLE-NORM] emoji_rate not in profile for %s, skipping emoji normalization", creator_id)
         else:
             logger.debug("[STYLE-NORM] emoji keep_prob=%.3f for %s", keep_prob, creator_id)
 
-        if random.random() > keep_prob:
-            # Strip all emojis from this message
-            stripped = _strip_emojis(result, keep_n=0)
-            if len(stripped.strip()) >= 2:
-                result = stripped
-        else:
-            # Keeping emojis — trim count to creator's per-emoji-message average.
-            # avg_emoji_count is the unconditional mean (across all messages);
-            # divide by keep_prob to get the conditional mean (only emoji-bearing
-            # messages). Clamped to [1, 5] to prevent explosion for very low rates.
-            baseline = _load_baseline(creator_id)
-            avg_emoji_count = (baseline or {}).get("emoji", {}).get("avg_emoji_count")
-            if avg_emoji_count is not None and keep_prob > 0:
-                per_emoji_msg = avg_emoji_count / keep_prob
-                target_n = max(1, min(5, round(per_emoji_msg)))
-                trimmed = _strip_emojis(result, keep_n=target_n)
-                if len(trimmed.strip()) >= 2:
-                    result = trimmed
+            if random.random() > keep_prob:
+                # Strip all emojis from this message
+                stripped = _strip_emojis(result, keep_n=0)
+                if len(stripped.strip()) >= 2:
+                    result = stripped
+            else:
+                # Keeping emojis — trim count to creator's per-emoji-message average.
+                baseline = _load_baseline(creator_id)
+                avg_emoji_count = (baseline or {}).get("emoji", {}).get("avg_emoji_count")
+                if avg_emoji_count is not None and keep_prob > 0:
+                    per_emoji_msg = avg_emoji_count / keep_prob
+                    target_n = max(1, round(per_emoji_msg))
+                    trimmed = _strip_emojis(result, keep_n=target_n)
+                    if len(trimmed.strip()) >= 2:
+                        result = trimmed
 
     return result.strip()

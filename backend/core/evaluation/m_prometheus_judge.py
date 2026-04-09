@@ -1,9 +1,10 @@
 """
 LLM Judge (B2, B5, C2, C3, H1)
 
-Supports two backends, selected via LLM_JUDGE_PROVIDER env var:
-  openai  — GPT-4o (default)
-  gemini  — Gemini 2.5 Pro
+Supports three backends, selected via LLM_JUDGE_PROVIDER env var:
+  deepinfra — Qwen3-30B-A3B via DeepInfra (default)
+  openai   — GPT-4o
+  gemini   — Gemini 2.5 Pro
 
 Same Prometheus rubric format: instruction + response + reference + rubric.
 Drop-in replacement for the previous M-Prometheus 14B / Ollama implementation.
@@ -28,10 +29,10 @@ import openai
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Provider config  (LLM_JUDGE_PROVIDER=openai|gemini, default: openai)
+# Provider config  (LLM_JUDGE_PROVIDER=deepinfra|openai|gemini, default: deepinfra)
 # ---------------------------------------------------------------------------
 
-_PROVIDER = os.environ.get("LLM_JUDGE_PROVIDER", "openai").lower()
+_PROVIDER = os.environ.get("LLM_JUDGE_PROVIDER", "deepinfra").lower()
 
 # OpenAI / GPT-4o
 _OPENAI_MODEL = "gpt-4o"
@@ -43,7 +44,17 @@ _GEMINI_MODEL = "gemini-2.5-pro"
 _GEMINI_COST_PER_1K_INPUT  = 0.00125  # $1.25 per 1M input tokens (≤200k ctx)
 _GEMINI_COST_PER_1K_OUTPUT = 0.01     # $10.00 per 1M output tokens
 
-MODEL_NAME = _GEMINI_MODEL if _PROVIDER == "gemini" else _OPENAI_MODEL
+# DeepInfra / Qwen3-30B-A3B
+_DEEPINFRA_MODEL = "Qwen/Qwen3-30B-A3B"
+_DEEPINFRA_BASE_URL = "https://api.deepinfra.com/v1/openai"
+_DEEPINFRA_COST_PER_1K_INPUT  = 0.00008   # $0.08 per 1M input tokens
+_DEEPINFRA_COST_PER_1K_OUTPUT = 0.00028   # $0.28 per 1M output tokens
+
+MODEL_NAME = (
+    _GEMINI_MODEL if _PROVIDER == "gemini"
+    else _DEEPINFRA_MODEL if _PROVIDER == "deepinfra"
+    else _OPENAI_MODEL
+)
 
 TIMEOUT = 30
 MAX_RETRIES = 3
@@ -199,13 +210,60 @@ def _call_gemini(prompt: str) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
+# Backend: DeepInfra / Qwen3-30B-A3B
+# ---------------------------------------------------------------------------
+
+def _call_deepinfra(prompt: str) -> Optional[str]:
+    """Call Qwen3-30B-A3B via DeepInfra (OpenAI-compatible). Returns raw text or None."""
+    global _total_input_tokens, _total_output_tokens, _total_cost_usd
+    api_key = os.environ.get("DEEPINFRA_API_KEY") or os.environ.get("DEEPINFRA_TOKEN")
+    if not api_key:
+        raise RuntimeError("DEEPINFRA_API_KEY not set")
+    client = openai.OpenAI(api_key=api_key, base_url=_DEEPINFRA_BASE_URL, timeout=TIMEOUT)
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            resp = client.chat.completions.create(
+                model=_DEEPINFRA_MODEL,
+                messages=[
+                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt + " /no_think"},
+                ],
+                temperature=0.1,
+                max_tokens=1500,
+            )
+            usage = resp.usage
+            if usage:
+                in_tok = usage.prompt_tokens
+                out_tok = usage.completion_tokens
+                cost = (in_tok / 1000 * _DEEPINFRA_COST_PER_1K_INPUT) + (out_tok / 1000 * _DEEPINFRA_COST_PER_1K_OUTPUT)
+                _total_input_tokens += in_tok
+                _total_output_tokens += out_tok
+                _total_cost_usd += cost
+                logger.debug(f"DeepInfra call: in={in_tok} out={out_tok} cost=${cost:.5f} total=${_total_cost_usd:.4f}")
+            return resp.choices[0].message.content or ""
+        except openai.RateLimitError as e:
+            wait = 2 ** attempt
+            logger.warning(f"DeepInfra RateLimit (attempt {attempt+1}/{MAX_RETRIES}), retrying in {wait}s: {e}")
+            time.sleep(wait)
+        except openai.APITimeoutError as e:
+            logger.warning(f"DeepInfra Timeout (attempt {attempt+1}/{MAX_RETRIES}): {e}")
+        except openai.APIError as e:
+            logger.warning(f"DeepInfra API error (attempt {attempt+1}/{MAX_RETRIES}): {e}")
+            time.sleep(1)
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Unified dispatcher
 # ---------------------------------------------------------------------------
 
 def _call_judge(prompt: str) -> Optional[str]:
-    """Route to active backend (openai or gemini)."""
+    """Route to active backend (deepinfra, openai, or gemini)."""
     if _PROVIDER == "gemini":
         return _call_gemini(prompt)
+    if _PROVIDER == "deepinfra":
+        return _call_deepinfra(prompt)
     return _call_openai(prompt)
 
 
@@ -493,7 +551,7 @@ def evaluate_all_params(
     """
     eval_cases = cases[:max_cases]
     n = len(eval_cases)
-    print(f"  Evaluating {n} cases with GPT-5 (OpenAI)...")
+    print(f"  Evaluating {n} cases with {MODEL_NAME} ({_PROVIDER})...")
 
     b2_scores, b5_scores, c2_scores, c3_scores = [], [], [], []
     h1_results = []
@@ -553,7 +611,7 @@ def evaluate_all_params(
     h1_rate = sum(1 for x in h1_results if x) / max(len(h1_results), 1) * 100
 
     final_cost = get_total_cost()
-    print(f"  GPT-5 judge total cost: ${final_cost:.4f} | time: {total_time:.1f}s")
+    print(f"  {MODEL_NAME} judge total cost: ${final_cost:.4f} | time: {total_time:.1f}s")
 
     return {
         "B2_persona_consistency": _mean(b2_scores),

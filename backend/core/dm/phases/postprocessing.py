@@ -22,6 +22,45 @@ from services.question_remover import process_questions
 
 logger = logging.getLogger(__name__)
 
+# Cache for echo fallback pools
+_echo_pool_cache: dict = {}
+
+
+def _load_echo_fallback_pool(creator_id: str) -> list:
+    """Load creator's short_response_pool for echo fallback.
+
+    Sources (in priority order):
+    1. Calibration data → short_response_pool (mined from real messages <15 chars)
+    2. Few-shot examples → extract short responses (<15 chars)
+    3. Empty list (caller should skip replacement)
+    """
+    if creator_id in _echo_pool_cache:
+        return _echo_pool_cache[creator_id]
+
+    pool = []
+
+    # 1. Try calibration short_response_pool
+    try:
+        from services.calibration_loader import load_calibration
+        cal = load_calibration(creator_id)
+        if cal:
+            pool = cal.get("short_response_pool", [])
+            if not pool:
+                # 2. Extract from few-shot examples
+                examples = cal.get("few_shot_examples", [])
+                for ex in examples:
+                    resp = ex.get("response", "").strip()
+                    if resp and len(resp) < 15:
+                        pool.append(resp)
+    except Exception as e:
+        logger.debug("_load_echo_fallback_pool: failed for %s: %s", creator_id, e)
+
+    if not pool:
+        logger.warning("anti_echo: no short_response_pool for %s, skipping", creator_id)
+
+    _echo_pool_cache[creator_id] = pool
+    return pool
+
 
 async def phase_postprocessing(
     agent, message: str, sender_id: str, metadata: Dict,
@@ -145,14 +184,22 @@ async def phase_postprocessing(
                 _jaccard = len(_lead_words & _bot_words) / len(_union)
                 if _jaccard >= _ECHO_THRESHOLD:
                     import random
-                    _ECHO_FALLBACKS = ["ja", "vale", "uf", "ok", "entès", "vaja"]
-                    _fallback = random.choice(_ECHO_FALLBACKS)
-                    logger.warning(
-                        "[A3] Echo detected (Jaccard=%.2f) — replacing '%s...' with '%s'",
-                        _jaccard, response_content[:40], _fallback,
-                    )
-                    response_content = _fallback
-                    cognitive_metadata["echo_detected"] = round(_jaccard, 2)
+                    # Load creator's short_response_pool from calibration
+                    _echo_pool = _load_echo_fallback_pool(agent.creator_id)
+                    if _echo_pool:
+                        _fallback = random.choice(_echo_pool)
+                        logger.warning(
+                            "[A3] Echo detected (Jaccard=%.2f) — replacing '%s...' with '%s'",
+                            _jaccard, response_content[:40], _fallback,
+                        )
+                        response_content = _fallback
+                        cognitive_metadata["echo_detected"] = round(_jaccard, 2)
+                    else:
+                        logger.warning(
+                            "[A3] Echo detected (Jaccard=%.2f) but no short_response_pool for %s, skipping replacement",
+                            _jaccard, agent.creator_id,
+                        )
+                        cognitive_metadata["echo_detected_no_pool"] = round(_jaccard, 2)
     except Exception as e:
         logger.debug(f"Echo detection failed: {e}")
 
@@ -195,24 +242,12 @@ async def phase_postprocessing(
             logger.debug(f"Blacklist replacement failed: {e}")
 
     # Step 7a2c: Question removal
-    # Uses creator's real question_frequency_pct from calibration or baseline_metrics.
-    # If rate > 15%, natural questions are preserved (only banned generics removed).
+    # Loads creator's question_rate from profile. Skips if no data available.
     if flags.question_removal:
         try:
-            _q_rate_raw = (agent.calibration or {}).get("baseline", {}).get("question_frequency_pct")
-            if _q_rate_raw is None:
-                # Fallback: use baseline_metrics from DB
-                try:
-                    from services.creator_profile_service import get_baseline
-                    _bl = get_baseline(agent.creator_id)
-                    if _bl:
-                        _punct = _bl.get("metrics", {}).get("punctuation", {})
-                        _q_rate_raw = _punct.get("has_question_msg_pct",
-                                                  _punct.get("question_rate_pct", 10))
-                except Exception:
-                    pass
-            _q_rate = (_q_rate_raw or 10) / 100
-            response_content = process_questions(response_content, message, question_rate=_q_rate)
+            response_content = process_questions(
+                response_content, message, creator_id=agent.creator_id,
+            )
         except Exception as e:
             logger.debug(f"Question removal failed: {e}")
 

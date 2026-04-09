@@ -1,13 +1,8 @@
 """
 Length Controller - Adaptive response length based on conversation context.
 
-Per-creator length rules loaded from calibration files. Falls back to
-DEFAULT_RULES (from Stefan's 2,967 messages) for creators without calibration.
-
-KEY FINDING: Response length varies up to 5x by context:
-- Objection handling: median 53 chars (longest - needs persuasion)
-- General conversation: median 23 chars (baseline)
-- Interest signals: median 10 chars (shortest - just acknowledge)
+Per-creator length rules loaded from calibration files. When no calibration
+exists for a creator, length enforcement is skipped entirely (zero hardcoding).
 
 These are GUIDELINES, not hard limits. Complete sentences always win.
 """
@@ -32,29 +27,15 @@ class ContextLengthRule:
     n_samples: int  # Number of data points backing this rule
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# DEFAULT rules (fallback for creators without calibration data).
-# Based on 2,967 real Stefan messages (2026-02-07 PostgreSQL).
-# ─────────────────────────────────────────────────────────────────────────────
-DEFAULT_LENGTH_RULES: Dict[str, ContextLengthRule] = {
-    "objecion": ContextLengthRule(target=53, soft_min=10, soft_max=277, hard_max=277, n_samples=9),
-    "pregunta_precio": ContextLengthRule(target=22, soft_min=8, soft_max=46, hard_max=162, n_samples=29),
-    "pregunta_producto": ContextLengthRule(target=21, soft_min=7, soft_max=43, hard_max=55, n_samples=50),
-    "pregunta_general": ContextLengthRule(target=17, soft_min=6, soft_max=56, hard_max=101, n_samples=121),
-    "saludo": ContextLengthRule(target=17, soft_min=11, soft_max=31, hard_max=44, n_samples=21),
-    "agradecimiento": ContextLengthRule(target=22, soft_min=10, soft_max=51, hard_max=705, n_samples=72),
-    "interes": ContextLengthRule(target=10, soft_min=6, soft_max=34, hard_max=61, n_samples=24),
-    "story_mention": ContextLengthRule(target=18, soft_min=8, soft_max=28, hard_max=80, n_samples=55),
-    "casual": ContextLengthRule(target=18, soft_min=6, soft_max=42, hard_max=73, n_samples=39),
-    "inicio_conversacion": ContextLengthRule(target=20, soft_min=8, soft_max=51, hard_max=663, n_samples=161),
-    "otro": ContextLengthRule(target=23, soft_min=10, soft_max=60, hard_max=569, n_samples=2386),
-}
+# No default rules — all thresholds MUST come from per-creator calibration data.
+# When no calibration exists, length enforcement is skipped entirely.
+DEFAULT_LENGTH_RULES: Dict[str, ContextLengthRule] = {}
 
 # Backward-compatible alias
 CONTEXT_LENGTH_RULES = DEFAULT_LENGTH_RULES
 
-# Default rule for unrecognized contexts
-DEFAULT_RULE = ContextLengthRule(target=23, soft_min=10, soft_max=60, hard_max=300, n_samples=0)
+# Default rule: None signals "no data available, skip enforcement"
+DEFAULT_RULE: Optional[ContextLengthRule] = None
 
 # Per-creator rules cache: creator_id -> Dict[str, ContextLengthRule]
 _creator_rules_cache: Dict[str, Dict[str, ContextLengthRule]] = {}
@@ -77,44 +58,39 @@ def load_creator_length_rules(creator_id: str) -> Dict[str, ContextLengthRule]:
 
         cal = load_calibration(creator_id)
         if not cal:
-            _creator_rules_cache[creator_id] = DEFAULT_LENGTH_RULES
-            return DEFAULT_LENGTH_RULES
+            logger.warning("length_controller: no calibration for %s, skipping length enforcement", creator_id)
+            _creator_rules_cache[creator_id] = {}
+            return {}
 
         baseline = cal.get("baseline", {})
         context_maxes = cal.get("context_soft_max", {})
 
         if not baseline and not context_maxes:
-            _creator_rules_cache[creator_id] = DEFAULT_LENGTH_RULES
-            return DEFAULT_LENGTH_RULES
+            logger.warning("length_controller: no baseline/context data for %s, skipping", creator_id)
+            _creator_rules_cache[creator_id] = {}
+            return {}
 
-        # Global baseline from calibration
-        global_median = baseline.get("median_length", 23)
-        global_soft_max = baseline.get("soft_max", 60)
+        # Global baseline from calibration (creator's own data)
+        global_median = baseline.get("median_length")
+        global_soft_max = baseline.get("soft_max")
 
-        # Build rules: start from defaults, override with creator data
+        if global_median is None:
+            logger.warning("length_controller: no median_length in calibration for %s, skipping", creator_id)
+            _creator_rules_cache[creator_id] = {}
+            return {}
+
+        if global_soft_max is None:
+            global_soft_max = int(global_median * 3)  # derived from creator's own median
+
+        # Build rules from context_maxes (creator's own per-context data)
         rules = {}
-        for ctx, default_rule in DEFAULT_LENGTH_RULES.items():
-            creator_soft_max = context_maxes.get(ctx)
-            if creator_soft_max is not None:
-                # Scale target proportionally: if creator's soft_max is 2x default,
-                # target should also scale, but never exceed soft_max
-                scale = creator_soft_max / max(default_rule.soft_max, 1)
-                target = min(int(default_rule.target * scale), creator_soft_max)
+        for ctx, sm in context_maxes.items():
+            if sm is not None:
                 rules[ctx] = ContextLengthRule(
-                    target=target,
-                    soft_min=default_rule.soft_min,
-                    soft_max=creator_soft_max,
-                    hard_max=int(creator_soft_max * 1.5),
-                    n_samples=0,
-                )
-            else:
-                # No specific override — use global baseline to scale default
-                scale = global_median / 23  # 23 = default global median
-                rules[ctx] = ContextLengthRule(
-                    target=max(5, int(default_rule.target * scale)),
-                    soft_min=default_rule.soft_min,
-                    soft_max=max(default_rule.soft_max, global_soft_max),
-                    hard_max=default_rule.hard_max,
+                    target=min(int(sm * 0.6), sm),
+                    soft_min=max(3, int(sm * 0.15)),
+                    soft_max=sm,
+                    hard_max=int(sm * 1.5),
                     n_samples=0,
                 )
 
@@ -126,28 +102,37 @@ def load_creator_length_rules(creator_id: str) -> Dict[str, ContextLengthRule]:
             "clase": "casual",
         }
         for cal_ctx, lc_ctx in cal_to_lc.items():
-            if cal_ctx in context_maxes and lc_ctx in rules:
+            if cal_ctx in context_maxes:
                 sm = context_maxes[cal_ctx]
-                existing = rules[lc_ctx]
                 rules[lc_ctx] = ContextLengthRule(
                     target=min(int(sm * 0.6), sm),
-                    soft_min=existing.soft_min,
+                    soft_min=max(3, int(sm * 0.15)),
                     soft_max=sm,
                     hard_max=int(sm * 1.5),
                     n_samples=0,
                 )
 
+        # Add a fallback "otro" rule from global baseline if not present
+        if "otro" not in rules:
+            rules["otro"] = ContextLengthRule(
+                target=global_median,
+                soft_min=max(3, int(global_median * 0.3)),
+                soft_max=global_soft_max,
+                hard_max=int(global_soft_max * 1.5),
+                n_samples=0,
+            )
+
         _creator_rules_cache[creator_id] = rules
         logger.info(
-            "Loaded creator length rules for %s: %d contexts, global_median=%d",
+            "Loaded creator length rules for %s: %d contexts, global_median=%s",
             creator_id, len(rules), global_median,
         )
         return rules
 
     except Exception as e:
         logger.debug("Failed to load creator length rules for %s: %s", creator_id, e)
-        _creator_rules_cache[creator_id] = DEFAULT_LENGTH_RULES
-        return DEFAULT_LENGTH_RULES
+        _creator_rules_cache[creator_id] = {}
+        return {}
 
 # v10.2: Aliases for new sub-categories that inherit from existing contexts
 CONTEXT_ALIASES = {
@@ -168,18 +153,15 @@ CONTEXT_ALIASES = {
 
 @dataclass
 class LengthConfig:
-    """Legacy length configuration - kept for backward compatibility."""
-
+    """Legacy length configuration - kept for backward compatibility.
+    Values are unused — all thresholds come from per-creator calibration.
+    """
     min_length: int = 3
-    target_length: int = 23  # Updated: median of all messages
-    soft_max: int = 150
-    max_for_greeting: int = 31  # Updated: P90 of saludo
-    max_for_confirmation: int = 25
-    max_for_emotional: int = 277  # Updated: P90 of objecion
-
-
-# Stefan's configuration (backward-compatible global)
-STEFAN_LENGTH_CONFIG = LengthConfig()
+    target_length: int = 0
+    soft_max: int = 0
+    max_for_greeting: int = 0
+    max_for_confirmation: int = 0
+    max_for_emotional: int = 0
 
 
 # ─── Context Classification ────────────────────────────────────────────────
@@ -188,7 +170,7 @@ def classify_lead_context(lead_message: str) -> str:
     """
     Classify the lead's message into a context category for adaptive length.
 
-    This determines HOW LONG Stefan's response should be based on what
+    This determines HOW LONG the creator's response should be based on what
     the lead said. More granular than legacy detect_message_type().
 
     Args:
@@ -318,20 +300,23 @@ def classify_lead_context(lead_message: str) -> str:
     return "otro"
 
 
-def get_context_rule(context: str, creator_id: Optional[str] = None) -> ContextLengthRule:
+def get_context_rule(context: str, creator_id: Optional[str] = None) -> Optional[ContextLengthRule]:
     """Get the length rule for a conversation context.
 
     When creator_id is provided, uses per-creator rules from calibration.
-    Falls back to DEFAULT_LENGTH_RULES for unknown creators or contexts.
+    Returns None if no calibration data exists for this creator/context.
     """
-    rules = load_creator_length_rules(creator_id) if creator_id else DEFAULT_LENGTH_RULES
+    rules = load_creator_length_rules(creator_id) if creator_id else {}
+    if not rules:
+        return None
     if context in rules:
         return rules[context]
     # Check aliases for sub-categories
     alias = CONTEXT_ALIASES.get(context)
     if alias and alias in rules:
         return rules[alias]
-    return DEFAULT_RULE
+    # Fall back to "otro" if available (derived from creator's global median)
+    return rules.get("otro")
 
 
 # ─── Original API (backward compatible) ────────────────────────────────────
@@ -347,10 +332,10 @@ def detect_message_type(lead_message: str) -> str:
     return classify_lead_context(lead_message)
 
 
-def get_soft_max(message_type: str, config: Optional[LengthConfig] = None) -> int:
-    """Get soft max length based on context (P90 from real data)."""
-    rule = get_context_rule(message_type)
-    return rule.soft_max
+def get_soft_max(message_type: str, config: Optional[LengthConfig] = None, creator_id: Optional[str] = None) -> Optional[int]:
+    """Get soft max length based on context. Returns None if no data."""
+    rule = get_context_rule(message_type, creator_id=creator_id)
+    return rule.soft_max if rule else None
 
 
 def enforce_length(
@@ -381,19 +366,20 @@ def enforce_length(
         context = classify_lead_context(lead_message)
 
     rule = get_context_rule(context, creator_id=creator_id)
+
+    # No calibration data → skip length enforcement entirely
+    if rule is None:
+        logger.warning("length_controller: no percentiles in profile for %s, skipping", creator_id or "unknown")
+        return response
+
     resp_len = len(response)
 
     # Never truncate if within observed hard_max for this context
     if resp_len <= rule.hard_max:
         return response
 
-    # Allow headroom above hard_max.
-    # Per-creator calibrated rules have lower hard_max → use proportional headroom.
-    # Default (non-calibrated) rules keep the 150-char minimum.
-    if creator_id and rule.hard_max < 100:
-        headroom = int(rule.hard_max * 2.0)
-    else:
-        headroom = max(int(rule.hard_max * 1.2), 150)
+    # Allow headroom above hard_max (proportional to creator's data)
+    headroom = int(rule.hard_max * 1.5)
     if resp_len <= headroom:
         return response
 
@@ -432,6 +418,9 @@ def get_length_guidance_prompt(
 
     rule = get_context_rule(context, creator_id=creator_id)
 
+    if rule is None:
+        return ""  # No calibration data → no length guidance
+
     # Map context to natural language description
     context_descriptions = {
         "objecion": "handling an objection - explain value convincingly",
@@ -459,24 +448,49 @@ def get_length_guidance_prompt(
 
 
 # ─── Short Predefined Responses ────────────────────────────────────────────
+# No hardcoded lists — loaded from creator's calibration short_response_pool.
 
-SHORT_REPLACEMENTS = {
-    # New context-based keys
-    "saludo": ["Ey! 😊", "Buenas!", "Hola!", "Hey!", "Qué tal!", "👋"],
-    "agradecimiento": ["A ti!", "Nada!", "😊", "💙", "De nada!", "Gracias a ti!"],
-    "casual": ["Jaja", "Jajaja", "😂", "🤣", "Jeje", "😊", "💙"],
-    # Legacy keys (backward compatibility for callers using old type names)
-    "greeting": ["Ey! 😊", "Buenas!", "Hola!", "Hey!", "Qué tal!", "👋"],
-    "confirmation": ["Dale!", "Ok!", "Genial!", "Perfecto!", "👍", "Vale!", "Sí!"],
-    "thanks": ["A ti!", "Nada!", "😊", "💙", "De nada!", "Gracias a ti!"],
-    "laugh": ["Jaja", "Jajaja", "😂", "🤣", "Jeje"],
-    "emoji_only": ["😊", "💙", "👍", "🙌", "❤️", "💪"],
-    "affection": ["Yo a ti! 💙", "Igualmente! ❤️", "Y yo a ti!", "💙", "Un abrazo! 💙"],
-    "praise": ["Gracias! 😊", "Muchas gracias!", "Qué lindo! 😊", "💙", "Gracias!"],
-}
+# Cache: creator_id -> {context: [responses]}
+_short_replacement_cache: Dict[str, Dict] = {}
 
 
-def get_short_replacement(message_type: str) -> Optional[str]:
-    """Get a short predefined response for the message type."""
-    options = SHORT_REPLACEMENTS.get(message_type, [])
+def _load_short_replacements(creator_id: str) -> Dict[str, list]:
+    """Load short response pool from creator's calibration data."""
+    if creator_id in _short_replacement_cache:
+        return _short_replacement_cache[creator_id]
+
+    pool: Dict[str, list] = {}
+    try:
+        from services.calibration_loader import load_calibration
+        cal = load_calibration(creator_id)
+        if cal:
+            # Try dedicated short_response_pool first
+            raw_pool = cal.get("short_response_pool", {})
+            if isinstance(raw_pool, dict):
+                pool = raw_pool
+            elif isinstance(raw_pool, list):
+                pool = {"default": raw_pool}
+            # Fallback: extract short responses from few-shot examples
+            if not pool:
+                examples = cal.get("few_shot_examples", [])
+                for ex in examples:
+                    resp = ex.get("response", "").strip()
+                    if resp and len(resp) < 20:
+                        ctx = ex.get("context", "default")
+                        pool.setdefault(ctx, []).append(resp)
+    except Exception as e:
+        logger.debug("_load_short_replacements: failed for %s: %s", creator_id, e)
+
+    _short_replacement_cache[creator_id] = pool
+    return pool
+
+
+def get_short_replacement(message_type: str, creator_id: Optional[str] = None) -> Optional[str]:
+    """Get a short predefined response for the message type from creator data."""
+    if not creator_id:
+        return None
+    pool = _load_short_replacements(creator_id)
+    if not pool:
+        return None
+    options = pool.get(message_type, pool.get("default", []))
     return random.choice(options) if options else None
