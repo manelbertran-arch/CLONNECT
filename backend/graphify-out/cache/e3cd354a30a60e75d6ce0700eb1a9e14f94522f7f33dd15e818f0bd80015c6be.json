@@ -1,0 +1,1 @@
+{"nodes": [{"id": "phase_generation", "label": "Phase 4: LLM Generation", "file_type": "code", "source_file": "core/dm/phases/generation.py", "source_location": "line 27", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

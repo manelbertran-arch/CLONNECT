@@ -146,16 +146,31 @@ async def score_b2_persona_consistency(
     bot_response: str,
     creator_description: str,
     user_input: str,
+    exemplar_rubric: str = "",
 ) -> float:
-    """B2: Does the bot maintain the creator's personality consistently?"""
-    prompt = (
-        f"Creator description: {creator_description}\n\n"
-        f"User message: {user_input}\n"
-        f"Bot response: {bot_response}\n\n"
-        "Rate 1-5: Does this response sound like it comes from the creator described above? "
-        "1=completely off-character, 3=somewhat consistent, 5=perfectly in character.\n"
-        "Respond ONLY with JSON: {\"rating\": N, \"reason\": \"...\"}"
-    )
+    """B2: Does the bot maintain the creator's personality consistently?
+
+    If exemplar_rubric is provided (PersonaGym calibration), uses concrete
+    examples at each score level instead of abstract descriptions.
+    """
+    if exemplar_rubric:
+        prompt = (
+            f"Creator description: {creator_description}\n\n"
+            f"User message: {user_input}\n"
+            f"Bot response: {bot_response}\n\n"
+            "Rate 1-5: Does this response sound like it comes from the creator described above?\n\n"
+            f"###Score Rubric with Examples:\n{exemplar_rubric}\n\n"
+            "Respond ONLY with JSON: {\"rating\": N, \"reason\": \"...\"}"
+        )
+    else:
+        prompt = (
+            f"Creator description: {creator_description}\n\n"
+            f"User message: {user_input}\n"
+            f"Bot response: {bot_response}\n\n"
+            "Rate 1-5: Does this response sound like it comes from the creator described above? "
+            "1=completely off-character, 3=somewhat consistent, 5=perfectly in character.\n"
+            "Respond ONLY with JSON: {\"rating\": N, \"reason\": \"...\"}"
+        )
     result = await _call_judge(prompt, _SYSTEM_PROMPT)
     return _rating_to_score(_parse_rating(result))
 
@@ -197,16 +212,37 @@ async def score_c3_contextual_appropriateness(
     bot_response: str,
     user_input: str,
     context_type: str = "",
+    creator_style_note: str = "",
 ) -> float:
-    """C3: Is the response appropriate for the conversation context?"""
+    """C3: Is the response appropriate for the conversation context and creator's style?
+
+    Args:
+        creator_style_note: Short description of the creator's typical communication
+            style (e.g. "casual, informal, short DMs"). When provided, the judge
+            evaluates fit against the creator's norms rather than generic formal norms.
+    """
     ctx = f" (context type: {context_type})" if context_type else ""
+    if creator_style_note:
+        style_line = f"Creator's typical style: {creator_style_note}\n"
+        rubric_framing = (
+            "Rate 1-5: Does this response fit the creator's established communication "
+            "style and the conversation context? Consider: matches their typical tone "
+            "(formal/informal/casual), relevant to what the user asked, appropriate "
+            "energy and register for THIS creator. "
+        )
+    else:
+        style_line = ""
+        rubric_framing = (
+            "Rate 1-5: Is this response appropriate for the context? "
+            "Consider: relevance, tone match to situation, helpful vs dismissive, "
+            "respects emotional state if applicable. "
+        )
     prompt = (
+        f"{style_line}"
         f"User message{ctx}: {user_input}\n"
         f"Bot response: {bot_response}\n\n"
-        "Rate 1-5: Is this response appropriate for the context? "
-        "Consider: relevance, tone match to situation, helpful vs dismissive, "
-        "respects emotional state if applicable. "
-        "1=completely inappropriate, 3=adequate, 5=perfectly fitting.\n"
+        f"{rubric_framing}"
+        "1=completely mismatched style or irrelevant, 3=adequate, 5=perfectly fitting.\n"
         "Respond ONLY with JSON: {\"rating\": N, \"reason\": \"...\"}"
     )
     result = await _call_judge(prompt, _SYSTEM_PROMPT)
@@ -222,10 +258,15 @@ async def score_llm_judge_batch(
     bot_responses: List[str],
     creator_description: str,
     max_concurrent: int = 5,
+    exemplar_rubric: str = "",
 ) -> Dict[str, Any]:
     """Run all 4 LLM judge metrics over all test cases.
 
     Returns aggregate scores for B2, B5, C2, C3 plus timing and cost.
+
+    Args:
+        exemplar_rubric: If provided, B2 uses PersonaGym exemplar-calibrated
+            scoring with concrete examples at each score level.
     """
     global _total_input_tokens, _total_output_tokens
     _total_input_tokens = 0
@@ -244,14 +285,17 @@ async def score_llm_judge_batch(
     c2_tasks = []
     c3_tasks = []
 
+    # Derive style note from creator_description for C3 (truncated to avoid prompt bloat)
+    c3_style_note = (creator_description or "")[:200].strip()
+
     for tc, resp in zip(test_cases, bot_responses):
         user_input = tc.get("user_input", "")
         ctx_type = tc.get("input_type", "")
 
-        b2_tasks.append(_bounded(score_b2_persona_consistency(resp, creator_description, user_input)))
+        b2_tasks.append(_bounded(score_b2_persona_consistency(resp, creator_description, user_input, exemplar_rubric=exemplar_rubric)))
         b5_tasks.append(_bounded(score_b5_emotional_signature(resp, creator_description, user_input)))
         c2_tasks.append(_bounded(score_c2_naturalness(resp)))
-        c3_tasks.append(_bounded(score_c3_contextual_appropriateness(resp, user_input, ctx_type)))
+        c3_tasks.append(_bounded(score_c3_contextual_appropriateness(resp, user_input, ctx_type, creator_style_note=c3_style_note)))
 
     # Run all in parallel (bounded by semaphore)
     all_tasks = b2_tasks + b5_tasks + c2_tasks + c3_tasks

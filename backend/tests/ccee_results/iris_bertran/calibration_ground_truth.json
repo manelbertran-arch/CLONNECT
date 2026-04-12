@@ -1,0 +1,258 @@
+{
+  "creator_id": "iris_bertran",
+  "n_samples": 20,
+  "metrics": {
+    "J3": {
+      "real_mean": 3.25,
+      "real_n": 20,
+      "real_distribution": {
+        "1": 0,
+        "2": 3,
+        "3": 13,
+        "4": 0,
+        "5": 4
+      },
+      "real_details": [
+        {
+          "user_input": "Jajajajaj",
+          "content": "Foto amb l’iNstructor",
+          "score": 3
+        },
+        {
+          "user_input": "Entrevista digam quan la gravem",
+          "content": "Vale, que me encanta, lo que pasa que otro día tendré en cuenta que voy al conce",
+          "score": 2
+        },
+        {
+          "user_input": "Joe q trist ara de sobte",
+          "content": "flipa tío todos los instructores haciendo ceros en todas las clases de la tarde ",
+          "score": 2
+        },
+        {
+          "user_input": "Programat",
+          "content": "Y los subiria de manera random",
+          "score": 3
+        },
+        {
+          "user_input": "[audio]",
+          "content": "Que només et passo un",
+          "score": 3
+        },
+        {
+          "user_input": "[audio]",
+          "content": "Et queda molt per viure i no som rics, necessitaràs coses i el Leo no te les pag",
+          "score": 3
+        },
+        {
+          "user_input": "Esq total som unes pringades tia hem daprendre a dir q no",
+          "content": "[🎤 Audio]: ¿Lo del barrio me lo dejas hasta la escuela, Ericka? ¿O qué? A ver si",
+          "score": 3
+        },
+        {
+          "user_input": "Jajjajajaja",
+          "content": "[🎤 Audio]: ¡Hostia puta! Mira que lo dijimos, igual que los de Vall, en horizont",
+          "score": 5
+        },
+        {
+          "user_input": "El tiet no li fagis cas esta boig",
+          "content": "Passa’m el número Leo",
+          "score": 3
+        },
+        {
+          "user_input": "Bon dia baby! Avui q pengem?",
+          "content": "Han cabut tots no, perfect",
+          "score": 3
+        },
+        {
+          "user_input": "[audio]",
+          "content": "Y crean su personaje",
+          "score": 3
+        },
+        {
+          "user_input": "Iris",
+          "content": "I que al final lo meu et dona joc es mes dinàmic, me muero si tengo que estar 3 ",
+          "score": 5
+        },
+        {
+          "user_input": "Tu funcionàs de conya",
+          "content": "Ok doncs dimecres a les 10:00",
+          "score": 3
+        },
+        {
+          "user_input": "Valeeee no worries",
+          "content": "[🎤 Audio]: Tia, com vas a posar els \"espais girls\"? No me jodas, eh? Em poses un",
+          "score": 5
+        },
+        {
+          "user_input": "Si x mi millor",
+          "content": "Es que… que le dices a FRANCO😂😂😂",
+          "score": 3
+        },
+        {
+          "user_input": "🤣🤣🤣🤣",
+          "content": "Que només em faltes tuu",
+          "score": 3
+        },
+        {
+          "user_input": "Nenissss",
+          "content": "Grazziee mille",
+          "score": 2
+        },
+        {
+          "user_input": "Descarregat",
+          "content": "Diga’m si tens la robaaa",
+          "score": 3
+        },
+        {
+          "user_input": "Jajajajajajajajaj",
+          "content": "No pasa ná ta perfecteeee",
+          "score": 5
+        },
+        {
+          "user_input": "Iris claro que podeu venir",
+          "content": "Se l’ha de prendre demà",
+          "score": 3
+        }
+      ],
+      "inverted_mean": 1.45,
+      "inverted_n": 20,
+      "inverted_distribution": {
+        "1": 15,
+        "2": 1,
+        "3": 4,
+        "4": 0,
+        "5": 0
+      },
+      "inverted_details": [
+        {
+          "user_input": "Jajajajaj",
+          "content": "2. 3. 4. 5. 6. 7. 8. 9. 10. 11. 12. 13. 14. 15. 16. 17. 18. 19. 20.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "Entrevista digam quan la gravem",
+          "content": "[inversion_2]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        },
+        {
+          "user_input": "Joe q trist ara de sobte",
+          "content": "[inversion_3]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "Programat",
+          "content": "[inversion_4]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "[audio]",
+          "content": "[inversion_5]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 2
+        },
+        {
+          "user_input": "[audio]",
+          "content": "[inversion_6]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "Esq total som unes pringades tia hem daprendre a dir q no",
+          "content": "[inversion_7]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "Jajjajajaja",
+          "content": "[inversion_8]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        },
+        {
+          "user_input": "El tiet no li fagis cas esta boig",
+          "content": "[inversion_9]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        },
+        {
+          "user_input": "Bon dia baby! Avui q pengem?",
+          "content": "[inversion_10]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "[audio]",
+          "content": "[inversion_11]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "Iris",
+          "content": "[inversion_12]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "Tu funcionàs de conya",
+          "content": "[inversion_13]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "Valeeee no worries",
+          "content": "[inversion_14]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "Si x mi millor",
+          "content": "[inversion_15]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "🤣🤣🤣🤣",
+          "content": "[inversion_16]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "Nenissss",
+          "content": "[inversion_17]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "Descarregat",
+          "content": "[inversion_18]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "Jajajajajajajajaj",
+          "content": "[inversion_19]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        },
+        {
+          "user_input": "Iris claro que podeu venir",
+          "content": "[inversion_20]",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        }
+      ],
+      "gap": 1.8,
+      "pass_real_geq_4": false,
+      "pass_inverted_leq_2": true,
+      "pass_gap_geq_2": false,
+      "status": "FAIL"
+    }
+  },
+  "timestamp": "2026-04-11T12:02:53",
+  "status": "FAIL",
+  "elapsed_s": 119.7
+}

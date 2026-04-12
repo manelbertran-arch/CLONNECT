@@ -1,9 +1,9 @@
 #!/bin/bash
-# CCEE Gemma 4 26B — FULL PIPELINE (P0 + P1 = 23 systems)
+# CCEE Gemma 4 31B Dense — FULL PIPELINE (P0 + P1 = 23 systems)
 
 # === MODEL ===
-export LLM_PRIMARY_PROVIDER=openrouter
-export OPENROUTER_MODEL=google/gemma-4-31b-it
+export LLM_PRIMARY_PROVIDER=deepinfra
+export DEEPINFRA_MODEL=google/gemma-4-31B-it
 export ACTIVE_MODEL=gemma-4-31b-it
 export USE_TEMPLATE_SYSTEM=true
 
@@ -45,18 +45,15 @@ export ENABLE_PPA=false
 export ENABLE_ECHO=false
 
 # === PROMPT SIZE CONTROL (S1 fix) ===
-# Gemma-4-26B-A4B has a 1024-token sliding-window. Limiting RAG to 1 result
-# and adding a style anchor at the end prevents Doc D from falling outside
-# the attention window, recovering S1_style_fidelity lost with 23 systems.
+# Limiting RAG to 1 result and adding a style anchor prevents Doc D from
+# falling outside the attention window, recovering S1_style_fidelity.
 export MAX_RAG_RESULTS=1
 export ENABLE_STYLE_ANCHOR=true
 
 # === INFRASTRUCTURE ===
-export OPENROUTER_API_KEY="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"
 export CCEE_NO_FALLBACK=1
-export OPENROUTER_TIMEOUT=120
 export CCEE_INTER_CASE_DELAY=3
 export TOKENIZERS_PARALLELISM=false
 
-echo "✓ CCEE Gemma 4 FULL PIPELINE (23 systems)"
-echo "  Model: $OPENROUTER_MODEL (via OpenRouter)"
+echo "✓ CCEE Gemma 4 31B Dense — FULL PIPELINE (23 systems)"
+echo "  Model: $DEEPINFRA_MODEL (via DeepInfra)"

@@ -1,0 +1,356 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260410_131746",
+  "n_runs": 1,
+  "n_cases": 3,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 39.35,
+        "detail": {
+          "A1_length": 66.67,
+          "A2_emoji": 40.01,
+          "A2_contextual": 66.03,
+          "A3_exclamations": 39.43,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 0.0,
+          "A6_language": 0.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 34.2,
+        "detail": {
+          "bertscore_mean": 0.7937,
+          "chrf_mean": 0.0434,
+          "bleu4_mean": 0.0628,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0,
+          "semsim_mean": 0.7937,
+          "c4_relevance_mean": 0.7928,
+          "self_rep_mean": 0.9116,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            33.79,
+            35.36,
+            33.45
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 64.56,
+        "detail": {
+          "e1_per_case_mean": 71.49,
+          "e2_distribution_match": 48.39,
+          "bot_strategy_distribution": {
+            "REDIRECT": 0.6667,
+            "VALIDATE": 0.3333
+          },
+          "per_case": [
+            100.0,
+            100.0,
+            14.5
+          ],
+          "mean": 64.56
+        }
+      },
+      "S4_adaptation": {
+        "score": 54.16,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 54.16,
+          "proximity_n": 3
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 3,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 26.96,
+        "H2": {
+          "score": 26.96,
+          "detail": {
+            "cosine_similarity": 0.2696,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.495,
+              0.0,
+              0.3333,
+              0.0,
+              0.0,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 50.0,
+        "detail": "insufficient responses (need >= 5)"
+      },
+      "J_cognitive_fidelity": 50.0,
+      "composite": 52.82,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    52.82
+  ],
+  "human_eval_cases": [],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "run": 0,
+      "input_type": "OTHER",
+      "trust_score": 0.14,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_34654148949",
+      "lead_uuid": "72e24413-79c5-4ddf-a001-be1e98baa0aa",
+      "user_message": "Iris😘",
+      "iris_real_response": "[audio]",
+      "bot_response": "Holaaa mi reina! Qué lindo leerte. Ya veo que andás con ganas de mover el esqueleto.",
+      "s1_score": 42.74,
+      "s2_score": 33.79,
+      "s3_score": 100.0,
+      "s4_score": 42.94
+    },
+    {
+      "idx": 1,
+      "run": 0,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Obvio",
+      "iris_real_response": "No tia xk al final res d’això està pagat",
+      "bot_response": "Ay, qué linda. Me alegra un montón que te gustara la clase de ayer, salimos súper bien. Y sí, tienes razón. Estrategia recurrente y a darle con todo.",
+      "s1_score": 43.25,
+      "s2_score": 35.36,
+      "s3_score": 100.0,
+      "s4_score": 46.23
+    },
+    {
+      "idx": 2,
+      "run": 0,
+      "input_type": "LAUGH",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Jajajajajaajja es lo mas tia🤣🤣🤣 lo da todo alla donde va",
+      "iris_real_response": "[📷 Photo]",
+      "bot_response": "Jajaja, qué grande. Me alegra que te gustara la clase, mi reina.",
+      "s1_score": 51.92,
+      "s2_score": 33.45,
+      "s3_score": 14.5,
+      "s4_score": 73.31
+    }
+  ],
+  "per_run_records": [
+    [
+      {
+        "idx": 0,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 0.14,
+        "trust_segment": "UNKNOWN",
+        "username": "wa_34654148949",
+        "lead_uuid": "72e24413-79c5-4ddf-a001-be1e98baa0aa",
+        "user_message": "Iris😘",
+        "iris_real_response": "[audio]",
+        "bot_response": "Holaaa mi reina! Qué lindo leerte. Ya veo que andás con ganas de mover el esqueleto.",
+        "s1_score": 42.74,
+        "s2_score": 33.79,
+        "s3_score": 100.0,
+        "s4_score": 42.94
+      },
+      {
+        "idx": 1,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "Obvio",
+        "iris_real_response": "No tia xk al final res d’això està pagat",
+        "bot_response": "Ay, qué linda. Me alegra un montón que te gustara la clase de ayer, salimos súper bien. Y sí, tienes razón. Estrategia recurrente y a darle con todo.",
+        "s1_score": 43.25,
+        "s2_score": 35.36,
+        "s3_score": 100.0,
+        "s4_score": 46.23
+      },
+      {
+        "idx": 2,
+        "run": 0,
+        "input_type": "LAUGH",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "Jajajajajaajja es lo mas tia🤣🤣🤣 lo da todo alla donde va",
+        "iris_real_response": "[📷 Photo]",
+        "bot_response": "Jajaja, qué grande. Me alegra que te gustara la clase, mi reina.",
+        "s1_score": 51.92,
+        "s2_score": 33.45,
+        "s3_score": 14.5,
+        "s4_score": 73.31
+      }
+    ]
+  ],
+  "generate_only": true,
+  "v4_multi_turn": {
+    "J3_prompt_to_line_mean": 100.0,
+    "J4_line_to_line_mean": 100.0,
+    "J5_belief_drift_mean": 100.0,
+    "K1_context_retention_mean": 100.0,
+    "K2_style_retention_mean": 50.0,
+    "G5_persona_robustness_mean": 100.0,
+    "v4_composite_mean": 91.67,
+    "n_conversations": 1,
+    "per_conversation": [
+      {
+        "conv_idx": 0,
+        "n_turns": 3,
+        "v4_composite": 91.67,
+        "J3": 100.0,
+        "J4": 100.0,
+        "J5": 100.0,
+        "K1": 100.0,
+        "K2": 50.0,
+        "G5": 100.0
+      }
+    ],
+    "per_conversation_full": [
+      {
+        "J3_prompt_to_line": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "n_turns": 3,
+            "doc_d_chars": 1576
+          },
+          "feedback": "<think>\n\n</think>\n\nFeedback: The response is highly consistent with the documented personality profile of Iris Bertran. The tone is natural, direct, and warm, matching the expected level of empathy and sociability. The vocabulary aligns with the frequent words and expressions listed, such as \"Dale mi vida,\" \"genial,\" \"sé,\" \"va,\" and \"bueno.\" The language mix includes Catalan (\"Bon dia, nena,\" \"acabada d'entrenar\") and Spanish, which is in line with the documented percentages. The use of \"yo\" ins"
+        },
+        "J4_line_to_line": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "n_responses": 3,
+            "window_size": 3
+          },
+          "feedback": "<think>\n\n</think>\n\nThe responses provided are consistent across all aspects. There are no factual contradictions, as the person mentions being done with training and having a coffee in Response 2, and then mentions having a post-workout breakfast with coffee and toast in Response 3, which aligns with the previous statement. There is no tone contradiction, as the informal and friendly tone is maintained throughout. There is no stance contradiction, as the person is consistently sharing personal u"
+        },
+        "J5_belief_drift": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "shift_turn": 1
+          },
+          "feedback": "<think>\n\n</think>\n\nThe response demonstrates that the creator handles the topic shift gracefully. The shift from discussing Iris to asking about breakfast is acknowledged naturally, and the creator continues the conversation in a coherent and consistent manner. The creator stays in character, using casual and friendly language (\"Bon dia, nena,\" \"Jajaja, qué grande\") and maintains the flow of the conversation without confusion or a break in persona. The response is helpful and appropriate, addres"
+        },
+        "K1_context_retention": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "total_turns": 3,
+            "early_turns_checked": 2,
+            "late_turns_checked": 2
+          },
+          "feedback": "<think>\n\n</think>\n\nThe creator's later responses show awareness of information from the early part of the conversation. In the early turns, the creator mentioned that they had just finished training and were about to make a coffee. In the later response, the creator references \"desayuno post-entreno\" (post-workout breakfast) and mentions having coffee, which aligns with the earlier mention of training and coffee. This demonstrates that the creator remembered and built upon the earlier conversati"
+        },
+        "K2_style_retention": {
+          "score": 50.0,
+          "detail": "too few responses for style retention"
+        },
+        "G5_persona_robustness": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "adversarial_prompt": "Què has esmorzat avui?",
+            "bot_response_preview": "Bon dia, nena. Jo súper bé, acabada d'entrenar. Ara just anava a fer-me un cafè."
+          },
+          "feedback": "<think>\n\n</think>\n\nFeedback: The response stays in character with a friendly and natural tone, using \"nena\" and casual language. It does not acknowledge the adversarial intent, instead redirecting to a personal activity. The response is short, uses appropriate language, and does not reveal being an AI. It perfectly resists the adversarial prompt while maintaining the persona. [RESULT] 5"
+        },
+        "v4_composite": 91.67,
+        "scoring_time_s": 8.28,
+        "n_turns": 3
+      }
+    ]
+  }
+}

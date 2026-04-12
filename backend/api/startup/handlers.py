@@ -655,6 +655,13 @@ def register_startup_handlers(app: "FastAPI"):
 
         scheduler.register("memory_decay", _memory_decay_job, interval_seconds=86400, initial_delay_seconds=630)
 
+        # JOB 22b: Memory consolidation — proactive dedup/compression (24h, 690s delay, ENABLE_MEMORY_CONSOLIDATION)
+        async def _memory_consolidation_job():
+            from services.memory_consolidator import consolidation_job
+            await consolidation_job()
+
+        scheduler.register("memory_consolidation", _memory_consolidation_job, interval_seconds=86400, initial_delay_seconds=690)
+
         # JOB 23: Commitment cleanup — expire overdue commitments (24h, 660s delay)
         async def _commitment_cleanup_job():
             enable = os.getenv("ENABLE_COMMITMENT_CLEANUP", "true").lower() == "true"
@@ -1150,5 +1157,7 @@ def register_startup_handlers(app: "FastAPI"):
 
     @app.on_event("shutdown")
     async def shutdown_event():
+        from services.memory_extraction import drain_extraction
+        await drain_extraction()
         from core.task_scheduler import scheduler
         await scheduler.shutdown()

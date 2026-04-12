@@ -1,0 +1,320 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260410_214407",
+  "n_runs": 1,
+  "n_cases": 3,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 35.81,
+        "detail": {
+          "A1_length": 95.89,
+          "A2_emoji": 40.01,
+          "A2_contextual": 68.01,
+          "A3_exclamations": 0.0,
+          "A4_questions": 53.06,
+          "A5_vocabulary": 0.0,
+          "A6_language": 0.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 31.93,
+        "detail": {
+          "bertscore_mean": 0.8026,
+          "chrf_mean": 0.0429,
+          "bleu4_mean": 0.0971,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0,
+          "semsim_mean": 0.8026,
+          "c4_relevance_mean": 0.8327,
+          "self_rep_mean": 0.9261,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 3.17,
+          "per_case": [
+            27.61,
+            35.35,
+            32.82
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 23.22,
+        "detail": {
+          "e1_per_case_mean": 13.92,
+          "e2_distribution_match": 44.92,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.6667,
+            "ASK": 0.3333
+          },
+          "per_case": [
+            12.5,
+            17.7,
+            11.5
+          ],
+          "mean": 23.22
+        }
+      },
+      "S4_adaptation": {
+        "score": 52.43,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 52.43,
+          "proximity_n": 3
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 50.0,
+        "B1": {
+          "score": 0.0,
+          "detail": {
+            "cosine_similarity": 0.0,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.0,
+              0.0,
+              0.0417,
+              0.0,
+              0.0833
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 3,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 25.84,
+        "H2": {
+          "score": 25.84,
+          "detail": {
+            "cosine_similarity": 0.2584,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.35,
+              0.0,
+              0.6667,
+              0.3333,
+              0.0,
+              1.0,
+              0.2667,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 50.0,
+        "detail": "insufficient responses (need >= 5)"
+      },
+      "J_cognitive_fidelity": 50.0,
+      "composite": 40.14,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    40.14
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "UNKNOWN",
+      "user_message": "Yaya.. menudo estrés per tu també",
+      "iris_real_response": "[audio]",
+      "bot_response": "Jajaja, ayyyy, qué estrés te juro. Pero bueno, ya pasó. Vosotros sois lo más.",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 2,
+      "trust_segment": "INTIMATE",
+      "user_message": "Tampoc sé quan i per k ens vem reunir ni que celebravem,si que es Barna",
+      "iris_real_response": "Fes una maleteta petita",
+      "bot_response": "Jajaja, ¡qué bueno! Me encanta que te gusten los audios. ¿Y vos, qué? ¿Todo bien por ahí?",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "EXTRA",
+      "user_message": "[audio]",
+      "iris_real_response": "[audio]",
+      "bot_response": "Jajajaja, qué linda! \nMe encanta tu energía!",
+      "input_type": "MEDIA"
+    },
+    {
+      "case_idx": 2,
+      "trust_segment": "EDGE_CASE",
+      "user_message": "Tampoc sé quan i per k ens vem reunir ni que celebravem,si que es Barna",
+      "iris_real_response": "Fes una maleteta petita",
+      "bot_response": "Jajaja, ¡qué bueno! Me encanta que te gusten los audios. ¿Y vos, qué? ¿Todo bien por ahí?",
+      "input_type": "OTHER",
+      "s3_score": 11.5
+    }
+  ],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 0.11,
+      "username": "wa_34610017992",
+      "lead_uuid": "78f22043-24bd-4f45-9b24-3774c80190f2",
+      "user_message": "Yaya.. menudo estrés per tu també",
+      "iris_real_response": "[audio]",
+      "bot_response": "Jajaja, ayyyy, qué estrés te juro. Pero bueno, ya pasó. Vosotros sois lo más.",
+      "s1_score": 52.69,
+      "s2_score": 27.61,
+      "s3_score": 12.5,
+      "s4_score": 62.85
+    },
+    {
+      "idx": 1,
+      "input_type": "MEDIA",
+      "trust_score": 0.14,
+      "username": "wa_34619379120",
+      "lead_uuid": "5e1b8d08-2b2c-473c-b503-96fb86cfd0c7",
+      "user_message": "[audio]",
+      "iris_real_response": "[audio]",
+      "bot_response": "Jajajaja, qué linda! \nMe encanta tu energía!",
+      "s1_score": 43.13,
+      "s2_score": 35.35,
+      "s3_score": 17.7,
+      "s4_score": 59.31
+    },
+    {
+      "idx": 2,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "user_message": "Tampoc sé quan i per k ens vem reunir ni que celebravem,si que es Barna",
+      "iris_real_response": "Fes una maleteta petita",
+      "bot_response": "Jajaja, ¡qué bueno! Me encanta que te gusten los audios. ¿Y vos, qué? ¿Todo bien por ahí?",
+      "s1_score": 34.04,
+      "s2_score": 32.82,
+      "s3_score": 11.5,
+      "s4_score": 35.12
+    }
+  ],
+  "per_run_records": [
+    [
+      {
+        "idx": 0,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 0.11,
+        "trust_segment": "UNKNOWN",
+        "username": "wa_34610017992",
+        "lead_uuid": "78f22043-24bd-4f45-9b24-3774c80190f2",
+        "user_message": "Yaya.. menudo estrés per tu també",
+        "iris_real_response": "[audio]",
+        "bot_response": "Jajaja, ayyyy, qué estrés te juro. Pero bueno, ya pasó. Vosotros sois lo más.",
+        "s1_score": 52.69,
+        "s2_score": 27.61,
+        "s3_score": 12.5,
+        "s4_score": 62.85
+      },
+      {
+        "idx": 1,
+        "run": 0,
+        "input_type": "MEDIA",
+        "trust_score": 0.14,
+        "trust_segment": "UNKNOWN",
+        "username": "wa_34619379120",
+        "lead_uuid": "5e1b8d08-2b2c-473c-b503-96fb86cfd0c7",
+        "user_message": "[audio]",
+        "iris_real_response": "[audio]",
+        "bot_response": "Jajajaja, qué linda! \nMe encanta tu energía!",
+        "s1_score": 43.13,
+        "s2_score": 35.35,
+        "s3_score": 17.7,
+        "s4_score": 59.31
+      },
+      {
+        "idx": 2,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "+34660042310",
+        "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+        "user_message": "Tampoc sé quan i per k ens vem reunir ni que celebravem,si que es Barna",
+        "iris_real_response": "Fes una maleteta petita",
+        "bot_response": "Jajaja, ¡qué bueno! Me encanta que te gusten los audios. ¿Y vos, qué? ¿Todo bien por ahí?",
+        "s1_score": 34.04,
+        "s2_score": 32.82,
+        "s3_score": 11.5,
+        "s4_score": 35.12
+      }
+    ]
+  ]
+}

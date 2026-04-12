@@ -54,6 +54,23 @@ ENABLE_SELF_CONSISTENCY = os.getenv("ENABLE_SELF_CONSISTENCY", "false").lower() 
 ENABLE_LENGTH_HINTS = os.getenv("ENABLE_LENGTH_HINTS", "true").lower() == "true"
 ENABLE_QUESTION_HINTS = os.getenv("ENABLE_QUESTION_HINTS", "true").lower() == "true"
 
+# G6: Truncation recovery — retry count (operational param, not content heuristic)
+MAX_TRUNCATION_RETRIES = int(os.getenv("MAX_TRUNCATION_RETRIES", "2"))
+
+
+def _is_truncated_by_api(finish_reason: str | None) -> bool:
+    """Return True iff the API explicitly signalled max_tokens was hit.
+
+    Mirrors Claude Code's isWithheldMaxOutputTokens() which checks
+    stop_reason === 'max_tokens'. All Clonnect providers normalize their
+    API signal to OpenAI standard: finish_reason == 'length' means the
+    model stopped because max_tokens was exhausted.
+
+    Returns False when finish_reason is absent — never infers truncation
+    from response content (zero hardcoding policy).
+    """
+    return finish_reason == "length"
+
 
 def _maybe_question_hint(creator_id: str) -> str:
     """Return a question-suppression hint if bot over-questions vs creator baseline.
@@ -317,6 +334,25 @@ async def phase_llm_generation(
         f"sections={_section_sizes}"
     )
 
+    # G3+G4: Token distribution analytics + context health warnings (observability only)
+    try:
+        from core.dm.context_analytics import analyze_token_distribution, check_context_health
+        _analytics = analyze_token_distribution(
+            section_sizes=_section_sizes,
+            system_prompt=system_prompt,
+            history_messages=history,
+        )
+        for _w in check_context_health(_analytics):
+            _lvl = _w["level"]
+            if _lvl == "critical":
+                logger.error("[ContextHealth] CRITICAL: %s", _w["message"])
+            elif _lvl == "warning":
+                logger.warning("[ContextHealth] WARNING: %s", _w["message"])
+            else:
+                logger.info("[ContextHealth] INFO: %s", _w["message"])
+    except Exception as _analytics_err:
+        logger.debug("[TokenAnalytics] Skipped: %s", _analytics_err)
+
     # LLM generation: Flash-Lite → GPT-4o-mini (2 providers, nothing else)
     # Path: webhook → process_dm() → generate_dm_response() → gemini/openai
     from core.providers.gemini_provider import generate_dm_response
@@ -326,29 +362,106 @@ async def phase_llm_generation(
     # conversational context (vs the old single-message flattened format).
     llm_messages = [{"role": "system", "content": system_prompt}]
     if history:
-        # Use last 10 messages; ensure we start with a user turn (Gemini requirement)
-        history_slice = history[-10:]
-        while history_slice and history_slice[0].get("role") != "user":
-            history_slice = history_slice[1:]
-        # Merge consecutive same-role messages (Gemini requires strict alternating turns)
-        deduped: list = []
-        for msg in history_slice:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            if role not in ("user", "assistant") or not content:
-                continue
-            if deduped and deduped[-1]["role"] == role:
-                # Append to previous turn; skip exact duplicates
-                if content != deduped[-1]["content"]:
-                    deduped[-1]["content"] += "\n" + content
-            else:
-                deduped.append({"role": role, "content": content})
-        for msg in deduped:
-            content = msg["content"]
-            # Truncate very long individual messages to control token spend
-            if len(content) > 600:
-                content = content[:597] + "..."
-            llm_messages.append({"role": msg["role"], "content": content})
+        from core.dm.history_compactor import ENABLE_HISTORY_COMPACTION
+        if ENABLE_HISTORY_COMPACTION:
+            # Sprint 2.7: CC-faithful pipeline order.
+            # CC (sessionMemoryCompact.ts:324-397) operates on ALL raw messages
+            # with zero dedup — Anthropic API accepts consecutive same-role.
+            # Gemini requires strict alternation, so we dedup AFTER selection.
+            #
+            # Pipeline: ALL raw → filter invalid → select(budget) → truncate(600) → dedup → API
+            raw_pool: list = []
+            for msg in history:
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                if role not in ("user", "assistant") or not content:
+                    continue
+                raw_pool.append({"role": role, "content": content})
+
+            try:
+                from core.dm.history_compactor import select_and_compact
+                _total_budget = 10 * 600  # 6000 chars — same as uniform truncation
+                _creator_profile = {}
+                try:
+                    import json as _json
+                    _sp_path = os.path.join(
+                        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+                        "evaluation_profiles", agent.creator_id, "style_profile.json",
+                    )
+                    if os.path.exists(_sp_path):
+                        with open(_sp_path) as _f:
+                            _creator_profile = _json.load(_f)
+                        logger.info("[HISTORY-COMPACT] Loaded style_profile for %s from %s", agent.creator_id, _sp_path)
+                    else:
+                        logger.warning("[HISTORY-COMPACT] style_profile.json not found at %s — compactor will use uniform scoring", _sp_path)
+                except Exception as _profile_err:
+                    logger.error("[HISTORY-COMPACT] Failed to load style_profile for %s: %s", agent.creator_id, _profile_err)
+                _existing_facts: list = cognitive_metadata.get(
+                    "memory_facts", []
+                )
+                compacted = select_and_compact(
+                    raw_pool, _creator_profile, _total_budget,
+                    existing_facts=_existing_facts,
+                )
+                # Post-selection: filter boundaries, dedup same-role (Gemini),
+                # truncate per-message at 600 chars (matching legacy behavior).
+                for msg in compacted:
+                    if msg.get("_is_compact_boundary"):
+                        continue
+                    role = msg.get("role", "user")
+                    content = msg.get("content", "")
+                    if not content:
+                        continue
+                    if len(content) > 600:
+                        content = content[:597] + "..."
+                    if llm_messages and llm_messages[-1]["role"] == role:
+                        llm_messages[-1]["content"] += "\n" + content
+                    else:
+                        llm_messages.append({"role": role, "content": content})
+                cognitive_metadata["history_compaction"] = True
+                cognitive_metadata["history_compaction_kept"] = len(compacted)
+                cognitive_metadata["history_compaction_pool"] = len(raw_pool)
+                logger.info(
+                    "[HISTORY-COMPACT] select_and_compact: %d→%d msgs (pool=%d)",
+                    len(history), len(compacted), len(raw_pool),
+                )
+            except Exception as _hc_err:
+                logger.warning("[HISTORY-COMPACT] Failed, falling back to uniform: %s", _hc_err)
+                # Fallback: last 10 messages with uniform truncation
+                fallback = raw_pool[-10:]
+                while fallback and fallback[0].get("role") != "user":
+                    fallback = fallback[1:]
+                for msg in fallback:
+                    content = msg["content"]
+                    if len(content) > 600:
+                        content = content[:597] + "..."
+                    # Same-role dedup for Gemini strict alternation
+                    if llm_messages and llm_messages[-1]["role"] == msg["role"]:
+                        llm_messages[-1]["content"] += "\n" + content
+                    else:
+                        llm_messages.append({"role": msg["role"], "content": content})
+        else:
+            # Original uniform truncation (feature flag OFF) — exact legacy behavior
+            history_slice = history[-10:]
+            while history_slice and history_slice[0].get("role") != "user":
+                history_slice = history_slice[1:]
+            deduped: list = []
+            for msg in history_slice:
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                if role not in ("user", "assistant") or not content:
+                    continue
+                if deduped and deduped[-1]["role"] == role:
+                    if content != deduped[-1]["content"]:
+                        deduped[-1]["content"] += "\n" + content
+                else:
+                    deduped.append({"role": role, "content": content})
+            for msg in deduped:
+                content = msg["content"]
+                # Truncate very long individual messages to control token spend
+                if len(content) > 600:
+                    content = content[:597] + "..."
+                llm_messages.append({"role": msg["role"], "content": content})
     llm_messages.append({"role": "user", "content": full_prompt})
 
     # Best-of-N: generate 3 candidates at different temperatures (copilot only)
@@ -403,6 +516,49 @@ async def phase_llm_generation(
             max_tokens=_llm_max_tokens,
             temperature=_llm_temperature,
         )
+
+        # G6: Truncation recovery — retry only when API signals max_tokens was hit.
+        # Detection: finish_reason == "length" (OpenAI standard, propagated by all providers).
+        # Cap: 2x calibration max_tokens (data-driven per creator). If no finish_reason
+        # available, skip silently — never infer truncation from response content.
+        _finish_reason = llm_result.get("finish_reason") if llm_result else None
+        if llm_result and _finish_reason is None:
+            logger.debug("[TruncationRecovery] finish_reason not available from provider — skipping")
+        elif llm_result and _is_truncated_by_api(_finish_reason):
+            # Retry cap derived from calibration. Multiplier is env-configurable;
+            # _llm_max_tokens is already calibration-derived.
+            _retry_multiplier = float(os.getenv("TRUNCATION_RETRY_MULTIPLIER", "2.0"))
+            _retry_cap = int(_llm_max_tokens * _retry_multiplier)
+            _best_result = llm_result
+            for _retry_n in range(MAX_TRUNCATION_RETRIES):
+                logger.warning(
+                    "[TruncationRecovery] API signalled max_tokens hit (finish_reason=length, "
+                    "attempt %d/%d), retrying with max_tokens=%d",
+                    _retry_n + 1, MAX_TRUNCATION_RETRIES, _retry_cap,
+                )
+                try:
+                    _retry_result = await generate_dm_response(
+                        llm_messages,
+                        max_tokens=_retry_cap,
+                        temperature=_llm_temperature,
+                    )
+                    if _retry_result:
+                        # Keep the longest result; stop if API no longer signals truncation
+                        if len(_retry_result.get("content", "")) > len(_best_result.get("content", "")):
+                            _best_result = _retry_result
+                        if not _is_truncated_by_api(_retry_result.get("finish_reason")):
+                            _best_result = _retry_result
+                            logger.info(
+                                "[TruncationRecovery] Recovered on attempt %d (max_tokens=%d)",
+                                _retry_n + 1, _retry_cap,
+                            )
+                            break
+                except Exception as _retry_err:
+                    logger.warning("[TruncationRecovery] Retry %d failed: %s", _retry_n + 1, _retry_err)
+                    break
+            if _best_result is not llm_result:
+                cognitive_metadata["truncation_recovery"] = True
+            llm_result = _best_result
 
     _t3 = time.monotonic()
     logger.info(f"[TIMING] LLM call: {int((_t3 - _t2) * 1000)}ms")

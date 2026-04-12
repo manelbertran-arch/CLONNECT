@@ -1,0 +1,944 @@
+{
+  "metadata": {
+    "ccee_version": "v5",
+    "timestamp": "2026-04-11T13:37:30.542677",
+    "model": "google/gemma-4-31B-it",
+    "provider": "deepinfra",
+    "judge_model": "Qwen/Qwen3-30B-A3B",
+    "lead_sim_model": "Qwen/Qwen3-30B-A3B",
+    "cases": 5,
+    "runs": 1,
+    "mt_conversations": 1,
+    "mt_turns": 5,
+    "flags": {
+      "generate_only": false,
+      "multi_turn": true,
+      "v4_composite": true,
+      "v41_metrics": true,
+      "v5": true
+    }
+  },
+  "creator_id": "iris_bertran",
+  "timestamp": "20260411_133730",
+  "n_runs": 1,
+  "n_cases": 5,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 61.08,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 79.99,
+          "A2_contextual": 55.5,
+          "A3_exclamations": 93.91,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 0.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 43.11,
+        "detail": {
+          "bertscore_mean": 0.8134,
+          "chrf_mean": 0.0622,
+          "bleu4_mean": 0.2064,
+          "rouge_l_mean": 0.0586,
+          "meteor_mean": 0.024,
+          "semsim_mean": 0.8134,
+          "c4_relevance_mean": 0.8103,
+          "self_rep_mean": 0.6241,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            33.58,
+            52.16,
+            42.36,
+            39.01,
+            48.45
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 51.61,
+        "detail": {
+          "e1_per_case_mean": 49.28,
+          "e2_distribution_match": 57.05,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.8,
+            "IGNORE": 0.2
+          },
+          "per_case": [
+            12.5,
+            100.0,
+            16.1,
+            100.0,
+            17.7
+          ],
+          "mean": 51.61
+        }
+      },
+      "S4_adaptation": {
+        "score": 63.6,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 63.6,
+          "proximity_n": 5
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 5,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 29.52,
+        "H2": {
+          "score": 29.52,
+          "detail": {
+            "cosine_similarity": 0.2952,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.103,
+              0.4,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 61.0,
+        "detail": {
+          "length_consistency": 50.84,
+          "emoji_consistency": 79.99,
+          "question_consistency": 80.27,
+          "exclamation_consistency": 93.91,
+          "cv_match": 0.0,
+          "bot_length_std": 3.01,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 55.5,
+      "composite": 57.78,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    57.78
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "INTIMATE",
+      "user_message": "Ella sempre es tallava les ungles",
+      "iris_real_response": "No no",
+      "bot_response": "Ja sé, és veritat 😂",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "EXTRA",
+      "user_message": "Igual q el finde de zumba sas?",
+      "iris_real_response": "Xfaaa diga’m el que vols",
+      "bot_response": "va, m'encanta la vibe",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 2,
+      "trust_segment": "EXTRA",
+      "user_message": "y por eso pagarme cuando toca no era pagarme ayer xoxiiiii",
+      "iris_real_response": "[🎤 Audio]: Ja no dic res perquè com que no sabem el que petarà i el que no petarà a Instagram, és brutal, eh? És que m'encanta. És que m'encanta.",
+      "bot_response": "ja sé, mami, que fuerte 😂",
+      "input_type": "QUESTION_SERVICE"
+    },
+    {
+      "case_idx": 3,
+      "trust_segment": "EXTRA",
+      "user_message": "- Dimarts 16 - flow\n- ⁠dijous 18 - calendari advent\n- ⁠diumenge 21 -barre tropicoqueta\n\n- dimarts 23 - barre\n- dimecres 24 - Ball merry xmas\n- ⁠diumenge 28 - \n\n- Dimecres 31 - PENDENT GRAVAR VEU agraiments fent recap (ves preparant videos q vols q surtin)\n- ⁠dijous 2 - \n- ⁠diumenge 4 - rutina hipopilates preregal reis? Pendent gravar",
+      "iris_real_response": "Oki🙂‍↔️🙂‍↔️",
+      "bot_response": "ja sé mami, que fuerte",
+      "input_type": "GREETING"
+    },
+    {
+      "case_idx": 0,
+      "trust_segment": "EDGE_CASE",
+      "user_message": "Ella sempre es tallava les ungles",
+      "iris_real_response": "No no",
+      "bot_response": "Ja sé, és veritat 😂",
+      "input_type": "OTHER",
+      "s3_score": 12.5
+    }
+  ],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "username": "Manel",
+      "lead_uuid": "356d60a7-58eb-45d6-9a54-585e0df40e5a",
+      "user_message": "Ella sempre es tallava les ungles",
+      "iris_real_response": "No no",
+      "bot_response": "Ja sé, és veritat 😂",
+      "s1_score": 54.96,
+      "s2_score": 33.58,
+      "s3_score": 12.5,
+      "s4_score": 58.24
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 0.99,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Igual q el finde de zumba sas?",
+      "iris_real_response": "Xfaaa diga’m el que vols",
+      "bot_response": "va, m'encanta la vibe",
+      "s1_score": 62.67,
+      "s2_score": 52.16,
+      "s3_score": 100.0,
+      "s4_score": 66.97
+    },
+    {
+      "idx": 2,
+      "input_type": "QUESTION_SERVICE",
+      "trust_score": 0.99,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "y por eso pagarme cuando toca no era pagarme ayer xoxiiiii",
+      "iris_real_response": "[🎤 Audio]: Ja no dic res perquè com que no sabem el que petarà i el que no petarà a Instagram, és brutal, eh? És que m'encanta. És que m'encanta.",
+      "bot_response": "ja sé, mami, que fuerte 😂",
+      "s1_score": 46.5,
+      "s2_score": 42.36,
+      "s3_score": 16.1,
+      "s4_score": 60.14
+    },
+    {
+      "idx": 3,
+      "input_type": "GREETING",
+      "trust_score": 0.99,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "- Dimarts 16 - flow\n- ⁠dijous 18 - calendari advent\n- ⁠diumenge 21 -barre tropicoqueta\n\n- dimarts 23 - barre\n- dimecres 24 - Ball merry xmas\n- ⁠diumenge 28 - \n\n- Dimecres 31 - PENDENT GRAVAR VEU agraiments fent recap (ves preparant videos q vols q surtin)\n- ⁠dijous 2 - \n- ⁠diumenge 4 - rutina hipopilates preregal reis? Pendent gravar",
+      "iris_real_response": "Oki🙂‍↔️🙂‍↔️",
+      "bot_response": "ja sé mami, que fuerte",
+      "s1_score": 52.41,
+      "s2_score": 39.01,
+      "s3_score": 100.0,
+      "s4_score": 67.29
+    },
+    {
+      "idx": 4,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "user_message": "[audio]",
+      "iris_real_response": "Que no tenia cobertura",
+      "bot_response": "ja sé, és brutal",
+      "s1_score": 52.54,
+      "s2_score": 48.45,
+      "s3_score": 17.7,
+      "s4_score": 65.38
+    }
+  ],
+  "per_run_records": [
+    [
+      {
+        "idx": 0,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "Manel",
+        "lead_uuid": "356d60a7-58eb-45d6-9a54-585e0df40e5a",
+        "user_message": "Ella sempre es tallava les ungles",
+        "iris_real_response": "No no",
+        "bot_response": "Ja sé, és veritat 😂",
+        "s1_score": 54.96,
+        "s2_score": 33.58,
+        "s3_score": 12.5,
+        "s4_score": 58.24
+      },
+      {
+        "idx": 1,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 0.99,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "Igual q el finde de zumba sas?",
+        "iris_real_response": "Xfaaa diga’m el que vols",
+        "bot_response": "va, m'encanta la vibe",
+        "s1_score": 62.67,
+        "s2_score": 52.16,
+        "s3_score": 100.0,
+        "s4_score": 66.97
+      },
+      {
+        "idx": 2,
+        "run": 0,
+        "input_type": "QUESTION_SERVICE",
+        "trust_score": 0.99,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "y por eso pagarme cuando toca no era pagarme ayer xoxiiiii",
+        "iris_real_response": "[🎤 Audio]: Ja no dic res perquè com que no sabem el que petarà i el que no petarà a Instagram, és brutal, eh? És que m'encanta. És que m'encanta.",
+        "bot_response": "ja sé, mami, que fuerte 😂",
+        "s1_score": 46.5,
+        "s2_score": 42.36,
+        "s3_score": 16.1,
+        "s4_score": 60.14
+      },
+      {
+        "idx": 3,
+        "run": 0,
+        "input_type": "GREETING",
+        "trust_score": 0.99,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "- Dimarts 16 - flow\n- ⁠dijous 18 - calendari advent\n- ⁠diumenge 21 -barre tropicoqueta\n\n- dimarts 23 - barre\n- dimecres 24 - Ball merry xmas\n- ⁠diumenge 28 - \n\n- Dimecres 31 - PENDENT GRAVAR VEU agraiments fent recap (ves preparant videos q vols q surtin)\n- ⁠dijous 2 - \n- ⁠diumenge 4 - rutina hipopilates preregal reis? Pendent gravar",
+        "iris_real_response": "Oki🙂‍↔️🙂‍↔️",
+        "bot_response": "ja sé mami, que fuerte",
+        "s1_score": 52.41,
+        "s2_score": 39.01,
+        "s3_score": 100.0,
+        "s4_score": 67.29
+      },
+      {
+        "idx": 4,
+        "run": 0,
+        "input_type": "MEDIA",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "+34660042310",
+        "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+        "user_message": "[audio]",
+        "iris_real_response": "Que no tenia cobertura",
+        "bot_response": "ja sé, és brutal",
+        "s1_score": 52.54,
+        "s2_score": 48.45,
+        "s3_score": 17.7,
+        "s4_score": 65.38
+      }
+    ]
+  ],
+  "v4_multi_turn": {
+    "J3_prompt_to_line_mean": 80.0,
+    "J4_line_to_line_mean": 55.6,
+    "J5_belief_drift_mean": 50.0,
+    "K1_context_retention_mean": 100.0,
+    "K2_style_retention_mean": 91.26,
+    "G5_persona_robustness_mean": 100.0,
+    "mt_composite_mean": 75.25,
+    "v4_mt_mean": 78.54,
+    "n_conversations": 1,
+    "per_conversation": [
+      {
+        "conv_idx": 0,
+        "n_turns": 5,
+        "mt_composite": 75.25,
+        "v4_mt_mean": 78.54,
+        "J3": 80.0,
+        "J4": 55.6,
+        "J5": 50.0,
+        "K1": 100.0,
+        "K2": 91.26,
+        "G5": 100.0,
+        "J6": 100.0,
+        "L1": 80.0,
+        "L2": null,
+        "L3": 50.0
+      }
+    ],
+    "per_conversation_full": [
+      {
+        "J3_prompt_to_line": {
+          "score": 80.0,
+          "raw_scores": [
+            3,
+            4,
+            5,
+            4,
+            5
+          ],
+          "n_turns_scored": 5,
+          "n_turns_total": 5,
+          "mean_1_5": 4.2,
+          "per_turn": [
+            {
+              "turn": 0,
+              "score_1_5": 3
+            },
+            {
+              "turn": 1,
+              "score_1_5": 4
+            },
+            {
+              "turn": 2,
+              "score_1_5": 5
+            },
+            {
+              "turn": 3,
+              "score_1_5": 4
+            },
+            {
+              "turn": 4,
+              "score_1_5": 5
+            }
+          ],
+          "detail": {
+            "doc_d_chars": 1576
+          }
+        },
+        "J4_line_to_line": {
+          "score": 55.6,
+          "contradiction_rate": 0.0,
+          "contradictions": 0,
+          "total_pairs": 9,
+          "mean_pair_score_1_5": 3.22,
+          "pair_results": [
+            {
+              "i": 0,
+              "j": 1,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 0,
+              "j": 2,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 0,
+              "j": 3,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 1,
+              "j": 2,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 1,
+              "j": 3,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 1,
+              "j": 4,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 2,
+              "j": 3,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 2,
+              "j": 4,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 3,
+              "j": 4,
+              "score_1_5": 3,
+              "contradiction": false
+            }
+          ],
+          "detail": {
+            "n_responses": 5,
+            "window_size": 3
+          }
+        },
+        "J5_belief_drift": {
+          "score": 50.0,
+          "raw_score_1_5": 3,
+          "detail": {
+            "shift_turn": 2
+          },
+          "feedback": "The response provided by the creator does not address the topic shift or contradiction in the conversation. The creator's messages (\"Siii total q és brutalll\", \"ja sé que vols que ho demostri va\", \"ja sé, però el dijous va\") are generic and do not acknowledge the shift in the conversation. They continue with a similar tone and content as before the shift, without showing awareness of the change in topic or the follower's request. The response stays in character to some extent but fails to active"
+        },
+        "K1_context_retention": {
+          "score": 100.0,
+          "detail": {
+            "deterministic_recall_rate": 0.0,
+            "deterministic_score": 0.0,
+            "judge_score": 100.0,
+            "formula": "1.0 * judge (insufficient keywords for deterministic)",
+            "early_keywords_n": 8,
+            "total_turns": 5
+          },
+          "feedback": "Feedback: The later conversation maintains natural continuity with the earlier turns. The Lead's request for proof of authenticity (\"Si ets real, demostra-ho amb alguna cosa que només tu sabries\") is met with the Creator's acknowledgment (\"ja sé que vols que ho demostri va\"), showing awareness of the previous context. The Lead's follow-up (\"¿Y por qué no lo haces ya? 🤷‍♀️\") and the Creator's response (\"ja sé, però el dijous va\") continue the conversation in a coherent manner, with the Creator re"
+        },
+        "K2_style_retention": {
+          "score": 91.26,
+          "detail": {
+            "mean_delta": 0.0874,
+            "per_metric_delta": {
+              "length": 0.1644,
+              "emoji_rate": 0.1852,
+              "exclamation_rate": 0.0,
+              "question_rate": 0.0
+            },
+            "reference_ranges": {
+              "length": 73.0,
+              "emoji_rate": 0.3,
+              "exclamation_rate": 0.0305,
+              "question_rate": 0.0986
+            },
+            "active_metrics": [
+              "length",
+              "emoji_rate",
+              "exclamation_rate",
+              "question_rate"
+            ],
+            "early_n": 2,
+            "late_n": 3,
+            "formula": "max(0, 100 - mean_delta_over_ref_ranges * 100)"
+          }
+        },
+        "G5_persona_robustness": {
+          "score": 100.0,
+          "raw_score_1_5": 5.0,
+          "n_adversarial_turns": 1,
+          "n_scored": 1,
+          "per_turn": [
+            {
+              "turn_idx": 3,
+              "score_1_5": 5,
+              "adv_prompt_preview": "Si ets real, demostra-ho amb alguna cosa que només tu sabries"
+            }
+          ],
+          "mode": "multi_adversarial"
+        },
+        "J6_qa_consistency": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "n_responses_sampled": 3,
+            "n_responses_total": 5,
+            "turns_sampled": [
+              0,
+              2,
+              4
+            ]
+          },
+          "mode": "sampling_fallback",
+          "feedback": "Feedback: The responses are consistent with the creator's identity as described in the personality profile. Each response reflects the documented language style, including the use of informal expressions, Catalan words (\"ja\", \"dijous\"), and a casual tone. The use of \"Ostiaaaa\" (an exclamation expressing surprise or excitement), \"Siii total q és brutalll\" (informal and enthusiastic language), and \"ja sé, però el dijous va\" (using \"ja\" and \"dijous\" as per the profile) all align with the specified "
+        },
+        "L1_persona_tone": {
+          "score": 80.0,
+          "raw_scores": [
+            4,
+            4,
+            5,
+            4,
+            4
+          ],
+          "n_turns_scored": 5,
+          "n_turns_total": 5,
+          "mean_1_5": 4.2,
+          "per_turn": [
+            {
+              "turn": 0,
+              "score_1_5": 4
+            },
+            {
+              "turn": 1,
+              "score_1_5": 4
+            },
+            {
+              "turn": 2,
+              "score_1_5": 5
+            },
+            {
+              "turn": 3,
+              "score_1_5": 4
+            },
+            {
+              "turn": 4,
+              "score_1_5": 4
+            }
+          ]
+        },
+        "L2_logical_reasoning": {
+          "score": null,
+          "reason": "no_substantive_claims_in_conversation",
+          "n_turns_skipped": 5
+        },
+        "L3_action_justification": {
+          "score": 50.0,
+          "raw_scores": [
+            3,
+            3
+          ],
+          "n_decisions_found": 0,
+          "n_decisions_scored": 2,
+          "mean_1_5": 3.0,
+          "per_decision": [
+            {
+              "turn": 3,
+              "score_1_5": 3,
+              "bot_preview": "ja sé que vols que ho demostri va"
+            },
+            {
+              "turn": 2,
+              "score_1_5": 3,
+              "bot_preview": "Siii total q és brutalll"
+            }
+          ]
+        },
+        "mt_composite": 75.25,
+        "v4_mt_mean": 78.54,
+        "active_dimensions": [
+          "J3_prompt_to_line",
+          "J4_line_to_line",
+          "J5_belief_drift",
+          "K1_context_retention",
+          "K2_style_retention",
+          "G5_persona_robustness"
+        ],
+        "excluded_dimensions": [],
+        "scoring_time_s": 69.43,
+        "n_turns": 5
+      }
+    ],
+    "J6_qa_consistency_mean": 100.0,
+    "L1_persona_tone_mean": 80.0,
+    "L2_logical_reasoning_mean": null,
+    "L3_action_justification_mean": 50.0,
+    "H1_turing_test": {
+      "score": 60.0,
+      "total_comparisons": 5,
+      "fooled": 3,
+      "n_conversations": 1,
+      "per_turn": [
+        {
+          "conv_idx": 0,
+          "turn": 0,
+          "fooled": false,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 0,
+          "turn": 1,
+          "fooled": true,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 0,
+          "turn": 2,
+          "fooled": true,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 0,
+          "turn": 3,
+          "fooled": false,
+          "judge_chose": "B"
+        },
+        {
+          "conv_idx": 0,
+          "turn": 4,
+          "fooled": true,
+          "judge_chose": "B"
+        }
+      ]
+    }
+  },
+  "v4_composite": {
+    "score": 62.4,
+    "active_dimensions": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "J_old",
+      "J_new",
+      "K",
+      "G5"
+    ],
+    "excluded_dimensions": [],
+    "dimension_scores": {
+      "S1": 61.1,
+      "S2": 43.1,
+      "S3": 51.6,
+      "S4": 63.6,
+      "J_old": 55.5,
+      "J_new": 63.7,
+      "K": 96.5,
+      "G5": 100.0
+    },
+    "dimension_weights": {
+      "S1": 0.2,
+      "S2": 0.15,
+      "S3": 0.2,
+      "S4": 0.12,
+      "J_old": 0.05,
+      "J_new": 0.13,
+      "K": 0.08,
+      "G5": 0.07
+    }
+  },
+  "v41_composite": {
+    "score": 64.3,
+    "version": "v4.1",
+    "active_dimensions": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "J_old",
+      "J_new",
+      "J6",
+      "K",
+      "G5",
+      "L"
+    ],
+    "excluded_dimensions": [],
+    "dimension_scores": {
+      "S1": 61.1,
+      "S2": 43.1,
+      "S3": 51.6,
+      "S4": 63.6,
+      "J_old": 55.5,
+      "J_new": 63.7,
+      "J6": 100.0,
+      "K": 96.5,
+      "G5": 100.0,
+      "L": 67.1
+    },
+    "dimension_weights": {
+      "S1": 0.18,
+      "S2": 0.13,
+      "S3": 0.18,
+      "S4": 0.1,
+      "J_old": 0.04,
+      "J_new": 0.1,
+      "J6": 0.04,
+      "K": 0.07,
+      "G5": 0.06,
+      "L": 0.1
+    },
+    "sub_dimensions": {
+      "J_new": {
+        "J3": 80.0,
+        "J4": 55.6,
+        "J5": 50.0
+      },
+      "K": {
+        "K1": 100.0,
+        "K2": 91.26
+      },
+      "L": {
+        "L1": 80.0,
+        "L2": null,
+        "L3": 50.0
+      }
+    }
+  },
+  "v5_composite": {
+    "score": 63.2,
+    "version": "v5",
+    "active_dimensions": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "J_old",
+      "J_new",
+      "J6",
+      "K",
+      "G5",
+      "L",
+      "H",
+      "B"
+    ],
+    "excluded_dimensions": [],
+    "dimension_scores": {
+      "S1": 61.1,
+      "S2": 43.1,
+      "S3": 51.6,
+      "S4": 63.6,
+      "J_old": 55.5,
+      "J_new": 63.7,
+      "J6": 100.0,
+      "K": 96.5,
+      "G5": 100.0,
+      "L": 67.1,
+      "H": 60.0,
+      "B": 56.2
+    },
+    "dimension_weights": {
+      "S1": 0.16,
+      "S2": 0.12,
+      "S3": 0.16,
+      "S4": 0.09,
+      "J_old": 0.03,
+      "J_new": 0.09,
+      "J6": 0.03,
+      "K": 0.06,
+      "G5": 0.05,
+      "L": 0.09,
+      "H": 0.07,
+      "B": 0.05
+    },
+    "sub_dimensions": {
+      "J_new": {
+        "J3": 80.0,
+        "J4": 55.6,
+        "J5": 50.0
+      },
+      "K": {
+        "K1": 100.0,
+        "K2": 91.26
+      },
+      "L": {
+        "L1": 80.0,
+        "L2": null,
+        "L3": 50.0
+      },
+      "H": {
+        "H1": 60.0,
+        "H2": null
+      },
+      "B": {
+        "B1": 50.0,
+        "B4": 100.0,
+        "B2": 35.0,
+        "B5": 40.0
+      }
+    }
+  },
+  "prometheus_scores": {
+    "B2_persona_consistency": {
+      "score": 35.0,
+      "per_case": [
+        25.0,
+        25.0,
+        25.0,
+        50.0,
+        50.0
+      ]
+    },
+    "B5_emotional_signature": {
+      "score": 40.0,
+      "per_case": [
+        25.0,
+        25.0,
+        75.0,
+        50.0,
+        25.0
+      ]
+    },
+    "C2_naturalness": {
+      "score": 65.0,
+      "per_case": [
+        75.0,
+        75.0,
+        50.0,
+        50.0,
+        75.0
+      ]
+    },
+    "C3_contextual_appropriateness": {
+      "score": 0.0,
+      "per_case": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "H1_turing_test_rate": 80.0,
+    "model": "Qwen/Qwen3-30B-A3B",
+    "n_cases": 5,
+    "total_time_seconds": 67.4
+  }
+}

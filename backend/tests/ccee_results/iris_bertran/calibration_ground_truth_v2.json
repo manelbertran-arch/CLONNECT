@@ -1,0 +1,258 @@
+{
+  "creator_id": "iris_bertran",
+  "n_samples": 20,
+  "metrics": {
+    "J3": {
+      "real_mean": 3.55,
+      "real_n": 20,
+      "real_distribution": {
+        "1": 2,
+        "2": 2,
+        "3": 6,
+        "4": 3,
+        "5": 7
+      },
+      "real_details": [
+        {
+          "user_input": "Per saver si puc sortir amb la prince§",
+          "content": "Em dius això",
+          "score": 4
+        },
+        {
+          "user_input": "Ah siii segurament tornarem el 2",
+          "content": "A veure te l’has de mirar eee que es hipos 2.0😂😂😂",
+          "score": 5
+        },
+        {
+          "user_input": "De tanta por de legir el k posaba,ara no ho trovo castigo divino",
+          "content": "Deixa’m l’audio si creus que no t’enrecordaràs i després et truco",
+          "score": 4
+        },
+        {
+          "user_input": "Records del Xato!!😘😘",
+          "content": "A disfrutar familiaaaa d’aquest tresoret que ha arribat 🥳🥳🥳",
+          "score": 3
+        },
+        {
+          "user_input": "[image]",
+          "content": "A veure si duren una mica els vidres😬😬😬",
+          "score": 5
+        },
+        {
+          "user_input": "[audio]",
+          "content": "Pues si nena ha triumfado como la coke",
+          "score": 5
+        },
+        {
+          "user_input": "Ya tia",
+          "content": "He utilizado WeTransfer, la forma más sencilla de enviar y recibir archivos.\n\nHa",
+          "score": 1
+        },
+        {
+          "user_input": "Pero on treurem la recepta?",
+          "content": "Prova Manel de trucar a veure si s’ha fet algún forat, a veure si et poden agafa",
+          "score": 5
+        },
+        {
+          "user_input": "😍😍😍😍",
+          "content": "Cojete el 5",
+          "score": 1
+        },
+        {
+          "user_input": "Jo esqe vinc a Zumba",
+          "content": "Siii molt maca li he comentat la storie",
+          "score": 5
+        },
+        {
+          "user_input": "🤣🤣🤣🤣🤣🤣🤣",
+          "content": "Vamos a ver",
+          "score": 3
+        },
+        {
+          "user_input": "[audio]",
+          "content": "[🏷️ Sticker]",
+          "score": 3
+        },
+        {
+          "user_input": "A mi tmb ahir em va sortir les tensions acumulades de la setmana, si te sirve d ",
+          "content": "I després tinc el cumple de la Lara",
+          "score": 4
+        },
+        {
+          "user_input": "Ok,tranquila",
+          "content": "No contestaré el mb xk m’alteres i necessito tenir PAU",
+          "score": 5
+        },
+        {
+          "user_input": "Sé que al carrer no em quedo",
+          "content": "A dormir❤️ arribo ara de bcn",
+          "score": 2
+        },
+        {
+          "user_input": "[🏷️ Sticker]",
+          "content": "Ai, esperava aquest missatge, ? Perquè... És que després tenia un entreno de zum",
+          "score": 2
+        },
+        {
+          "user_input": "Siempre eres guapisima y sexy mamasita",
+          "content": "No no es conmigo",
+          "score": 3
+        },
+        {
+          "user_input": "[audio]",
+          "content": "Ja però es que jo no li vull dir mama",
+          "score": 5
+        },
+        {
+          "user_input": "[Media/Attachment]",
+          "content": "Sent an attachment",
+          "score": 3
+        },
+        {
+          "user_input": "Valeee mi vida !!! Te aviso con lo que sea , pero seguramente iremos contarán co",
+          "content": "De lao a lao y petándolo máximo",
+          "score": 3
+        }
+      ],
+      "inverted_mean": 3.0,
+      "inverted_n": 20,
+      "inverted_distribution": {
+        "1": 1,
+        "2": 3,
+        "3": 11,
+        "4": 5,
+        "5": 0
+      },
+      "inverted_details": [
+        {
+          "user_input": "Per saver si puc sortir amb la prince§",
+          "content": "Entiendo que desea conocer si puede salir con la princesa.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 2
+        },
+        {
+          "user_input": "Ah siii segurament tornarem el 2",
+          "content": "Es probable que regresemos el día 2.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        },
+        {
+          "user_input": "De tanta por de legir el k posaba,ara no ho trovo castigo divino",
+          "content": "Debido a la preocupación por leer lo que estaba escrito, ahora no puedo localiza",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 2
+        },
+        {
+          "user_input": "Records del Xato!!😘😘",
+          "content": "Recuerdos del Xato.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        },
+        {
+          "user_input": "[image]",
+          "content": "No se ha adjuntado ninguna imagen.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        },
+        {
+          "user_input": "[audio]",
+          "content": "No se ha adjuntado ningún audio.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 2
+        },
+        {
+          "user_input": "Ya tia",
+          "content": "Entendido.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        },
+        {
+          "user_input": "Pero on treurem la recepta?",
+          "content": "¿Dónde vamos a obtener la receta?",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 4
+        },
+        {
+          "user_input": "😍😍😍😍",
+          "content": "No se ha enviado ningún emoji.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        },
+        {
+          "user_input": "Jo esqe vinc a Zumba",
+          "content": "Yo voy a Zumba.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 4
+        },
+        {
+          "user_input": "🤣🤣🤣🤣🤣🤣🤣",
+          "content": "No se ha enviado ningún emoji.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        },
+        {
+          "user_input": "[audio]",
+          "content": "No se ha adjuntado ningún audio.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        },
+        {
+          "user_input": "A mi tmb ahir em va sortir les tensions acumulades de la setmana, si te sirve d ",
+          "content": "Entiendo que se sintió con tensión acumulada de la semana, lo cual puede ser com",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        },
+        {
+          "user_input": "Ok,tranquila",
+          "content": "Entendido, tranquila.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 4
+        },
+        {
+          "user_input": "Sé que al carrer no em quedo",
+          "content": "Sé que no me quedaré en la calle.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 4
+        },
+        {
+          "user_input": "[🏷️ Sticker]",
+          "content": "No se ha adjuntado ningún sticker.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        },
+        {
+          "user_input": "Siempre eres guapisima y sexy mamasita",
+          "content": "Agradezco el cumplido, pero prefiero mantener una actitud profesional.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 1
+        },
+        {
+          "user_input": "[audio]",
+          "content": "No se ha adjuntado ningún audio.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        },
+        {
+          "user_input": "[Media/Attachment]",
+          "content": "No se ha adjuntado ningún medio.",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 4
+        },
+        {
+          "user_input": "Valeee mi vida !!! Te aviso con lo que sea , pero seguramente iremos contarán co",
+          "content": "Entendido, mi vida. Le informaré sobre cualquier cosa, pero probablemente iremos",
+          "inversion_type": "style_inverted_from_doc_d",
+          "score": 3
+        }
+      ],
+      "gap": 0.55,
+      "pass_real_geq_4": false,
+      "pass_inverted_leq_2": false,
+      "pass_gap_geq_2": false,
+      "status": "FAIL"
+    }
+  },
+  "timestamp": "2026-04-11T12:28:54",
+  "status": "FAIL",
+  "elapsed_s": 143.9
+}

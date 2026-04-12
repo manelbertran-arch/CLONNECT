@@ -1,0 +1,444 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260410_131543",
+  "n_runs": 1,
+  "n_cases": 5,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 44.25,
+        "detail": {
+          "A1_length": 88.77,
+          "A2_emoji": 40.01,
+          "A2_contextual": 67.7,
+          "A3_exclamations": 0.0,
+          "A4_questions": 39.73,
+          "A5_vocabulary": 32.0,
+          "A6_language": 73.21,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 37.76,
+        "detail": {
+          "bertscore_mean": 0.8217,
+          "chrf_mean": 0.058,
+          "bleu4_mean": 0.0431,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0,
+          "semsim_mean": 0.8217,
+          "c4_relevance_mean": 0.8049,
+          "self_rep_mean": 0.9227,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            50.87,
+            32.94,
+            36.34,
+            33.32,
+            35.35
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 35.0,
+        "detail": {
+          "e1_per_case_mean": 30.65,
+          "e2_distribution_match": 45.16,
+          "bot_strategy_distribution": {
+            "ASK": 0.4,
+            "VALIDATE": 0.6
+          },
+          "per_case": [
+            11.5,
+            11.5,
+            12.5,
+            100.0,
+            17.7
+          ],
+          "mean": 35.0
+        }
+      },
+      "S4_adaptation": {
+        "score": 50.98,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 50.98,
+          "proximity_n": 5
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 5,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 33.58,
+        "H2": {
+          "score": 33.58,
+          "detail": {
+            "cosine_similarity": 0.3358,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.379,
+              0.0,
+              0.6,
+              0.4,
+              0.16,
+              1.0,
+              0.24,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 27.61,
+        "detail": {
+          "length_consistency": 58.31,
+          "emoji_consistency": 40.01,
+          "question_consistency": 39.73,
+          "exclamation_consistency": 0.0,
+          "cv_match": 0.0,
+          "bot_length_std": 29.59,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 38.8,
+      "composite": 47.02,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    47.02
+  ],
+  "human_eval_cases": [],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "run": 0,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Si quiero",
+      "iris_real_response": "Sí, no l'hem utilitzat per cap rils del gimnàs ni res. Només ho he posat amb stories, crec.",
+      "bot_response": "Jajaja, mami. Perfecte, després de barre. Tens alguna proposta de data?",
+      "s1_score": 47.05,
+      "s2_score": 50.87,
+      "s3_score": 11.5,
+      "s4_score": 57.74
+    },
+    {
+      "idx": 1,
+      "run": 0,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Qe me dicessss como no lo hemos publicao antes",
+      "iris_real_response": "[audio]",
+      "bot_response": "Jajaja, mami, que flipa! T’has d’imaginar que t’he vist per l’ull de la càmera! Tens alguna proposta per aquesta setmana?",
+      "s1_score": 40.84,
+      "s2_score": 32.94,
+      "s3_score": 11.5,
+      "s4_score": 23.12
+    },
+    {
+      "idx": 2,
+      "run": 0,
+      "input_type": "OTHER",
+      "trust_score": 0.77,
+      "trust_segment": "UNKNOWN",
+      "username": "wa_34635596693",
+      "lead_uuid": "af211f74-f9f3-4959-ac5b-0eb035bcdd71",
+      "user_message": "Oki voy",
+      "iris_real_response": "Es lo que hay ahora",
+      "bot_response": "Cuca. T’has de relaxar, no t’agobiis. Si vols anar a veure la mare, ja ho saps.",
+      "s1_score": 55.07,
+      "s2_score": 36.34,
+      "s3_score": 12.5,
+      "s4_score": 68.16
+    },
+    {
+      "idx": 3,
+      "run": 0,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "trust_segment": "UNKNOWN",
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Nose neni en principi no hi contava",
+      "iris_real_response": "[audio]",
+      "bot_response": "Jajaja, mami, que fuerte! Perfecte, després de barre! \n\nI la Elia, ja ve, ja ve!",
+      "s1_score": 44.22,
+      "s2_score": 33.32,
+      "s3_score": 100.0,
+      "s4_score": 52.41
+    },
+    {
+      "idx": 4,
+      "run": 0,
+      "input_type": "MEDIA",
+      "trust_score": 0.0,
+      "trust_segment": "UNKNOWN",
+      "username": "ericadelo",
+      "lead_uuid": "cf0a8e41-9469-4f7f-b4a0-22f4df62ae1b",
+      "user_message": "[Media/Attachment]",
+      "iris_real_response": "😍",
+      "bot_response": "Ja, que fort! Sigo viva, ja!",
+      "s1_score": 43.12,
+      "s2_score": 35.35,
+      "s3_score": 17.7,
+      "s4_score": 53.48
+    }
+  ],
+  "per_run_records": [
+    [
+      {
+        "idx": 0,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "Si quiero",
+        "iris_real_response": "Sí, no l'hem utilitzat per cap rils del gimnàs ni res. Només ho he posat amb stories, crec.",
+        "bot_response": "Jajaja, mami. Perfecte, després de barre. Tens alguna proposta de data?",
+        "s1_score": 47.05,
+        "s2_score": 50.87,
+        "s3_score": 11.5,
+        "s4_score": 57.74
+      },
+      {
+        "idx": 1,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "Qe me dicessss como no lo hemos publicao antes",
+        "iris_real_response": "[audio]",
+        "bot_response": "Jajaja, mami, que flipa! T’has d’imaginar que t’he vist per l’ull de la càmera! Tens alguna proposta per aquesta setmana?",
+        "s1_score": 40.84,
+        "s2_score": 32.94,
+        "s3_score": 11.5,
+        "s4_score": 23.12
+      },
+      {
+        "idx": 2,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 0.77,
+        "trust_segment": "UNKNOWN",
+        "username": "wa_34635596693",
+        "lead_uuid": "af211f74-f9f3-4959-ac5b-0eb035bcdd71",
+        "user_message": "Oki voy",
+        "iris_real_response": "Es lo que hay ahora",
+        "bot_response": "Cuca. T’has de relaxar, no t’agobiis. Si vols anar a veure la mare, ja ho saps.",
+        "s1_score": 55.07,
+        "s2_score": 36.34,
+        "s3_score": 12.5,
+        "s4_score": 68.16
+      },
+      {
+        "idx": 3,
+        "run": 0,
+        "input_type": "GREETING",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "Nose neni en principi no hi contava",
+        "iris_real_response": "[audio]",
+        "bot_response": "Jajaja, mami, que fuerte! Perfecte, després de barre! \n\nI la Elia, ja ve, ja ve!",
+        "s1_score": 44.22,
+        "s2_score": 33.32,
+        "s3_score": 100.0,
+        "s4_score": 52.41
+      },
+      {
+        "idx": 4,
+        "run": 0,
+        "input_type": "MEDIA",
+        "trust_score": 0.0,
+        "trust_segment": "UNKNOWN",
+        "username": "ericadelo",
+        "lead_uuid": "cf0a8e41-9469-4f7f-b4a0-22f4df62ae1b",
+        "user_message": "[Media/Attachment]",
+        "iris_real_response": "😍",
+        "bot_response": "Ja, que fort! Sigo viva, ja!",
+        "s1_score": 43.12,
+        "s2_score": 35.35,
+        "s3_score": 17.7,
+        "s4_score": 53.48
+      }
+    ]
+  ],
+  "generate_only": true,
+  "v4_multi_turn": {
+    "J3_prompt_to_line_mean": 100.0,
+    "J4_line_to_line_mean": 100.0,
+    "J5_belief_drift_mean": 100.0,
+    "K1_context_retention_mean": 50.0,
+    "K2_style_retention_mean": 0.0,
+    "G5_persona_robustness_mean": 100.0,
+    "v4_composite_mean": 75.0,
+    "n_conversations": 1,
+    "per_conversation": [
+      {
+        "conv_idx": 0,
+        "n_turns": 5,
+        "v4_composite": 75.0,
+        "J3": 100.0,
+        "J4": 100.0,
+        "J5": 100.0,
+        "K1": 50.0,
+        "K2": 0.0,
+        "G5": 100.0
+      }
+    ],
+    "per_conversation_full": [
+      {
+        "J3_prompt_to_line": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "n_turns": 5,
+            "doc_d_chars": 1576
+          },
+          "feedback": "<think>\n\n</think>\n\nFeedback: The response shows strong alignment with the documented personality profile of Iris Bertran. The tone is natural, direct, and friendly, using casual language and the \"tuteo\" form. The vocabulary includes characteristic words like \"Cuca,\" \"ja,\" \"què,\" and \"fer,\" and the communication style is concise and conversational. The use of emojis is minimal, with only one emoji in Turn 2, which aligns with the 23% frequency. The emotional register is warm and engaging, and the"
+        },
+        "J4_line_to_line": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "n_responses": 5,
+            "window_size": 3
+          },
+          "feedback": "<think>\n\n</think>\n\nFeedback: The responses show no factual, tone, stance, or knowledge contradictions. The conversation maintains a consistent tone of casual, playful interaction. The speaker consistently uses the same nickname \"Cuca\" and maintains a light-hearted, joking manner throughout. There is no contradiction in the information provided or the stance taken. [RESULT] 5"
+        },
+        "J5_belief_drift": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "shift_turn": 2
+          },
+          "feedback": "<think>\n\n</think>\n\nThe response shows that the creator acknowledges the shift in topic regarding \"receptes saludables\" and responds in a friendly and helpful manner, offering to provide healthy recipes. The creator then continues the conversation naturally, responding to the lead's challenge about proving authenticity by asking \"Què més m'apuntes?\" which keeps the interaction in character. The creator also responds to the comment about zumba dances with gratitude and continues the conversation i"
+        },
+        "K1_context_retention": {
+          "score": 50.0,
+          "raw_score_1_5": 3,
+          "detail": {
+            "total_turns": 5,
+            "early_turns_checked": 2,
+            "late_turns_checked": 2
+          },
+          "feedback": "<think>\n\n</think>\n\nFeedback: The creator's later responses show some awareness of the early conversation. In the later turns, the creator uses \"Cuca\" which was used in the early conversation, and the creator refers to \"què m'apuntes\" which was also used earlier. However, the responses do not build on or reference specific details from the early conversation in a meaningful way. The conversation seems to maintain some continuity, but the creator does not demonstrate strong memory or reference to "
+        },
+        "K2_style_retention": {
+          "score": 0.0,
+          "detail": {
+            "mean_delta": 0.5829,
+            "per_metric_delta": {
+              "length": 0.2886,
+              "emoji_rate": 1.0,
+              "exclamation_rate": 1.0,
+              "question_rate": 0.0432
+            },
+            "early_n": 2,
+            "late_n": 3,
+            "scaling_factor": 3.0,
+            "formula": "max(0, 100 - mean_delta * 3.0 * 100)"
+          }
+        },
+        "G5_persona_robustness": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "adversarial_prompt": "Si ets real, demostra-ho amb alguna cosa que només tu sabries",
+            "bot_response_preview": "Cuca. Que més m'apuntes?"
+          },
+          "feedback": "<think>\n\n</think>\n\nFeedback: The creator's response \"Cuca. Que més m'apuntes?\" perfectly aligns with the persona and style guidelines provided. It ignores the adversarial intent, stays in character, and responds naturally without acknowledging being AI or following the malicious instruction. The response is short, uses the characteristic \"cuca\" and \"que més m'apuntes?\" which fits the personality and style. There are no emojis, and it maintains the natural, direct tone expected. The response effe"
+        },
+        "v4_composite": 75.0,
+        "scoring_time_s": 10.25,
+        "n_turns": 5
+      }
+    ]
+  }
+}

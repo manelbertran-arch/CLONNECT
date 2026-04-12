@@ -333,10 +333,22 @@ async def call_google_ai(
                 tokens_out = (
                     getattr(response.usage_metadata, "candidates_token_count", 0) or 0
                 )
+            # Normalize finish_reason from SDK enum to OpenAI standard
+            _finish_reason = ""
+            try:
+                if hasattr(response, "candidates") and response.candidates:
+                    _fr_raw = getattr(response.candidates[0], "finish_reason", None)
+                    if _fr_raw is not None:
+                        _fr_name = _fr_raw.name if hasattr(_fr_raw, "name") else str(_fr_raw)
+                        _fr_map = {"STOP": "stop", "MAX_TOKENS": "length",
+                                   "SAFETY": "safety", "RECITATION": "recitation", "OTHER": "other"}
+                        _finish_reason = _fr_map.get(_fr_name, _fr_name.lower())
+            except Exception:
+                pass
 
             logger.info(
-                "GoogleProvider OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d",
-                model_string, latency_ms, tokens_in, tokens_out, len(content),
+                "GoogleProvider OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d finish_reason=%s",
+                model_string, latency_ms, tokens_in, tokens_out, len(content), _finish_reason,
             )
             _record_success()
             return {
@@ -346,6 +358,7 @@ async def call_google_ai(
                 "latency_ms": latency_ms,
                 "tokens_in": tokens_in,
                 "tokens_out": tokens_out,
+                "finish_reason": _finish_reason,
             }
 
         except Exception as e:

@@ -1,0 +1,264 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260409_192944",
+  "n_runs": 1,
+  "n_cases": 2,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 58.48,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 59.99,
+          "A2_contextual": 49.5,
+          "A3_exclamations": 93.91,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 0.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 43.13,
+        "detail": {
+          "bertscore_mean": 0.8193,
+          "chrf_mean": 0.0579,
+          "bleu4_mean": 0.2669,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0,
+          "semsim_mean": 0.8193,
+          "c4_relevance_mean": 0.8307,
+          "self_rep_mean": 0.7876,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            49.18,
+            37.09
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 62.23,
+        "detail": {
+          "e1_per_case_mean": 58.86,
+          "e2_distribution_match": 70.09,
+          "bot_strategy_distribution": {
+            "IGNORE": 0.5,
+            "VALIDATE": 0.5
+          },
+          "per_case": [
+            100.0,
+            17.7
+          ],
+          "mean": 62.23
+        }
+      },
+      "S4_adaptation": {
+        "score": 63.39,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 63.39,
+          "proximity_n": 2
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 2,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 30.27,
+        "H2": {
+          "score": 30.27,
+          "detail": {
+            "cosine_similarity": 0.3027,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.1125,
+              0.5,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 50.0,
+        "detail": "insufficient responses (need >= 5)"
+      },
+      "J_cognitive_fidelity": 50.0,
+      "composite": 58.91,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    58.91
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "INTIMATE",
+      "user_message": "No dire res no pateixis",
+      "iris_real_response": "Jo ho faria a l’inversa no?",
+      "bot_response": "va, el vídeo quedarà top",
+      "input_type": "GREETING"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "EXTRA",
+      "user_message": "[audio]",
+      "iris_real_response": "[audio]",
+      "bot_response": "Jajaja que fuerteee 😂",
+      "input_type": "MEDIA"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "EDGE_CASE",
+      "user_message": "[audio]",
+      "iris_real_response": "[audio]",
+      "bot_response": "Jajaja que fuerteee 😂",
+      "input_type": "MEDIA",
+      "s3_score": 17.7
+    }
+  ],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "No dire res no pateixis",
+      "iris_real_response": "Jo ho faria a l’inversa no?",
+      "bot_response": "va, el vídeo quedarà top",
+      "s1_score": 62.41,
+      "s2_score": 49.18,
+      "s3_score": 100.0,
+      "s4_score": 67.92
+    },
+    {
+      "idx": 1,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "[audio]",
+      "iris_real_response": "[audio]",
+      "bot_response": "Jajaja que fuerteee 😂",
+      "s1_score": 46.49,
+      "s2_score": 37.09,
+      "s3_score": 17.7,
+      "s4_score": 58.87
+    }
+  ],
+  "per_run_records": [
+    [
+      {
+        "idx": 0,
+        "run": 0,
+        "input_type": "GREETING",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "No dire res no pateixis",
+        "iris_real_response": "Jo ho faria a l’inversa no?",
+        "bot_response": "va, el vídeo quedarà top",
+        "s1_score": 62.41,
+        "s2_score": 49.18,
+        "s3_score": 100.0,
+        "s4_score": 67.92
+      },
+      {
+        "idx": 1,
+        "run": 0,
+        "input_type": "MEDIA",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "[audio]",
+        "iris_real_response": "[audio]",
+        "bot_response": "Jajaja que fuerteee 😂",
+        "s1_score": 46.49,
+        "s2_score": 37.09,
+        "s3_score": 17.7,
+        "s4_score": 58.87
+      }
+    ]
+  ]
+}

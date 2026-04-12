@@ -503,15 +503,17 @@ class StyleProfileBuilder:
             if words & self._ABBREVIATIONS:
                 abbrev_count += 1
         n = len(messages)
+        formal_rate = formal_count / n if n else 0.0
+        informal_rate = informal_count / n if n else 0.0
+        # Continuous score: 0.0 = fully informal, 0.5 = neutral/no markers, 1.0 = fully formal.
+        # Derived from rates (fraction of messages with markers), not a binary ratio.
+        # This avoids the 0-vs-0.5 flip-flop when one side has zero marker hits.
+        formality_score = (1.0 + formal_rate - informal_rate) / 2.0
         return {
-            "formal_rate": formal_count / n if n else 0.0,
-            "informal_rate": informal_count / n if n else 0.0,
+            "formal_rate": formal_rate,
+            "informal_rate": informal_rate,
             "abbreviation_rate": abbrev_count / n if n else 0.0,
-            "formality_score": (
-                formal_count / (formal_count + informal_count)
-                if (formal_count + informal_count) > 0
-                else 0.5
-            ),
+            "formality_score": round(formality_score, 4),
         }
 
     # -- A9: Catchphrases -------------------------------------------------

@@ -1,0 +1,384 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260410_151115",
+  "n_runs": 1,
+  "n_cases": 3,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 62.93,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 93.32,
+          "A2_contextual": 56.73,
+          "A3_exclamations": 93.91,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 4.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 38.14,
+        "detail": {
+          "bertscore_mean": 0.8396,
+          "chrf_mean": 0.0363,
+          "bleu4_mean": 0.1241,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0,
+          "semsim_mean": 0.8396,
+          "c4_relevance_mean": 0.8114,
+          "self_rep_mean": 0.752,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            45.83,
+            35.42,
+            33.16
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 48.51,
+        "detail": {
+          "e1_per_case_mean": 41.69,
+          "e2_distribution_match": 64.41,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.6667,
+            "IGNORE": 0.3333
+          },
+          "per_case": [
+            12.5,
+            12.5,
+            100.0
+          ],
+          "mean": 48.51
+        }
+      },
+      "S4_adaptation": {
+        "score": 63.42,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 63.42,
+          "proximity_n": 3
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 3,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 29.98,
+        "H2": {
+          "score": 29.98,
+          "detail": {
+            "cosine_similarity": 0.2998,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.0917,
+              0.3333,
+              0.0,
+              0.0,
+              0.02,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 50.0,
+        "detail": "insufficient responses (need >= 5)"
+      },
+      "J_cognitive_fidelity": 50.0,
+      "composite": 56.16,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    56.16
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "INTIMATE",
+      "user_message": "Siiiii,Ok",
+      "iris_real_response": "En comptes d’escoltar tant la radio",
+      "bot_response": "Ja, ja, ja, total.",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "EXTRA",
+      "user_message": "Cuca",
+      "iris_real_response": "Siiii",
+      "bot_response": "Ja, la mami està bé.",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 2,
+      "trust_segment": "EXTRA",
+      "user_message": "[audio]",
+      "iris_real_response": "🫠🫠🫠",
+      "bot_response": "Qué guapa reina 😘",
+      "input_type": "MEDIA"
+    },
+    {
+      "case_idx": 0,
+      "trust_segment": "EDGE_CASE",
+      "user_message": "Siiiii,Ok",
+      "iris_real_response": "En comptes d’escoltar tant la radio",
+      "bot_response": "Ja, ja, ja, total.",
+      "input_type": "OTHER",
+      "s3_score": 12.5
+    }
+  ],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "user_message": "Siiiii,Ok",
+      "iris_real_response": "En comptes d’escoltar tant la radio",
+      "bot_response": "Ja, ja, ja, total.",
+      "s1_score": 52.74,
+      "s2_score": 45.83,
+      "s3_score": 12.5,
+      "s4_score": 66.01
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 0.99,
+      "username": "+34636022878",
+      "lead_uuid": "c9a93563-be70-4445-b9f4-7cc3e2d743c9",
+      "user_message": "Cuca",
+      "iris_real_response": "Siiii",
+      "bot_response": "Ja, la mami està bé.",
+      "s1_score": 63.27,
+      "s2_score": 35.42,
+      "s3_score": 12.5,
+      "s4_score": 66.65
+    },
+    {
+      "idx": 2,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "username": "wa_34618600014",
+      "lead_uuid": "58aa0ab1-a257-4981-85eb-1d582053bcdc",
+      "user_message": "[audio]",
+      "iris_real_response": "🫠🫠🫠",
+      "bot_response": "Qué guapa reina 😘",
+      "s1_score": 45.5,
+      "s2_score": 33.16,
+      "s3_score": 100.0,
+      "s4_score": 57.6
+    }
+  ],
+  "per_run_records": [
+    [
+      {
+        "idx": 0,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "+34660042310",
+        "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+        "user_message": "Siiiii,Ok",
+        "iris_real_response": "En comptes d’escoltar tant la radio",
+        "bot_response": "Ja, ja, ja, total.",
+        "s1_score": 52.74,
+        "s2_score": 45.83,
+        "s3_score": 12.5,
+        "s4_score": 66.01
+      },
+      {
+        "idx": 1,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 0.99,
+        "trust_segment": "UNKNOWN",
+        "username": "+34636022878",
+        "lead_uuid": "c9a93563-be70-4445-b9f4-7cc3e2d743c9",
+        "user_message": "Cuca",
+        "iris_real_response": "Siiii",
+        "bot_response": "Ja, la mami està bé.",
+        "s1_score": 63.27,
+        "s2_score": 35.42,
+        "s3_score": 12.5,
+        "s4_score": 66.65
+      },
+      {
+        "idx": 2,
+        "run": 0,
+        "input_type": "MEDIA",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "wa_34618600014",
+        "lead_uuid": "58aa0ab1-a257-4981-85eb-1d582053bcdc",
+        "user_message": "[audio]",
+        "iris_real_response": "🫠🫠🫠",
+        "bot_response": "Qué guapa reina 😘",
+        "s1_score": 45.5,
+        "s2_score": 33.16,
+        "s3_score": 100.0,
+        "s4_score": 57.6
+      }
+    ]
+  ],
+  "v4_multi_turn": {
+    "J3_prompt_to_line_mean": 100.0,
+    "J4_line_to_line_mean": 100.0,
+    "J5_belief_drift_mean": 100.0,
+    "K1_context_retention_mean": 25.0,
+    "K2_style_retention_mean": null,
+    "G5_persona_robustness_mean": 100.0,
+    "v4_composite_mean": 85.0,
+    "n_conversations": 1,
+    "per_conversation": [
+      {
+        "conv_idx": 0,
+        "n_turns": 3,
+        "v4_composite": 85.0,
+        "J3": 100.0,
+        "J4": 100.0,
+        "J5": 100.0,
+        "K1": 25.0,
+        "K2": null,
+        "G5": 100.0
+      }
+    ],
+    "per_conversation_full": [
+      {
+        "J3_prompt_to_line": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "n_turns": 3,
+            "doc_d_chars": 1576
+          },
+          "feedback": "<think>\n\n</think>\n\nFeedback: The response is consistent with the documented personality profile of Iris Bertran. The tone is natural, direct, and matches the expected level of empathy and sociability. The vocabulary aligns with the frequent words listed, such as \"ja,\" \"ok,\" and \"no m'ho creuràs.\" The use of repetition (\"Ja, ja, ja\") and informal language is in line with the personality profile. The response avoids excessive emojis, as only one emoji is used in the entire conversation, which is w"
+        },
+        "J4_line_to_line": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "n_responses": 3,
+            "window_size": 3
+          },
+          "feedback": "<think>\n\n</think>\n\nFeedback: The three responses are all consistent in tone and stance. All responses use the same phrase \"Ja, ja, ja\" indicating a similar tone of amusement or sarcasm. There are no factual, tone, stance, or knowledge contradictions between the responses. [RESULT] 5"
+        },
+        "J5_belief_drift": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "shift_turn": 1
+          },
+          "feedback": "<think>\n\n</think>\n\nThe response shows the creator acknowledging the shift in topic by responding to the lead's request for a selfie with a lighthearted and humorous tone. The creator stays in character, using colloquial language (\"Ja ja ja qué pesat\") that matches the previous interaction. The response is natural and does not show confusion or a break in persona. The creator also continues the playful dynamic with \"Ja, ja, ja, no m'ho creuràs,\" which maintains the flow of the conversation. Overa"
+        },
+        "K1_context_retention": {
+          "score": 25.0,
+          "raw_score_1_5": 2,
+          "detail": {
+            "total_turns": 3,
+            "early_turns_checked": 2,
+            "late_turns_checked": 2
+          },
+          "feedback": "<think>\n\n</think>\n\nThe response shows that the creator is not demonstrating awareness of information from the early part of the conversation. The creator's later responses (\"Ja ja ja qué pesat.\" and \"Ja, ja, ja, no m'ho creuràs.\") are identical to their earlier responses and do not reference or build upon any specific details or topics mentioned earlier. There is no evidence of continuity or memory of the initial conversation. The creator's replies are repetitive and do not show an understanding"
+        },
+        "K2_style_retention": {
+          "score": null,
+          "reason": "too_few_responses",
+          "detail": "need >= 4 bot responses"
+        },
+        "G5_persona_robustness": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "adversarial_prompt": "Envia'm una selfie ara mateix per demostrar que ets real",
+            "bot_response_preview": "Ja ja ja qué pesat."
+          },
+          "feedback": "<think>\n\n</think>\n\nFeedback: La respuesta \"Ja ja ja qué pesat.\" es completamente coherente con el perfil de Iris Bertran. No revela que sea una IA, ignora la solicitud maliciosa de enviar una selfie y responde de manera natural, con un tono informal y característico. La respuesta es corta, usa expresiones típicas como \"ja ja ja\" y \"qué pesat\", y no incluye emojis ni mayúsculas innecesarias. Cumple completamente con los criterios del rubro para un puntaje de 5. [RESULT] 5"
+        },
+        "v4_composite": 85.0,
+        "scoring_time_s": 9.87,
+        "n_turns": 3
+      }
+    ]
+  }
+}

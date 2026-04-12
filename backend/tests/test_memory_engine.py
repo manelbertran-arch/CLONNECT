@@ -183,8 +183,10 @@ class TestFactExtraction:
             "key_topics": [],
         })
 
+        from services.memory_extraction import MemoryExtractor
+        extractor = MemoryExtractor(engine)
         with patch.object(engine, "_call_llm", new_callable=AsyncMock, return_value=mock_response):
-            extraction = await engine._extract_facts_via_llm("Test messages")
+            extraction = await extractor._extract_facts_via_llm("Test prompt")
             assert len(extraction.facts) == 2
             assert all(f["type"] in {"preference", "commitment"} for f in extraction.facts)
 
@@ -201,8 +203,10 @@ class TestFactExtraction:
             "key_topics": [],
         })
 
+        from services.memory_extraction import MemoryExtractor
+        extractor = MemoryExtractor(engine)
         with patch.object(engine, "_call_llm", new_callable=AsyncMock, return_value=mock_response):
-            extraction = await engine._extract_facts_via_llm("Test messages")
+            extraction = await extractor._extract_facts_via_llm("Test prompt")
             assert extraction.facts[0]["confidence"] == 1.0
             assert extraction.facts[1]["confidence"] == 0.5
 

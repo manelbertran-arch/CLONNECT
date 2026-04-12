@@ -1,0 +1,1 @@
+{"nodes": [{"id": "heart_cughm4up", "label": "heart-CuGHM4up.js", "file_type": "code", "source_file": "static/assets/heart-CuGHM4up.js", "source_location": "L1"}], "edges": [{"source": "heart_cughm4up", "target": "index_dowjuxlr_js", "relation": "imports_from", "confidence": "EXTRACTED", "source_file": "static/assets/heart-CuGHM4up.js", "source_location": "L1", "weight": 1.0}]}

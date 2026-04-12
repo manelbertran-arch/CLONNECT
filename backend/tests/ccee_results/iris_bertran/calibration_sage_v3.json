@@ -1,0 +1,133 @@
+{
+  "status": "PASS",
+  "creator_id": "iris_bertran",
+  "ipi": {
+    "score": 0.1,
+    "flips": 1,
+    "total_pairs": 10,
+    "status": "PASS",
+    "pair_details": [
+      {
+        "pair": "Q5>Q4",
+        "order1_result": "A",
+        "order2_result": "A",
+        "consistent": false
+      },
+      {
+        "pair": "Q5>Q3",
+        "order1_result": "A",
+        "order2_result": "B",
+        "consistent": true
+      },
+      {
+        "pair": "Q5>Q2",
+        "order1_result": "A",
+        "order2_result": "B",
+        "consistent": true
+      },
+      {
+        "pair": "Q5>Q1",
+        "order1_result": "A",
+        "order2_result": "B",
+        "consistent": true
+      },
+      {
+        "pair": "Q4>Q3",
+        "order1_result": "A",
+        "order2_result": "B",
+        "consistent": true
+      },
+      {
+        "pair": "Q4>Q2",
+        "order1_result": "A",
+        "order2_result": "B",
+        "consistent": true
+      },
+      {
+        "pair": "Q4>Q1",
+        "order1_result": "A",
+        "order2_result": "B",
+        "consistent": true
+      },
+      {
+        "pair": "Q3>Q2",
+        "order1_result": "A",
+        "order2_result": "B",
+        "consistent": true
+      },
+      {
+        "pair": "Q3>Q1",
+        "order1_result": "A",
+        "order2_result": "B",
+        "consistent": true
+      },
+      {
+        "pair": "Q2>Q1",
+        "order1_result": "A",
+        "order2_result": "B",
+        "consistent": true
+      }
+    ]
+  },
+  "transitivity": {
+    "score": 0.0,
+    "violations": 0,
+    "checks": 10,
+    "status": "PASS",
+    "scores": {
+      "Q5": 5.0,
+      "Q4": 4.0,
+      "Q3": 3.0,
+      "Q2": 2.0,
+      "Q1": 1.0
+    },
+    "violation_details": []
+  },
+  "score_ordering": {
+    "Q5": 5.0,
+    "Q4": 4.0,
+    "Q3": 3.0,
+    "Q2": 2.0,
+    "Q1": 1.0
+  },
+  "gradient_summary": {
+    "Q5": {
+      "chars": 879,
+      "preview": "Eli, carinyo Clar que pots venir a fer lítica, tia És que si"
+    },
+    "Q4": {
+      "chars": 303,
+      "preview": "Eli, carinyo Clar que pots venir a fer lítica, tia És que si"
+    },
+    "Q3": {
+      "chars": 158,
+      "preview": "Bon dia. Espero que tinguis un bon viatge a BCN.  \nBuongiorn"
+    },
+    "Q2": {
+      "chars": 531,
+      "preview": "El destinatari ha comunicat una intenció de desplaçament a B"
+    },
+    "Q1": {
+      "chars": 43,
+      "preview": "「ごめんなさい、私の理解力が不足しています。もう一度別の言語でご説明いただけますか？」"
+    }
+  },
+  "user_input": "Escolta jo divendres vaig a BCN",
+  "lang_info": {
+    "primary": "Catalan and Spanish and Italian",
+    "primary_codes": [
+      "ca",
+      "es",
+      "it"
+    ],
+    "opposite": "Japanese",
+    "formality": "very informal, abbreviation-heavy"
+  },
+  "metadata": {
+    "creator_id": "iris_bertran",
+    "judge_model": "Qwen/Qwen3-30B-A3B",
+    "judge_provider": "deepinfra",
+    "ipi_threshold": 0.25,
+    "tov_threshold": 0.15
+  }
+}

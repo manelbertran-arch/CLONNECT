@@ -1,0 +1,264 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260410_113429",
+  "n_runs": 1,
+  "n_cases": 2,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 57.92,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 40.01,
+          "A2_contextual": 63.94,
+          "A3_exclamations": 93.91,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 0.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 46.43,
+        "detail": {
+          "bertscore_mean": 0.8456,
+          "chrf_mean": 0.0926,
+          "bleu4_mean": 0.0929,
+          "rouge_l_mean": 0.0084,
+          "meteor_mean": 0.0049,
+          "semsim_mean": 0.8456,
+          "c4_relevance_mean": 0.7799,
+          "self_rep_mean": 0.7561,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            52.26,
+            40.6
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 61.09,
+        "detail": {
+          "e1_per_case_mean": 57.23,
+          "e2_distribution_match": 70.09,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.5,
+            "IGNORE": 0.5
+          },
+          "per_case": [
+            14.5,
+            100.0
+          ],
+          "mean": 61.09
+        }
+      },
+      "S4_adaptation": {
+        "score": 67.77,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 67.77,
+          "proximity_n": 2
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 2,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 24.4,
+        "H2": {
+          "score": 24.4,
+          "detail": {
+            "cosine_similarity": 0.244,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.1175,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 50.0,
+        "detail": "insufficient responses (need >= 5)"
+      },
+      "J_cognitive_fidelity": 50.0,
+      "composite": 59.22,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    59.22
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "INTIMATE",
+      "user_message": "🤣🤣🤣🤣🤣🤣 burri",
+      "iris_real_response": "Espera que acabe la semana",
+      "bot_response": "ja, el vídeo ha quedat top",
+      "input_type": "LAUGH"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "EXTRA",
+      "user_message": "[audio]",
+      "iris_real_response": "[🎤 Audio]: Ericka, cariño, de momento solo hay 10 personas a barra. Con 10 personas no vamos a hacer un vídeo, ¿vale?\n\n¿Lo sabes ya porque tienes algo? Si no, no tienes que entrenar, ya está. Pregunta porque hay gente que se apuntará a la mano, que es lo que hace nuevamente, pero no lo sé tampoco. No me corre tanta prisa, sabes, porque ahora tenemos continuos de contenido de sobras.\n\nPero dime algo. Yo iba a ver las historias para ver lo que habías colgado y no has colgado nada, cabrona. Con que te he tallado hoy, pero ya quería algún trocito, algo chulo, a colgar. Si te sale del papo, lo haces. Adiós.",
+      "bot_response": "Bé, me flipa el vídeo",
+      "input_type": "MEDIA"
+    },
+    {
+      "case_idx": 0,
+      "trust_segment": "EDGE_CASE",
+      "user_message": "🤣🤣🤣🤣🤣🤣 burri",
+      "iris_real_response": "Espera que acabe la semana",
+      "bot_response": "ja, el vídeo ha quedat top",
+      "input_type": "LAUGH",
+      "s3_score": 14.5
+    }
+  ],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "LAUGH",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "🤣🤣🤣🤣🤣🤣 burri",
+      "iris_real_response": "Espera que acabe la semana",
+      "bot_response": "ja, el vídeo ha quedat top",
+      "s1_score": 61.92,
+      "s2_score": 52.26,
+      "s3_score": 14.5,
+      "s4_score": 68.56
+    },
+    {
+      "idx": 1,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "[audio]",
+      "iris_real_response": "[🎤 Audio]: Ericka, cariño, de momento solo hay 10 personas a barra. Con 10 personas no vamos a hacer un vídeo, ¿vale?\n\n¿Lo sabes ya porque tienes algo? Si no, no tienes que entrenar, ya está. Pregunta porque hay gente que se apuntará a la mano, que es lo que hace nuevamente, pero no lo sé tampoco. No me corre tanta prisa, sabes, porque ahora tenemos continuos de contenido de sobras.\n\nPero dime algo. Yo iba a ver las historias para ver lo que habías colgado y no has colgado nada, cabrona. Con que te he tallado hoy, pero ya quería algún trocito, algo chulo, a colgar. Si te sale del papo, lo haces. Adiós.",
+      "bot_response": "Bé, me flipa el vídeo",
+      "s1_score": 62.51,
+      "s2_score": 40.6,
+      "s3_score": 100.0,
+      "s4_score": 66.97
+    }
+  ],
+  "per_run_records": [
+    [
+      {
+        "idx": 0,
+        "run": 0,
+        "input_type": "LAUGH",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "🤣🤣🤣🤣🤣🤣 burri",
+        "iris_real_response": "Espera que acabe la semana",
+        "bot_response": "ja, el vídeo ha quedat top",
+        "s1_score": 61.92,
+        "s2_score": 52.26,
+        "s3_score": 14.5,
+        "s4_score": 68.56
+      },
+      {
+        "idx": 1,
+        "run": 0,
+        "input_type": "MEDIA",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "[audio]",
+        "iris_real_response": "[🎤 Audio]: Ericka, cariño, de momento solo hay 10 personas a barra. Con 10 personas no vamos a hacer un vídeo, ¿vale?\n\n¿Lo sabes ya porque tienes algo? Si no, no tienes que entrenar, ya está. Pregunta porque hay gente que se apuntará a la mano, que es lo que hace nuevamente, pero no lo sé tampoco. No me corre tanta prisa, sabes, porque ahora tenemos continuos de contenido de sobras.\n\nPero dime algo. Yo iba a ver las historias para ver lo que habías colgado y no has colgado nada, cabrona. Con que te he tallado hoy, pero ya quería algún trocito, algo chulo, a colgar. Si te sale del papo, lo haces. Adiós.",
+        "bot_response": "Bé, me flipa el vídeo",
+        "s1_score": 62.51,
+        "s2_score": 40.6,
+        "s3_score": 100.0,
+        "s4_score": 66.97
+      }
+    ]
+  ]
+}

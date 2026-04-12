@@ -29,6 +29,34 @@ from core.evaluation.strategy_map_builder import classify_strategy
 from services.vocabulary_extractor import tokenize
 
 # ---------------------------------------------------------------------------
+# A9 fix: Instagram system-label tokens that pollute creator catchphrase lists.
+# Labels like "media attachment", "mentioned their story", "https www instagram"
+# are injected by the IG API and never appear in bot responses — filtering them
+# out gives a cleaner catchphrase signal.
+# ---------------------------------------------------------------------------
+_IG_SYSTEM_LABEL_TOKENS: frozenset = frozenset([
+    "attachment",
+    "voice message",
+    "mentioned",
+    "their story",
+    "http",
+    "www",
+    "instagram",
+])
+
+
+def _filter_ig_catchphrases(catchphrases: set) -> set:
+    """Remove Instagram system metadata labels from a catchphrase set.
+
+    Any phrase containing one of the known IG system tokens is dropped.
+    Applied at score time so the style_profile JSON is never modified.
+    """
+    return {
+        cp for cp in catchphrases
+        if not any(token in cp for token in _IG_SYSTEM_LABEL_TOKENS)
+    }
+
+# ---------------------------------------------------------------------------
 # Metric imports from cpe_v3_evaluator
 # ---------------------------------------------------------------------------
 from tests.cpe_v3_evaluator import (
@@ -188,8 +216,14 @@ def score_s1_style_fidelity(
     bot_emoji = [1.0 if EMOJI_RE.search(r) else 0.0 for r in bot_responses]
     bot_emoji_rate = sum(bot_emoji) / len(bot_emoji)
     creator_emoji_rate = style_profile["A2_emoji"]["global_rate"]
-    # Score: closeness to creator rate (within ±0.2 = perfect)
-    a2_score = max(0.0, 100.0 - abs(bot_emoji_rate - creator_emoji_rate) * 200)
+    # Derive penalty multiplier from binomial sampling variance so that ±2σ of
+    # natural sampling noise costs ≤10 points.  Hardcoded 200 caused 40-point
+    # swings across runs on the same model/config.
+    # σ = sqrt(p*(1-p)/n), multiplier = 10 / (2σ), capped at 150.
+    _n_emoji = len(bot_responses)
+    _emoji_sigma = max(0.01, (creator_emoji_rate * (1.0 - creator_emoji_rate) / _n_emoji) ** 0.5)
+    _a2_multiplier = min(150.0, 10.0 / (2.0 * _emoji_sigma))
+    a2_score = max(0.0, 100.0 - abs(bot_emoji_rate - creator_emoji_rate) * _a2_multiplier)
 
     # A2 contextual: per-context emoji match
     a2_ctx_scores = []
@@ -235,20 +269,24 @@ def score_s1_style_fidelity(
     else:
         a5_score = 50.0
 
-    # A6: Language ratio match
+    # A6: Language distribution match (v5.3 fix).
+    # Old scorer compared only the dominant language, penalising creators who
+    # naturally alternate languages (e.g. ca/es). New scorer rewards each bot
+    # response proportionally to how often the creator uses that language.
+    # Score per response = creator_ratio[detected_lang] / max_creator_ratio
+    # A6_batch = mean of per-response scores * 100.
     creator_langs = style_profile["A6_language_ratio"]["ratios"]
     if creator_langs:
         from services.calibration_loader import detect_message_language
-        bot_langs = {}
+        creator_dominant_ratio = max(creator_langs.values())
+        per_response_scores: List[float] = []
         for r in bot_responses:
             lang = detect_message_language(r) or "unknown"
-            bot_langs[lang] = bot_langs.get(lang, 0) + 1
-        bot_total = sum(bot_langs.values())
-        bot_ratios = {k: v / bot_total for k, v in bot_langs.items()}
-        # Compare dominant language
-        creator_dominant = max(creator_langs, key=creator_langs.get)
-        bot_dominant_ratio = bot_ratios.get(creator_dominant, 0.0)
-        a6_score = min(100.0, bot_dominant_ratio * 100 / max(creator_langs[creator_dominant], 0.01))
+            lang_weight = creator_langs.get(lang, 0.0)
+            per_response_scores.append(
+                min(1.0, lang_weight / max(creator_dominant_ratio, 1e-6))
+            )
+        a6_score = min(100.0, float(np.mean(per_response_scores)) * 100) if per_response_scores else 50.0
     else:
         a6_score = 50.0
 
@@ -263,18 +301,19 @@ def score_s1_style_fidelity(
     a7_score = float(np.mean(a7_frag_scores)) if a7_frag_scores else 50.0
 
     # A8: Formality match
+    # Recompute creator_formality from stored rates (not stored score) so stale profiles
+    # with the old binary-ratio formula don't break the comparison.
     a8_profile = style_profile["A8_formality"]
-    creator_formality = a8_profile["formality_score"]
-    # Measure bot formality inline (avoid unbound method call)
+    creator_formality = (1.0 + a8_profile.get("formal_rate", 0.0) - a8_profile.get("informal_rate", 0.0)) / 2.0
     from core.evaluation.style_profile_builder import StyleProfileBuilder
     bot_formality = StyleProfileBuilder()._compute_a8(bot_responses)["formality_score"]
     a8_score = max(0.0, 100.0 - abs(bot_formality - creator_formality) * 200)
 
-    # A9: Catchphrase usage
-    catchphrases = set(
+    # A9: Catchphrase usage (v5.3 fix: strip IG system labels before scoring).
+    catchphrases = _filter_ig_catchphrases(set(
         item["phrase"]
         for item in style_profile["A9_catchphrases"].get("catchphrases", [])
-    )
+    ))
     if catchphrases:
         bot_text = " ".join(bot_responses).lower()
         used = sum(1 for cp in catchphrases if cp in bot_text)
@@ -359,30 +398,32 @@ def score_s1_per_case(
     else:
         a5 = 50.0
 
-    # A6: language match
+    # A6: language distribution match (v5.3 fix — per-case).
+    # Score = creator's ratio for detected language / max creator ratio * 100.
+    # Creator who mixes ca/es: response in es scores ~50, not 0.
     creator_langs = style_profile["A6_language_ratio"]["ratios"]
     if creator_langs:
         from services.calibration_loader import detect_message_language
-        creator_dominant = max(creator_langs, key=creator_langs.get)
+        creator_dominant_ratio = max(creator_langs.values())
         bot_lang = detect_message_language(bot_response) or "unknown"
-        a6 = 100.0 if bot_lang == creator_dominant else max(
-            0.0, 100.0 - (1.0 - creator_langs.get(bot_lang, 0.0)) * 100.0
-        )
+        lang_weight = creator_langs.get(bot_lang, 0.0)
+        a6 = min(100.0, (lang_weight / max(creator_dominant_ratio, 1e-6)) * 100.0)
     else:
         a6 = 50.0
 
     # A8: formality (single response — noisy but included)
+    # Recompute from rates for backward-compat with stale profiles.
     a8_profile = style_profile["A8_formality"]
-    creator_formality = a8_profile["formality_score"]
+    creator_formality = (1.0 + a8_profile.get("formal_rate", 0.0) - a8_profile.get("informal_rate", 0.0)) / 2.0
     from core.evaluation.style_profile_builder import StyleProfileBuilder
     bot_formality = StyleProfileBuilder()._compute_a8([bot_response])["formality_score"]
     a8 = max(0.0, 100.0 - abs(bot_formality - creator_formality) * 200.0)
 
-    # A9: catchphrase
-    catchphrases = set(
+    # A9: catchphrase (v5.3 fix: strip IG system labels before scoring).
+    catchphrases = _filter_ig_catchphrases(set(
         item["phrase"]
         for item in style_profile["A9_catchphrases"].get("catchphrases", [])
-    )
+    ))
     if catchphrases:
         text_lower = bot_response.lower()
         a9 = 100.0 if any(cp in text_lower for cp in catchphrases) else 0.0
@@ -583,14 +624,14 @@ def score_s3_strategic_alignment(
             case_scores.append(50.0)  # no data = neutral
             continue
 
-        # Score: is bot strategy in creator's top 2?
-        sorted_strategies = sorted(dist.items(), key=lambda x: x[1], reverse=True)
-        top2 = {s[0] for s in sorted_strategies[:2]}
-
-        if bot_strategy in top2:
-            case_scores.append(100.0)
-        elif bot_strategy in dist:
-            case_scores.append(dist[bot_strategy] * 100)
+        # Score: proportional to how often the creator uses this strategy
+        # for this input type, normalized by the most-used strategy.
+        # Creator's distribution IS the ground truth — IGNORE at 45% is
+        # the reference (100), VALIDATE at 12.5% scores 27.7, not 12.5.
+        # Eliminates the binary cliff at the old top-2 boundary.
+        max_prob = max(dist.values()) if dist else 0.0
+        if bot_strategy in dist and max_prob > 0:
+            case_scores.append(dist[bot_strategy] / max_prob * 100.0)
         else:
             case_scores.append(0.0)
 
@@ -678,13 +719,25 @@ def score_s4_adaptation(
 
         if len(valid_segs) >= 2:
             bot_metrics = {}
+            # Per-response values for computing within-segment variability
+            bot_per_response: Dict[str, Dict[str, list]] = {}
             for seg in valid_segs:
                 resps = by_segment[seg]
+                lens = [len(r) for r in resps]
+                emojis = [1.0 if EMOJI_RE.search(r) else 0.0 for r in resps]
+                excls = [1.0 if "!" in r else 0.0 for r in resps]
+                qs = [1.0 if "?" in r else 0.0 for r in resps]
                 bot_metrics[seg] = {
-                    "length_mean": np.mean([len(r) for r in resps]),
-                    "emoji_rate": sum(1 for r in resps if EMOJI_RE.search(r)) / len(resps),
-                    "exclamation_rate": sum(1 for r in resps if "!" in r) / len(resps),
-                    "question_rate": sum(1 for r in resps if "?" in r) / len(resps),
+                    "length_mean": np.mean(lens),
+                    "emoji_rate": np.mean(emojis),
+                    "exclamation_rate": np.mean(excls),
+                    "question_rate": np.mean(qs),
+                }
+                bot_per_response[seg] = {
+                    "length_mean": lens,
+                    "emoji_rate": emojis,
+                    "exclamation_rate": excls,
+                    "question_rate": qs,
                 }
 
             for metric_name in ["length_mean", "emoji_rate", "exclamation_rate", "question_rate"]:
@@ -701,14 +754,29 @@ def score_s4_adaptation(
                 x = np.arange(len(bot_vals), dtype=float)
                 slope = np.polyfit(x, np.array(bot_vals, dtype=float), 1)[0]
 
-                if creator_dir == "increases_with_trust" and slope > 0:
-                    direction_scores.append(100.0)
-                elif creator_dir == "decreases_with_trust" and slope < 0:
-                    direction_scores.append(100.0)
-                elif abs(slope) < 0.01:
-                    direction_scores.append(50.0)
+                # Degree of alignment: effect size = slope / within-segment std.
+                # No hardcoded thresholds — the data's own variability is the
+                # reference scale. tanh maps effect size to [0, 100] smoothly:
+                #   effect=0 → 50 (no trend), |effect|=1 → ~76/24, |effect|=2 → ~96/4
+                all_response_vals: list = []
+                for seg in valid_segs:
+                    all_response_vals.extend(bot_per_response[seg][metric_name])
+
+                overall_std = float(np.std(all_response_vals, ddof=1)) if len(all_response_vals) >= 3 else 0.0
+
+                if overall_std > 0:
+                    effect = slope / overall_std
                 else:
-                    direction_scores.append(0.0)
+                    # Zero variance across all responses → can't assess trend
+                    direction_scores.append(50.0)
+                    continue
+
+                if creator_dir == "increases_with_trust":
+                    alignment = effect
+                else:  # decreases_with_trust
+                    alignment = -effect
+
+                direction_scores.append(50.0 + 50.0 * float(np.tanh(alignment)))
 
     # --- Blend scores ---
     has_proximity = len(proximity_scores) > 0
@@ -986,9 +1054,15 @@ def score_b1_ocean_alignment(
     bot_responses: List[str],
     style_profile: Dict,
 ) -> Dict[str, Any]:
-    """B1: Cosine similarity of Big Five personality vectors."""
+    """B1: Cosine similarity of Big Five personality vectors.
+
+    Returns score=None when the creator's vocabulary activates fewer than 2 OCEAN
+    trait dimensions, making cosine similarity a coin-flip rather than a signal
+    (common for non-English creators whose vocabulary has sparse lexicon overlap).
+    Callers must skip B1 from composites when score is None.
+    """
     if not bot_responses:
-        return {"score": 50.0, "detail": "no data"}
+        return {"score": None, "detail": "no data"}
 
     # Creator vector from profile vocabulary + catchphrases
     creator_words = [
@@ -999,25 +1073,40 @@ def score_b1_ocean_alignment(
     ]
     creator_texts = creator_words + creator_phrases
     if not creator_texts:
-        return {"score": 50.0, "detail": "no creator vocabulary data"}
+        return {"score": None, "detail": "no creator vocabulary data"}
 
     creator_vec = _ocean_vector(creator_texts)
     bot_vec = _ocean_vector(bot_responses)
 
-    # Cosine similarity
-    dot = float(np.dot(creator_vec, bot_vec))
     norm_c = float(np.linalg.norm(creator_vec))
     norm_b = float(np.linalg.norm(bot_vec))
-    if norm_c < 1e-9 or norm_b < 1e-9:
-        return {"score": 50.0, "detail": "zero norm vector"}
+    creator_nonzero = int(np.count_nonzero(creator_vec))
+    bot_nonzero = int(np.count_nonzero(bot_vec))
 
-    cosine_sim = dot / (norm_c * norm_b)
+    # Require at least 2 active trait dimensions in the creator vector.  With only
+    # 1 dimension the cosine is either 0 (orthogonal) or 1 (same trait) depending
+    # purely on random word sampling — not a meaningful signal.
+    if creator_nonzero < 2 or norm_c < 1e-9 or norm_b < 1e-9:
+        return {
+            "score": None,
+            "detail": {
+                "reason": "insufficient_ocean_signal",
+                "creator_nonzero_dims": creator_nonzero,
+                "bot_nonzero_dims": bot_nonzero,
+                "creator_vector": [round(v, 4) for v in creator_vec],
+                "bot_vector": [round(v, 4) for v in bot_vec],
+            },
+        }
+
+    cosine_sim = float(np.dot(creator_vec, bot_vec)) / (norm_c * norm_b)
     score = max(0.0, min(100.0, cosine_sim * 100))
 
     return {
         "score": round(score, 2),
         "detail": {
             "cosine_similarity": round(cosine_sim, 4),
+            "creator_nonzero_dims": creator_nonzero,
+            "bot_nonzero_dims": bot_nonzero,
             "creator_vector": [round(v, 4) for v in creator_vec],
             "bot_vector": [round(v, 4) for v in bot_vec],
         },
@@ -1253,7 +1342,11 @@ class CCEEScorer:
         # --- B: Persona Fidelity ---
         b1 = score_b1_ocean_alignment(bot_responses, self.style_profile)
         b4 = score_b4_knowledge_boundaries(bot_responses, test_cases)
-        b_components = [b1["score"], b4["score"]]
+        # B1 returns score=None when the creator's vocabulary lacks sufficient OCEAN
+        # signal (e.g. non-English creators).  Only include it when valid.
+        b_components = [b4["score"]]
+        if b1.get("score") is not None:
+            b_components.append(b1["score"])
         if llm_scores:
             b2_score = llm_scores.get("B2_persona_consistency", {}).get("score")
             b5_score = llm_scores.get("B5_emotional_signature", {}).get("score")

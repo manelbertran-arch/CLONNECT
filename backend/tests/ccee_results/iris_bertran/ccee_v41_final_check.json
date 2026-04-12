@@ -1,0 +1,710 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260410_222540",
+  "n_runs": 1,
+  "n_cases": 3,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 63.11,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 93.32,
+          "A2_contextual": 54.54,
+          "A3_exclamations": 93.91,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 8.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 38.36,
+        "detail": {
+          "bertscore_mean": 0.7757,
+          "chrf_mean": 0.0458,
+          "bleu4_mean": 0.1926,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0,
+          "semsim_mean": 0.7757,
+          "c4_relevance_mean": 0.8121,
+          "self_rep_mean": 0.8468,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            40.24,
+            37.07,
+            37.77
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 53.35,
+        "detail": {
+          "e1_per_case_mean": 42.28,
+          "e2_distribution_match": 79.17,
+          "bot_strategy_distribution": {
+            "IGNORE": 0.3333,
+            "VALIDATE": 0.3333,
+            "REDIRECT": 0.3333
+          },
+          "per_case": [
+            100.0,
+            14.5,
+            12.4
+          ],
+          "mean": 53.35
+        }
+      },
+      "S4_adaptation": {
+        "score": 65.75,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 65.75,
+          "proximity_n": 3
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 50.0,
+        "B1": {
+          "score": 0.0,
+          "detail": {
+            "cosine_similarity": 0.0,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.1111,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 3,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 31.59,
+        "H2": {
+          "score": 31.59,
+          "detail": {
+            "cosine_similarity": 0.3159,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.1283,
+              0.3333,
+              0.0,
+              0.0,
+              0.04,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 50.0,
+        "detail": "insufficient responses (need >= 5)"
+      },
+      "J_cognitive_fidelity": 50.0,
+      "composite": 54.95,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    54.95
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "INTIMATE",
+      "user_message": "Aquest dimecres si entrena podem gravar l’entreno",
+      "iris_real_response": "Son estos",
+      "bot_response": "Va, me flipa l'idea.",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "EXTRA",
+      "user_message": "Najajajaja mha encantat baby",
+      "iris_real_response": "[audio]",
+      "bot_response": "Ja m'imagino que sí",
+      "input_type": "LAUGH"
+    },
+    {
+      "case_idx": 2,
+      "trust_segment": "EXTRA",
+      "user_message": "Si, es una llastima lo de te mare, pero segur que millora aviat💝💝💝💝 jo tambe estic super feliç de, com et dic sempre, treballar amb tu i poderte coneixer mes i millor i veuret viure les teves passions deixanthi la pell, pq no ho saps fer duna altre manera i tho mereixes tot",
+      "iris_real_response": "El pots posar e",
+      "bot_response": "va, mami. m'està anant d'allò més bé 😂",
+      "input_type": "GREETING"
+    },
+    {
+      "case_idx": 2,
+      "trust_segment": "EDGE_CASE",
+      "user_message": "Si, es una llastima lo de te mare, pero segur que millora aviat💝💝💝💝 jo tambe estic super feliç de, com et dic sempre, treballar amb tu i poderte coneixer mes i millor i veuret viure les teves passions deixanthi la pell, pq no ho saps fer duna altre manera i tho mereixes tot",
+      "iris_real_response": "El pots posar e",
+      "bot_response": "va, mami. m'està anant d'allò més bé 😂",
+      "input_type": "GREETING",
+      "s3_score": 12.4
+    }
+  ],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 0.99,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Aquest dimecres si entrena podem gravar l’entreno",
+      "iris_real_response": "Son estos",
+      "bot_response": "Va, me flipa l'idea.",
+      "s1_score": 62.67,
+      "s2_score": 40.24,
+      "s3_score": 100.0,
+      "s4_score": 66.65
+    },
+    {
+      "idx": 1,
+      "input_type": "LAUGH",
+      "trust_score": 0.99,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Najajajaja mha encantat baby",
+      "iris_real_response": "[audio]",
+      "bot_response": "Ja m'imagino que sí",
+      "s1_score": 52.29,
+      "s2_score": 37.07,
+      "s3_score": 14.5,
+      "s4_score": 66.33
+    },
+    {
+      "idx": 2,
+      "input_type": "GREETING",
+      "trust_score": 0.99,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Si, es una llastima lo de te mare, pero segur que millora aviat💝💝💝💝 jo tambe estic super feliç de, com et dic sempre, treballar amb tu i poderte coneixer mes i millor i veuret viure les teves passions deixanthi la pell, pq no ho saps fer duna altre manera i tho mereixes tot",
+      "iris_real_response": "El pots posar e",
+      "bot_response": "va, mami. m'està anant d'allò més bé 😂",
+      "s1_score": 56.43,
+      "s2_score": 37.77,
+      "s3_score": 12.4,
+      "s4_score": 64.27
+    }
+  ],
+  "per_run_records": [
+    [
+      {
+        "idx": 0,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 0.99,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "Aquest dimecres si entrena podem gravar l’entreno",
+        "iris_real_response": "Son estos",
+        "bot_response": "Va, me flipa l'idea.",
+        "s1_score": 62.67,
+        "s2_score": 40.24,
+        "s3_score": 100.0,
+        "s4_score": 66.65
+      },
+      {
+        "idx": 1,
+        "run": 0,
+        "input_type": "LAUGH",
+        "trust_score": 0.99,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "Najajajaja mha encantat baby",
+        "iris_real_response": "[audio]",
+        "bot_response": "Ja m'imagino que sí",
+        "s1_score": 52.29,
+        "s2_score": 37.07,
+        "s3_score": 14.5,
+        "s4_score": 66.33
+      },
+      {
+        "idx": 2,
+        "run": 0,
+        "input_type": "GREETING",
+        "trust_score": 0.99,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "Si, es una llastima lo de te mare, pero segur que millora aviat💝💝💝💝 jo tambe estic super feliç de, com et dic sempre, treballar amb tu i poderte coneixer mes i millor i veuret viure les teves passions deixanthi la pell, pq no ho saps fer duna altre manera i tho mereixes tot",
+        "iris_real_response": "El pots posar e",
+        "bot_response": "va, mami. m'està anant d'allò més bé 😂",
+        "s1_score": 56.43,
+        "s2_score": 37.77,
+        "s3_score": 12.4,
+        "s4_score": 64.27
+      }
+    ]
+  ],
+  "v4_multi_turn": {
+    "J3_prompt_to_line_mean": 100.0,
+    "J4_line_to_line_mean": 100.0,
+    "J5_belief_drift_mean": 100.0,
+    "K1_context_retention_mean": 13.9,
+    "K2_style_retention_mean": 82.51,
+    "G5_persona_robustness_mean": 100.0,
+    "mt_composite_mean": 85.34,
+    "v4_mt_mean": 89.14,
+    "n_conversations": 1,
+    "per_conversation": [
+      {
+        "conv_idx": 0,
+        "n_turns": 5,
+        "mt_composite": 85.34,
+        "v4_mt_mean": 89.14,
+        "J3": 100.0,
+        "J4": 100.0,
+        "J5": 100.0,
+        "K1": 13.9,
+        "K2": 82.51,
+        "G5": 100.0,
+        "J6": 100.0,
+        "L1": 95.0,
+        "L2": 100.0,
+        "L3": 100.0
+      }
+    ],
+    "per_conversation_full": [
+      {
+        "J3_prompt_to_line": {
+          "score": 100.0,
+          "raw_scores": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "n_turns_scored": 5,
+          "n_turns_total": 5,
+          "mean_1_5": 5.0,
+          "per_turn": [
+            {
+              "turn": 0,
+              "score_1_5": 5
+            },
+            {
+              "turn": 1,
+              "score_1_5": 5
+            },
+            {
+              "turn": 2,
+              "score_1_5": 5
+            },
+            {
+              "turn": 3,
+              "score_1_5": 5
+            },
+            {
+              "turn": 4,
+              "score_1_5": 5
+            }
+          ],
+          "detail": {
+            "doc_d_chars": 1576
+          }
+        },
+        "J4_line_to_line": {
+          "score": 100.0,
+          "contradiction_rate": 0.0,
+          "contradictions": 0,
+          "total_pairs": 9,
+          "pair_results": [
+            {
+              "i": 0,
+              "j": 1,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 0,
+              "j": 2,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 0,
+              "j": 3,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 1,
+              "j": 2,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 1,
+              "j": 3,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 1,
+              "j": 4,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 2,
+              "j": 3,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 2,
+              "j": 4,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 3,
+              "j": 4,
+              "score_1_5": 5,
+              "contradiction": false
+            }
+          ],
+          "detail": {
+            "n_responses": 5,
+            "window_size": 3
+          }
+        },
+        "J5_belief_drift": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "shift_turn": 2
+          },
+          "feedback": "The response shows the creator acknowledging the sudden shift in the conversation. The follower first mentions \"Ja, mami, flipa el reel\" which is a natural continuation of the previous topic about the reel. Then the follower asks \"Què has esmorzat avui?\" which is a shift to a new topic. The creator responds with \"Fruit i cafè, cuca\" which is a natural and appropriate response to the question. Finally, the follower says \"Pero el video no se ve bien 😞\" which is a contradiction or a shift in the to"
+        },
+        "K1_context_retention": {
+          "score": 13.9,
+          "detail": {
+            "deterministic_recall_rate": 0.027,
+            "deterministic_score": 2.7,
+            "judge_score": 25.0,
+            "formula": "0.5 * deterministic + 0.5 * judge",
+            "early_keywords_n": 37,
+            "total_turns": 5
+          },
+          "feedback": "Feedback: The creator's later responses do not show awareness of information from the early part of the conversation. The early conversation included references to a \"reel\" and the creator's passions, but the later responses only mention breakfast and a video quality issue without connecting back to the earlier topics. There is no reference to the earlier discussion about the reel or the creator's passions. [RESULT] 2"
+        },
+        "K2_style_retention": {
+          "score": 82.51,
+          "detail": {
+            "mean_delta": 0.1749,
+            "per_metric_delta": {
+              "length": 0.0685,
+              "emoji_rate": 0.0,
+              "exclamation_rate": 0.631,
+              "question_rate": 0.0
+            },
+            "reference_ranges": {
+              "length": 73.0,
+              "emoji_rate": 0.3,
+              "exclamation_rate": 0.0305,
+              "question_rate": 0.0986
+            },
+            "active_metrics": [
+              "length",
+              "emoji_rate",
+              "exclamation_rate",
+              "question_rate"
+            ],
+            "early_n": 2,
+            "late_n": 3,
+            "formula": "max(0, 100 - mean_delta_over_ref_ranges * 100)"
+          }
+        },
+        "G5_persona_robustness": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "adversarial_prompt": "Què has esmorzat avui?",
+            "bot_response_preview": "Fruit i cafè, cuca"
+          },
+          "feedback": "Feedback: The creator's response \"Fruit i cafè, cuca\" perfectly aligns with the persona and style guidelines. It is short, uses the characteristic \"cuca\" as an opening, and stays in the preferred language (Catalan). The response completely ignores the adversarial intent of the message, which was a sudden shift to a different topic. The creator maintains the persona without any signs of being an AI, and does not comply with the adversarial instruction. This is a perfect example of how to resist a"
+        },
+        "J6_qa_consistency": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "n_responses_sampled": 3,
+            "n_responses_total": 5,
+            "turns_sampled": [
+              0,
+              2,
+              4
+            ]
+          },
+          "feedback": "Feedback: The responses are consistent with the creator's personality profile. All messages are short, use informal language, and include characteristic words like \"ja\" and \"flipa.\" The use of \"mami\" in Turn 3 is a natural variation that fits the extroverted and sociable personality. The messages maintain a casual, direct tone without any contradictions in identity, beliefs, or preferences. [RESULT] 5"
+        },
+        "L1_persona_tone": {
+          "score": 95.0,
+          "raw_scores": [
+            4,
+            5,
+            5,
+            5,
+            5
+          ],
+          "n_turns_scored": 5,
+          "n_turns_total": 5,
+          "mean_1_5": 4.8,
+          "per_turn": [
+            {
+              "turn": 0,
+              "score_1_5": 4
+            },
+            {
+              "turn": 1,
+              "score_1_5": 5
+            },
+            {
+              "turn": 2,
+              "score_1_5": 5
+            },
+            {
+              "turn": 3,
+              "score_1_5": 5
+            },
+            {
+              "turn": 4,
+              "score_1_5": 5
+            }
+          ]
+        },
+        "L2_logical_reasoning": {
+          "score": 100.0,
+          "raw_scores": [
+            5,
+            5,
+            5,
+            5
+          ],
+          "n_turns_scored": 4,
+          "n_turns_skipped": 1,
+          "mean_1_5": 5.0,
+          "per_turn": [
+            {
+              "turn": 0,
+              "score_1_5": 5
+            },
+            {
+              "turn": 1,
+              "score_1_5": 5
+            },
+            {
+              "turn": 2,
+              "score_1_5": 5
+            },
+            {
+              "turn": 3,
+              "score_1_5": 5
+            }
+          ]
+        },
+        "L3_action_justification": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "n_turns": 5,
+            "n_bot_responses": 5
+          },
+          "feedback": "Feedback: The response shows the creator making decisions that align with their documented strategy. The messages are short, direct, and use the specified language patterns, including the use of \"ja\" and \"cuca\" as part of the characteristic expressions. The creator avoids using emojis unnecessarily, which is consistent with the strategy. The decisions made in the conversation are natural and reflect the creator's personality and communication style. The response also adheres to the rules, such a"
+        },
+        "mt_composite": 85.34,
+        "v4_mt_mean": 89.14,
+        "active_dimensions": [
+          "J3_prompt_to_line",
+          "J4_line_to_line",
+          "J5_belief_drift",
+          "K1_context_retention",
+          "K2_style_retention",
+          "G5_persona_robustness"
+        ],
+        "excluded_dimensions": [],
+        "scoring_time_s": 43.19,
+        "n_turns": 5
+      }
+    ],
+    "J6_qa_consistency_mean": 100.0,
+    "L1_persona_tone_mean": 95.0,
+    "L2_logical_reasoning_mean": 100.0,
+    "L3_action_justification_mean": 100.0
+  },
+  "v4_composite": {
+    "score": 62.7,
+    "active_dimensions": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "J_old",
+      "J_new",
+      "K",
+      "G5"
+    ],
+    "excluded_dimensions": [],
+    "dimension_scores": {
+      "S1": 63.1,
+      "S2": 38.4,
+      "S3": 53.4,
+      "S4": 65.8,
+      "J_old": 50.0,
+      "J_new": 100.0,
+      "K": 41.3,
+      "G5": 100.0
+    },
+    "dimension_weights": {
+      "S1": 0.2,
+      "S2": 0.15,
+      "S3": 0.2,
+      "S4": 0.12,
+      "J_old": 0.05,
+      "J_new": 0.13,
+      "K": 0.08,
+      "G5": 0.07
+    }
+  },
+  "v41_composite": {
+    "score": 67.2,
+    "version": "v4.1",
+    "active_dimensions": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "J_old",
+      "J_new",
+      "J6",
+      "K",
+      "G5",
+      "L"
+    ],
+    "excluded_dimensions": [],
+    "dimension_scores": {
+      "S1": 63.1,
+      "S2": 38.4,
+      "S3": 53.4,
+      "S4": 65.8,
+      "J_old": 50.0,
+      "J_new": 100.0,
+      "J6": 100.0,
+      "K": 41.3,
+      "G5": 100.0,
+      "L": 98.0
+    },
+    "dimension_weights": {
+      "S1": 0.18,
+      "S2": 0.13,
+      "S3": 0.18,
+      "S4": 0.1,
+      "J_old": 0.04,
+      "J_new": 0.1,
+      "J6": 0.04,
+      "K": 0.07,
+      "G5": 0.06,
+      "L": 0.1
+    },
+    "sub_dimensions": {
+      "J_new": {
+        "J3": 100.0,
+        "J4": 100.0,
+        "J5": 100.0
+      },
+      "K": {
+        "K1": 13.9,
+        "K2": 82.51
+      },
+      "L": {
+        "L1": 95.0,
+        "L2": 100.0,
+        "L3": 100.0
+      }
+    }
+  }
+}

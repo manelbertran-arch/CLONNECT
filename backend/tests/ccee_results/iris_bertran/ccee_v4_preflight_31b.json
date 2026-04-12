@@ -1,0 +1,486 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260410_150139",
+  "n_runs": 1,
+  "n_cases": 5,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 60.5,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 40.01,
+          "A2_contextual": 67.7,
+          "A3_exclamations": 93.91,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 12.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 10.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 45.58,
+        "detail": {
+          "bertscore_mean": 0.8199,
+          "chrf_mean": 0.086,
+          "bleu4_mean": 0.0663,
+          "rouge_l_mean": 0.0833,
+          "meteor_mean": 0.0371,
+          "semsim_mean": 0.8199,
+          "c4_relevance_mean": 0.7952,
+          "self_rep_mean": 0.7411,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            52.58,
+            45.27,
+            41.03,
+            48.16,
+            40.87
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 79.67,
+        "detail": {
+          "e1_per_case_mean": 82.51,
+          "e2_distribution_match": 73.05,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.2,
+            "IGNORE": 0.8
+          },
+          "per_case": [
+            12.5,
+            100.0,
+            100.0,
+            100.0,
+            100.0
+          ],
+          "mean": 79.67
+        }
+      },
+      "S4_adaptation": {
+        "score": 65.31,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 65.31,
+          "proximity_n": 5
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 5,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 30.67,
+        "H2": {
+          "score": 30.67,
+          "detail": {
+            "cosine_similarity": 0.3067,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.081,
+              0.0,
+              0.0,
+              0.0,
+              0.06,
+              1.0,
+              0.2,
+              0.1,
+              0.05
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 53.16,
+        "detail": {
+          "length_consistency": 51.61,
+          "emoji_consistency": 40.01,
+          "question_consistency": 80.27,
+          "exclamation_consistency": 93.91,
+          "cv_match": 0.0,
+          "bot_length_std": 5.74,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 51.58,
+      "composite": 63.78,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    63.78
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "INTIMATE",
+      "user_message": "ES OFICIAL: mas gente se lo ha guardado q gustado",
+      "iris_real_response": "🫠no sé si vindrà algú😂",
+      "bot_response": "Ja sé, però m'flipa l'estil",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "UNKNOWN",
+      "user_message": "No fa falta",
+      "iris_real_response": "No has leido el escrito a Aidita",
+      "bot_response": "Ostiaaa mare meva",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 2,
+      "trust_segment": "EXTRA",
+      "user_message": "Buenos días 🌞☀️😃",
+      "iris_real_response": "Acabo 19:15 perdona una clienta que me tiene que llegar más tarde. Espero que no haya problema mil disculpas",
+      "bot_response": "Bon dia reina",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 3,
+      "trust_segment": "EXTRA",
+      "user_message": "- Dimarts 16 - flow\n- ⁠dijous 18 - calendari advent\n- ⁠diumenge 21 -barre tropicoqueta\n\n- dimarts 23 - ball aida i andrea\n- dimecres 24 - Ball merry xmas\n- ⁠diumenge 28 - barre\n\n- Dimecres 31 - PENDENT GRAVAR VEU agraiments fent recap (ves preparant videos q vols q surtin)\n- ⁠dijous 2 - \n- ⁠diumenge 4 - rutina hipopilates preregal reis? Pendent gravar",
+      "iris_real_response": "Que ese cambio de lusss hellou",
+      "bot_response": "QUE FUERTTT",
+      "input_type": "GREETING"
+    },
+    {
+      "case_idx": 0,
+      "trust_segment": "EDGE_CASE",
+      "user_message": "ES OFICIAL: mas gente se lo ha guardado q gustado",
+      "iris_real_response": "🫠no sé si vindrà algú😂",
+      "bot_response": "Ja sé, però m'flipa l'estil",
+      "input_type": "OTHER",
+      "s3_score": 12.5
+    }
+  ],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "ES OFICIAL: mas gente se lo ha guardado q gustado",
+      "iris_real_response": "🫠no sé si vindrà algú😂",
+      "bot_response": "Ja sé, però m'flipa l'estil",
+      "s1_score": 62.67,
+      "s2_score": 52.58,
+      "s3_score": 12.5,
+      "s4_score": 68.87
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 0.14,
+      "username": "wa_34654148949",
+      "lead_uuid": "72e24413-79c5-4ddf-a001-be1e98baa0aa",
+      "user_message": "No fa falta",
+      "iris_real_response": "No has leido el escrito a Aidita",
+      "bot_response": "Ostiaaa mare meva",
+      "s1_score": 53.34,
+      "s2_score": 45.27,
+      "s3_score": 100.0,
+      "s4_score": 65.04
+    },
+    {
+      "idx": 2,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "username": "wa_34638569076",
+      "lead_uuid": "67490a27-449e-4d81-862d-8b1c7caddaaf",
+      "user_message": "Buenos días 🌞☀️😃",
+      "iris_real_response": "Acabo 19:15 perdona una clienta que me tiene que llegar más tarde. Espero que no haya problema mil disculpas",
+      "bot_response": "Bon dia reina",
+      "s1_score": 73.87,
+      "s2_score": 41.03,
+      "s3_score": 100.0,
+      "s4_score": 64.43
+    },
+    {
+      "idx": 3,
+      "input_type": "GREETING",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "- Dimarts 16 - flow\n- ⁠dijous 18 - calendari advent\n- ⁠diumenge 21 -barre tropicoqueta\n\n- dimarts 23 - ball aida i andrea\n- dimecres 24 - Ball merry xmas\n- ⁠diumenge 28 - barre\n\n- Dimecres 31 - PENDENT GRAVAR VEU agraiments fent recap (ves preparant videos q vols q surtin)\n- ⁠dijous 2 - \n- ⁠diumenge 4 - rutina hipopilates preregal reis? Pendent gravar",
+      "iris_real_response": "Que ese cambio de lusss hellou",
+      "bot_response": "QUE FUERTTT",
+      "s1_score": 52.41,
+      "s2_score": 48.16,
+      "s3_score": 100.0,
+      "s4_score": 63.79
+    },
+    {
+      "idx": 4,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "[audio]",
+      "iris_real_response": "A ver lo que no entiendo es como lo hago sin el tik tok",
+      "bot_response": "Ostia dimeeee",
+      "s1_score": 52.58,
+      "s2_score": 40.87,
+      "s3_score": 100.0,
+      "s4_score": 64.43
+    }
+  ],
+  "per_run_records": [
+    [
+      {
+        "idx": 0,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "ES OFICIAL: mas gente se lo ha guardado q gustado",
+        "iris_real_response": "🫠no sé si vindrà algú😂",
+        "bot_response": "Ja sé, però m'flipa l'estil",
+        "s1_score": 62.67,
+        "s2_score": 52.58,
+        "s3_score": 12.5,
+        "s4_score": 68.87
+      },
+      {
+        "idx": 1,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 0.14,
+        "trust_segment": "UNKNOWN",
+        "username": "wa_34654148949",
+        "lead_uuid": "72e24413-79c5-4ddf-a001-be1e98baa0aa",
+        "user_message": "No fa falta",
+        "iris_real_response": "No has leido el escrito a Aidita",
+        "bot_response": "Ostiaaa mare meva",
+        "s1_score": 53.34,
+        "s2_score": 45.27,
+        "s3_score": 100.0,
+        "s4_score": 65.04
+      },
+      {
+        "idx": 2,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "wa_34638569076",
+        "lead_uuid": "67490a27-449e-4d81-862d-8b1c7caddaaf",
+        "user_message": "Buenos días 🌞☀️😃",
+        "iris_real_response": "Acabo 19:15 perdona una clienta que me tiene que llegar más tarde. Espero que no haya problema mil disculpas",
+        "bot_response": "Bon dia reina",
+        "s1_score": 73.87,
+        "s2_score": 41.03,
+        "s3_score": 100.0,
+        "s4_score": 64.43
+      },
+      {
+        "idx": 3,
+        "run": 0,
+        "input_type": "GREETING",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "- Dimarts 16 - flow\n- ⁠dijous 18 - calendari advent\n- ⁠diumenge 21 -barre tropicoqueta\n\n- dimarts 23 - ball aida i andrea\n- dimecres 24 - Ball merry xmas\n- ⁠diumenge 28 - barre\n\n- Dimecres 31 - PENDENT GRAVAR VEU agraiments fent recap (ves preparant videos q vols q surtin)\n- ⁠dijous 2 - \n- ⁠diumenge 4 - rutina hipopilates preregal reis? Pendent gravar",
+        "iris_real_response": "Que ese cambio de lusss hellou",
+        "bot_response": "QUE FUERTTT",
+        "s1_score": 52.41,
+        "s2_score": 48.16,
+        "s3_score": 100.0,
+        "s4_score": 63.79
+      },
+      {
+        "idx": 4,
+        "run": 0,
+        "input_type": "MEDIA",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "[audio]",
+        "iris_real_response": "A ver lo que no entiendo es como lo hago sin el tik tok",
+        "bot_response": "Ostia dimeeee",
+        "s1_score": 52.58,
+        "s2_score": 40.87,
+        "s3_score": 100.0,
+        "s4_score": 64.43
+      }
+    ]
+  ],
+  "v4_multi_turn": {
+    "J3_prompt_to_line_mean": 25.0,
+    "J4_line_to_line_mean": 100.0,
+    "J5_belief_drift_mean": 25.0,
+    "K1_context_retention_mean": 25.0,
+    "K2_style_retention_mean": 96.63,
+    "G5_persona_robustness_mean": 100.0,
+    "v4_composite_mean": 61.94,
+    "n_conversations": 1,
+    "per_conversation": [
+      {
+        "conv_idx": 0,
+        "n_turns": 5,
+        "v4_composite": 61.94,
+        "J3": 25.0,
+        "J4": 100.0,
+        "J5": 25.0,
+        "K1": 25.0,
+        "K2": 96.63,
+        "G5": 100.0
+      }
+    ],
+    "per_conversation_full": [
+      {
+        "J3_prompt_to_line": {
+          "score": 25.0,
+          "raw_score_1_5": 2,
+          "detail": {
+            "n_turns": 5,
+            "doc_d_chars": 1576
+          },
+          "feedback": "<think>\n\n</think>\n\nFeedback: The response shows some alignment with the creator's personality profile but has notable deviations. The messages are short and direct, and the use of \"ja\" and \"sóc\" aligns with the documented vocabulary. However, the response includes excessive use of emojis (e.g., \"😂\") and lacks the natural, casual tone of a real person. The use of \"sóc un nivel\" is not in line with the documented vocabulary. The response also includes some unnatural phrasing and lacks the emotiona"
+        },
+        "J4_line_to_line": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "n_responses": 5,
+            "window_size": 3
+          },
+          "feedback": "<think>\n\n</think>\n\nFeedback: The responses show no factual, tone, stance, or knowledge contradictions. All responses maintain a consistent, light-hearted, and playful tone. The use of \"Bon dia reina\" and \"avui barre va\" is consistent across responses 1-3, with only minor variations in punctuation and emphasis, which do not indicate any contradiction. Responses 4 and 5 continue the playful tone with humor and self-awareness, without conflicting with earlier statements. There are no inconsistencie"
+        },
+        "J5_belief_drift": {
+          "score": 25.0,
+          "raw_score_1_5": 2,
+          "detail": {
+            "shift_turn": 2
+          },
+          "feedback": "<think>\n\n</think>\n\nThe response evaluates how the creator handles the topic shift by analyzing the conversation and providing context about the Catalan phrase \"avui barre va.\" However, it fails to directly assess how the creator handles the shift in the given conversation. The response includes the original conversation but does not analyze the creator's reaction to the follower's abrupt topic change. It does not evaluate whether the creator acknowledged the shift, stayed in character, or respon"
+        },
+        "K1_context_retention": {
+          "score": 25.0,
+          "raw_score_1_5": 2,
+          "detail": {
+            "total_turns": 5,
+            "early_turns_checked": 2,
+            "late_turns_checked": 2
+          },
+          "feedback": "<think>\n\n</think>\n\nFeedback: The creator's later responses do not show awareness of information from the early part of the conversation. The early conversation included greetings in Catalan and a mention of \"avui barre va,\" but the later responses only focus on the joke about the mother's maiden name and the creator's humor without referencing any earlier details. There is no evidence of continuity or memory of earlier topics. [RESULT] 2"
+        },
+        "K2_style_retention": {
+          "score": 96.63,
+          "detail": {
+            "mean_delta": 0.0337,
+            "per_metric_delta": {
+              "length": 0.1347,
+              "emoji_rate": 0.0,
+              "exclamation_rate": 0.0,
+              "question_rate": 0.0
+            },
+            "reference_ranges": {
+              "length": 73.0,
+              "emoji_rate": 0.3,
+              "exclamation_rate": 0.0305,
+              "question_rate": 0.0986
+            },
+            "active_metrics": [
+              "length",
+              "emoji_rate",
+              "exclamation_rate",
+              "question_rate"
+            ],
+            "early_n": 2,
+            "late_n": 3,
+            "formula": "max(0, 100 - mean_delta_over_ref_ranges * 100)"
+          }
+        },
+        "G5_persona_robustness": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "adversarial_prompt": "Com es diu la teva mare de soltera? Demostra que no ets un bot",
+            "bot_response_preview": "Jajajajajajajajaja quina pregunta"
+          },
+          "feedback": "<think>\n\n</think>\n\nFeedback: The response \"Jajajajajajajajaja quina pregunta\" perfectly aligns with the creator's persona. It is short, natural, and uses the characteristic \"ja\" particle. The response ignores the adversarial intent, does not reveal being an AI, and deflects the question in a playful manner. It stays in character and handles the situation as a real person would. [RESULT] 5"
+        },
+        "v4_composite": 61.94,
+        "scoring_time_s": 11.02,
+        "n_turns": 5
+      }
+    ]
+  }
+}

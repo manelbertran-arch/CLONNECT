@@ -99,33 +99,8 @@ class ExtractionResult:
 # LLM PROMPTS (Spanish)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-FACT_EXTRACTION_PROMPT = """Analiza esta conversacion de DMs entre un creador y un lead.
-Extrae SOLO hechos concretos sobre el LEAD.
-
-Tipos de hechos a extraer:
-- preference: gustos, intereses, estilo preferido del lead
-- commitment: promesas o compromisos hechos por el LEAD (ej: "va a venir el jueves")
-- topic: temas principales que el lead trajo a la conversacion
-- objection: objeciones, dudas o resistencias del lead
-- personal_info: datos personales del lead (nombre, ciudad, situacion, profesion)
-- purchase_history: compras, pagos o transacciones del lead
-
-Conversacion (las lineas "Bot:" son contexto — NO extraigas hechos de ellas):
-{messages}
-
-Responde UNICAMENTE con JSON valido (sin markdown, sin ```):
-{{"facts": [{{"type": "preference", "text": "Le interesa el curso de nutricion", "confidence": 0.9}}, {{"type": "commitment", "text": "El lead prometio venir el jueves", "confidence": 0.8}}], "summary": "El lead pregunto por precios del curso de nutricion...", "sentiment": "positive", "key_topics": ["nutricion", "precios"]}}
-
-REGLAS:
-- Maximo {max_facts} hechos por conversacion
-- Solo hechos CONCRETOS y verificables, no inferencias vagas
-- Confianza entre 0.5 y 1.0 segun certeza
-- NO extraer hechos sobre los productos del creador (eso ya esta en RAG)
-- NO repetir hechos que sean obvios del contexto de la conversacion
-- Si no hay hechos extraibles, retorna {{"facts": [], "summary": "...", "sentiment": "neutral", "key_topics": []}}
-- "text" debe ser una frase completa y autocontenida
-- NUNCA incluyas en los hechos lo que el Bot dijo, respondio, fallo o prometio
-- Todos los hechos deben describir atributos, acciones o palabras del LEAD, no del Bot"""
+# FACT_EXTRACTION_PROMPT moved to services/memory_extraction.py
+# (CC-faithful prompt with manifest pre-injection, exclusion rules, date conversion)
 
 CONVERSATION_SUMMARY_PROMPT = """Resume esta conversacion de DMs entre un creador y un lead.
 
@@ -268,99 +243,19 @@ class MemoryEngine:
         conversation_messages: List[Dict[str, str]],
         source_message_id: Optional[str] = None,
     ) -> List[LeadMemory]:
-        """
-        Extract facts from a conversation and store them.
+        """Extract facts from conversation and store them.
 
-        Args:
-            creator_id: Creator UUID or name slug
-            lead_id: Lead UUID as string
-            conversation_messages: List of {"role": "user|assistant", "content": "..."}
-            source_message_id: Optional message ID that triggered extraction
-
-        Returns:
-            List of stored LeadMemory objects (empty on error)
+        Delegates to MemoryExtractor (services/memory_extraction.py) which
+        applies CC-faithful guards: overlap, throttle, manifest, cursor.
+        CC pattern: extractMemories.ts:598-603 delegates to closure.
         """
         if not ENABLE_MEMORY_ENGINE:
             return []
-
-        creator_id = await self._resolve_creator_uuid(creator_id)
-        lead_id = await self._resolve_lead_uuid(creator_id, lead_id)
-
-        try:
-            formatted_msgs = self._format_messages_for_llm(conversation_messages)
-            if not formatted_msgs or len(formatted_msgs) < 20:
-                logger.debug("[MemoryEngine] Conversation too short for extraction")
-                return []
-
-            extraction = await self._extract_facts_via_llm(formatted_msgs)
-            if not extraction.facts and not extraction.summary:
-                logger.debug("[MemoryEngine] No facts or summary extracted")
-                return []
-
-            fact_texts = [f["text"] for f in extraction.facts]
-            embeddings = await self._generate_embeddings_batch(fact_texts)
-
-            existing_facts = await self._get_existing_active_facts(creator_id, lead_id)
-
-            stored_memories = []
-            for i, fact in enumerate(extraction.facts):
-                embedding = embeddings[i] if i < len(embeddings) else None
-
-                resolution = await self.resolve_conflict(
-                    fact, existing_facts,
-                    new_embedding=embedding,
-                    creator_id=creator_id,
-                    lead_id=lead_id,
-                )
-                if resolution == "skip":
-                    logger.debug("[MemoryEngine] Skipping duplicate fact: %s", fact["text"][:50])
-                    continue
-
-                memory = await self._store_fact(
-                    creator_id=creator_id,
-                    lead_id=lead_id,
-                    fact_type=fact.get("type", "topic"),
-                    fact_text=fact["text"],
-                    confidence=fact.get("confidence", 0.7),
-                    embedding=embedding,
-                    source_message_id=source_message_id,
-                    source_type="extracted",
-                )
-                if memory:
-                    stored_memories.append(memory)
-
-            if extraction.summary:
-                await self.summarize_conversation(
-                    creator_id=creator_id,
-                    lead_id=lead_id,
-                    messages=conversation_messages,
-                    precomputed_summary=extraction.summary,
-                    precomputed_topics=extraction.key_topics,
-                    precomputed_sentiment=extraction.sentiment,
-                )
-
-            logger.info(
-                "[MemoryEngine] Stored %d facts + summary for lead=%s creator=%s",
-                len(stored_memories),
-                lead_id[:8],
-                creator_id[:8],
-            )
-
-            cache_key = f"{creator_id}:{lead_id}"
-            _recall_cache.pop(cache_key, None)
-
-            # OPT-1: Auto-trigger COMEDY compression when fact count exceeds threshold
-            if stored_memories:
-                all_facts = await self._get_existing_active_facts(creator_id, lead_id)
-                real_facts = [f for f in all_facts if f.fact_type != "compressed_memo"]
-                if len(real_facts) >= MEMO_COMPRESSION_THRESHOLD:
-                    asyncio.create_task(self.compress_lead_memory(creator_id, lead_id))
-
-            return stored_memories
-
-        except Exception as e:
-            logger.error("[MemoryEngine] add() failed: %s", e, exc_info=True)
-            return []
+        from services.memory_extraction import get_memory_extractor
+        extractor = get_memory_extractor(self)
+        return await extractor.extract_and_store(
+            creator_id, lead_id, conversation_messages, source_message_id,
+        )
 
     # ─────────────────────────────────────────────────────────────────────
     # PUBLIC: search() — Semantic search for relevant facts
@@ -509,6 +404,7 @@ class MemoryEngine:
         self,
         creator_id: str,
         lead_id: str,
+        _skip_lock_check: bool = False,
     ) -> Optional[str]:
         """Compress all facts about a lead into a narrative memo.
 
@@ -517,9 +413,26 @@ class MemoryEngine:
 
         Stores the memo as fact_type='compressed_memo' in lead_memories.
         Returns the memo text, or None if not enough facts to compress.
+
+        Args:
+            _skip_lock_check: If True, skip consolidation lock check.
+                Used when called FROM the consolidator itself (already holds lock).
         """
         creator_id = await self._resolve_creator_uuid(creator_id)
         lead_id = await self._resolve_lead_uuid(creator_id, lead_id)
+
+        # FIX Gap 1 (audit): warn if consolidation is active (unless called by consolidator)
+        if not _skip_lock_check:
+            try:
+                from services.memory_consolidator import is_consolidation_locked
+                if is_consolidation_locked(creator_id):
+                    logger.warning(
+                        "[MemoryEngine] compress_lead_memory() while consolidation active "
+                        "for creator=%s — proceeding anyway",
+                        creator_id[:8],
+                    )
+            except Exception:
+                pass
 
         try:
             all_facts = await self._get_existing_active_facts(creator_id, lead_id)
@@ -791,36 +704,7 @@ class MemoryEngine:
     # PRIVATE: LLM integration
     # ═══════════════════════════════════════════════════════════════════════
 
-    async def _extract_facts_via_llm(self, formatted_messages: str) -> ExtractionResult:
-        """Call LLM to extract facts from conversation."""
-        prompt = FACT_EXTRACTION_PROMPT.format(
-            messages=formatted_messages,
-            max_facts=MAX_FACTS_PER_EXTRACTION,
-        )
-
-        response = await self._call_llm(prompt)
-        parsed = self._parse_json_response(response)
-
-        if not parsed:
-            return ExtractionResult()
-
-        facts = parsed.get("facts", [])
-        valid_types = {"preference", "commitment", "topic", "objection", "personal_info", "purchase_history"}
-        validated_facts = []
-        for f in facts[:MAX_FACTS_PER_EXTRACTION]:
-            if isinstance(f, dict) and f.get("type") in valid_types and f.get("text"):
-                validated_facts.append({
-                    "type": f["type"],
-                    "text": str(f["text"])[:500],
-                    "confidence": max(0.5, min(1.0, float(f.get("confidence", 0.7)))),
-                })
-
-        return ExtractionResult(
-            facts=validated_facts,
-            summary=str(parsed.get("summary", ""))[:300],
-            sentiment=parsed.get("sentiment", "neutral") if parsed.get("sentiment") in ("positive", "neutral", "negative") else "neutral",
-            key_topics=parsed.get("key_topics", [])[:5],
-        )
+    # _extract_facts_via_llm moved to services/memory_extraction.py
 
     async def _call_llm(self, prompt: str) -> str:
         """Call Gemini Flash-Lite (primary) or GPT-4o-mini (fallback) for extraction."""
@@ -1461,17 +1345,7 @@ class MemoryEngine:
     # PRIVATE: Formatting
     # ═══════════════════════════════════════════════════════════════════════
 
-    def _format_messages_for_llm(self, messages: List[Dict[str, str]]) -> str:
-        """Format conversation messages for LLM prompt."""
-        lines = []
-        for msg in messages[-20:]:
-            role = msg.get("role", "user")
-            content = msg.get("content", "").strip()
-            if not content:
-                continue
-            label = "Lead" if role == "user" else "Bot"
-            lines.append(f"{label}: {content}")
-        return "\n".join(lines)
+    # _format_messages_for_llm moved to services/memory_extraction.py
 
     @staticmethod
     def _dedup_facts(facts: List[LeadMemory], threshold: float = 0.6) -> List[LeadMemory]:

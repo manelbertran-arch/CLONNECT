@@ -233,10 +233,14 @@ async def _call_gemini(
                 usage = data.get("usageMetadata", {})
                 tokens_in = usage.get("promptTokenCount", 0)
                 tokens_out = usage.get("candidatesTokenCount", 0)
+                # Normalize Gemini finishReason to OpenAI standard ("length" = max_tokens hit)
+                _fr_map = {"STOP": "stop", "MAX_TOKENS": "length", "SAFETY": "safety",
+                           "RECITATION": "recitation", "OTHER": "other"}
+                normalized_finish_reason = _fr_map.get(finish_reason, finish_reason.lower() if finish_reason else "")
 
                 logger.info(
-                    "Gemini OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d",
-                    model, latency_ms, tokens_in, tokens_out, len(content),
+                    "Gemini OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d finish_reason=%s",
+                    model, latency_ms, tokens_in, tokens_out, len(content), normalized_finish_reason,
                 )
                 return {
                     "content": content,
@@ -245,6 +249,7 @@ async def _call_gemini(
                     "latency_ms": latency_ms,
                     "tokens_in": tokens_in,
                     "tokens_out": tokens_out,
+                    "finish_reason": normalized_finish_reason,
                 }
 
         except httpx.TimeoutException:
@@ -442,13 +447,14 @@ async def _call_openai_mini(
             timeout=timeout,
         )
         content = (response.choices[0].message.content or "").strip()
+        finish_reason = (response.choices[0].finish_reason or "").lower()
         latency_ms = int((time.monotonic() - start) * 1000)
         usage = response.usage
         tokens_in = usage.prompt_tokens if usage else 0
         tokens_out = usage.completion_tokens if usage else 0
         logger.info(
-            "OpenAI fallback OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d",
-            model, latency_ms, tokens_in, tokens_out, len(content),
+            "OpenAI fallback OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d finish_reason=%s",
+            model, latency_ms, tokens_in, tokens_out, len(content), finish_reason,
         )
         if not content:
             return None
@@ -459,6 +465,7 @@ async def _call_openai_mini(
             "latency_ms": latency_ms,
             "tokens_in": tokens_in,
             "tokens_out": tokens_out,
+            "finish_reason": finish_reason,
         }
     except asyncio.TimeoutError:
         logger.error("OpenAI fallback timeout after %.0fs", timeout)
@@ -717,6 +724,9 @@ async def generate_dm_response(
         result = await _try_deepinfra(messages, max_tokens, temperature, "dm_response")
         if result:
             return result
+        if os.getenv("CCEE_NO_FALLBACK"):
+            logger.info("[CCEE] Fallback disabled — DeepInfra failed, returning None")
+            return None
     elif LLM_PRIMARY_PROVIDER == "openrouter":
         result = await _try_openrouter(messages, max_tokens, temperature, "dm_response")
         if result:

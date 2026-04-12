@@ -1,0 +1,263 @@
+{
+  "creator_id": "iris_bertran",
+  "timestamp": "20260410_113433",
+  "n_runs": 1,
+  "n_cases": 2,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 50.06,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 59.99,
+          "A2_contextual": 49.18,
+          "A3_exclamations": 6.09,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 4.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 36.27,
+        "detail": {
+          "bertscore_mean": 0.7866,
+          "chrf_mean": 0.0301,
+          "bleu4_mean": 0.3021,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0,
+          "semsim_mean": 0.7866,
+          "c4_relevance_mean": 0.8013,
+          "self_rep_mean": 0.6979,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 0.0,
+          "per_case": [
+            34.33,
+            38.2
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 88.49,
+        "detail": {
+          "e1_per_case_mean": 100.0,
+          "e2_distribution_match": 61.64,
+          "bot_strategy_distribution": {
+            "IGNORE": 1.0
+          },
+          "per_case": [
+            100.0,
+            100.0
+          ],
+          "mean": 88.49
+        }
+      },
+      "S4_adaptation": {
+        "score": 56.27,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 56.27,
+          "proximity_n": 2
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 2,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 29.44,
+        "H2": {
+          "score": 29.44,
+          "detail": {
+            "cosine_similarity": 0.2944,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.1025,
+              0.5,
+              0.5,
+              0.0,
+              0.02,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 50.0,
+        "detail": "insufficient responses (need >= 5)"
+      },
+      "J_cognitive_fidelity": 50.0,
+      "composite": 60.79,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    60.79
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "UNKNOWN",
+      "user_message": "Estarà a la tarjeta",
+      "iris_real_response": "[audio]",
+      "bot_response": "Ostiaaa mare meva, ok! 😂",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "INTIMATE",
+      "user_message": "[image]",
+      "iris_real_response": "[video]",
+      "bot_response": "Qué guapo que és.",
+      "input_type": "MEDIA"
+    },
+    {
+      "case_idx": 0,
+      "trust_segment": "EDGE_CASE",
+      "user_message": "Estarà a la tarjeta",
+      "iris_real_response": "[audio]",
+      "bot_response": "Ostiaaa mare meva, ok! 😂",
+      "input_type": "OTHER",
+      "s3_score": 100.0
+    }
+  ],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 0.14,
+      "username": "wa_34654148949",
+      "lead_uuid": "72e24413-79c5-4ddf-a001-be1e98baa0aa",
+      "user_message": "Estarà a la tarjeta",
+      "iris_real_response": "[audio]",
+      "bot_response": "Ostiaaa mare meva, ok! 😂",
+      "s1_score": 36.24,
+      "s2_score": 34.33,
+      "s3_score": 100.0,
+      "s4_score": 46.84
+    },
+    {
+      "idx": 1,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "user_message": "[image]",
+      "iris_real_response": "[video]",
+      "bot_response": "Qué guapo que és.",
+      "s1_score": 62.51,
+      "s2_score": 38.2,
+      "s3_score": 100.0,
+      "s4_score": 65.7
+    }
+  ],
+  "per_run_records": [
+    [
+      {
+        "idx": 0,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 0.14,
+        "trust_segment": "UNKNOWN",
+        "username": "wa_34654148949",
+        "lead_uuid": "72e24413-79c5-4ddf-a001-be1e98baa0aa",
+        "user_message": "Estarà a la tarjeta",
+        "iris_real_response": "[audio]",
+        "bot_response": "Ostiaaa mare meva, ok! 😂",
+        "s1_score": 36.24,
+        "s2_score": 34.33,
+        "s3_score": 100.0,
+        "s4_score": 46.84
+      },
+      {
+        "idx": 1,
+        "run": 0,
+        "input_type": "MEDIA",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "+34660042310",
+        "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+        "user_message": "[image]",
+        "iris_real_response": "[video]",
+        "bot_response": "Qué guapo que és.",
+        "s1_score": 62.51,
+        "s2_score": 38.2,
+        "s3_score": 100.0,
+        "s4_score": 65.7
+      }
+    ]
+  ]
+}

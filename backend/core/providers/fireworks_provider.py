@@ -161,6 +161,7 @@ async def call_fireworks(
         )
 
         content = (response.choices[0].message.content or "").strip()
+        finish_reason = (response.choices[0].finish_reason or "").lower()
         latency_ms = int((time.monotonic() - start) * 1000)
         usage = response.usage
         tokens_in = usage.prompt_tokens if usage else 0
@@ -172,8 +173,8 @@ async def call_fireworks(
             return None
 
         logger.info(
-            "Fireworks OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d",
-            model, latency_ms, tokens_in, tokens_out, len(content),
+            "Fireworks OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d finish_reason=%s",
+            model, latency_ms, tokens_in, tokens_out, len(content), finish_reason,
         )
         _record_success()
         return {
@@ -183,6 +184,7 @@ async def call_fireworks(
             "latency_ms": latency_ms,
             "tokens_in": tokens_in,
             "tokens_out": tokens_out,
+            "finish_reason": finish_reason,
         }
 
     except asyncio.TimeoutError:

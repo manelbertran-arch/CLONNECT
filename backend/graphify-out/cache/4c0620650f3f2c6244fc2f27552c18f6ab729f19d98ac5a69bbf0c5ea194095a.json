@@ -1,0 +1,1 @@
+{"nodes": [{"id": "sys8_dna_trigger", "label": "System 8 \u2014 DNA Trigger Check", "file_type": "code", "source_file": "services/dna_update_triggers.py", "source_location": "services/dna_update_triggers.py", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

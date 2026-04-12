@@ -6,7 +6,7 @@ Complete flow:
 2. Response Variator → Try quick pool response
 3. Conversation Memory → Load context
 4. LLM Generation → If no quick response
-5. Memory Update → Save facts
+5. Memory Update → Save facts (regex extractor + LLM extractor)
 6. Message Splitter → Split if too long
 7. Calculate Delays → Natural timing
 
@@ -15,8 +15,13 @@ Part of Bot Autopilot Integration.
 
 import asyncio
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional
+
+# CC-faithful feature flag: mirrors ENABLE_MEMORY_ENGINE in memory_engine.py.
+# Checked at call site so postprocessing stays zero-latency (fire-and-forget).
+_ENABLE_MEMORY_ENGINE = os.getenv("ENABLE_MEMORY_ENGINE", "false").lower() == "true"
 
 from services.memory_service import (
     ConversationMemory,
@@ -175,6 +180,58 @@ class BotOrchestrator:
         except Exception as e:
             logger.error(f"Memory update failed for {lead_id}: {e}")
             memory_updated = False
+
+        # ═══════════════════════════════════════════════════════════════════
+        # STEP 6b: LLM semantic extraction (CC pattern — fire-and-forget)
+        #
+        # CC equivalent: stopHooks.ts:149
+        #   void extractMemoriesModule!.executeExtractMemories(stopHookContext, ...)
+        #
+        # Invoked AFTER the regex extractor (STEP 6) — both run in parallel:
+        #   - Regex extractor (ConversationMemoryService.extract_facts): handles
+        #     PRICE_GIVEN / LINK_SHARED / PRODUCT_EXPLAINED — structural signals
+        #     that have no CC equivalent (CC has no product catalog). Kept as-is.
+        #   - LLM extractor (MemoryExtractor.extract_and_store): handles semantic
+        #     facts — preferences, commitments, objections, personal_info, topics.
+        #     This is the CC-equivalent path.
+        #
+        # Guards: ENABLE_MEMORY_ENGINE feature flag (same as postprocessing.py:431).
+        # Fire-and-forget: asyncio.create_task() — never blocks the DM response.
+        # ═══════════════════════════════════════════════════════════════════
+        if _ENABLE_MEMORY_ENGINE:
+            try:
+                from services.memory_extraction import get_memory_extractor
+                from services.memory_engine import get_memory_engine
+
+                # Build conversation window: recent history + current exchange.
+                # CC: stopHookContext.messages (all messages in current session).
+                # Clonnect: last 3 turns from memory.last_messages + current turn.
+                # memory.last_messages: List[{"role": str, "content": str, ...}]
+                recent_history = [
+                    {"role": m.get("role", "user"), "content": m.get("content", "")}
+                    for m in (memory.last_messages[-6:] if memory.last_messages else [])
+                    if m.get("content")
+                ]
+                conversation_msgs = recent_history + [
+                    {"role": "user", "content": message},
+                    {"role": "assistant", "content": response_text},
+                ]
+
+                extractor = get_memory_extractor(get_memory_engine())
+                task = asyncio.create_task(
+                    extractor.extract_and_store(
+                        creator_id=creator_id,
+                        lead_id=lead_id,
+                        conversation_messages=conversation_msgs,
+                    )
+                )
+                extractor.track_task(task)
+                logger.debug(
+                    "[MEMORY] LLM extraction scheduled fire-and-forget for lead=%s",
+                    lead_id,
+                )
+            except Exception as e:
+                logger.debug("[MEMORY] LLM extraction setup failed: %s", e)
 
         # ═══════════════════════════════════════════════════════════════════
         # STEP 7: Split message if too long

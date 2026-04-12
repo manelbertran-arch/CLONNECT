@@ -1,10 +1,7 @@
 """
 LLM Judge (B2, B5, C2, C3, H1)
 
-Supports three backends, selected via LLM_JUDGE_PROVIDER env var:
-  deepinfra — Qwen3-30B-A3B via DeepInfra (default)
-  openai   — GPT-4o
-  gemini   — Gemini 2.5 Pro
+Single backend: Qwen3-30B-A3B via DeepInfra.
 
 Same Prometheus rubric format: instruction + response + reference + rubric.
 Drop-in replacement for the previous M-Prometheus 14B / Ollama implementation.
@@ -29,32 +26,15 @@ import openai
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Provider config  (LLM_JUDGE_PROVIDER=deepinfra|openai|gemini, default: deepinfra)
+# Provider config — DeepInfra / Qwen3-30B-A3B only
 # ---------------------------------------------------------------------------
 
-_PROVIDER = os.environ.get("LLM_JUDGE_PROVIDER", "deepinfra").lower()
-
-# OpenAI / GPT-4o
-_OPENAI_MODEL = "gpt-4o"
-_OPENAI_COST_PER_1K_INPUT  = 0.0025   # $2.50 per 1M input tokens
-_OPENAI_COST_PER_1K_OUTPUT = 0.01     # $10.00 per 1M output tokens
-
-# Gemini 2.5 Pro
-_GEMINI_MODEL = "gemini-2.5-pro"
-_GEMINI_COST_PER_1K_INPUT  = 0.00125  # $1.25 per 1M input tokens (≤200k ctx)
-_GEMINI_COST_PER_1K_OUTPUT = 0.01     # $10.00 per 1M output tokens
-
-# DeepInfra / Qwen3-30B-A3B
 _DEEPINFRA_MODEL = "Qwen/Qwen3-30B-A3B"
 _DEEPINFRA_BASE_URL = "https://api.deepinfra.com/v1/openai"
 _DEEPINFRA_COST_PER_1K_INPUT  = 0.00008   # $0.08 per 1M input tokens
 _DEEPINFRA_COST_PER_1K_OUTPUT = 0.00028   # $0.28 per 1M output tokens
 
-MODEL_NAME = (
-    _GEMINI_MODEL if _PROVIDER == "gemini"
-    else _DEEPINFRA_MODEL if _PROVIDER == "deepinfra"
-    else _OPENAI_MODEL
-)
+MODEL_NAME = _DEEPINFRA_MODEL
 
 TIMEOUT = 30
 MAX_RETRIES = 3
@@ -65,24 +45,50 @@ _total_output_tokens = 0
 _total_cost_usd = 0.0
 
 
-def _get_openai_client() -> openai.OpenAI:
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY not set")
-    return openai.OpenAI(api_key=api_key, timeout=TIMEOUT)
-
-
 # ---------------------------------------------------------------------------
 # Rubrics (Spanish — matches content language)
 # ---------------------------------------------------------------------------
 
-RUBRIC_B2 = """\
-5 = Tono perfectamente consistente con una profesora de fitness/danza en Barcelona \
-que mezcla catalán y español, vocabulario natural, mezcla idiomática creíble
-4 = Mayormente consistente, algún desliz menor en el tono o idioma
-3 = Parcialmente consistente, mezcla de registros o tono genérico
-2 = Inconsistente, cambia de personalidad o suena impersonal
-1 = Completamente fuera de personaje"""
+_RUBRIC_B2_TEMPLATE = """\
+[5] Tono perfectamente consistente con el perfil del creator descrito arriba. \
+Lenguaje, mezcla idiomática, registro y estilo son indistinguibles del creator real.
+[4] Mayormente consistente con el perfil. Algún desliz menor en el tono, idioma o registro, \
+pero la respuesta se siente del creator.
+[3] No viola el perfil, pero tampoco lo demuestra. Respuesta genérica y amigable \
+que cualquier persona podría escribir — sin marcadores específicos del creator.
+[2] Elementos que no encajan con el perfil del creator: registro incorrecto, \
+nivel de formalidad inadecuado, o faltan marcadores clave de la persona.
+[1] Claramente no corresponde al perfil: idioma incorrecto, tono opuesto, \
+o contradice directamente la persona del creator.
+
+IMPORTANT: Do NOT default to score 3 when unsure.
+- Wrong language or opposite tone for the creator = score 1
+- Right language but robotic/formal when creator is informal = score 2
+- Generic but acceptable = score 3
+- Some creator-specific markers present = score 4
+- Indistinguishable from the real creator = score 5"""
+
+
+def _build_rubric_b2(creator_summary: str = "", doc_d_text: str = "", creator_id: str = "") -> str:
+    """Build dynamic B2 rubric. Injects creator summary and exemplar calibration if available."""
+    if creator_summary:
+        header = f"=== CREATOR PROFILE ===\n{creator_summary}\n\n=== RUBRIC ===\n"
+    else:
+        header = ""
+
+    # Try exemplar calibration (PersonaGym methodology)
+    if doc_d_text or creator_id:
+        try:
+            from core.evaluation.exemplar_generator import get_exemplar_rubric_block
+            _d = doc_d_text or creator_summary
+            if _d:
+                exemplar_rubric = get_exemplar_rubric_block(_d, creator_id=creator_id, base_rubric=_RUBRIC_B2_TEMPLATE)
+                if exemplar_rubric and exemplar_rubric != _RUBRIC_B2_TEMPLATE:
+                    return header + exemplar_rubric
+        except Exception as e:
+            logger.warning(f"B2 exemplar generation failed, using base rubric: {e}")
+
+    return header + _RUBRIC_B2_TEMPLATE
 
 RUBRIC_B5 = """\
 5 = Emoción perfecta para el contexto, reacción natural y cercana
@@ -106,114 +112,18 @@ RUBRIC_C3 = """\
 1 = Completamente fuera de contexto"""
 
 
-# ---------------------------------------------------------------------------
-# Backend: OpenAI (GPT-4o)
-# ---------------------------------------------------------------------------
-
 _SYSTEM_PROMPT = (
     "You are an expert evaluator. After your analysis, "
     "you MUST end your response with exactly: [RESULT] N "
     "(where N is your score 1-5). This format is mandatory."
 )
 
-def _call_openai(prompt: str) -> Optional[str]:
-    """Call GPT-4o via OpenAI API. Returns raw text or None."""
-    global _total_input_tokens, _total_output_tokens, _total_cost_usd
-    client = _get_openai_client()
-
-    for attempt in range(MAX_RETRIES):
-        try:
-            resp = client.chat.completions.create(
-                model=_OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content": _SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.1,
-                max_tokens=512,
-            )
-            usage = resp.usage
-            if usage:
-                in_tok = usage.prompt_tokens
-                out_tok = usage.completion_tokens
-                cost = (in_tok / 1000 * _OPENAI_COST_PER_1K_INPUT) + (out_tok / 1000 * _OPENAI_COST_PER_1K_OUTPUT)
-                _total_input_tokens += in_tok
-                _total_output_tokens += out_tok
-                _total_cost_usd += cost
-                logger.debug(f"OpenAI call: in={in_tok} out={out_tok} cost=${cost:.5f} total=${_total_cost_usd:.4f}")
-            return resp.choices[0].message.content or ""
-        except openai.RateLimitError as e:
-            wait = 2 ** attempt
-            logger.warning(f"RateLimit (attempt {attempt+1}/{MAX_RETRIES}), retrying in {wait}s: {e}")
-            time.sleep(wait)
-        except openai.APITimeoutError as e:
-            logger.warning(f"Timeout (attempt {attempt+1}/{MAX_RETRIES}): {e}")
-        except openai.APIError as e:
-            logger.warning(f"OpenAI API error (attempt {attempt+1}/{MAX_RETRIES}): {e}")
-            time.sleep(1)
-    return None
-
-
-# ---------------------------------------------------------------------------
-# Backend: Gemini 2.5 Pro
-# ---------------------------------------------------------------------------
-
-_GEMINI_SAFETY_SETTINGS = [
-    {"category": "HARM_CATEGORY_HARASSMENT",        "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_HATE_SPEECH",        "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",  "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT",  "threshold": "BLOCK_NONE"},
-]
-
-
-def _call_gemini(prompt: str) -> Optional[str]:
-    """Call Gemini 2.5 Pro via google-generativeai. Returns raw text or None."""
-    global _total_input_tokens, _total_output_tokens, _total_cost_usd
-    import google.generativeai as genai
-
-    api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_AI_STUDIO_API_KEY")
-    if not api_key:
-        raise RuntimeError("GOOGLE_API_KEY not set")
-    genai.configure(api_key=api_key)
-
-    model = genai.GenerativeModel(
-        model_name=_GEMINI_MODEL,
-        system_instruction=_SYSTEM_PROMPT,
-        generation_config=genai.GenerationConfig(
-            temperature=0.1,
-            max_output_tokens=2048,
-        ),
-    )
-
-    for attempt in range(MAX_RETRIES):
-        try:
-            resp = model.generate_content(
-                prompt,
-                safety_settings=_GEMINI_SAFETY_SETTINGS,
-            )
-            text = resp.text if hasattr(resp, "text") else ""
-            # Track tokens if available
-            if hasattr(resp, "usage_metadata") and resp.usage_metadata:
-                meta = resp.usage_metadata
-                in_tok = getattr(meta, "prompt_token_count", 0) or 0
-                out_tok = getattr(meta, "candidates_token_count", 0) or 0
-                cost = (in_tok / 1000 * _GEMINI_COST_PER_1K_INPUT) + (out_tok / 1000 * _GEMINI_COST_PER_1K_OUTPUT)
-                _total_input_tokens += in_tok
-                _total_output_tokens += out_tok
-                _total_cost_usd += cost
-                logger.debug(f"Gemini call: in={in_tok} out={out_tok} cost=${cost:.5f} total=${_total_cost_usd:.4f}")
-            return text
-        except Exception as e:
-            logger.warning(f"Gemini error (attempt {attempt+1}/{MAX_RETRIES}): {e}")
-            time.sleep(2 ** attempt)
-    return None
-
 
 # ---------------------------------------------------------------------------
 # Backend: DeepInfra / Qwen3-30B-A3B
 # ---------------------------------------------------------------------------
 
-def _call_deepinfra(prompt: str) -> Optional[str]:
+def _call_deepinfra(prompt: str, max_tokens: int = 1500) -> Optional[str]:
     """Call Qwen3-30B-A3B via DeepInfra (OpenAI-compatible). Returns raw text or None."""
     global _total_input_tokens, _total_output_tokens, _total_cost_usd
     api_key = os.environ.get("DEEPINFRA_API_KEY") or os.environ.get("DEEPINFRA_TOKEN")
@@ -230,7 +140,7 @@ def _call_deepinfra(prompt: str) -> Optional[str]:
                     {"role": "user", "content": prompt + " /no_think"},
                 ],
                 temperature=0.1,
-                max_tokens=1500,
+                max_tokens=max_tokens,
             )
             usage = resp.usage
             if usage:
@@ -241,7 +151,11 @@ def _call_deepinfra(prompt: str) -> Optional[str]:
                 _total_output_tokens += out_tok
                 _total_cost_usd += cost
                 logger.debug(f"DeepInfra call: in={in_tok} out={out_tok} cost=${cost:.5f} total=${_total_cost_usd:.4f}")
-            return resp.choices[0].message.content or ""
+            text = resp.choices[0].message.content or ""
+            # Strip <think>...</think> artifacts from Qwen3 judge responses
+            from core.providers.deepinfra_provider import strip_thinking_artifacts
+            text = strip_thinking_artifacts(text)
+            return text
         except openai.RateLimitError as e:
             wait = 2 ** attempt
             logger.warning(f"DeepInfra RateLimit (attempt {attempt+1}/{MAX_RETRIES}), retrying in {wait}s: {e}")
@@ -258,13 +172,9 @@ def _call_deepinfra(prompt: str) -> Optional[str]:
 # Unified dispatcher
 # ---------------------------------------------------------------------------
 
-def _call_judge(prompt: str) -> Optional[str]:
-    """Route to active backend (deepinfra, openai, or gemini)."""
-    if _PROVIDER == "gemini":
-        return _call_gemini(prompt)
-    if _PROVIDER == "deepinfra":
-        return _call_deepinfra(prompt)
-    return _call_openai(prompt)
+def _call_judge(prompt: str, max_tokens: int = 1500) -> Optional[str]:
+    """Route to DeepInfra backend (Qwen3-30B-A3B)."""
+    return _call_deepinfra(prompt, max_tokens=max_tokens)
 
 
 def get_total_cost() -> float:
@@ -396,14 +306,23 @@ def judge_persona_consistency(
     bot_response: str,
     reference: str,
     user_message: str,
+    creator_summary: str = "",
+    doc_d_text: str = "",
+    creator_id: str = "",
 ) -> Tuple[float, str]:
     """B2: Persona consistency (0-100). Returns (score, feedback)."""
-    instruction = (
-        f"Responde como una profesora de fitness y danza en Barcelona que mezcla "
-        f"catalán y español en sus DMs de Instagram.\n"
-        f"Mensaje del lead: {user_message}"
-    )
-    prompt = _build_direct_prompt(instruction, bot_response, reference, RUBRIC_B2)
+    if creator_summary:
+        instruction = (
+            f"Evalúa si la respuesta del bot es consistente con el perfil del creator descrito en el rubric.\n"
+            f"Mensaje del lead: {user_message}"
+        )
+    else:
+        instruction = (
+            f"Evalúa si la respuesta del bot es consistente con la persona del creator.\n"
+            f"Mensaje del lead: {user_message}"
+        )
+    rubric = _build_rubric_b2(creator_summary, doc_d_text=doc_d_text, creator_id=creator_id)
+    prompt = _build_direct_prompt(instruction, bot_response, reference, rubric)
 
     for attempt in range(MAX_RETRIES):
         t0 = time.time()
@@ -543,15 +462,21 @@ def judge_turing_test(
 def evaluate_all_params(
     cases: List[Dict],
     max_cases: int = 50,
+    creator_summary: str = "",
+    doc_d_text: str = "",
+    creator_id: str = "",
 ) -> Dict[str, Any]:
     """Run all 5 judge params on a list of per_case_records.
 
     Each case dict must have: bot_response, ground_truth, user_input (or test_input).
+    creator_summary: dynamic creator profile text injected into B2 rubric.
+    doc_d_text: Creator's Doc D for exemplar calibration (PersonaGym).
+    creator_id: Creator slug for exemplar caching.
     Returns aggregate scores and per-case details.
     """
     eval_cases = cases[:max_cases]
     n = len(eval_cases)
-    print(f"  Evaluating {n} cases with {MODEL_NAME} ({_PROVIDER})...")
+    print(f"  Evaluating {n} cases with {MODEL_NAME} (deepinfra)...")
 
     b2_scores, b5_scores, c2_scores, c3_scores = [], [], [], []
     h1_results = []
@@ -568,8 +493,11 @@ def evaluate_all_params(
 
         case_start = time.time()
 
-        # B2: Persona consistency
-        b2, b2_fb = judge_persona_consistency(bot_resp, ground_truth, user_msg)
+        # B2: Persona consistency (with exemplar calibration if doc_d available)
+        b2, b2_fb = judge_persona_consistency(
+            bot_resp, ground_truth, user_msg, creator_summary,
+            doc_d_text=doc_d_text, creator_id=creator_id,
+        )
         b2_scores.append(b2)
 
         # B5: Emotional signature

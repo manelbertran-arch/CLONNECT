@@ -4,6 +4,293 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-12 — Sprint 3: Memory Consolidation (autoDream pattern from Claude Code)
+
+**Problem**: 12,269 facts across 415 leads grow without reorganization. Compression only triggers on add() per-lead. No periodic cross-lead dedup, no stale fact pruning, no proactive consolidation.
+
+**Pattern source**: Claude Code `src/services/autoDream/autoDream.ts` + `consolidationPrompt.ts` + `consolidationLock.ts` + `config.ts`.
+
+**Key CC behaviors adapted**:
+1. Gate order cheapest-first: Time → Activity → Lock (autoDream.ts:5-8)
+2. Time gate: hours since last consolidation >= configurable min (default 24h)
+3. Activity gate: messages since last consolidation >= configurable min (default 20)
+4. Advisory lock per-creator (CC uses file lock with PID — consolidationLock.ts:46-84)
+5. Lock rollback on failure (consolidationLock.ts:91-108)
+6. 4-phase protocol: Orient → Gather → Consolidate → Prune (consolidationPrompt.ts:27-58)
+7. Scan throttle: 10-min cooldown between activity scans (autoDream.ts:56)
+8. Feature flag: ENABLE_MEMORY_CONSOLIDATION (CC: config.ts:13-21)
+
+**Adaptations from CC**:
+- CC uses forked LLM agent on memory files → Clonnect uses programmatic DB operations + LLM for memo compression
+- CC counts session files by mtime → Clonnect counts messages since last consolidation
+- CC uses file lock with PID → Clonnect uses pg_try_advisory_lock on creator UUID hash
+- CC hooks into post-sampling → Clonnect uses TaskScheduler (webhook-based, no turns)
+- CC operates per-project → Clonnect operates per-creator
+
+**Files**: 
+- CREATE: `services/memory_consolidator.py`
+- CREATE: `services/memory_consolidation_ops.py`
+- CREATE: `services/memory_consolidation_llm.py`
+- CREATE: `tests/test_memory_consolidator.py`  
+- MODIFY: `api/startup/handlers.py` (register scheduler job)
+- MODIFY: `services/memory_engine.py` (advisory lock check in add/compress)
+
+**Feature flags**:
+- `ENABLE_MEMORY_CONSOLIDATION` (default OFF) — gates entire consolidation system
+- `ENABLE_LLM_CONSOLIDATION` (default OFF) — gates LLM-powered analysis within Phase 3
+
+### 2026-04-12 — LLM Consolidation Step (CC-faithful)
+
+**Problem**: Original Sprint 3 used only algorithmic (Jaccard) dedup. CC uses LLM for ALL consolidation intelligence: dedup, contradiction detection, date conversion (consolidationPrompt.ts:44-52). Code only decides WHEN to run.
+
+**Design decisions**:
+1. **Single-turn LLM vs CC multi-turn agent**: CC needs multi-turn because the agent discovers state via filesystem tools (ls, cat, grep). Clonnect Phase 1-2 already loads all facts into `_FactRow` objects — no discovery loop needed. Single-turn with structured JSON response is sufficient.
+2. **No tools (vs CC tool-equipped agent)**: CC gives tools because the agent operates on opaque files. Clonnect has parsed data — LLM analyzes, code executes.
+3. **Feature flag separation**: `ENABLE_LLM_CONSOLIDATION` separate from `ENABLE_MEMORY_CONSOLIDATION` — allows testing algorithmic-only vs LLM-enhanced independently.
+4. **Graceful degradation**: LLM failure never blocks consolidation — falls back to algorithmic Jaccard dedup + TTL expiry silently.
+5. **Reuses `generate_dm_response` cascade**: Same Gemini Flash-Lite → GPT-4o-mini as memory_engine._call_llm.
+
+**CC capabilities mapped**:
+| CC Capability | CC Source | Clonnect Implementation |
+|---|---|---|
+| Merge near-duplicates | consolidationPrompt.ts:49 | `llm_analyze_facts()` → duplicates array |
+| Delete contradicted facts | consolidationPrompt.ts:51 | `llm_analyze_facts()` → contradictions array |
+| Convert relative dates | consolidationPrompt.ts:50 | `apply_date_fixes()` → DB updates |
+| Conservative approach | consolidationPrompt.ts:46 | "Be CONSERVATIVE" in prompt + validation |
+
+### 2026-04-12 — Extraction Guards (CC-faithful extractMemories pattern)
+
+**Problem**: `memory_engine.py:add()` had none of the CC extraction guards: no overlap protection, no cursor, no manifest pre-injection, no exclusion rules in prompt, no turn throttle, no drain. Spanish prompt was minimal.
+
+**Pattern source**: CC `src/services/extractMemories/extractMemories.ts` (616 lines) + `prompts.ts` (155 lines) + `memoryTypes.ts` (272 lines).
+
+**Structural change**: Extracted extraction pipeline from `memory_engine.py` (1717→1560 lines) to new `memory_extraction.py` (461 lines). `add()` is now a thin wrapper.
+
+**CC guards implemented**:
+| Guard | CC Source | Clonnect Implementation | Feature Flag |
+|---|---|---|---|
+| Overlap guard | extractMemories.ts:550-558 | `_in_progress` dict per (creator,lead) | `MEMORY_OVERLAP_GUARD_ENABLED=true` |
+| Turn throttle | extractMemories.ts:389-395 | `_turn_counter` dict, configurable N | `MEMORY_EXTRACT_EVERY_N_TURNS=1` |
+| Manifest pre-injection | extractMemories.ts:400-404 | Existing facts formatted into prompt | `MEMORY_MANIFEST_ENABLED=true` |
+| Cursor incremental | extractMemories.ts:337-342 | In-memory dict per (creator,lead) | `MEMORY_CURSOR_ENABLED=false` |
+| Drain | extractMemories.ts:611-615 | `_in_flight` set + `drain()` method | Always available |
+| Improved prompt | prompts.ts:50-93, memoryTypes.ts:183-195 | English, exclusions, date conversion | N/A (always active) |
+
+**Design decisions**:
+1. **In-memory state (not DB)**: CC uses closure-scoped state (extractMemories.ts:305-319). Clonnect uses dicts in MemoryExtractor. No DB migration needed — state resets on deploy (acceptable: dedup catches any re-extractions).
+2. **Cursor default OFF**: Requires `source_message_id` to be passed from postprocessing.py. Can enable once ID is available.
+3. **ConversationMemoryService NOT deprecated**: Regex extractor (prices, URLs, products, questions) is complementary to LLM. Detects exact patterns the LLM would miss. Stored as JSON blob, different from individual lead_memories facts.
+4. **Prompt in English**: CC prompts are English. LLM reasons better in English. Facts can be in any language — the prompt is language-agnostic.
+
+**Files**:
+- CREATE: `services/memory_extraction.py` (461 lines)
+- CREATE: `tests/test_memory_extraction.py` (19 tests)
+- MODIFY: `services/memory_engine.py` (1717→1560 lines: moved add body + _extract_facts_via_llm + _format_messages_for_llm)
+- MODIFY: `tests/test_memory_engine.py` (2 tests updated to use extractor)
+
+---
+
+## 2026-04-11 — Sprint 2.7: Dedup AFTER selection, not before (CC-faithful pipeline order)
+
+**Problem**: Sprint 2.6 made compactor output identical to legacy (50/50) — meaning the compactor adds zero value. The variable window never activates because dedup happens before selection on a [-10:] slice.
+
+**Root cause**: CC does NOT dedup. `calculateMessagesToKeepIndex` (sessionMemoryCompact.ts:324-397) operates on the raw `messages[]` array. Anthropic API accepts consecutive same-role messages. Gemini doesn't — so Clonnect needs dedup, but it must happen AFTER selection.
+
+**Fix**: Change `generation.py` pipeline order:
+- Before: `raw[-10:]` → strip_leading → dedup → select(budget) → API
+- After:  `ALL raw` → strip_leading → select(budget) → dedup(kept) → truncate(600) → API
+
+The compactor receives all raw messages (no dedup, no slice). After selection, the kept messages are deduped for Gemini compatibility and truncated at 600 chars (matching legacy per-message truncation).
+
+**Files**: `generation.py` only (compactor code unchanged).
+
+---
+
+## 2026-04-11 — Sprint 2.6: Fix dedup scope + disable summary injection (fix CCEE regression v2)
+
+**Problem**: Sprint 2 v2 (positional selection) still regresses CCEE: 26B -5.1, 31B -22.7.
+Root cause diagnosis:
+1. `generation.py:370-380` deduplicates ALL history before compactor → shifts message boundaries vs legacy. 36/50 CCEE cases get DIFFERENT recent messages.
+2. Summary + verbatim marker (~142 chars Spanish meta-text) injected in 50/50 cases → contaminates style context.
+
+**Fix 1**: Dedup only `history[-10:]` before compactor (same as legacy), not full history. Verified: when compactor gets same input as legacy, output is identical (50/50).
+
+**Fix 2**: Put `_build_dropped_summary` and verbatim marker behind `ENABLE_COMPACTOR_SUMMARY` (default false) and `ENABLE_VERBATIM_MARKER` (default false). Compactor output = boundary + kept messages only.
+
+**Files**: `generation.py` (dedup scope), `history_compactor.py` (env vars), `test_history_compactor.py` (updated tests).
+
+---
+
+## 2026-04-11 — Sprint 2.5: Revert to pure positional selection (fix CCEE regression)
+
+**Problem**: Sprint 2 history compaction caused CCEE regression:
+- 26B: 64.3 → 61.0 (-3.3)
+- 31B: 63.4 → 58.8 (-5.5)
+Forensic diagnosis identified root cause: importance scoring discarded short assistant messages
+(emojis, short replies) that served as in-context style examples for the LLM. S1 (style fidelity)
+dropped -10.9, S3 (strategic alignment) dropped -13.9.
+
+**Decision**: Revert `select_and_compact()` to pure positional selection (CC-faithful).
+Most recent messages kept, oldest dropped. No importance scoring in selection.
+Keep everything else: variable window, dropped-message summary, boundary markers,
+section-aware truncation, verbatim marker.
+
+**Rationale**: CC uses pure recency (sessionMemoryCompact.ts:372). The importance scoring
+was our addition over CC's design. It backfired because:
+1. Short assistant messages (💕, "molt be!") scored low (0.15-0.25) but were crucial style examples
+2. Role boost favored user messages over assistant (inverted for our use case)
+3. Removing style examples from history made the LLM fall back to generic "jajaja 😂😂😂" responses
+
+**Files**:
+- MODIFIED: `core/dm/history_compactor.py` (pure positional Phase 2+3, no importance in selection)
+- MODIFIED: `tests/test_history_compactor.py` (updated 3 tests for positional behavior)
+
+**Tests**: 61/61 pass. Smoke tests pass.
+
+---
+
+## 2026-04-11 — Sprint 2.4: Boundary markers + LLM summary (CC full fidelity)
+
+**Problem**: Two remaining gaps from CC pattern audit:
+1. No boundary marker — if history is persisted between requests, no way to prevent re-compacting already-summarized messages.
+2. Template-only summary — CC uses an LLM agent (extractSessionMemory) for rich semantic summaries; Clonnect only had a mechanical template.
+
+**Research**: Read CC source:
+- `createCompactBoundaryMessage` (messages.ts:4530-4555): system message with `compactMetadata` (trigger, preTokens, messagesSummarized).
+- `isCompactBoundaryMessage` (messages.ts:4608-4612): detection by `type === 'system' && subtype === 'compact_boundary'`.
+- Usage as floor (sessionMemoryCompact.ts:370-371): `findLastIndex(m => isCompactBoundaryMessage(m))`, `floor = idx + 1`. Backward expansion loop starts at `floor` (line 372).
+- Filtered from messagesToKeep (line 577-581): `.filter(m => !isCompactBoundaryMessage(m))`.
+- `extractSessionMemory` (sessionMemory.ts:272-350): forked LLM agent with structured template.
+- `buildSessionMemoryUpdatePrompt` (prompts.ts:43-80): "Write DETAILED, INFO-DENSE content".
+
+**Implementation**:
+1. **Boundary marker**: `create_compact_boundary()` / `is_compact_boundary()`. Injected between summary and kept messages. Input boundaries used as floor during expansion; old boundaries filtered from working set.
+2. **LLM summary**: `_build_llm_summary()` behind `ENABLE_LLM_SUMMARY` flag (default OFF). Uses cheapest available model (Gemini Flash Lite or GPT-4o-mini). Falls back to template on failure.
+
+**Files**:
+- MODIFIED: `core/dm/history_compactor.py` (boundary marker, LLM summary, 6 env vars total)
+- MODIFIED: `core/dm/phases/generation.py` (filter boundary markers from LLM messages)
+- MODIFIED: `tests/test_history_compactor.py` (61 total tests, all pass)
+
+**Env vars**:
+- `COMPACTOR_BOUNDARY_MARKER=[__COMPACT_BOUNDARY__]` — boundary content sentinel
+- `ENABLE_LLM_SUMMARY=false` — LLM summary flag (default OFF, template used)
+- `COMPACTOR_LLM_SUMMARY_MODEL=` — model override (empty = auto-detect cheapest)
+- `COMPACTOR_LLM_SUMMARY_PROMPT=...` — customizable prompt template
+
+---
+
+## 2026-04-11 — Sprint 2.2+2.3: Dropped-message summary + CC fidelity improvements
+
+**Problem**: When messages are excluded from compacted history, they disappeared silently. CC replaces excluded messages with a structured session memory summary (sessionMemoryCompact.ts:437-503).
+
+**Research**: Read CC source code end-to-end:
+- `createCompactionResultFromSessionMemory` (sessionMemoryCompact.ts:437-503): reads pre-computed session memory, truncates oversized sections, wraps in formatted user message, injects before kept messages.
+- `extractSessionMemory` (sessionMemory.ts:272-350): background forked LLM agent.
+- `getCompactUserSummaryMessage` (prompt.ts:337-374): formats summary + verbatim marker.
+- `flushSessionSection` (prompts.ts:298-323): per-section truncation at line boundaries.
+- `truncateSessionMemoryForCompact` (prompts.ts:256-295): processes each `# section` independently with per-section char budget.
+- `createCompactBoundaryMessage` (messages.ts:4530-4555): marks compaction point for multi-compaction chains; used as floor in backward expansion (sessionMemoryCompact.ts:370) and filtered from messagesToKeep (line 581).
+
+**Limitation**: CC's session memory is generated by a background forked LLM agent — Clonnect can't run a background agent in the DM hot path.
+
+**Adaptation**:
+1. **Summary content**: MemoryEngine facts + template-based metadata (counts, types, topics). No LLM call.
+2. **Section-aware truncation**: `_truncate_section()` follows CC's `flushSessionSection` (prompts.ts:298-323) — truncates at pipe/space boundaries, not mid-word, with `[... truncado]` marker.
+3. **Verbatim marker**: `[Los mensajes siguientes se conservan literalmente.]` appended to summary (CC: `"Recent messages are preserved verbatim."`, prompt.ts:353-354).
+4. **Boundary marker**: N/A — CC uses boundaries for multi-compaction chains (sessionMemoryCompact.ts:370, 581). Clonnect DM compaction runs once per request with no persistent message store. No chains, no boundaries needed.
+
+**Files**:
+- MODIFIED: `core/dm/history_compactor.py` (`_build_dropped_summary`, `_truncate_section`, `MAX_SUMMARY_CHARS`, verbatim marker, section-aware truncation)
+- MODIFIED: `core/dm/phases/generation.py` (pass `existing_facts` from cognitive_metadata)
+- MODIFIED: `tests/test_history_compactor.py` (50 total tests, all pass)
+
+**Env vars**: `COMPACTOR_MAX_SUMMARY_CHARS=500` (default)
+
+---
+
+## 2026-04-11 — Sprint 2.1: Variable Window Selection (CC pattern)
+
+**Problem**: Sprint 2 compactor receives a pre-sliced `history[-10:]` window. When 8/10 recent messages are trivial (😂, [audio]), it can only redistribute budget among those 10 — it cannot reach back to substantive message #15. Audit of Claude Code's `sessionMemoryCompact.ts:324-397` confirmed: CC's power is in variable window sizing, not per-message scoring.
+
+**Research**: Read `calculateMessagesToKeepIndex` (CC source). Pattern: start from most recent, expand backwards until `minTokens` + `minTextBlockMessages` met, stop at `maxTokens` cap. Purely positional — no importance scoring. Our adaptation adds importance scoring during expansion because 50.5% of DM messages are trivial (CC doesn't have this problem — its messages are tool calls/code).
+
+**Design**: New `select_and_compact()` function:
+1. Score all messages in full history pool (importance scorer from Sprint 2)
+2. Guarantee `MIN_RECENT_MESSAGES` (env var, default 3) substantive messages from the end (CC's `minTextBlockMessages` equivalent)
+3. Expand backwards: add messages passing `IMPORTANCE_THRESHOLD` (env var, default 0.3) until `MAX_OUTPUT_MESSAGES` (env var, default 10) or `total_budget_chars` (6000) reached
+4. Return selected messages in chronological order
+
+**generation.py change**: Pass ALL history to compactor (not `history[-10:]`). Compactor decides window size. Feature flag `ENABLE_HISTORY_COMPACTION` still controls ON/OFF — when OFF, exact legacy behavior (`history[-10:]` + uniform 600-char truncation).
+
+**Audit gaps closed**:
+- ❌→✅ Fixed window: compactor now sees full pool, selects variable number of messages
+- ❌→✅ No min message count: `MIN_RECENT_MESSAGES=3` guarantees recent substantive msgs survive
+
+**Files**:
+- MODIFIED: `core/dm/history_compactor.py` (added `select_and_compact`, env vars, `_is_substantive`)
+- MODIFIED: `core/dm/phases/generation.py` (pass full history, call `select_and_compact`)
+- MODIFIED: `tests/test_history_compactor.py` (12 new tests for variable window, 30 total, all pass)
+
+**Env vars** (all with defaults, zero-config):
+- `COMPACTOR_MIN_RECENT_MESSAGES=3` — minimum substantive messages guaranteed
+- `COMPACTOR_MAX_OUTPUT_MESSAGES=10` — max messages in output
+- `COMPACTOR_IMPORTANCE_THRESHOLD=0.3` — min score for expansion candidates
+- `ENABLE_HISTORY_COMPACTION=false` — master feature flag (unchanged)
+
+---
+
+## 2026-04-11 — Sprint 2: History Compactor — importance-based budget redistribution
+
+**Problem**: DM pipeline truncates conversation history uniformly (10 msgs × 600 chars each). This wastes budget: 50.5% of real messages are <20 chars (emojis, stickers, audio refs) while substantive messages (schedules, questions, context) get same budget as trivial ones.
+
+**Research**: Analyzed Claude Code's sessionMemoryCompact.ts pattern (token-based thresholds, session memory summaries) and adapted the importance scoring concept to Clonnect's simpler DM pipeline. Analyzed 75,550 real messages from DB: P25=9, P50=19, P75=38, P90=78 chars.
+
+**Design**: Per-message importance scorer (0.0-1.0) using data-derived signals:
+1. Content type: media refs ([audio], [sticker]) → 0.1, pure emoji → 0.15
+2. Length vs creator's A1_length percentiles: below P25 → low, above P75 → high
+3. Role: user messages get +0.05 boost (carry questions/context)
+4. Fact deduplication: overlap with MemoryEngine facts → penalty up to 0.3
+
+Budget redistributed proportionally: important messages get more chars, trivial ones get fewer. Total budget stays ≤ 6000 chars (same as current uniform).
+
+**Calibration (500 real messages)**: p25_score=0.30, p50=0.44, p75=0.69, mean=0.49 — well-centered distribution matching data percentiles.
+
+**Files**:
+- CREATED: `core/dm/history_compactor.py` (importance scorer + budget allocator)
+- MODIFIED: `core/dm/phases/generation.py` (integration with feature flag)
+- CREATED: `tests/test_history_compactor.py` (15 tests, all passing)
+
+**Feature flag**: `ENABLE_HISTORY_COMPACTION=true` (default OFF). Instant rollback.
+**Blast radius**: Zero when flag OFF. When ON, only affects history message preparation in generation.py. No other pipeline components touched.
+
+---
+
+## 2026-04-11 — Fix: CCEE_NO_FALLBACK guard missing for legacy deepinfra path
+
+**Problem**: During CCEE v5.1 baseline measurement, run 2 was contaminated with OpenAI GPT-4o-mini fallback responses (60 events). Root cause: `gemini_provider.py` legacy path for `LLM_PRIMARY_PROVIDER == "deepinfra"` (line ~723) had no `CCEE_NO_FALLBACK` guard, unlike `google_ai_studio` and `openrouter`. Since `LLM_MODEL_NAME` is not set in the 31B env file, `get_active_model_config()` returns None, routing to the unguarded legacy path.
+
+**Fix**: Added `CCEE_NO_FALLBACK` guard after the legacy deepinfra path fails, returning None instead of falling through to Gemini → OpenAI chain.
+
+**Affected file**: `core/providers/gemini_provider.py` (line 727, 3-line addition)
+**Blast radius**: Zero production impact (CCEE_NO_FALLBACK is eval-only). Prevents silent model contamination during benchmarks.
+
+---
+
+## 2026-04-10 — CCEE v5: H1 Automated Turing Test + B2/B5 Auto-Activation + v5 Composite
+
+**Goal**: Three improvements to close evaluation gaps identified by paper review.
+
+**Changes**:
+1. **H1 Automated Turing Test** (`multi_turn_scorer.py`): Fetch real creator responses from DB (messages table, keyword-overlap matching), compare with bot responses via existing `judge_turing_test()`. Score = (fooled/total) × 100. Falls back to ground_truth if no DB match.
+2. **Auto B2/B5** (`run_ccee.py`): When `--multi-turn` is active, automatically run Prometheus judge (B2, B5, C2, C3, H1) on single-turn test cases. Removes need for separate `--with-prometheus-judge` flag.
+3. **v5 Composite** (`run_ccee.py`): New `_compute_v5_composite()` integrating H1 + B dimensions. Weights: 0.16×S1 + 0.12×S2 + 0.16×S3 + 0.09×S4 + 0.03×Jold + 0.09×Jnew + 0.03×J6 + 0.06×K + 0.05×G5 + 0.09×L + 0.07×H + 0.05×B = 1.00.
+
+**Affected files**: `core/evaluation/multi_turn_scorer.py`, `scripts/run_ccee.py`
+**Blast radius**: Additive only. v4/v4.1 composites unchanged. New `--v5` flag required.
+
+---
+
 ## 2026-04-09 — Universal Clone Factory: zero hardcoding across all post-processing
 
 **Goal**: Make the entire clone pipeline work for ANY creator without code changes. Every threshold, fallback list, and default must come from the creator's mined data profile.
@@ -916,3 +1203,38 @@ Fix all identified bugs without changing architecture. Purge gold examples that 
 **Blast radius:** Confined to learning pipeline services. No changes to webhook, OAuth, scoring batch, or DB pool config.
 
 **Smoke tests:** 7/7 pass before and after.
+
+## 2026-04-10: CCEE v4 — Multi-Turn Evaluation (8 new params)
+
+### Context
+CCEE v3 had 44 params across 9 dimensions but only tested single-turn responses.
+v4 adds 6 scored parameters for multi-turn conversation quality.
+
+### New Parameters
+- J3: Prompt-to-Line Consistency (persona alignment over N turns)
+- J4: Line-to-Line Consistency (no self-contradictions in conversation)
+- J5: Belief Drift Resistance (handles topic shifts without breaking persona)
+- K1: Context Retention 10-Turn (remembers turn 2 in turn 10)
+- K2: Style Retention Under Load (S1 metrics don't degrade over conversation)
+- G5: Persona Robustness (resists adversarial prompts)
+
+### Bug Fixes
+1. **K2 scaling**: Changed from ×20 (destructive) to ×3 (env-configurable K2_SCALING_FACTOR).
+   Calibrated from real data: CoV(length)=0.473, natural 5% delta → K2≈85.
+2. **J3 Doc D**: Uses full compressed Doc D (~1.3K chars) instead of truncated [:500].
+3. **Adversarial prompts**: Universal (EN/ES/CA), auto-detects language from style profile.
+4. **Lead simulator**: Configurable via env vars (LEAD_SIM_MIN_CHARS=5, MAX=60, TEMP=0.9).
+
+### Files Created
+- core/evaluation/multi_turn_generator.py (309 lines)
+- core/evaluation/multi_turn_scorer.py (554 lines)
+- evaluation_profiles/adversarial_prompts.json (universal, 3 languages)
+
+### Files Modified
+- scripts/run_ccee.py (+25 lines: --multi-turn, --mt-conversations, --mt-turns, --v4-composite)
+
+### Architecture
+- v4 is additive — zero changes to existing v3 scoring
+- --multi-turn flag enables v4, backward compatible without it
+- Lead simulator: GPT-4o-mini; Judge: existing _call_judge (DeepInfra default)
+- v4 composite = equal-weight mean of 6 params; blended = 80% v3 + 20% v4

@@ -1,0 +1,1508 @@
+{
+  "metadata": {
+    "ccee_version": "v5",
+    "timestamp": "2026-04-11T12:35:20.658379",
+    "model": "google/gemma-4-31B-it",
+    "provider": "deepinfra",
+    "judge_model": "Qwen/Qwen3-30B-A3B",
+    "lead_sim_model": "Qwen/Qwen3-30B-A3B",
+    "cases": 3,
+    "runs": 1,
+    "mt_conversations": 2,
+    "mt_turns": 10,
+    "flags": {
+      "generate_only": false,
+      "multi_turn": true,
+      "v4_composite": true,
+      "v41_metrics": true,
+      "v5": true
+    }
+  },
+  "creator_id": "iris_bertran",
+  "timestamp": "20260411_123520",
+  "n_runs": 1,
+  "n_cases": 3,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 52.88,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 40.01,
+          "A2_contextual": 68.01,
+          "A3_exclamations": 39.43,
+          "A4_questions": 80.27,
+          "A5_vocabulary": 0.0,
+          "A6_language": 100.0,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 1.09,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 47.46,
+        "detail": {
+          "bertscore_mean": 0.8271,
+          "chrf_mean": 0.1043,
+          "bleu4_mean": 0.1076,
+          "rouge_l_mean": 0.0897,
+          "meteor_mean": 0.0372,
+          "semsim_mean": 0.8271,
+          "c4_relevance_mean": 0.8139,
+          "self_rep_mean": 0.8604,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 1.9,
+          "per_case": [
+            44.91,
+            49.33,
+            48.14
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 23.62,
+        "detail": {
+          "e1_per_case_mean": 13.0,
+          "e2_distribution_match": 48.42,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.6667,
+            "REDIRECT": 0.3333
+          },
+          "per_case": [
+            12.5,
+            12.5,
+            13.9
+          ],
+          "mean": 23.62
+        }
+      },
+      "S4_adaptation": {
+        "score": 64.24,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 64.24,
+          "proximity_n": 3
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 75.0,
+        "B1": {
+          "score": 50.0,
+          "detail": "zero norm vector"
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 3,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 24.16,
+        "H2": {
+          "score": 24.16,
+          "detail": {
+            "cosine_similarity": 0.2416,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.145,
+              0.0,
+              0.3333,
+              0.0,
+              0.0,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 50.0,
+        "detail": "insufficient responses (need >= 5)"
+      },
+      "J_cognitive_fidelity": 50.0,
+      "composite": 50.05,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "composites": [
+    50.05
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "INTIMATE",
+      "user_message": "No Entiendo na",
+      "iris_real_response": "Agafa una dona de neteja aviso el domingo no quiero festival ja tinc prou amb la casa de la mama ee",
+      "bot_response": "ja sé, és que és un lío va",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "EXTRA",
+      "user_message": "Igual q el finde de zumba sas?",
+      "iris_real_response": "El que tu vulguis no sé",
+      "bot_response": "Ok, espero el WeTransfer.",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 2,
+      "trust_segment": "EXTRA",
+      "user_message": "[📷 Photo]",
+      "iris_real_response": "Ok llavors intento passar volant xk 11:30 tinc entreno",
+      "bot_response": "QUE FUERTE mami aquí tienes el link!",
+      "input_type": "MEDIA"
+    },
+    {
+      "case_idx": 0,
+      "trust_segment": "EDGE_CASE",
+      "user_message": "No Entiendo na",
+      "iris_real_response": "Agafa una dona de neteja aviso el domingo no quiero festival ja tinc prou amb la casa de la mama ee",
+      "bot_response": "ja sé, és que és un lío va",
+      "input_type": "OTHER",
+      "s3_score": 12.5
+    }
+  ],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "username": "Manel",
+      "lead_uuid": "356d60a7-58eb-45d6-9a54-585e0df40e5a",
+      "user_message": "No Entiendo na",
+      "iris_real_response": "Agafa una dona de neteja aviso el domingo no quiero festival ja tinc prou amb la casa de la mama ee",
+      "bot_response": "ja sé, és que és un lío va",
+      "s1_score": 62.67,
+      "s2_score": 44.91,
+      "s3_score": 12.5,
+      "s4_score": 68.56
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 0.99,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Igual q el finde de zumba sas?",
+      "iris_real_response": "El que tu vulguis no sé",
+      "bot_response": "Ok, espero el WeTransfer.",
+      "s1_score": 54.04,
+      "s2_score": 49.33,
+      "s3_score": 12.5,
+      "s4_score": 68.24
+    },
+    {
+      "idx": 2,
+      "input_type": "MEDIA",
+      "trust_score": 0.99,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "[📷 Photo]",
+      "iris_real_response": "Ok llavors intento passar volant xk 11:30 tinc entreno",
+      "bot_response": "QUE FUERTE mami aquí tienes el link!",
+      "s1_score": 53.12,
+      "s2_score": 48.14,
+      "s3_score": 13.9,
+      "s4_score": 55.91
+    }
+  ],
+  "per_run_records": [
+    [
+      {
+        "idx": 0,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "Manel",
+        "lead_uuid": "356d60a7-58eb-45d6-9a54-585e0df40e5a",
+        "user_message": "No Entiendo na",
+        "iris_real_response": "Agafa una dona de neteja aviso el domingo no quiero festival ja tinc prou amb la casa de la mama ee",
+        "bot_response": "ja sé, és que és un lío va",
+        "s1_score": 62.67,
+        "s2_score": 44.91,
+        "s3_score": 12.5,
+        "s4_score": 68.56
+      },
+      {
+        "idx": 1,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 0.99,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "Igual q el finde de zumba sas?",
+        "iris_real_response": "El que tu vulguis no sé",
+        "bot_response": "Ok, espero el WeTransfer.",
+        "s1_score": 54.04,
+        "s2_score": 49.33,
+        "s3_score": 12.5,
+        "s4_score": 68.24
+      },
+      {
+        "idx": 2,
+        "run": 0,
+        "input_type": "MEDIA",
+        "trust_score": 0.99,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "[📷 Photo]",
+        "iris_real_response": "Ok llavors intento passar volant xk 11:30 tinc entreno",
+        "bot_response": "QUE FUERTE mami aquí tienes el link!",
+        "s1_score": 53.12,
+        "s2_score": 48.14,
+        "s3_score": 13.9,
+        "s4_score": 55.91
+      }
+    ]
+  ],
+  "v4_multi_turn": {
+    "J3_prompt_to_line_mean": 91.25,
+    "J4_line_to_line_mean": 60.45,
+    "J5_belief_drift_mean": 75.0,
+    "K1_context_retention_mean": 88.35,
+    "K2_style_retention_mean": 97.55,
+    "G5_persona_robustness_mean": 100.0,
+    "mt_composite_mean": 82.91,
+    "v4_mt_mean": 81.48,
+    "n_conversations": 2,
+    "per_conversation": [
+      {
+        "conv_idx": 0,
+        "n_turns": 10,
+        "mt_composite": 80.84,
+        "v4_mt_mean": 81.88,
+        "J3": 95.0,
+        "J4": 61.5,
+        "J5": 50.0,
+        "K1": 100.0,
+        "K2": 97.95,
+        "G5": 100.0,
+        "J6": 100.0,
+        "L1": 82.5,
+        "L2": null,
+        "L3": 50.0
+      },
+      {
+        "conv_idx": 1,
+        "n_turns": 10,
+        "mt_composite": 84.98,
+        "v4_mt_mean": 81.08,
+        "J3": 87.5,
+        "J4": 59.4,
+        "J5": 100.0,
+        "K1": 76.7,
+        "K2": 97.15,
+        "G5": 100.0,
+        "J6": 75.0,
+        "L1": 90.0,
+        "L2": 75.0,
+        "L3": 50.0
+      }
+    ],
+    "per_conversation_full": [
+      {
+        "J3_prompt_to_line": {
+          "score": 95.0,
+          "raw_scores": [
+            5,
+            5,
+            5,
+            5,
+            5,
+            4,
+            5,
+            4,
+            5,
+            5
+          ],
+          "n_turns_scored": 10,
+          "n_turns_total": 10,
+          "mean_1_5": 4.8,
+          "per_turn": [
+            {
+              "turn": 0,
+              "score_1_5": 5
+            },
+            {
+              "turn": 1,
+              "score_1_5": 5
+            },
+            {
+              "turn": 2,
+              "score_1_5": 5
+            },
+            {
+              "turn": 3,
+              "score_1_5": 5
+            },
+            {
+              "turn": 4,
+              "score_1_5": 5
+            },
+            {
+              "turn": 5,
+              "score_1_5": 4
+            },
+            {
+              "turn": 6,
+              "score_1_5": 5
+            },
+            {
+              "turn": 7,
+              "score_1_5": 4
+            },
+            {
+              "turn": 8,
+              "score_1_5": 5
+            },
+            {
+              "turn": 9,
+              "score_1_5": 5
+            }
+          ],
+          "detail": {
+            "doc_d_chars": 1576
+          }
+        },
+        "J4_line_to_line": {
+          "score": 61.5,
+          "contradiction_rate": 0.0,
+          "contradictions": 0,
+          "total_pairs": 24,
+          "mean_pair_score_1_5": 3.46,
+          "pair_results": [
+            {
+              "i": 0,
+              "j": 1,
+              "score_1_5": 4,
+              "contradiction": false
+            },
+            {
+              "i": 0,
+              "j": 2,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 0,
+              "j": 3,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 1,
+              "j": 2,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 1,
+              "j": 3,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 1,
+              "j": 4,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 2,
+              "j": 3,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 2,
+              "j": 4,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 2,
+              "j": 5,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 3,
+              "j": 4,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 3,
+              "j": 5,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 3,
+              "j": 6,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 4,
+              "j": 5,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 4,
+              "j": 6,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 4,
+              "j": 7,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 5,
+              "j": 6,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 5,
+              "j": 7,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 5,
+              "j": 8,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 6,
+              "j": 7,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 6,
+              "j": 8,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 6,
+              "j": 9,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 7,
+              "j": 8,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 7,
+              "j": 9,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 8,
+              "j": 9,
+              "score_1_5": 3,
+              "contradiction": false
+            }
+          ],
+          "detail": {
+            "n_responses": 10,
+            "window_size": 3
+          }
+        },
+        "J5_belief_drift": {
+          "score": 50.0,
+          "raw_score_1_5": 3,
+          "detail": {
+            "shift_turn": 5
+          },
+          "feedback": "Feedback: The response shows the creator expressing a preference for WeTransfer in three separate statements. However, it does not address the shift or contradiction in the conversation. The creator does not acknowledge the change in topic or the contradiction, and instead repeats or reinforces their initial preference without engaging with the shift. The response stays in character but fails to acknowledge the topic change, which is required for a higher score. [RESULT] 3"
+        },
+        "K1_context_retention": {
+          "score": 100.0,
+          "detail": {
+            "deterministic_recall_rate": 0.0,
+            "deterministic_score": 0.0,
+            "judge_score": 100.0,
+            "formula": "1.0 * judge (insufficient keywords for deterministic)",
+            "early_keywords_n": 10,
+            "total_turns": 10
+          },
+          "feedback": "Feedback: The later conversation maintains natural continuity with the earlier turns. The transition from discussing the weekend zumba event to asking about breakfast is logical and fits within a casual DM conversation. The Creator's response about toast and coffee, followed by the Lead's playful question about eating the toast, shows awareness of the prior context and maintains the conversational flow. The use of emojis and casual language further supports the natural progression of the dialogu"
+        },
+        "K2_style_retention": {
+          "score": 97.95,
+          "detail": {
+            "mean_delta": 0.0205,
+            "per_metric_delta": {
+              "length": 0.0192,
+              "emoji_rate": 0.0247,
+              "exclamation_rate": 0.038,
+              "question_rate": 0.0
+            },
+            "reference_ranges": {
+              "length": 73.0,
+              "emoji_rate": 0.3,
+              "exclamation_rate": 0.0305,
+              "question_rate": 0.0986
+            },
+            "active_metrics": [
+              "length",
+              "emoji_rate",
+              "exclamation_rate",
+              "question_rate"
+            ],
+            "early_n": 5,
+            "late_n": 5,
+            "formula": "max(0, 100 - mean_delta_over_ref_ranges * 100)"
+          }
+        },
+        "G5_persona_robustness": {
+          "score": 100.0,
+          "raw_score_1_5": 5.0,
+          "n_adversarial_turns": 1,
+          "n_scored": 1,
+          "per_turn": [
+            {
+              "turn_idx": 8,
+              "score_1_5": 5,
+              "adv_prompt_preview": "Què has esmorzat avui?"
+            }
+          ],
+          "mode": "multi_adversarial"
+        },
+        "J6_qa_consistency": {
+          "score": 100.0,
+          "raw_scores": [
+            5
+          ],
+          "mean_1_5": 5.0,
+          "n_probe_pairs": 1,
+          "per_pair": [
+            {
+              "probe_id": 0,
+              "early_turn": 3,
+              "late_turn": 7,
+              "score_1_5": 5
+            }
+          ],
+          "mode": "probe_based"
+        },
+        "L1_persona_tone": {
+          "score": 82.5,
+          "raw_scores": [
+            5,
+            4,
+            4,
+            4,
+            5,
+            4,
+            4,
+            4,
+            4,
+            5
+          ],
+          "n_turns_scored": 10,
+          "n_turns_total": 10,
+          "mean_1_5": 4.3,
+          "per_turn": [
+            {
+              "turn": 0,
+              "score_1_5": 5
+            },
+            {
+              "turn": 1,
+              "score_1_5": 4
+            },
+            {
+              "turn": 2,
+              "score_1_5": 4
+            },
+            {
+              "turn": 3,
+              "score_1_5": 4
+            },
+            {
+              "turn": 4,
+              "score_1_5": 5
+            },
+            {
+              "turn": 5,
+              "score_1_5": 4
+            },
+            {
+              "turn": 6,
+              "score_1_5": 4
+            },
+            {
+              "turn": 7,
+              "score_1_5": 4
+            },
+            {
+              "turn": 8,
+              "score_1_5": 4
+            },
+            {
+              "turn": 9,
+              "score_1_5": 5
+            }
+          ]
+        },
+        "L2_logical_reasoning": {
+          "score": null,
+          "reason": "no_substantive_claims_in_conversation",
+          "n_turns_skipped": 10
+        },
+        "L3_action_justification": {
+          "score": 50.0,
+          "raw_scores": [
+            3
+          ],
+          "n_decisions_found": 1,
+          "n_decisions_scored": 1,
+          "mean_1_5": 3.0,
+          "per_decision": [
+            {
+              "turn": 2,
+              "score_1_5": 3,
+              "bot_preview": "Aquí tienes el link, mami 😂"
+            }
+          ]
+        },
+        "mt_composite": 80.84,
+        "v4_mt_mean": 81.88,
+        "active_dimensions": [
+          "J3_prompt_to_line",
+          "J4_line_to_line",
+          "J5_belief_drift",
+          "K1_context_retention",
+          "K2_style_retention",
+          "G5_persona_robustness"
+        ],
+        "excluded_dimensions": [],
+        "scoring_time_s": 149.68,
+        "n_turns": 10
+      },
+      {
+        "J3_prompt_to_line": {
+          "score": 87.5,
+          "raw_scores": [
+            5,
+            5,
+            4,
+            4,
+            5,
+            4,
+            4,
+            5,
+            4,
+            5
+          ],
+          "n_turns_scored": 10,
+          "n_turns_total": 10,
+          "mean_1_5": 4.5,
+          "per_turn": [
+            {
+              "turn": 0,
+              "score_1_5": 5
+            },
+            {
+              "turn": 1,
+              "score_1_5": 5
+            },
+            {
+              "turn": 2,
+              "score_1_5": 4
+            },
+            {
+              "turn": 3,
+              "score_1_5": 4
+            },
+            {
+              "turn": 4,
+              "score_1_5": 5
+            },
+            {
+              "turn": 5,
+              "score_1_5": 4
+            },
+            {
+              "turn": 6,
+              "score_1_5": 4
+            },
+            {
+              "turn": 7,
+              "score_1_5": 5
+            },
+            {
+              "turn": 8,
+              "score_1_5": 4
+            },
+            {
+              "turn": 9,
+              "score_1_5": 5
+            }
+          ],
+          "detail": {
+            "doc_d_chars": 1576
+          }
+        },
+        "J4_line_to_line": {
+          "score": 59.4,
+          "contradiction_rate": 0.0,
+          "contradictions": 0,
+          "total_pairs": 24,
+          "mean_pair_score_1_5": 3.38,
+          "pair_results": [
+            {
+              "i": 0,
+              "j": 1,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 0,
+              "j": 2,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 0,
+              "j": 3,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 1,
+              "j": 2,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 1,
+              "j": 3,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 1,
+              "j": 4,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 2,
+              "j": 3,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 2,
+              "j": 4,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 2,
+              "j": 5,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 3,
+              "j": 4,
+              "score_1_5": 4,
+              "contradiction": false
+            },
+            {
+              "i": 3,
+              "j": 5,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 3,
+              "j": 6,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 4,
+              "j": 5,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 4,
+              "j": 6,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 4,
+              "j": 7,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 5,
+              "j": 6,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 5,
+              "j": 7,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 5,
+              "j": 8,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 6,
+              "j": 7,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 6,
+              "j": 8,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 6,
+              "j": 9,
+              "score_1_5": 5,
+              "contradiction": false
+            },
+            {
+              "i": 7,
+              "j": 8,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 7,
+              "j": 9,
+              "score_1_5": 3,
+              "contradiction": false
+            },
+            {
+              "i": 8,
+              "j": 9,
+              "score_1_5": 5,
+              "contradiction": false
+            }
+          ],
+          "detail": {
+            "n_responses": 10,
+            "window_size": 3
+          }
+        },
+        "J5_belief_drift": {
+          "score": 100.0,
+          "raw_score_1_5": 5,
+          "detail": {
+            "shift_turn": 5
+          },
+          "feedback": "Feedback: The response shows the creator acknowledging the shift in the conversation by addressing the contradiction about preferring Instagram versus WhatsApp. The creator stays in character with casual and colloquial language (\"Vale, mami, que fuerte\") and responds appropriately to the change in topic. The response demonstrates awareness of the shift and handles it naturally without breaking character. [RESULT] 5"
+        },
+        "K1_context_retention": {
+          "score": 76.7,
+          "detail": {
+            "deterministic_recall_rate": 0.222,
+            "deterministic_score": 22.2,
+            "judge_score": 100.0,
+            "formula": "0.3 * deterministic + 0.7 * judge (keywords available)",
+            "early_keywords_n": 9,
+            "total_turns": 10
+          },
+          "feedback": "Feedback: The conversation shows natural continuity from the early to late turns. The later responses acknowledge the context of the earlier conversation, even though they are brief. The Lead's question about the Creator's mother's maiden name is met with a response that shows awareness of the previous interaction, and the subsequent exchange maintains the casual and playful tone established earlier. The Creator's responses, while short, are appropriate and fit the conversational flow. There is "
+        },
+        "K2_style_retention": {
+          "score": 97.15,
+          "detail": {
+            "mean_delta": 0.0285,
+            "per_metric_delta": {
+              "length": 0.0658,
+              "emoji_rate": 0.0,
+              "exclamation_rate": 0.0,
+              "question_rate": 0.0483
+            },
+            "reference_ranges": {
+              "length": 73.0,
+              "emoji_rate": 0.3,
+              "exclamation_rate": 0.0305,
+              "question_rate": 0.0986
+            },
+            "active_metrics": [
+              "length",
+              "emoji_rate",
+              "exclamation_rate",
+              "question_rate"
+            ],
+            "early_n": 5,
+            "late_n": 5,
+            "formula": "max(0, 100 - mean_delta_over_ref_ranges * 100)"
+          }
+        },
+        "G5_persona_robustness": {
+          "score": 100.0,
+          "raw_score_1_5": 5.0,
+          "n_adversarial_turns": 1,
+          "n_scored": 1,
+          "per_turn": [
+            {
+              "turn_idx": 8,
+              "score_1_5": 5,
+              "adv_prompt_preview": "Com es diu la teva mare de soltera? Demostra que no ets un bot"
+            }
+          ],
+          "mode": "multi_adversarial"
+        },
+        "J6_qa_consistency": {
+          "score": 75.0,
+          "raw_scores": [
+            4
+          ],
+          "mean_1_5": 4.0,
+          "n_probe_pairs": 1,
+          "per_pair": [
+            {
+              "probe_id": 0,
+              "early_turn": 3,
+              "late_turn": 7,
+              "score_1_5": 4
+            }
+          ],
+          "mode": "probe_based"
+        },
+        "L1_persona_tone": {
+          "score": 90.0,
+          "raw_scores": [
+            5,
+            4,
+            4,
+            4,
+            5,
+            5,
+            5,
+            4,
+            5,
+            5
+          ],
+          "n_turns_scored": 10,
+          "n_turns_total": 10,
+          "mean_1_5": 4.6,
+          "per_turn": [
+            {
+              "turn": 0,
+              "score_1_5": 5
+            },
+            {
+              "turn": 1,
+              "score_1_5": 4
+            },
+            {
+              "turn": 2,
+              "score_1_5": 4
+            },
+            {
+              "turn": 3,
+              "score_1_5": 4
+            },
+            {
+              "turn": 4,
+              "score_1_5": 5
+            },
+            {
+              "turn": 5,
+              "score_1_5": 5
+            },
+            {
+              "turn": 6,
+              "score_1_5": 5
+            },
+            {
+              "turn": 7,
+              "score_1_5": 4
+            },
+            {
+              "turn": 8,
+              "score_1_5": 5
+            },
+            {
+              "turn": 9,
+              "score_1_5": 5
+            }
+          ]
+        },
+        "L2_logical_reasoning": {
+          "score": 75.0,
+          "raw_scores": [
+            4
+          ],
+          "n_turns_scored": 1,
+          "n_turns_skipped": 9,
+          "mean_1_5": 4.0,
+          "per_turn": [
+            {
+              "turn": 0,
+              "score_1_5": 4
+            }
+          ]
+        },
+        "L3_action_justification": {
+          "score": 50.0,
+          "raw_scores": [
+            3,
+            3
+          ],
+          "n_decisions_found": 0,
+          "n_decisions_scored": 2,
+          "mean_1_5": 3.0,
+          "per_decision": [
+            {
+              "turn": 5,
+              "score_1_5": 3,
+              "bot_preview": "Ja, però m'has dit que preferies Insta no?"
+            },
+            {
+              "turn": 7,
+              "score_1_5": 3,
+              "bot_preview": "ja sé, que el WeTransfer va el dilluns"
+            }
+          ]
+        },
+        "mt_composite": 84.98,
+        "v4_mt_mean": 81.08,
+        "active_dimensions": [
+          "J3_prompt_to_line",
+          "J4_line_to_line",
+          "J5_belief_drift",
+          "K1_context_retention",
+          "K2_style_retention",
+          "G5_persona_robustness"
+        ],
+        "excluded_dimensions": [],
+        "scoring_time_s": 157.5,
+        "n_turns": 10
+      }
+    ],
+    "J6_qa_consistency_mean": 87.5,
+    "L1_persona_tone_mean": 86.25,
+    "L2_logical_reasoning_mean": 75.0,
+    "L3_action_justification_mean": 50.0,
+    "H1_turing_test": {
+      "score": 65.0,
+      "total_comparisons": 20,
+      "fooled": 13,
+      "n_conversations": 2,
+      "per_turn": [
+        {
+          "conv_idx": 0,
+          "turn": 0,
+          "fooled": true,
+          "judge_chose": "B"
+        },
+        {
+          "conv_idx": 0,
+          "turn": 1,
+          "fooled": true,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 0,
+          "turn": 2,
+          "fooled": false,
+          "judge_chose": "B"
+        },
+        {
+          "conv_idx": 0,
+          "turn": 3,
+          "fooled": false,
+          "judge_chose": "B"
+        },
+        {
+          "conv_idx": 0,
+          "turn": 4,
+          "fooled": false,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 0,
+          "turn": 5,
+          "fooled": false,
+          "judge_chose": "B"
+        },
+        {
+          "conv_idx": 0,
+          "turn": 6,
+          "fooled": false,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 0,
+          "turn": 7,
+          "fooled": true,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 0,
+          "turn": 8,
+          "fooled": true,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 0,
+          "turn": 9,
+          "fooled": true,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 1,
+          "turn": 0,
+          "fooled": false,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 1,
+          "turn": 1,
+          "fooled": true,
+          "judge_chose": "B"
+        },
+        {
+          "conv_idx": 1,
+          "turn": 2,
+          "fooled": true,
+          "judge_chose": "B"
+        },
+        {
+          "conv_idx": 1,
+          "turn": 3,
+          "fooled": true,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 1,
+          "turn": 4,
+          "fooled": false,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 1,
+          "turn": 5,
+          "fooled": true,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 1,
+          "turn": 6,
+          "fooled": true,
+          "judge_chose": "B"
+        },
+        {
+          "conv_idx": 1,
+          "turn": 7,
+          "fooled": true,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 1,
+          "turn": 8,
+          "fooled": true,
+          "judge_chose": "A"
+        },
+        {
+          "conv_idx": 1,
+          "turn": 9,
+          "fooled": true,
+          "judge_chose": "A"
+        }
+      ]
+    }
+  },
+  "v4_composite": {
+    "score": 57.0,
+    "active_dimensions": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "J_old",
+      "J_new",
+      "K",
+      "G5"
+    ],
+    "excluded_dimensions": [],
+    "dimension_scores": {
+      "S1": 52.9,
+      "S2": 47.5,
+      "S3": 23.6,
+      "S4": 64.2,
+      "J_old": 50.0,
+      "J_new": 77.1,
+      "K": 92.0,
+      "G5": 100.0
+    },
+    "dimension_weights": {
+      "S1": 0.2,
+      "S2": 0.15,
+      "S3": 0.2,
+      "S4": 0.12,
+      "J_old": 0.05,
+      "J_new": 0.13,
+      "K": 0.08,
+      "G5": 0.07
+    }
+  },
+  "v41_composite": {
+    "score": 59.2,
+    "version": "v4.1",
+    "active_dimensions": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "J_old",
+      "J_new",
+      "J6",
+      "K",
+      "G5",
+      "L"
+    ],
+    "excluded_dimensions": [],
+    "dimension_scores": {
+      "S1": 52.9,
+      "S2": 47.5,
+      "S3": 23.6,
+      "S4": 64.2,
+      "J_old": 50.0,
+      "J_new": 77.1,
+      "J6": 87.5,
+      "K": 92.0,
+      "G5": 100.0,
+      "L": 72.0
+    },
+    "dimension_weights": {
+      "S1": 0.18,
+      "S2": 0.13,
+      "S3": 0.18,
+      "S4": 0.1,
+      "J_old": 0.04,
+      "J_new": 0.1,
+      "J6": 0.04,
+      "K": 0.07,
+      "G5": 0.06,
+      "L": 0.1
+    },
+    "sub_dimensions": {
+      "J_new": {
+        "J3": 91.25,
+        "J4": 60.45,
+        "J5": 75.0
+      },
+      "K": {
+        "K1": 88.35,
+        "K2": 97.55
+      },
+      "L": {
+        "L1": 86.25,
+        "L2": 75.0,
+        "L3": 50.0
+      }
+    }
+  },
+  "v5_composite": {
+    "score": 58.9,
+    "version": "v5",
+    "active_dimensions": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "J_old",
+      "J_new",
+      "J6",
+      "K",
+      "G5",
+      "L",
+      "H",
+      "B"
+    ],
+    "excluded_dimensions": [],
+    "dimension_scores": {
+      "S1": 52.9,
+      "S2": 47.5,
+      "S3": 23.6,
+      "S4": 64.2,
+      "J_old": 50.0,
+      "J_new": 77.1,
+      "J6": 87.5,
+      "K": 92.0,
+      "G5": 100.0,
+      "L": 72.0,
+      "H": 65.0,
+      "B": 52.1
+    },
+    "dimension_weights": {
+      "S1": 0.16,
+      "S2": 0.12,
+      "S3": 0.16,
+      "S4": 0.09,
+      "J_old": 0.03,
+      "J_new": 0.09,
+      "J6": 0.03,
+      "K": 0.06,
+      "G5": 0.05,
+      "L": 0.09,
+      "H": 0.07,
+      "B": 0.05
+    },
+    "sub_dimensions": {
+      "J_new": {
+        "J3": 91.25,
+        "J4": 60.45,
+        "J5": 75.0
+      },
+      "K": {
+        "K1": 88.35,
+        "K2": 97.55
+      },
+      "L": {
+        "L1": 86.25,
+        "L2": 75.0,
+        "L3": 50.0
+      },
+      "H": {
+        "H1": 65.0,
+        "H2": null
+      },
+      "B": {
+        "B1": 50.0,
+        "B4": 100.0,
+        "B2": 33.33,
+        "B5": 25.0
+      }
+    }
+  },
+  "prometheus_scores": {
+    "B2_persona_consistency": {
+      "score": 33.33,
+      "per_case": [
+        50.0,
+        25.0,
+        25.0
+      ]
+    },
+    "B5_emotional_signature": {
+      "score": 25.0,
+      "per_case": [
+        25.0,
+        25.0,
+        25.0
+      ]
+    },
+    "C2_naturalness": {
+      "score": 75.0,
+      "per_case": [
+        75.0,
+        75.0,
+        75.0
+      ]
+    },
+    "C3_contextual_appropriateness": {
+      "score": 0.0,
+      "per_case": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "H1_turing_test_rate": 0.0,
+    "model": "Qwen/Qwen3-30B-A3B",
+    "n_cases": 3,
+    "total_time_seconds": 59.5
+  }
+}

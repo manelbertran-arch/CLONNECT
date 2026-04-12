@@ -97,6 +97,8 @@ class Creator(Base):
     product_price = Column(Float, default=97.0)
     # Website URL (promoted from knowledge_about JSON to dedicated column)
     website_url = Column(String(500), nullable=True)
+    # Memory consolidation timestamp (CC: lock file mtime, consolidationLock.ts:1,29-36)
+    last_consolidated_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # ORM relationships
