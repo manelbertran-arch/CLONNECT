@@ -69,6 +69,20 @@ LLM_CONSOLIDATION_MAX_TOKENS = _validated_env_int(
 
 _CONSOLIDATION_LLM_PROMPT = """You are consolidating memory facts about a person. Today is {today}.
 
+PERSONALITY-CRITICAL FACTS PROTECTION:
+Facts describing communication style, language register, personality traits,
+emotional patterns, catchphrases, code-switching habits, and tone preferences
+are personality-critical. Rules:
+1. NEVER remove a personality-critical fact unless a genuinely newer fact
+   explicitly contradicts it.
+2. NEVER merge two distinct personality traits into a generic summary.
+   Example: DO NOT merge "uses diminutives in Catalan" + "switches to Spanish
+   for business topics" into "multilingual communicator".
+3. When in doubt about a personality fact, KEEP IT. False negatives
+   (keeping a duplicate) are less harmful than false positives (losing persona).
+4. Facts of type 'preference' and 'personal_info' have higher protection —
+   only deactivate if genuinely outdated or directly contradicted.
+
 Facts (numbered):
 {facts_list}
 
@@ -103,49 +117,104 @@ Return ONLY valid JSON, no explanation."""
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def _call_consolidation_llm(facts_text: str, today: str) -> Optional[Dict]:
-    """Call LLM for consolidation analysis.
+    """Call LLM for consolidation analysis with retry+backoff.
 
-    Uses generate_dm_response (gemini_provider.py:619) — same function as the DM
-    pipeline. If LLM_MODEL_NAME is set (e.g. gemma4_31b → DeepInfra), it dispatches
-    to that model first. Fallback: GPT-4o-mini if primary fails.
+    Provider is controlled by CONSOLIDATION_LLM_PROVIDER env var:
+      "openrouter" → call_openrouter() (120s timeout, google/gemma-4-31b-it)
+      "deepinfra"  → call_deepinfra() (uses DEEPINFRA_TIMEOUT, default 8s)
 
-    This mirrors CC's forked agent reusing the same model as the main agent
-    (autoDream.ts:224-232, runForkedAgent).
+    No cascade to GPT-4o-mini or Gemini — only the configured provider.
+    CC pattern (autoDream.ts:224-232, runForkedAgent): same model family as
+    the main pipeline, no silent fallback to a different model.
 
-    Returns parsed JSON dict or None on failure.
+    This is a background job — latency-tolerant. On failure, we wait and retry
+    (up to CONSOLIDATION_LLM_MAX_RETRIES, default 3) with
+    CONSOLIDATION_LLM_RETRY_WAIT seconds between attempts (default 5s).
+    After exhausting retries, returns None → algorithmic fallback active.
     """
+    import asyncio as _asyncio
+
     prompt = _CONSOLIDATION_LLM_PROMPT.format(
         today=today,
         facts_list=facts_text,
         max_actions=MAX_LLM_ACTIONS_PER_LEAD,
     )
 
-    try:
-        from core.providers.gemini_provider import generate_dm_response
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You analyze memory facts for duplicates, contradictions, "
+                "and date fixes. Respond ONLY with valid JSON."
+            ),
+        },
+        {"role": "user", "content": prompt},
+    ]
 
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You analyze memory facts for duplicates, contradictions, "
-                    "and date fixes. Respond ONLY with valid JSON."
-                ),
-            },
-            {"role": "user", "content": prompt},
-        ]
-        result = await generate_dm_response(
-            messages, max_tokens=LLM_CONSOLIDATION_MAX_TOKENS,
-        )
+    provider = os.getenv("CONSOLIDATION_LLM_PROVIDER", "deepinfra").lower()
+    max_retries = _validated_env_int("CONSOLIDATION_LLM_MAX_RETRIES", 3)
+    retry_wait = _validated_env_float("CONSOLIDATION_LLM_RETRY_WAIT", 5.0)
 
-        if not result or not result.get("content"):
-            logger.warning("[ConsolidatorLLM] Empty response from LLM")
-            return None
+    if provider == "openrouter":
+        from core.providers.openrouter_provider import call_openrouter as _call_provider
+        _provider_name = "OpenRouter"
 
-        return _parse_llm_response(result["content"])
+        async def _invoke():
+            return await _call_provider(
+                messages,
+                max_tokens=LLM_CONSOLIDATION_MAX_TOKENS,
+                temperature=0.1,
+                model=os.getenv("CONSOLIDATION_LLM_MODEL", "google/gemma-4-31b-it"),
+            )
+    else:
+        from core.providers.deepinfra_provider import call_deepinfra as _call_provider
+        _provider_name = "DeepInfra"
 
-    except Exception as e:
-        logger.error("[ConsolidatorLLM] LLM call failed: %s", e)
-        return None
+        async def _invoke():
+            return await _call_provider(
+                messages,
+                max_tokens=LLM_CONSOLIDATION_MAX_TOKENS,
+                temperature=0.1,
+                model=os.getenv("CONSOLIDATION_LLM_MODEL", "google/gemma-4-31b-it"),
+            )
+
+    logger.debug("[ConsolidatorLLM] Using provider=%s", _provider_name)
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            result = await _invoke()
+
+            if result and result.get("content"):
+                return _parse_llm_response(result["content"])
+
+            if attempt < max_retries:
+                logger.warning(
+                    "[ConsolidatorLLM] %s empty/None (attempt %d/%d) — "
+                    "waiting %.0fs before retry",
+                    _provider_name, attempt, max_retries, retry_wait,
+                )
+                await _asyncio.sleep(retry_wait)
+            else:
+                logger.warning(
+                    "[ConsolidatorLLM] %s failed after %d attempts — "
+                    "skipping LLM for this lead (algorithmic fallback active)",
+                    _provider_name, max_retries,
+                )
+                return None
+
+        except Exception as e:
+            if attempt < max_retries:
+                logger.warning(
+                    "[ConsolidatorLLM] %s error attempt %d/%d: %s — "
+                    "retrying in %.0fs",
+                    _provider_name, attempt, max_retries, e, retry_wait,
+                )
+                await _asyncio.sleep(retry_wait)
+            else:
+                logger.error("[ConsolidatorLLM] %s failed: %s", _provider_name, e)
+                return None
+
+    return None
 
 
 def _parse_llm_response(raw: str) -> Optional[Dict]:
@@ -258,9 +327,21 @@ async def llm_analyze_facts(
     if len(facts) < 2:
         return None
 
+    # Cap: send only the most recent CONSOLIDATION_LLM_MAX_FACTS facts.
+    # Very large leads (hundreds of facts) generate >10K token prompts that
+    # exceed the LLM timeout even at 120s. Older facts were consolidated in
+    # prior runs; new facts (most recent) are where dupes/contradictions appear.
+    max_facts = _validated_env_int("CONSOLIDATION_LLM_MAX_FACTS", 80)
+    facts_slice = facts[-max_facts:] if len(facts) > max_facts else facts
+    if len(facts) > max_facts:
+        logger.debug(
+            "[ConsolidatorLLM] Capping facts %d→%d (most recent)",
+            len(facts), len(facts_slice),
+        )
+
     # Build numbered facts list for the prompt
     lines = []
-    for i, f in enumerate(facts):
+    for i, f in enumerate(facts_slice):
         age = ""
         if f.created_at:
             days = (datetime.now(timezone.utc) - (
@@ -276,9 +357,27 @@ async def llm_analyze_facts(
     if raw_actions is None:
         return None
 
+    # Validate indices against facts_slice (LLM sees 0-based indices into the slice)
     duplicates, contradictions, date_fixes = _validate_llm_actions(
-        raw_actions, len(facts),
+        raw_actions, len(facts_slice),
     )
+
+    # Remap slice-relative indices to full facts list indices
+    # (consolidate_lead uses indices into the full facts list)
+    offset = len(facts) - len(facts_slice)
+    if offset > 0:
+        duplicates = [
+            {**d, "keep": d["keep"] + offset, "remove": d["remove"] + offset}
+            for d in duplicates
+        ]
+        contradictions = [
+            {**c, "remove": c["remove"] + offset}
+            for c in contradictions
+        ]
+        date_fixes = [
+            {**f, "index": f["index"] + offset}
+            for f in date_fixes
+        ]
 
     total = len(duplicates) + len(contradictions) + len(date_fixes)
     if total > 0:
@@ -305,14 +404,25 @@ async def apply_date_fixes(
         return 0
 
     import asyncio
+    from services.memory_consolidation_ops import CONSOLIDATION_DRY_RUN
 
     updated = 0
     for fix in date_fixes:
         idx = fix["index"]
+        if idx >= len(facts):
+            continue
         fact = facts[idx]
         new_text = fix["fixed_text"].strip()
 
         if not new_text or new_text == fact.fact_text:
+            continue
+
+        if CONSOLIDATION_DRY_RUN:
+            logger.info(
+                "[DRY-RUN] lead=%s action=date_fix fact_id=%s type=%s old=%r new=%r",
+                fact.lead_id[:8], fact.id[:8], fact.fact_type, fact.fact_text[:60], new_text[:60],
+            )
+            updated += 1
             continue
 
         # Update in DB — LLM already rewrote the full text, no string replace needed

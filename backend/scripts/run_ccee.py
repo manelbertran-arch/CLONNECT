@@ -1218,8 +1218,8 @@ def main():
         help="Run v4 multi-turn evaluation (J3, J4, J5, K1, K2, G5)"
     )
     parser.add_argument(
-        "--mt-conversations", type=int, default=5,
-        help="Number of multi-turn conversations to generate (default: 5)"
+        "--mt-conversations", type=int, default=8,
+        help="Number of multi-turn conversations to generate (default: 8)"
     )
     parser.add_argument(
         "--mt-turns", type=int, default=10,
@@ -1781,10 +1781,13 @@ def main():
         baseline_scores = baseline_data.get("composites", [])
         if baseline_scores:
             comparison = scorer.compare_to_baseline(all_composites, baseline_scores)
-            print(f"  Verdict: {comparison['verdict']}")
-            print(f"  p-value: {comparison['p_value']}")
-            print(f"  Cliff's delta: {comparison['cliffs_delta']} ({comparison['effect_size']})")
-            print(f"  Current: {comparison['current_mean']:.2f} vs Baseline: {comparison['baseline_mean']:.2f}")
+            if "verdict" not in comparison:
+                print(f"  Status: {comparison.get('status', 'unknown')} (current={len(all_composites)}, baseline={len(baseline_scores)} scores)")
+            else:
+                print(f"  Verdict: {comparison['verdict']}")
+                print(f"  p-value: {comparison['p_value']}")
+                print(f"  Cliff's delta: {comparison['cliffs_delta']} ({comparison['effect_size']})")
+                print(f"  Current: {comparison['current_mean']:.2f} vs Baseline: {comparison['baseline_mean']:.2f}")
 
     # Human eval cases
     print(f"\n[5] Cases for human evaluation:")

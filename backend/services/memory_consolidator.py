@@ -266,9 +266,10 @@ async def _count_messages_since(creator_id: str, since: datetime) -> int:
         try:
             row = session.execute(
                 text(
-                    "SELECT count(*) FROM messages "
-                    "WHERE creator_id = CAST(:cid AS uuid) "
-                    "AND created_at > :since"
+                    "SELECT count(*) FROM messages m "
+                    "JOIN leads l ON l.id = m.lead_id "
+                    "WHERE l.creator_id = CAST(:cid AS uuid) "
+                    "AND m.created_at > :since"
                 ),
                 {"cid": creator_id, "since": since},
             ).fetchone()
@@ -340,7 +341,10 @@ async def consolidate_creator(creator_id: str):
         result.facts_cross_deduped = await cross_lead_dedup(creator_id, result)
 
         # Record consolidation timestamp (CC: lock mtime stays at now)
-        await record_consolidation(creator_id)
+        # Skip in DRY_RUN — don't advance the gate timestamp
+        from services.memory_consolidation_ops import CONSOLIDATION_DRY_RUN as _DRY
+        if not _DRY:
+            await record_consolidation(creator_id)
 
     except Exception as e:
         result.error = str(e)

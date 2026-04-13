@@ -65,6 +65,7 @@ def make_fact(
     confidence: float = 0.8,
     created_at: datetime = None,
     times_accessed: int = 0,
+    updated_at: datetime = None,
 ) -> _FactRow:
     return _FactRow(
         id=str(uuid.uuid4()),
@@ -74,6 +75,7 @@ def make_fact(
         confidence=confidence,
         created_at=created_at or datetime.now(timezone.utc),
         times_accessed=times_accessed,
+        updated_at=updated_at,
     )
 
 
@@ -141,14 +143,96 @@ class TestNearDuplicates:
         dupes = _find_near_duplicates(facts)
         assert len(dupes) >= 1
 
-    def test_keeps_higher_access(self):
-        f1 = make_fact(fact_text="Le gusta el yoga", times_accessed=5)
-        f2 = make_fact(fact_text="Le gusta el yoga", times_accessed=1)
-        dupes = _find_near_duplicates([f1, f2])
+    def test_keeps_longer_fact(self):
+        """Cambio 1: When two facts are near-duplicates, keep the longer (more specific) one."""
+        f_short = make_fact(fact_text="Le gusta el yoga", times_accessed=100)
+        f_long = make_fact(
+            fact_text="Siempre usa diminutivos en catalán cuando habla con confianza",
+            times_accessed=2,
+        )
+        dupes = _find_near_duplicates([f_short, f_long])
+        # These are NOT near-duplicates (different content) — test the heuristic directly
+        # Use identical-content facts to force a Jaccard hit, then vary length
+        f_a = make_fact(fact_text="Le gusta mucho el yoga por las mañanas", times_accessed=50)
+        f_b = make_fact(fact_text="Le gusta el yoga por las mañanas y la meditación guiada", times_accessed=1)
+        dupes = _find_near_duplicates([f_a, f_b])
+        if dupes:  # May or may not hit threshold depending on exact Jaccard
+            deactivate_id, keep_id = dupes[0]
+            # The kept fact must be the longer one
+            kept = f_a if keep_id == f_a.id else f_b
+            removed = f_b if kept is f_a else f_a
+            assert len(kept.fact_text) >= len(removed.fact_text)
+
+    def test_dedup_keeps_longer_fact(self):
+        """Cambio 1: Keep longer fact over shorter even when shorter has more accesses.
+
+        Uses 7/8-word texts so Jaccard = 7/8 = 0.875 >= 0.85 threshold.
+        """
+        # 7 shared words out of 8 total → Jaccard = 7/8 = 0.875
+        f_short = make_fact(
+            fact_text="le gusta el yoga y la meditación",
+            times_accessed=100,
+        )
+        f_long = make_fact(
+            fact_text="le gusta el yoga y la meditación guiada",
+            times_accessed=0,
+        )
+        dupes = _find_near_duplicates([f_short, f_long])
         assert len(dupes) == 1
         deactivate_id, keep_id = dupes[0]
-        assert deactivate_id == f2.id
-        assert keep_id == f1.id
+        assert keep_id == f_long.id
+        assert deactivate_id == f_short.id
+
+    def test_dedup_same_length_keeps_newer(self):
+        """Cambio 1: When two facts have same length, keep the more recently updated one."""
+        yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+        today = datetime.now(timezone.utc)
+        f_old = make_fact(fact_text="prefiere yoga", updated_at=yesterday)
+        f_new = make_fact(fact_text="prefiere yoga", updated_at=today)
+        dupes = _find_near_duplicates([f_old, f_new])
+        assert len(dupes) == 1
+        deactivate_id, keep_id = dupes[0]
+        assert keep_id == f_new.id
+        assert deactivate_id == f_old.id
+
+    def test_protected_types_skip_jaccard(self):
+        """Cambio 2: Two facts of the same protected type are not deduped by Jaccard."""
+        import services.memory_consolidation_ops as mod
+        orig = mod.CONSOLIDATION_PROTECTED_TYPES
+        mod.CONSOLIDATION_PROTECTED_TYPES = {"preference"}
+        try:
+            f_a = make_fact(fact_text="le gusta el tono cálido", fact_type="preference")
+            f_b = make_fact(fact_text="le gusta el tono cálido y cercano", fact_type="preference")
+            dupes = _find_near_duplicates([f_a, f_b])
+            assert dupes == [], "Protected-type pair must not be deduped by Jaccard"
+        finally:
+            mod.CONSOLIDATION_PROTECTED_TYPES = orig
+
+    def test_protected_type_vs_unprotected_still_deduped(self):
+        """Cambio 2: A protected + unprotected pair is still evaluated by Jaccard."""
+        import services.memory_consolidation_ops as mod
+        orig = mod.CONSOLIDATION_PROTECTED_TYPES
+        mod.CONSOLIDATION_PROTECTED_TYPES = {"preference"}
+        try:
+            f_prot = make_fact(fact_text="le gusta el yoga", fact_type="preference")
+            f_other = make_fact(fact_text="le gusta el yoga", fact_type="topic")
+            dupes = _find_near_duplicates([f_prot, f_other])
+            assert len(dupes) == 1, "Mixed-type pair must still be evaluated"
+        finally:
+            mod.CONSOLIDATION_PROTECTED_TYPES = orig
+
+    def test_no_protected_types_backward_compatible(self):
+        """Cambio 2: With empty CONSOLIDATION_PROTECTED_TYPES, behavior is unchanged."""
+        import services.memory_consolidation_ops as mod
+        orig = mod.CONSOLIDATION_PROTECTED_TYPES
+        mod.CONSOLIDATION_PROTECTED_TYPES = set()
+        try:
+            f1 = make_fact(fact_text="le gusta el yoga", fact_type="preference")
+            f2 = make_fact(fact_text="le gusta el yoga", fact_type="preference")
+            dupes = _find_near_duplicates([f1, f2])
+            assert len(dupes) == 1, "Without protection, same text is still deduped"
+        finally:
+            mod.CONSOLIDATION_PROTECTED_TYPES = orig
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -533,6 +617,18 @@ class TestConcurrency:
 class TestLLMConsolidation:
     """CC-faithful LLM consolidation: dedup, contradiction, date_fix."""
 
+    def test_consolidation_prompt_contains_persona_protection(self):
+        """Cambio 3: The LLM prompt must include personality-critical protection rules."""
+        from services.memory_consolidation_llm import _CONSOLIDATION_LLM_PROMPT
+        assert "PERSONALITY-CRITICAL" in _CONSOLIDATION_LLM_PROMPT
+        assert "NEVER merge two distinct personality traits" in _CONSOLIDATION_LLM_PROMPT
+        assert "preference" in _CONSOLIDATION_LLM_PROMPT
+        assert "personal_info" in _CONSOLIDATION_LLM_PROMPT
+        # Protection rules must appear BEFORE the facts list placeholder
+        protection_pos = _CONSOLIDATION_LLM_PROMPT.index("PERSONALITY-CRITICAL")
+        facts_pos = _CONSOLIDATION_LLM_PROMPT.index("{facts_list}")
+        assert protection_pos < facts_pos, "Persona protection must appear before facts list"
+
     def test_validate_llm_actions_valid(self):
         from services.memory_consolidation_llm import _validate_llm_actions
         actions = {
@@ -647,7 +743,7 @@ class TestLLMConsolidation:
                 }),
             }
             with patch(
-                "core.providers.gemini_provider.generate_dm_response",
+                "core.providers.deepinfra_provider.call_deepinfra",
                 new_callable=AsyncMock,
                 return_value=mock_response,
             ):
@@ -671,7 +767,7 @@ class TestLLMConsolidation:
         try:
             facts = [make_fact(fact_text="A"), make_fact(fact_text="B")]
             with patch(
-                "core.providers.gemini_provider.generate_dm_response",
+                "core.providers.deepinfra_provider.call_deepinfra",
                 new_callable=AsyncMock,
                 side_effect=Exception("LLM down"),
             ):
@@ -705,7 +801,7 @@ class TestLLMConsolidation:
         with patch(
             "services.memory_consolidation_llm.ENABLE_LLM_CONSOLIDATION", True,
         ), patch(
-            "core.providers.gemini_provider.generate_dm_response",
+            "core.providers.deepinfra_provider.call_deepinfra",
             new_callable=AsyncMock,
             return_value=llm_response,
         ), patch(

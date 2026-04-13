@@ -57,3 +57,9 @@ export TOKENIZERS_PARALLELISM=false
 
 echo "✓ CCEE Gemma 4 31B Dense — FULL PIPELINE (23 systems)"
 echo "  Model: $DEEPINFRA_MODEL (via DeepInfra)"
+
+# Sprint 3 flags
+export ENABLE_MEMORY_CONSOLIDATION=true
+export ENABLE_LLM_CONSOLIDATION=true
+export MEMORY_CURSOR_ENABLED=true
+export MEMORY_OVERLAP_GUARD_ENABLED=true

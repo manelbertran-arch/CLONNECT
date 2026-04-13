@@ -26,6 +26,17 @@ MAX_LEADS_PER_RUN = _validated_env_int("CONSOLIDATION_MAX_LEADS_PER_RUN", 50)
 MAX_DEACTIVATIONS_PER_RUN = _validated_env_int("CONSOLIDATION_MAX_DEACTIVATIONS_PER_RUN", 500)
 MEMO_REFRESH_MIN_NEW_FACTS = _validated_env_int("CONSOLIDATION_MEMO_REFRESH_MIN_NEW_FACTS", 3)
 
+# Fact types that skip Jaccard dedup (both facts must be of a protected type to skip).
+# Default: empty — no protection, backward compatible.
+# Recommended production value: "preference,personal_info"
+CONSOLIDATION_PROTECTED_TYPES: set = set(
+    os.getenv("CONSOLIDATION_PROTECTED_TYPES", "").split(",")
+) - {""}
+
+# Dry-run mode: execute all logic but skip DB writes.
+# Set CONSOLIDATION_DRY_RUN=true to audit what would happen without side effects.
+CONSOLIDATION_DRY_RUN = os.getenv("CONSOLIDATION_DRY_RUN", "false").lower() == "true"
+
 
 @dataclass
 class _FactRow:
@@ -37,6 +48,7 @@ class _FactRow:
     confidence: float
     created_at: Optional[datetime]
     times_accessed: int
+    updated_at: Optional[datetime] = None
 
 
 @dataclass
@@ -53,6 +65,7 @@ class ConsolidationResult:
     duration_seconds: float = 0.0
     error: Optional[str] = None
     total_deactivations: int = 0  # Safety net counter
+    dry_run_actions: List[Dict] = field(default_factory=list)  # populated in DRY_RUN mode
 
 
 # Phase 1 — Orient (CC: "ls memory dir", consolidationPrompt.ts:28)
@@ -152,7 +165,7 @@ async def _gather_load_facts(
             rows = session.execute(
                 text(
                     "SELECT id, lead_id, fact_type, fact_text, confidence, "
-                    "created_at, times_accessed "
+                    "created_at, times_accessed, updated_at "
                     "FROM lead_memories "
                     "WHERE creator_id = CAST(:cid AS uuid) "
                     "AND lead_id = CAST(:lid AS uuid) "
@@ -171,6 +184,7 @@ async def _gather_load_facts(
                     confidence=float(r[4]) if r[4] else 0.7,
                     created_at=r[5],
                     times_accessed=int(r[6]) if r[6] else 0,
+                    updated_at=r[7],
                 )
                 for r in rows
             ]
@@ -183,29 +197,56 @@ async def _gather_load_facts(
         return []
 
 
+def _fact_recency(f: "_FactRow") -> datetime:
+    """Return the best available recency timestamp for a fact, tz-aware."""
+    dt = f.updated_at or f.created_at
+    if dt is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
 def _find_near_duplicates(facts: List[_FactRow]) -> List[Tuple[str, str]]:
-    """Find near-duplicate fact pairs by Jaccard similarity. Returns (deactivate_id, keep_id)."""
+    """Find near-duplicate fact pairs by Jaccard similarity. Returns (deactivate_id, keep_id).
+
+    Keep heuristic: longer fact_text wins (more specific/detailed).
+    Tiebreaker: more recently updated fact wins.
+    Protected types: when BOTH facts are of a type in CONSOLIDATION_PROTECTED_TYPES,
+    skip Jaccard dedup — only the LLM may deactivate these.
+    """
     dupes = []
     for i in range(len(facts)):
         for j in range(i + 1, len(facts)):
+            # Cambio 2: skip Jaccard dedup when both facts are of a protected type
+            if (
+                CONSOLIDATION_PROTECTED_TYPES
+                and facts[i].fact_type in CONSOLIDATION_PROTECTED_TYPES
+                and facts[j].fact_type in CONSOLIDATION_PROTECTED_TYPES
+            ):
+                continue
             sim = MemoryEngine._text_similarity(  # Reuse, not duplicate (G7 fix)
                 facts[i].fact_text, facts[j].fact_text,
             )
             if sim >= DEDUP_JACCARD_THRESHOLD:
-                # Keep the one with more accesses, or newer if tied
-                if facts[i].times_accessed >= facts[j].times_accessed:
-                    dupes.append((facts[j].id, facts[i].id))
+                # Cambio 1: keep longer fact (more specific); tiebreak by recency
+                len_i = len(facts[i].fact_text)
+                len_j = len(facts[j].fact_text)
+                if len_i != len_j:
+                    keep = facts[i] if len_i > len_j else facts[j]
                 else:
-                    dupes.append((facts[i].id, facts[j].id))
+                    keep = facts[i] if _fact_recency(facts[i]) >= _fact_recency(facts[j]) else facts[j]
+                remove = facts[j] if keep is facts[i] else facts[i]
+                dupes.append((remove.id, keep.id))
     return dupes
 
 
 # Phase 3 — Consolidate (CC: consolidationPrompt.ts:44-52)
 
 async def _deactivate_facts(fact_ids: List[str]) -> int:
-    """Deactivate facts by ID."""
+    """Deactivate facts by ID. In DRY_RUN mode, skips DB write and returns count."""
     if not fact_ids:
         return 0
+    if CONSOLIDATION_DRY_RUN:
+        return len(fact_ids)  # pretend it worked — caller already logged
     def _sync():
         from api.database import SessionLocal
         from sqlalchemy import text
@@ -230,6 +271,32 @@ async def _deactivate_facts(fact_ids: List[str]) -> int:
         return 0
 
 
+def _dry_run_log(
+    result: ConsolidationResult,
+    lead_id: str,
+    action: str,
+    fact: "_FactRow",
+    reason: str,
+    score: Optional[float] = None,
+) -> None:
+    """Log a dry-run action in parseable format and collect in result."""
+    score_str = f" score={score:.3f}" if score is not None else ""
+    content_snippet = (fact.fact_text or "")[:80].replace("\n", " ")
+    logger.info(
+        "[DRY-RUN] lead=%s action=%s fact_id=%s type=%s reason=%s%s content=%r",
+        lead_id[:8], action, fact.id[:8], fact.fact_type, reason, score_str, content_snippet,
+    )
+    result.dry_run_actions.append({
+        "lead_id": lead_id,
+        "action": action,
+        "fact_id": fact.id,
+        "fact_type": fact.fact_type,
+        "reason": reason,
+        "score": score,
+        "content": fact.fact_text,
+    })
+
+
 async def consolidate_lead(
     creator_id: str,
     lead_id: str,
@@ -238,7 +305,11 @@ async def consolidate_lead(
 ) -> None:
     """Phase 3: LLM analysis → algorithmic fallback → expire → re-compress."""
     real_facts = [f for f in facts if f.fact_type != "compressed_memo"]
+    fact_by_id = {f.id: f for f in real_facts}  # for dry-run logging
     llm_removed_ids: set = set()
+
+    if CONSOLIDATION_DRY_RUN:
+        logger.info("[DRY-RUN] lead=%s total_facts=%d", lead_id[:8], len(real_facts))
 
     # 3a. LLM-powered analysis (CC: consolidationPrompt.ts:44-52)
     # "Merging new signal... Converting relative dates... Deleting contradicted facts"
@@ -257,6 +328,10 @@ async def consolidate_lead(
             })
             if llm_dedup_ids:
                 if result.total_deactivations + len(llm_dedup_ids) <= MAX_DEACTIVATIONS_PER_RUN:
+                    if CONSOLIDATION_DRY_RUN:
+                        for fid in llm_dedup_ids:
+                            if fid in fact_by_id:
+                                _dry_run_log(result, lead_id, "deactivate", fact_by_id[fid], "llm_dedup")
                     count = await _deactivate_facts(llm_dedup_ids)
                     result.facts_deduped += count
                     result.total_deactivations += count
@@ -271,6 +346,10 @@ async def consolidate_lead(
             } - llm_removed_ids)
             if contradiction_ids:
                 if result.total_deactivations + len(contradiction_ids) <= MAX_DEACTIVATIONS_PER_RUN:
+                    if CONSOLIDATION_DRY_RUN:
+                        for fid in contradiction_ids:
+                            if fid in fact_by_id:
+                                _dry_run_log(result, lead_id, "deactivate", fact_by_id[fid], "llm_contradiction")
                     count = await _deactivate_facts(contradiction_ids)
                     result.facts_deduped += count  # counted as dedup in metrics
                     result.total_deactivations += count
@@ -302,6 +381,12 @@ async def consolidate_lead(
                     MAX_DEACTIVATIONS_PER_RUN, lead_id[:8],
                 )
             else:
+                if CONSOLIDATION_DRY_RUN:
+                    # Build score map for logging
+                    dedup_map = {d[0]: d for d in dupes}
+                    for fid in ids_to_deactivate:
+                        if fid in fact_by_id:
+                            _dry_run_log(result, lead_id, "deactivate", fact_by_id[fid], "jaccard_dedup")
                 count = await _deactivate_facts(ids_to_deactivate)
                 result.facts_deduped += count
                 result.total_deactivations += count
@@ -330,6 +415,10 @@ async def consolidate_lead(
                 MAX_DEACTIVATIONS_PER_RUN, lead_id[:8],
             )
         else:
+            if CONSOLIDATION_DRY_RUN:
+                for fid in ids_to_expire:
+                    if fid in fact_by_id:
+                        _dry_run_log(result, lead_id, "deactivate", fact_by_id[fid], "temporal_expired")
             count = await _deactivate_facts(ids_to_expire)
             result.facts_expired += count
             result.total_deactivations += count
@@ -338,16 +427,17 @@ async def consolidate_lead(
 
     # 3d. Re-compress memo if facts changed or threshold reached
     # (CC: "write or update a memory file" — consolidationPrompt.ts:46)
-    from services.memory_engine import get_memory_engine
-    engine = get_memory_engine()
-    if (result.facts_deduped > 0 or result.facts_expired > 0
-            or len(real_facts) >= MEMO_COMPRESSION_THRESHOLD):
-        try:
-            memo = await engine.compress_lead_memory(creator_id, lead_id, _skip_lock_check=True)
-            if memo:
-                result.memos_refreshed += 1
-        except Exception as e:
-            logger.error("[Consolidator] compress failed for lead=%s: %s", lead_id[:8], e)
+    if not CONSOLIDATION_DRY_RUN:
+        from services.memory_engine import get_memory_engine
+        engine = get_memory_engine()
+        if (result.facts_deduped > 0 or result.facts_expired > 0
+                or len(real_facts) >= MEMO_COMPRESSION_THRESHOLD):
+            try:
+                memo = await engine.compress_lead_memory(creator_id, lead_id, _skip_lock_check=True)
+                if memo:
+                    result.memos_refreshed += 1
+            except Exception as e:
+                logger.error("[Consolidator] compress failed for lead=%s: %s", lead_id[:8], e)
 
     result.leads_processed += 1
 

@@ -816,7 +816,7 @@ def generate_multi_turn_batch(
     creator_id: str,
     test_cases: List[Dict[str, Any]],
     n_turns: int = 0,
-    n_conversations: int = 5,
+    n_conversations: int = 8,
     include_belief_shift: bool = True,
     include_adversarial: bool = True,
     # v5.2 parameters
