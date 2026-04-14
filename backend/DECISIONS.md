@@ -4,6 +4,15 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-14 — BUG-006: Google AI Studio timeout limitation
+
+- Gemma 4 31B en Google AI Studio: prompts cortos (<50 facts) = 1.6s OK
+- Prompts largos de consolidación (200 facts) = timeout 120-180s
+- `thinkingBudget: 0` no soportado (HTTP 400 INVALID_ARGUMENT)
+- **Decisión:** Google AI Studio NO viable como provider de consolidación para leads pesados. Usar DeepInfra (con fallback OpenRouter). Solo viable para producción (prompts de DM cortos).
+
+---
+
 ## 2026-04-14 — BUG-001: _resolve_lead_uuid ig_ prefix mismatch
 
 **Problem**: `media.py:233` passes `sender_id=f"ig_{message.sender_id}"` to the DM agent pipeline. `_resolve_lead_uuid` receives `"ig_1234567890"` but builds search array `["ig_1234567890", "ig_ig_1234567890", ...]` — never finds `"1234567890"` (raw numeric) in DB. Result: 146 leads post-Sprint 3 have 0 memories extracted.
@@ -31,23 +40,6 @@ Architecture and implementation decisions, in reverse chronological order.
 **CC pattern**: CC has no provider-level circuit breaker (single upstream). The fallback pattern follows `gemini_provider.py`'s Gemini→GPT-4o-mini inline fallback (opt-in via `DISABLE_FALLBACK`).
 
 **Files modified**: `core/providers/deepinfra_provider.py`, `tests/unit/test_deepinfra_provider.py`
-
----
-
-## 2026-04-14 — BUG-001: _resolve_lead_uuid ig_ prefix mismatch
-
-**Problem**: `media.py:233` passes `sender_id=f"ig_{message.sender_id}"` to the DM agent pipeline. `_resolve_lead_uuid` receives `"ig_1234567890"` but searches for `["ig_1234567890", "ig_ig_1234567890", ...]` — never finds `"1234567890"` (raw numeric) in DB. Result: 108 leads post-Sprint 3 have 0 memories extracted. Known in CCEE (`run_ccee.py:175-178`), not fixed in production.
-
-**CC pattern**: CC uses direct file paths (memdir.ts), no platform prefix resolution needed. Clonnect adaptation introduced UUID resolution for DB-backed storage — the prefix stripping was missing.
-
-**Fix**: Strip known platform prefixes (`ig_`, `wa_`, `tg_`) before building the ANY() search array. Search includes both raw and prefixed forms. All 4 callers of `_resolve_lead_uuid` (extract_and_store, recall, summarize_conversation, compress_lead_memory) covered by single fix.
-
-**Secondary fixes**:
-- `postprocessing.py`: Warning-level logging on empty extraction (CC: autoDream.ts:264 logs every failure) + task tracking via `track_task()`
-- `memory_extraction.py:52`: CURSOR_ENABLED default corrected to `"false"` (matches DECISIONS.md:75 and docstring:25)
-
-**Files modified**: `services/memory_engine.py`, `core/dm/phases/postprocessing.py`, `services/memory_extraction.py`
-**Files created**: `scripts/backfill_lead_memories.py`
 
 ---
 
