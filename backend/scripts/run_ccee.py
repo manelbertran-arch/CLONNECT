@@ -1218,8 +1218,8 @@ def main():
         help="Run v4 multi-turn evaluation (J3, J4, J5, K1, K2, G5)"
     )
     parser.add_argument(
-        "--mt-conversations", type=int, default=8,
-        help="Number of multi-turn conversations to generate (default: 8)"
+        "--mt-conversations", type=int, default=5,
+        help="Number of multi-turn conversations to generate (default: 5)"
     )
     parser.add_argument(
         "--mt-turns", type=int, default=10,
