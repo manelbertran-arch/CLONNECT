@@ -17,6 +17,7 @@ Usage:
 """
 
 import argparse
+import atexit
 import json
 import os
 import sys
@@ -31,6 +32,27 @@ import psycopg2
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# ---------------------------------------------------------------------------
+# BUG-004: Partial save + emergency recovery for long CCEE runs
+# ---------------------------------------------------------------------------
+
+_CCEE_PARTIAL_PATH: Optional[str] = None
+
+
+def _ccee_emergency_save() -> None:
+    """atexit handler: promote _partial.json to _recovered.json on process exit."""
+    if _CCEE_PARTIAL_PATH and os.path.exists(_CCEE_PARTIAL_PATH):
+        recovered = _CCEE_PARTIAL_PATH.replace("_partial.json", "_recovered.json")
+        try:
+            os.rename(_CCEE_PARTIAL_PATH, recovered)
+            print(f"[EMERGENCY] Results recovered to {recovered}", flush=True)
+        except Exception as exc:
+            print(f"[EMERGENCY] Could not promote partial save: {exc}", flush=True)
+
+
+atexit.register(_ccee_emergency_save)
+
 
 from core.evaluation.ccee_scorer import (
     CCEEScorer,
@@ -161,47 +183,53 @@ def run_bot_pipeline(
         )
 
     agent = get_dm_agent(creator_id)
-    responses = []
     inter_case_delay = float(os.environ.get("CCEE_INTER_CASE_DELAY", "0"))
 
-    for i, tc in enumerate(test_cases):
-        old_env = {}
-        try:
-            if overrides:
-                for k, v in overrides.items():
-                    old_env[k] = os.environ.get(k)
-                    os.environ[k] = v
-
-            # Prefer real lead UUID so MemoryEngine can resolve DB lookups.
-            # l.username may be a phone number (WhatsApp leads) which fails
-            # CAST to UUID in _resolve_lead_uuid → empty memories → J1=0.
-            sender_id = tc.get("lead_uuid") or tc.get("username") or "test_user"
-            dm_response = asyncio.run(agent.process_dm(
-                message=tc["user_input"],
-                sender_id=sender_id,
-                metadata={"platform": "instagram"},
-            ))
-            responses.append(
-                dm_response.content
-                if hasattr(dm_response, "content")
-                else str(dm_response)
-            )
-
-        except Exception as e:
-            responses.append(f"[ERROR: {e}]")
-        finally:
-            if overrides:
-                for k, v in old_env.items():
-                    if v is None:
-                        os.environ.pop(k, None)
-                    else:
+    # BUG-004: run ALL cases in a single asyncio.run() so the event loop is
+    # created and closed exactly once per pipeline call — not once per test
+    # case.  Creating/closing 50 loops caused httpx AsyncClient finalizers to
+    # run on a closed loop, producing "RuntimeError: Event loop is closed"
+    # and sometimes freezing the process before results were saved.
+    async def _run_all_cases() -> List[str]:
+        responses: List[str] = []
+        for i, tc in enumerate(test_cases):
+            old_env: Dict[str, Any] = {}
+            try:
+                if overrides:
+                    for k, v in overrides.items():
+                        old_env[k] = os.environ.get(k)
                         os.environ[k] = v
 
-        if inter_case_delay > 0 and i < len(test_cases) - 1:
-            import time as _time
-            _time.sleep(inter_case_delay)
+                # Prefer real lead UUID so MemoryEngine can resolve DB lookups.
+                # l.username may be a phone number (WhatsApp leads) which fails
+                # CAST to UUID in _resolve_lead_uuid → empty memories → J1=0.
+                sender_id = tc.get("lead_uuid") or tc.get("username") or "test_user"
+                dm_response = await agent.process_dm(
+                    message=tc["user_input"],
+                    sender_id=sender_id,
+                    metadata={"platform": "instagram"},
+                )
+                responses.append(
+                    dm_response.content
+                    if hasattr(dm_response, "content")
+                    else str(dm_response)
+                )
+            except Exception as e:
+                responses.append(f"[ERROR: {e}]")
+            finally:
+                if overrides:
+                    for k, v in old_env.items():
+                        if v is None:
+                            os.environ.pop(k, None)
+                        else:
+                            os.environ[k] = v
 
-    return responses
+            if inter_case_delay > 0 and i < len(test_cases) - 1:
+                await asyncio.sleep(inter_case_delay)
+
+        return responses
+
+    return asyncio.run(_run_all_cases())
 
 
 # ---------------------------------------------------------------------------
@@ -1352,6 +1380,14 @@ def main():
     all_composites = []
     all_bot_responses_per_run: List[List[str]] = []  # one list per run, for per_run_records
 
+    # BUG-004 Fix A: set up partial save path so each completed run is checkpointed
+    global _CCEE_PARTIAL_PATH
+    _partial_out_dir = os.path.join(args.output_dir, creator)
+    os.makedirs(_partial_out_dir, exist_ok=True)
+    _partial_base = args.save_as if args.save_as else f"ccee_{creator}"
+    _partial_path = os.path.join(_partial_out_dir, f"{_partial_base}_partial.json")
+    _CCEE_PARTIAL_PATH = _partial_path
+
     for run_idx in range(args.runs):
         print(f"\n[3.{run_idx+1}] Run {run_idx+1}/{args.runs}...")
 
@@ -1382,6 +1418,15 @@ def main():
             print(f"\n{_format_table(results)}")
             all_run_results.append(results)
             all_composites.append(results["composite"])
+            # BUG-004 Fix A: partial save after each completed run
+            with open(_partial_path, "w", encoding="utf-8") as _pf:
+                json.dump({
+                    "partial": True, "runs_completed": run_idx + 1,
+                    "composites": list(all_composites),
+                    "runs": list(all_run_results),
+                    "bot_responses_per_run": [list(r) for r in all_bot_responses_per_run],
+                    "test_cases": test_cases,
+                }, _pf, indent=2, ensure_ascii=False, default=str)
             continue
 
         # Optional: run Prometheus judge (Qwen3-30B-A3B via DeepInfra)
@@ -1494,6 +1539,16 @@ def main():
         all_composites.append(results["composite"])
 
         print(f"\n{_format_table(results)}")
+
+        # BUG-004 Fix A: partial save after each completed run
+        with open(_partial_path, "w", encoding="utf-8") as _pf:
+            json.dump({
+                "partial": True, "runs_completed": run_idx + 1,
+                "composites": list(all_composites),
+                "runs": list(all_run_results),
+                "bot_responses_per_run": [list(r) for r in all_bot_responses_per_run],
+                "test_cases": test_cases,
+            }, _pf, indent=2, ensure_ascii=False, default=str)
 
     # --generate-only: save all accumulated runs after loop completes
     if args.generate_only:
@@ -1659,8 +1714,20 @@ def main():
             genonly_output["v5_composite"] = v5_composite_data
         if genonly_prometheus is not None:
             genonly_output["prometheus_scores"] = genonly_prometheus
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(genonly_output, f, indent=2, ensure_ascii=False, default=str)
+        # BUG-004 Fix C: try/except with sync fallback (json.dump is already sync,
+        # but guard against any RuntimeError from lingering async finalizers)
+        try:
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(genonly_output, f, indent=2, ensure_ascii=False, default=str)
+        except RuntimeError as _exc:
+            if "Event loop is closed" not in str(_exc):
+                raise
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(genonly_output, f, indent=2, ensure_ascii=False, default=str)
+        # Cleanup partial file now that final save succeeded
+        if os.path.exists(_partial_path):
+            os.remove(_partial_path)
+            _CCEE_PARTIAL_PATH = None
         print(f"\n  Responses saved to {out_path}")
         print(f"  Run --score-prometheus {out_path} --score-all-runs --save-as <name> to score all {args.runs} runs.")
         return
@@ -1897,8 +1964,19 @@ def main():
         )
         if normal_prometheus is not None:
             output["prometheus_scores"] = normal_prometheus
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False, default=str)
+    # BUG-004 Fix C: try/except with sync fallback
+    try:
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(output, f, indent=2, ensure_ascii=False, default=str)
+    except RuntimeError as _exc:
+        if "Event loop is closed" not in str(_exc):
+            raise
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(output, f, indent=2, ensure_ascii=False, default=str)
+    # Cleanup partial file now that final save succeeded
+    if os.path.exists(_partial_path):
+        os.remove(_partial_path)
+        _CCEE_PARTIAL_PATH = None
 
     print(f"\n  Results saved to {out_path}")
 
