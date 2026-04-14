@@ -481,6 +481,7 @@ async def phase_postprocessing(
     if flags.memory_engine and not _skip_memory:
         try:
             from services.memory_engine import get_memory_engine
+            from services.memory_extraction import get_memory_extractor
             mem_engine = get_memory_engine()
             # BUG-MEM-04 fix: include last 3 messages from history for multi-turn context
             recent_history = [
@@ -492,11 +493,13 @@ async def phase_postprocessing(
                 {"role": "user", "content": message},
                 {"role": "assistant", "content": formatted_content},
             ]
-            asyncio.create_task(
+            # BUG-001 fix: track task for drain (CC: DreamTask registry pattern)
+            task = asyncio.create_task(
                 mem_engine.add(agent.creator_id, sender_id, conversation_msgs)
             )
+            get_memory_extractor(mem_engine).track_task(task)
         except Exception as e:
-            logger.debug(f"[MEMORY] extraction failed: {e}")
+            logger.warning("[MEMORY] extraction setup failed for lead=%s: %s", sender_id[:20], e)
 
     # ECHO Engine: Detect commitments in bot response (Sprint 4 — fire-and-forget)
     if flags.commitment_tracking:

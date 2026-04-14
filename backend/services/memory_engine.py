@@ -192,12 +192,25 @@ class MemoryEngine:
         return creator_id
 
     async def _resolve_lead_uuid(self, creator_uuid: str, lead_id: str) -> str:
-        """Return the DB UUID for a lead, resolving platform_user_id if needed."""
+        """Return the DB UUID for a lead, resolving platform_user_id if needed.
+
+        BUG-001 fix: Strip platform prefixes (ig_, wa_, tg_) before building
+        the search array so both "ig_1234567890" and "1234567890" resolve to
+        the same lead regardless of how platform_user_id is stored in the DB.
+        """
         try:
             uuid.UUID(lead_id)
             return lead_id  # Already a valid UUID
         except (ValueError, AttributeError):
             pass
+
+        # Strip platform prefix to get raw numeric ID (BUG-001)
+        raw_id = lead_id
+        for prefix in ("ig_", "wa_", "tg_"):
+            if raw_id.startswith(prefix):
+                raw_id = raw_id[len(prefix):]
+                break
+
         # platform_user_id path: look up by creator + platform_user_id
         def _lookup():
             from api.database import SessionLocal
@@ -208,15 +221,16 @@ class MemoryEngine:
                     text(
                         "SELECT id FROM leads "
                         "WHERE creator_id = CAST(:cid AS uuid) "
-                        "AND platform_user_id = ANY(ARRAY[:pid, :pid_ig, :pid_wa, :pid_tg]) "
+                        "AND platform_user_id = ANY(ARRAY[:pid, :pid_raw, :pid_ig, :pid_wa, :pid_tg]) "
                         "LIMIT 1"
                     ),
                     {
                         "cid": creator_uuid,
                         "pid": lead_id,
-                        "pid_ig": f"ig_{lead_id}",
-                        "pid_wa": f"wa_{lead_id}",
-                        "pid_tg": f"tg_{lead_id}",
+                        "pid_raw": raw_id,
+                        "pid_ig": f"ig_{raw_id}",
+                        "pid_wa": f"wa_{raw_id}",
+                        "pid_tg": f"tg_{raw_id}",
                     },
                 ).fetchone()
                 if row:
@@ -229,7 +243,7 @@ class MemoryEngine:
             if result:
                 return result
         except Exception as e:
-            logger.debug("[MemoryEngine] _resolve_lead_uuid failed for %s: %s", lead_id, e)
+            logger.warning("[MemoryEngine] _resolve_lead_uuid failed for %s: %s", lead_id, e)
         return lead_id
 
     # ─────────────────────────────────────────────────────────────────────

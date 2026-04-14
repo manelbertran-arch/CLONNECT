@@ -4,6 +4,18 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-14 — BUG-001: _resolve_lead_uuid ig_ prefix mismatch
+
+**Problem**: `media.py:233` passes `sender_id=f"ig_{message.sender_id}"` to the DM agent pipeline. `_resolve_lead_uuid` receives `"ig_1234567890"` but builds search array `["ig_1234567890", "ig_ig_1234567890", ...]` — never finds `"1234567890"` (raw numeric) in DB. Result: 146 leads post-Sprint 3 have 0 memories extracted.
+
+**Root cause**: Newer leads store raw numeric `platform_user_id` (via `lead_manager.py:215`), older leads store `ig_` prefixed (via `lead_manager.py:581`). The function never stripped prefixes before searching.
+
+**Fix**: Strip known platform prefixes (`ig_`, `wa_`, `tg_`) before building the `ANY()` search array. Search includes both raw and prefixed forms. All 4 callers covered by single fix. Logging upgraded `debug→warning`. Task tracking added in postprocessing (CC DreamTask pattern). Backfill script created and executed: 142/146 leads backfilled.
+
+**CC pattern**: CC autoDream uses no platform prefixes (file-based memory, no DB UUID resolution). The bidirectional search is a necessary Clonnect divergence.
+
+---
+
 ## 2026-04-14 — BUG-005: DeepInfra auto-fallback to OpenRouter + circuit breaker cooldown
 
 **Problem**: `google/gemma-4-31b-it` on DeepInfra returns empty responses intermittently. The circuit breaker opens after 3 failures and blocks ALL requests for 120s with no fallback — 270+ errors accumulated in a single CCEE run. The 26B model is unaffected.
