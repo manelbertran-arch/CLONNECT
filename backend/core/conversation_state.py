@@ -204,9 +204,18 @@ FASE: ESCALAR - Tu objetivo es pasar a humano.
         try:
             from api.database import SessionLocal
             from api.models import ConversationStateDB
+            from sqlalchemy import text
 
             db = SessionLocal()
             try:
+                # BUG-003: Force read-write on this connection before any writes.
+                # Neon pgbouncer (transaction mode) recycles server connections
+                # without resetting session params. A connection previously touched
+                # by smoke_test's readonly=True can arrive here with
+                # default_transaction_read_only=on, making db.commit() fail.
+                # SET is allowed in read-only transactions (not a DML operation).
+                db.execute(text("SET SESSION default_transaction_read_only = off"))
+
                 # Check if exists
                 db_state = db.query(ConversationStateDB).filter(
                     ConversationStateDB.creator_id == state.creator_id,

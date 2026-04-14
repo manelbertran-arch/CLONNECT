@@ -103,7 +103,13 @@ def run_db_checks():
 
     try:
         conn = psycopg2.connect(database_url)
-        conn.set_session(readonly=True, autocommit=True)
+        # BUG-003: Do NOT set readonly=True here.
+        # Neon pgbouncer (transaction mode) recycles server connections without
+        # resetting session parameters. Setting readonly=True sends
+        # "SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY" to the server;
+        # when the connection is returned to the pgbouncer pool, that flag persists
+        # and poisons SQLAlchemy write transactions with ReadOnlySqlTransaction.
+        conn.autocommit = True
         cur = conn.cursor()
 
         # Check 8: no platform_user_id under more than one creator
