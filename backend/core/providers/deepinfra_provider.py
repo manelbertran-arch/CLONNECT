@@ -4,8 +4,11 @@ Supports any model hosted on DeepInfra (Qwen3-32B, Llama, Mistral, etc.)
 via their OpenAI-compatible endpoint.
 
 Env vars:
-  DEEPINFRA_API_KEY  — API key for DeepInfra
-  DEEPINFRA_MODEL    — model ID (e.g. "Qwen/Qwen3-32B", or fine-tuned endpoint)
+  DEEPINFRA_API_KEY             — API key for DeepInfra
+  DEEPINFRA_MODEL               — model ID (e.g. "Qwen/Qwen3-32B", or fine-tuned endpoint)
+  DEEPINFRA_CB_COOLDOWN         — circuit breaker cooldown in seconds (default: 30)
+  DEEPINFRA_CB_THRESHOLD        — consecutive failures before opening (default: 3)
+  DEEPINFRA_FALLBACK_PROVIDER   — provider to use when DeepInfra fails (e.g. "openrouter")
 """
 
 import asyncio
@@ -50,7 +53,7 @@ DEEPINFRA_MODEL = os.getenv("DEEPINFRA_MODEL", "Qwen/Qwen3-32B")
 _deepinfra_consecutive_failures = 0
 _deepinfra_circuit_open_until = 0.0
 _DI_CB_THRESHOLD = int(os.getenv("DEEPINFRA_CB_THRESHOLD", "3"))
-_DI_CB_COOLDOWN = int(os.getenv("DEEPINFRA_CB_COOLDOWN", "120"))
+_DI_CB_COOLDOWN = int(os.getenv("DEEPINFRA_CB_COOLDOWN", "30"))  # reduced from 120 — fallback covers the gap
 
 
 def _circuit_is_open() -> bool:
@@ -77,6 +80,50 @@ def _record_failure():
         )
 
 
+async def _try_openrouter_fallback(
+    messages: list,
+    max_tokens: Optional[int],
+    temperature: Optional[float],
+    model: Optional[str],
+) -> Optional[dict]:
+    """Call OpenRouter as transparent fallback when DeepInfra is unavailable.
+
+    Activated only when DEEPINFRA_FALLBACK_PROVIDER=openrouter AND OPENROUTER_API_KEY is set.
+    Set DEEPINFRA_FALLBACK_MODEL to override the model slug when the DeepInfra slug is not
+    valid on OpenRouter (e.g. "Qwen/Qwen3-32B" differs from OpenRouter's "qwen/qwen3-32b").
+    Returns None if conditions are unmet or if the fallback also fails.
+    """
+    _fallback_provider = os.getenv("DEEPINFRA_FALLBACK_PROVIDER", "").lower()
+    if _fallback_provider != "openrouter":
+        return None
+    if not os.getenv("OPENROUTER_API_KEY"):
+        logger.warning("[DI-FALLBACK] OPENROUTER_API_KEY not set — fallback inactive")
+        return None
+    # Allow model slug override when DeepInfra and OpenRouter use different formats
+    _fallback_model = os.getenv("DEEPINFRA_FALLBACK_MODEL") or model
+    try:
+        from core.providers.openrouter_provider import call_openrouter
+        logger.warning(
+            "[DI-FALLBACK] DeepInfra unavailable — falling back to OpenRouter model=%s",
+            _fallback_model,
+        )
+        result = await call_openrouter(
+            messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            model=_fallback_model,
+        )
+        if result is None:
+            logger.warning(
+                "[DI-FALLBACK] OpenRouter also returned None — both providers unavailable"
+            )
+            return None
+        return {**result, "provider": "openrouter-fallback"}
+    except Exception as e:
+        logger.error("[DI-FALLBACK] OpenRouter fallback also failed: %s", e)
+        return None
+
+
 async def call_deepinfra(
     messages: list[dict],
     max_tokens: Optional[int] = None,
@@ -100,7 +147,8 @@ async def call_deepinfra(
 
     Returns:
         dict with {content, model, provider, latency_ms, tokens_in, tokens_out}
-        or None on failure.
+        or None on failure. When DEEPINFRA_FALLBACK_PROVIDER=openrouter, failed
+        requests are transparently retried via OpenRouter before returning None.
     """
     # ── Config-driven path ──
     cfg_sampling: dict = {}
@@ -144,10 +192,8 @@ async def call_deepinfra(
         logger.debug("%s not set, DeepInfra unavailable", api_key_env)
         return None
 
-    if _circuit_is_open():
-        logger.info("DeepInfra circuit breaker open, skipping")
-        return None
-
+    # Resolve model and sampling params BEFORE the circuit check so the
+    # fallback path has fully-resolved values to pass to OpenRouter.
     if model is None:
         if cfg_provider.get("model_string"):
             model = cfg_provider["model_string"]
@@ -167,6 +213,10 @@ async def call_deepinfra(
         timeout = float(os.getenv("DEEPINFRA_TIMEOUT", "8"))
 
     base_url = cfg_provider.get("base_url") or DEEPINFRA_BASE_URL
+
+    if _circuit_is_open():
+        logger.info("DeepInfra circuit breaker open, skipping")
+        return await _try_openrouter_fallback(messages, _max_tokens, _temperature, model)
 
     start = time.monotonic()
 
@@ -249,7 +299,7 @@ async def call_deepinfra(
         if not content:
             logger.warning("DeepInfra returned empty content")
             _record_failure()
-            return None
+            return await _try_openrouter_fallback(messages, _max_tokens, _temperature, model)
 
         logger.info(
             "DeepInfra OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d finish_reason=%s",
@@ -269,8 +319,8 @@ async def call_deepinfra(
     except asyncio.TimeoutError:
         logger.warning("DeepInfra timeout after %.0fs", timeout)
         _record_failure()
-        return None
+        return await _try_openrouter_fallback(messages, _max_tokens, _temperature, model)
     except Exception as e:
         logger.error("DeepInfra error: %s", e)
         _record_failure()
-        return None
+        return await _try_openrouter_fallback(messages, _max_tokens, _temperature, model)

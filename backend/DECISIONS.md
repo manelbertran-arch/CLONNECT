@@ -4,6 +4,41 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-14 — BUG-005: DeepInfra auto-fallback to OpenRouter + circuit breaker cooldown
+
+**Problem**: `google/gemma-4-31b-it` on DeepInfra returns empty responses intermittently. The circuit breaker opens after 3 failures and blocks ALL requests for 120s with no fallback — 270+ errors accumulated in a single CCEE run. The 26B model is unaffected.
+
+**Root cause**: Empty responses return HTTP 200, so the caller sees a "success" from the transport layer. The circuit breaker correctly counted them as failures (existing `_record_failure()` on empty content) but the 120s cooldown with no recovery path was the problem.
+
+**Fix A — Auto-fallback**: Added `_try_openrouter_fallback()` called from all 4 failure paths (circuit open, empty content, timeout, generic exception). Fallback is transparent to callers. Gated by `DEEPINFRA_FALLBACK_PROVIDER=openrouter` (off by default — opt-in to avoid silent cost/observability surprises). Requires `OPENROUTER_API_KEY`. Optional `DEEPINFRA_FALLBACK_MODEL` for slug override when provider namespaces differ.
+
+**Fix B — Cooldown 120→30s**: With a fallback active, the primary can retry more aggressively. Controlled via `DEEPINFRA_CB_COOLDOWN` env var.
+
+**Fix C — Empty response detection**: Already implemented; verified correct (`_record_failure()` + `return None` path). No change needed.
+
+**CC pattern**: CC has no provider-level circuit breaker (single upstream). The fallback pattern follows `gemini_provider.py`'s Gemini→GPT-4o-mini inline fallback (opt-in via `DISABLE_FALLBACK`).
+
+**Files modified**: `core/providers/deepinfra_provider.py`, `tests/unit/test_deepinfra_provider.py`
+
+---
+
+## 2026-04-14 — BUG-001: _resolve_lead_uuid ig_ prefix mismatch
+
+**Problem**: `media.py:233` passes `sender_id=f"ig_{message.sender_id}"` to the DM agent pipeline. `_resolve_lead_uuid` receives `"ig_1234567890"` but searches for `["ig_1234567890", "ig_ig_1234567890", ...]` — never finds `"1234567890"` (raw numeric) in DB. Result: 108 leads post-Sprint 3 have 0 memories extracted. Known in CCEE (`run_ccee.py:175-178`), not fixed in production.
+
+**CC pattern**: CC uses direct file paths (memdir.ts), no platform prefix resolution needed. Clonnect adaptation introduced UUID resolution for DB-backed storage — the prefix stripping was missing.
+
+**Fix**: Strip known platform prefixes (`ig_`, `wa_`, `tg_`) before building the ANY() search array. Search includes both raw and prefixed forms. All 4 callers of `_resolve_lead_uuid` (extract_and_store, recall, summarize_conversation, compress_lead_memory) covered by single fix.
+
+**Secondary fixes**:
+- `postprocessing.py`: Warning-level logging on empty extraction (CC: autoDream.ts:264 logs every failure) + task tracking via `track_task()`
+- `memory_extraction.py:52`: CURSOR_ENABLED default corrected to `"false"` (matches DECISIONS.md:75 and docstring:25)
+
+**Files modified**: `services/memory_engine.py`, `core/dm/phases/postprocessing.py`, `services/memory_extraction.py`
+**Files created**: `scripts/backfill_lead_memories.py`
+
+---
+
 ## 2026-04-12 — Sprint 3: Memory Consolidation (autoDream pattern from Claude Code)
 
 **Problem**: 12,269 facts across 415 leads grow without reorganization. Compression only triggers on add() per-lead. No periodic cross-lead dedup, no stale fact pruning, no proactive consolidation.
