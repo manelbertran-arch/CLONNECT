@@ -52,7 +52,7 @@ MAX_LLM_ACTIONS_PER_LEAD = _validated_env_int(
 # Qwen3 (even with /no_think) may produce residual <think></think> tokens that
 # consume budget; 2048 gives ample room for the JSON actions payload.
 LLM_CONSOLIDATION_MAX_TOKENS = _validated_env_int(
-    "CONSOLIDATION_LLM_MAX_TOKENS", 8192,
+    "CONSOLIDATION_LLM_MAX_TOKENS", 2048,
 )
 
 
@@ -209,14 +209,23 @@ async def _call_consolidation_llm(facts_text: str, today: str) -> Optional[Dict]
     else:
         from core.providers.deepinfra_provider import call_deepinfra as _call_provider
         _provider_name = "DeepInfra"
+        _deepinfra_timeout = str(int(os.getenv("CONSOLIDATION_DEEPINFRA_TIMEOUT", os.getenv("DEEPINFRA_TIMEOUT", "120"))))
 
         async def _invoke():
-            return await _call_provider(
-                messages,
-                max_tokens=LLM_CONSOLIDATION_MAX_TOKENS,
-                temperature=0.1,
-                model=_model,
-            )
+            _prev = os.environ.get("DEEPINFRA_TIMEOUT")
+            os.environ["DEEPINFRA_TIMEOUT"] = _deepinfra_timeout
+            try:
+                return await _call_provider(
+                    messages,
+                    max_tokens=LLM_CONSOLIDATION_MAX_TOKENS,
+                    temperature=0.1,
+                    model=_model,
+                )
+            finally:
+                if _prev is None:
+                    os.environ.pop("DEEPINFRA_TIMEOUT", None)
+                else:
+                    os.environ["DEEPINFRA_TIMEOUT"] = _prev
 
     logger.debug("[ConsolidatorLLM] Using provider=%s", _provider_name)
 
@@ -287,55 +296,8 @@ def _parse_llm_response(raw: str) -> Optional[Dict]:
             except json.JSONDecodeError:
                 pass
 
-        # Truncated JSON recovery: if output was cut off (finish_reason=length),
-        # try to salvage valid duplicate/contradiction entries from partial JSON.
-        if start >= 0:
-            partial = _recover_truncated_json(text[start:])
-            if partial:
-                logger.info("[ConsolidatorLLM] Recovered %d actions from truncated JSON",
-                            sum(len(v) for v in partial.values() if isinstance(v, list)))
-                return partial
-
     logger.warning("[ConsolidatorLLM] Failed to parse JSON: %s", text[:200])
     return None
-
-
-def _recover_truncated_json(text: str) -> Optional[Dict]:
-    """Recover valid entries from truncated LLM JSON output.
-
-    When finish_reason=length truncates the response mid-JSON, we extract
-    whatever complete array entries exist for duplicates/contradictions/date_fixes.
-    """
-    result = {}
-    for key in ("duplicates", "contradictions", "date_fixes"):
-        pattern = rf'"{key}"\s*:\s*\['
-        match = re.search(pattern, text)
-        if not match:
-            continue
-        # Find complete objects within this array
-        arr_start = match.end()
-        items = []
-        brace_depth = 0
-        obj_start = None
-        for i, ch in enumerate(text[arr_start:], arr_start):
-            if ch == '{':
-                if brace_depth == 0:
-                    obj_start = i
-                brace_depth += 1
-            elif ch == '}':
-                brace_depth -= 1
-                if brace_depth == 0 and obj_start is not None:
-                    try:
-                        obj = json.loads(text[obj_start:i + 1])
-                        items.append(obj)
-                    except json.JSONDecodeError:
-                        pass
-                    obj_start = None
-            elif ch == ']' and brace_depth == 0:
-                break
-        if items:
-            result[key] = items
-    return result if result else None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
