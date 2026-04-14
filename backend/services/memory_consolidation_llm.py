@@ -21,7 +21,7 @@ Justification for no tools (vs CC tool-equipped agent):
   parsed data into _FactRow objects — the LLM analyzes, code executes.
 
 Feature flag: ENABLE_LLM_CONSOLIDATION (default OFF, separate from ENABLE_MEMORY_CONSOLIDATION)
-Fallback: When OFF or LLM fails, algorithmic Jaccard dedup + TTL expiry runs normally.
+Fallback: When OFF or LLM fails, only TTL expiry runs (no algorithmic dedup).
 """
 
 import json
@@ -42,16 +42,17 @@ ENABLE_LLM_CONSOLIDATION = (
     os.getenv("ENABLE_LLM_CONSOLIDATION", "false").lower() == "true"
 )
 
-# Max actions (dedup + contradiction + date_fix) the LLM can propose per lead
+# Max actions (dedup + contradiction + date_fix) the LLM can propose per lead.
+# Raised from 20→60: with Jaccard fallback removed, LLM handles all dedup.
 MAX_LLM_ACTIONS_PER_LEAD = _validated_env_int(
-    "CONSOLIDATION_MAX_LLM_ACTIONS_PER_LEAD", 20,
+    "CONSOLIDATION_MAX_LLM_ACTIONS_PER_LEAD", 60,
 )
 
 # Max tokens for LLM response — must be large enough for structured JSON output.
 # Qwen3 (even with /no_think) may produce residual <think></think> tokens that
 # consume budget; 2048 gives ample room for the JSON actions payload.
 LLM_CONSOLIDATION_MAX_TOKENS = _validated_env_int(
-    "CONSOLIDATION_LLM_MAX_TOKENS", 2048,
+    "CONSOLIDATION_LLM_MAX_TOKENS", 8192,
 )
 
 
@@ -69,19 +70,10 @@ LLM_CONSOLIDATION_MAX_TOKENS = _validated_env_int(
 
 _CONSOLIDATION_LLM_PROMPT = """You are consolidating memory facts about a person. Today is {today}.
 
-PERSONALITY-CRITICAL FACTS PROTECTION:
-Facts describing communication style, language register, personality traits,
-emotional patterns, catchphrases, code-switching habits, and tone preferences
-are personality-critical. Rules:
-1. NEVER remove a personality-critical fact unless a genuinely newer fact
-   explicitly contradicts it.
-2. NEVER merge two distinct personality traits into a generic summary.
-   Example: DO NOT merge "uses diminutives in Catalan" + "switches to Spanish
-   for business topics" into "multilingual communicator".
-3. When in doubt about a personality fact, KEEP IT. False negatives
-   (keeping a duplicate) are less harmful than false positives (losing persona).
-4. Facts of type 'preference' and 'personal_info' have higher protection —
-   only deactivate if genuinely outdated or directly contradicted.
+Your job is to clean up this fact list. For each pair of facts that say the same
+thing in different words, mark the less complete one for removal. Delete facts
+that are contradicted by newer information. Fix relative dates to absolute dates.
+Treat all fact types equally — no type has special protection.
 
 Facts (numbered):
 {facts_list}
@@ -120,6 +112,7 @@ async def _call_consolidation_llm(facts_text: str, today: str) -> Optional[Dict]
     """Call LLM for consolidation analysis with retry+backoff.
 
     Provider is controlled by CONSOLIDATION_LLM_PROVIDER env var:
+      "gemini"     → _call_gemini() (gemini-2.5-flash-lite default)
       "openrouter" → call_openrouter() (120s timeout, google/gemma-4-31b-it)
       "deepinfra"  → call_deepinfra() (uses DEEPINFRA_TIMEOUT, default 8s)
 
@@ -155,7 +148,54 @@ async def _call_consolidation_llm(facts_text: str, today: str) -> Optional[Dict]
     max_retries = _validated_env_int("CONSOLIDATION_LLM_MAX_RETRIES", 3)
     retry_wait = _validated_env_float("CONSOLIDATION_LLM_RETRY_WAIT", 5.0)
 
-    if provider == "openrouter":
+    # BUG-010: Normalize model slug per provider.
+    # Railway sets CONSOLIDATION_LLM_MODEL=google/gemma-4-31b-it.
+    # Gemini API URL uses bare model name (no "google/" prefix).
+    # DeepInfra + OpenRouter require "google/" prefix.
+    _raw_model = os.getenv("CONSOLIDATION_LLM_MODEL", "google/gemma-4-31b-it")
+    if provider == "gemini" and _raw_model.startswith("google/"):
+        _model = _raw_model[len("google/"):]
+    elif provider in ("deepinfra", "openrouter") and not _raw_model.startswith("google/"):
+        _model = f"google/{_raw_model}"
+    else:
+        _model = _raw_model
+
+    if provider == "gemini":
+        import httpx as _httpx
+        _provider_name = "Gemini"
+        _gemini_key = os.getenv("GEMINI_API_KEY", "")
+        _gemini_model = _model
+        _gemini_url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{_gemini_model}:generateContent?key={_gemini_key}"
+        )
+
+        async def _invoke():
+            # Gemma models on Google AI Studio ignore systemInstruction —
+            # fold system content into user message so JSON instructions are followed.
+            combined_text = messages[0]["content"] + "\n\n" + messages[1]["content"]
+            payload = {
+                "contents": [{"parts": [{"text": combined_text}]}],
+                "generationConfig": {
+                    "maxOutputTokens": LLM_CONSOLIDATION_MAX_TOKENS,
+                    "temperature": 0.1,
+                },
+            }
+            async with _httpx.AsyncClient(timeout=180.0) as client:
+                resp = await client.post(_gemini_url, json=payload)
+                if resp.status_code != 200:
+                    raise RuntimeError(
+                        f"HTTP {resp.status_code}: {resp.text[:300]}"
+                    )
+                data = resp.json()
+                candidates = data.get("candidates", [])
+                if not candidates:
+                    finish = data.get("promptFeedback", {}).get("blockReason", "unknown")
+                    raise RuntimeError(f"No candidates — blockReason={finish}")
+                text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                return {"content": text} if text else None
+
+    elif provider == "openrouter":
         from core.providers.openrouter_provider import call_openrouter as _call_provider
         _provider_name = "OpenRouter"
 
@@ -164,7 +204,7 @@ async def _call_consolidation_llm(facts_text: str, today: str) -> Optional[Dict]
                 messages,
                 max_tokens=LLM_CONSOLIDATION_MAX_TOKENS,
                 temperature=0.1,
-                model=os.getenv("CONSOLIDATION_LLM_MODEL", "google/gemma-4-31b-it"),
+                model=_model,
             )
     else:
         from core.providers.deepinfra_provider import call_deepinfra as _call_provider
@@ -175,7 +215,7 @@ async def _call_consolidation_llm(facts_text: str, today: str) -> Optional[Dict]
                 messages,
                 max_tokens=LLM_CONSOLIDATION_MAX_TOKENS,
                 temperature=0.1,
-                model=os.getenv("CONSOLIDATION_LLM_MODEL", "google/gemma-4-31b-it"),
+                model=_model,
             )
 
     logger.debug("[ConsolidatorLLM] Using provider=%s", _provider_name)
@@ -197,7 +237,7 @@ async def _call_consolidation_llm(facts_text: str, today: str) -> Optional[Dict]
             else:
                 logger.warning(
                     "[ConsolidatorLLM] %s failed after %d attempts — "
-                    "skipping LLM for this lead (algorithmic fallback active)",
+                    "skipping LLM for this lead (no fallback)",
                     _provider_name, max_retries,
                 )
                 return None
@@ -247,8 +287,55 @@ def _parse_llm_response(raw: str) -> Optional[Dict]:
             except json.JSONDecodeError:
                 pass
 
+        # Truncated JSON recovery: if output was cut off (finish_reason=length),
+        # try to salvage valid duplicate/contradiction entries from partial JSON.
+        if start >= 0:
+            partial = _recover_truncated_json(text[start:])
+            if partial:
+                logger.info("[ConsolidatorLLM] Recovered %d actions from truncated JSON",
+                            sum(len(v) for v in partial.values() if isinstance(v, list)))
+                return partial
+
     logger.warning("[ConsolidatorLLM] Failed to parse JSON: %s", text[:200])
     return None
+
+
+def _recover_truncated_json(text: str) -> Optional[Dict]:
+    """Recover valid entries from truncated LLM JSON output.
+
+    When finish_reason=length truncates the response mid-JSON, we extract
+    whatever complete array entries exist for duplicates/contradictions/date_fixes.
+    """
+    result = {}
+    for key in ("duplicates", "contradictions", "date_fixes"):
+        pattern = rf'"{key}"\s*:\s*\['
+        match = re.search(pattern, text)
+        if not match:
+            continue
+        # Find complete objects within this array
+        arr_start = match.end()
+        items = []
+        brace_depth = 0
+        obj_start = None
+        for i, ch in enumerate(text[arr_start:], arr_start):
+            if ch == '{':
+                if brace_depth == 0:
+                    obj_start = i
+                brace_depth += 1
+            elif ch == '}':
+                brace_depth -= 1
+                if brace_depth == 0 and obj_start is not None:
+                    try:
+                        obj = json.loads(text[obj_start:i + 1])
+                        items.append(obj)
+                    except json.JSONDecodeError:
+                        pass
+                    obj_start = None
+            elif ch == ']' and brace_depth == 0:
+                break
+        if items:
+            result[key] = items
+    return result if result else None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -331,7 +418,7 @@ async def llm_analyze_facts(
     # Very large leads (hundreds of facts) generate >10K token prompts that
     # exceed the LLM timeout even at 120s. Older facts were consolidated in
     # prior runs; new facts (most recent) are where dupes/contradictions appear.
-    max_facts = _validated_env_int("CONSOLIDATION_LLM_MAX_FACTS", 80)
+    max_facts = _validated_env_int("CONSOLIDATION_LLM_MAX_FACTS", 100)
     facts_slice = facts[-max_facts:] if len(facts) > max_facts else facts
     if len(facts) > max_facts:
         logger.debug(

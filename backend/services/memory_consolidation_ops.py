@@ -2,7 +2,7 @@
 Memory Consolidation Operations — Phase 1-4 (from CC consolidationPrompt.ts:27-58).
 
 Stateless ops; memory_consolidator.py has gates/lock/scheduling.
-Phase 3 uses LLM (CC-faithful) with algorithmic Jaccard fallback.
+Phase 3 uses LLM (CC-faithful). No algorithmic fallback — LLM handles all dedup.
 Feature flag: ENABLE_LLM_CONSOLIDATION (default OFF).
 """
 
@@ -21,17 +21,9 @@ from services.memory_engine import (
 from services.memory_consolidator import _validated_env_float, _validated_env_int
 
 # Configuration — all from env vars, validated per CC autoDream.ts:73-93
-DEDUP_JACCARD_THRESHOLD = _validated_env_float("CONSOLIDATION_DEDUP_JACCARD_THRESHOLD", 0.85)
 MAX_LEADS_PER_RUN = _validated_env_int("CONSOLIDATION_MAX_LEADS_PER_RUN", 50)
 MAX_DEACTIVATIONS_PER_RUN = _validated_env_int("CONSOLIDATION_MAX_DEACTIVATIONS_PER_RUN", 500)
 MEMO_REFRESH_MIN_NEW_FACTS = _validated_env_int("CONSOLIDATION_MEMO_REFRESH_MIN_NEW_FACTS", 3)
-
-# Fact types that skip Jaccard dedup (both facts must be of a protected type to skip).
-# Default: empty — no protection, backward compatible.
-# Recommended production value: "preference,personal_info"
-CONSOLIDATION_PROTECTED_TYPES: set = set(
-    os.getenv("CONSOLIDATION_PROTECTED_TYPES", "").split(",")
-) - {""}
 
 # Dry-run mode: execute all logic but skip DB writes.
 # Set CONSOLIDATION_DRY_RUN=true to audit what would happen without side effects.
@@ -197,46 +189,17 @@ async def _gather_load_facts(
         return []
 
 
-def _fact_recency(f: "_FactRow") -> datetime:
-    """Return the best available recency timestamp for a fact, tz-aware."""
-    dt = f.updated_at or f.created_at
-    if dt is None:
-        return datetime.min.replace(tzinfo=timezone.utc)
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
-
 def _find_near_duplicates(facts: List[_FactRow]) -> List[Tuple[str, str]]:
-    """Find near-duplicate fact pairs by Jaccard similarity. Returns (deactivate_id, keep_id).
+    """Disabled stub — CC alignment: LLM handles all dedup (consolidationPrompt.ts:49).
 
-    Keep heuristic: longer fact_text wins (more specific/detailed).
-    Tiebreaker: more recently updated fact wins.
-    Protected types: when BOTH facts are of a type in CONSOLIDATION_PROTECTED_TYPES,
-    skip Jaccard dedup — only the LLM may deactivate these.
+    Previously used Jaccard similarity with hardcoded heuristics. Removed because:
+    1. CC has zero algorithmic dedup — trusts the LLM entirely
+    2. Jaccard at 0.85 missed semantically similar facts (measured 0.05-0.69)
+    3. Hardcoded keep-longer heuristic and protected types caused regressions
+
+    Kept as stub so consolidate_lead() call site needs no structural change.
     """
-    dupes = []
-    for i in range(len(facts)):
-        for j in range(i + 1, len(facts)):
-            # Cambio 2: skip Jaccard dedup when both facts are of a protected type
-            if (
-                CONSOLIDATION_PROTECTED_TYPES
-                and facts[i].fact_type in CONSOLIDATION_PROTECTED_TYPES
-                and facts[j].fact_type in CONSOLIDATION_PROTECTED_TYPES
-            ):
-                continue
-            sim = MemoryEngine._text_similarity(  # Reuse, not duplicate (G7 fix)
-                facts[i].fact_text, facts[j].fact_text,
-            )
-            if sim >= DEDUP_JACCARD_THRESHOLD:
-                # Cambio 1: keep longer fact (more specific); tiebreak by recency
-                len_i = len(facts[i].fact_text)
-                len_j = len(facts[j].fact_text)
-                if len_i != len_j:
-                    keep = facts[i] if len_i > len_j else facts[j]
-                else:
-                    keep = facts[i] if _fact_recency(facts[i]) >= _fact_recency(facts[j]) else facts[j]
-                remove = facts[j] if keep is facts[i] else facts[i]
-                dupes.append((remove.id, keep.id))
-    return dupes
+    return []
 
 
 # Phase 3 — Consolidate (CC: consolidationPrompt.ts:44-52)
@@ -303,7 +266,7 @@ async def consolidate_lead(
     facts: List[_FactRow],
     result: ConsolidationResult,
 ) -> None:
-    """Phase 3: LLM analysis → algorithmic fallback → expire → re-compress."""
+    """Phase 3: LLM analysis → expire → re-compress (CC-faithful, no heuristic fallback)."""
     real_facts = [f for f in facts if f.fact_type != "compressed_memo"]
     fact_by_id = {f.id: f for f in real_facts}  # for dry-run logging
     llm_removed_ids: set = set()
@@ -367,9 +330,8 @@ async def consolidate_lead(
         # LLM step is best-effort — never block consolidation (graceful degradation)
         logger.warning("[Consolidator] LLM analysis failed for lead=%s: %s — falling back to algorithmic", lead_id[:8], e)
 
-    # 3b. Algorithmic dedup — Jaccard fallback for anything LLM missed
-    # (CC: consolidationPrompt.ts:49 "Merging new signal... near-duplicates")
-    # Runs on facts NOT already removed by LLM
+    # 3b. [Disabled] Algorithmic dedup removed per CC alignment — LLM handles all dedup
+    # _find_near_duplicates() returns [] unconditionally
     remaining_facts = [f for f in real_facts if f.id not in llm_removed_ids]
     dupes = _find_near_duplicates(remaining_facts)
     if dupes:
