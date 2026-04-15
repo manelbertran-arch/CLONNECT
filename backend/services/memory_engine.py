@@ -124,6 +124,7 @@ El memo debe incluir (solo si hay datos):
 Hechos:
 {facts}
 
+Escribe el resumen en el mismo idioma predominante de los hechos proporcionados.
 Escribe el resumen narrativo en 2-4 frases. NO uses formato de lista. NO inventes datos que no esten en los hechos. Responde SOLO con el texto del resumen, sin comillas ni formato."""
 
 # Threshold: compress when a lead has more than this many facts
