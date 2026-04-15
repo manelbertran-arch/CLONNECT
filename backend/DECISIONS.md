@@ -4,16 +4,6 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
-## 2026-04-15 — K1/K2 regression fix: hybrid memo+facts in recall()
-
-**Problem**: After Sprint 3 memo compression, `_format_memory_section` memo path only injected the truncated memo (200 chars) + commitments into the prompt. Semantic search facts were discarded when a memo existed. Result: K1 context retention dropped from 95→83 and K2 style retention from 96→79 because the model lost access to granular facts that anchor context and style.
-
-**Fix**: In the memo path, add top 3 non-commitment facts from the semantic search results alongside the memo. Increase memo truncation budget 200→350 chars to cover style info. The `max_chars` budget still enforces total size via bullet trimming.
-
-**Trade-off**: Slightly larger `<memoria>` block (~+150 chars) but within the existing 600 char budget enforced by the trim loop.
-
----
-
 ## 2026-04-14 — BUG-006: Google AI Studio timeout limitation
 
 - Gemma 4 31B en Google AI Studio: prompts cortos (<50 facts) = 1.6s OK

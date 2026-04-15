@@ -1469,24 +1469,13 @@ class MemoryEngine:
         memo = next((f for f in facts if f.fact_type == "compressed_memo"), None)
         if memo:
             # Truncate at sentence boundary (SeCom denoising pattern)
-            # Budget 200→350: covers style info for K2 retention
-            raw = memo.fact_text.strip()[:350]
+            raw = memo.fact_text.strip()[:200]
             for sep in [". ", ", aunque", ", pero"]:
                 idx = raw.rfind(sep)
                 if idx > 60:
                     raw = raw[:idx]
                     break
             lines.append(f"- {raw.rstrip('.')}")
-
-            # K1/K2 anchor: top 3 non-commitment facts from semantic search
-            non_memo_facts = [
-                f for f in facts
-                if f.fact_type not in ("compressed_memo", "commitment")
-            ]
-            deduped = self._dedup_facts(non_memo_facts)
-            for fact in deduped[:3]:
-                lines.append(self._fact_to_bullet(fact))
-
             # Add recent commitments not in memo
             recent_commitments = [
                 f for f in facts
