@@ -625,26 +625,39 @@ def score_s3_strategic_alignment(
             case_scores.append(50.0)  # no data = neutral
             continue
 
-        # Score: proportional to how often the creator uses this strategy
-        # for this input type, normalized by the most-used strategy.
-        # Creator's distribution IS the ground truth — IGNORE at 45% is
-        # the reference (100), VALIDATE at 12.5% scores 27.7, not 12.5.
-        # Eliminates the binary cliff at the old top-2 boundary.
-        max_prob = max(dist.values()) if dist else 0.0
-        if bot_strategy in dist and max_prob > 0:
-            case_scores.append(dist[bot_strategy] / max_prob * 100.0)
+        # E1: exclude IGNORE from creator reference distribution and renormalize.
+        # Clonnect bots must respond to all messages — measuring against
+        # IGNORE rate penalizes the bot for doing its job.
+        active_dist = {k: v for k, v in dist.items() if k != "IGNORE"}
+        if not active_dist:
+            case_scores.append(50.0)
+            continue
+        active_total = sum(active_dist.values())
+        active_dist = {k: v / active_total for k, v in active_dist.items()}
+        active_max = max(active_dist.values())
+        if active_max > 0:
+            case_scores.append(active_dist.get(bot_strategy, 0.0) / active_max * 100.0)
         else:
             case_scores.append(0.0)
 
     e1_score = float(np.mean(case_scores))
 
-    # E2: aggregate distribution match (JSD)
+    # E2: aggregate distribution match (JSD) — exclude IGNORE from both sides
     bot_counts = Counter(bot_strategies)
     bot_total = len(bot_strategies)
-    bot_dist = {s: bot_counts.get(s, 0) / bot_total for s in bot_counts}
+    bot_dist_raw = {s: bot_counts.get(s, 0) / bot_total for s in bot_counts}
+    # Remove IGNORE from bot distribution and renormalize
+    bot_dist_active = {k: v for k, v in bot_dist_raw.items() if k != "IGNORE"}
+    bot_active_total = sum(bot_dist_active.values()) or 1.0
+    bot_dist = {k: v / bot_active_total for k, v in bot_dist_active.items()}
+
     creator_global = strategy_map.get("global_strategy_distribution", {})
     if creator_global:
-        jsd = _jsd(bot_dist, creator_global)
+        # Remove IGNORE from creator global and renormalize
+        creator_active = {k: v for k, v in creator_global.items() if k != "IGNORE"}
+        creator_active_total = sum(creator_active.values()) or 1.0
+        creator_active = {k: v / creator_active_total for k, v in creator_active.items()}
+        jsd = _jsd(bot_dist, creator_active)
         e2_score = (1.0 - jsd) * 100.0
     else:
         e2_score = 50.0

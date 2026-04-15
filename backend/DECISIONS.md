@@ -1301,3 +1301,18 @@ Add `_extract_product_hint()` helper that reads PRODUCTOS/SERVICIOS or ESTRATEGI
 ### Files Modified
 - `core/evaluation/ccee_scorer.py`: S2 aggregate weights
 - `core/evaluation/multi_turn_generator.py`: `_extract_product_hint()`, `simulate_lead_response(product_hint=)`, `generate_conversation()` loads hint
+
+---
+
+## 2026-04-15 — S3 Exclude IGNORE from Creator Reference Distribution
+
+### Problem
+Creator iris ignores 41% of messages (strategy=IGNORE). S3 normalized against this: IGNORE=100 reference, all other strategies scored relative to it. Bots must respond to everything (automation product) — penalizing for not ignoring is wrong.
+
+### Decision
+Exclude IGNORE from the creator reference distribution in both E1 (per-case) and E2 (JSD). Renormalize the remaining strategies to sum to 1.0 before scoring. Universal — works for any creator with any IGNORE rate.
+
+`classify_strategy()` unchanged — the classifier still detects IGNORE. Only the scoring evaluation excludes it.
+
+### Files Modified
+- `core/evaluation/ccee_scorer.py`: E1 per-case active_dist + E2 JSD creator_active/bot_dist both strip IGNORE before scoring
