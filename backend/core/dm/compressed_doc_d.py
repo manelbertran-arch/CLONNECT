@@ -13,6 +13,7 @@ replace post-processing enforcement.
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -193,6 +194,87 @@ def _get_catchphrases(metrics: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+# Section headers that indicate a business-strategy section in any language (ES/EN/CA)
+_STRATEGY_SECTION_KW = {
+    "venta", "ventas", "método", "metodo", "conversión", "conversion",
+    "producto", "productos", "servicio", "servicios", "precio", "precios",
+    "estrategia", "reserva", "oferta",
+    "sale", "sales", "method", "strategy", "product", "service",
+    "price", "booking", "offer",
+    "venda", "vendes", "mètode", "producte", "servei", "preu",
+}
+
+# In-line keywords to pick the most tactical lines from the section
+_STRATEGY_CONTENT_KW = {
+    "venta", "precio", "producto", "servicio", "clase", "curso",
+    "conversión", "conversion", "reserva", "oferta", "compra", "pago",
+    "inscri", "apunto", "enlace", "link", "señal", "señales",
+    "sale", "price", "product", "service", "class", "course",
+    "booking", "purchase", "payment", "sign",
+    "preu", "producte", "servei", "curs", "classe", "pagament", "apunta",
+}
+
+
+def _get_full_doc_d(creator_id: str) -> Optional[str]:
+    """Load the full (uncompressed) Doc D from personality_docs table."""
+    try:
+        from api.database import SessionLocal
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        try:
+            row = session.execute(
+                text(
+                    "SELECT pd.content FROM personality_docs pd "
+                    "JOIN creators c ON c.id::text = pd.creator_id "
+                    "WHERE (c.name = :cid OR pd.creator_id = :cid) "
+                    "  AND pd.doc_type IN ('doc_d_distilled', 'doc_d') "
+                    "ORDER BY CASE pd.doc_type WHEN 'doc_d_distilled' THEN 0 ELSE 1 END "
+                    "LIMIT 1"
+                ),
+                {"cid": creator_id},
+            ).first()
+            return row[0] if row else None
+        finally:
+            session.close()
+    except Exception as e:
+        logger.debug("Failed to load full Doc D for %s: %s", creator_id, e)
+        return None
+
+
+def _extract_strategy_section(full_doc_d: str) -> str:
+    """Extract a compact sales/business-strategy block from full Doc D.
+
+    Universal: detects sections whose heading contains strategy keywords
+    (ES/EN/CA), then picks tactical lines. Returns at most ~600 chars.
+    """
+    # Split on ## section headings
+    sections = re.split(r'\n(?=## )', full_doc_d)
+
+    key_lines: list[str] = []
+    for section in sections:
+        header = section.split('\n')[0].lower()
+        if not any(kw in header for kw in _STRATEGY_SECTION_KW):
+            continue
+        for raw in section.split('\n')[1:]:
+            stripped = raw.strip()
+            if not stripped:
+                continue
+            low = stripped.lower()
+            if not any(kw in low for kw in _STRATEGY_CONTENT_KW):
+                continue
+            # Strip markdown decoration
+            clean = re.sub(r'\*+', '', stripped)
+            clean = re.sub(r'\[.*?\]', '', clean)
+            clean = clean.strip(' -*')
+            if len(clean) > 10:
+                key_lines.append(clean[:120])
+
+    if not key_lines:
+        return ""
+    return "\n".join(key_lines[:8])
+
+
 def build_compressed_doc_d(creator_id: str) -> str:
     """Build a compressed ~3K char personality prompt for any creator.
 
@@ -310,13 +392,20 @@ def build_compressed_doc_d(creator_id: str) -> str:
     if products_str:
         sections.append(f"PRODUCTOS/SERVICIOS:\n{products_str}")
 
-    # 5. Catchphrases & behavioral patterns (RoleLLM: primary lexical consistency driver)
+    # 5. Business strategy from full Doc D (L3 Action Justification reference)
+    full_doc = _get_full_doc_d(creator_id)
+    if full_doc:
+        strategy = _extract_strategy_section(full_doc)
+        if strategy:
+            sections.append(f"ESTRATEGIA DE VENTA:\n{strategy}")
+
+    # 6. Catchphrases & behavioral patterns (RoleLLM: primary lexical consistency driver)
     if baseline and baseline.get("metrics"):
         catchphrases = _get_catchphrases(baseline["metrics"])
         if catchphrases:
             sections.append(f"FRASES Y EXPRESIONES CARACTERÍSTICAS:\n{catchphrases}")
 
-    # 6. Anti-patterns (universal + emoji emphasis)
+    # 7. Anti-patterns (universal + emoji emphasis)
     sections.append(
         "REGLAS CRÍTICAS (si no las cumples, se nota que eres IA):\n"
         "- La MAYORÍA de tus mensajes van SIN emoji. No pongas emoji por defecto.\n"
