@@ -1277,3 +1277,27 @@ v4 adds 6 scored parameters for multi-turn conversation quality.
 - --multi-turn flag enables v4, backward compatible without it
 - Lead simulator: GPT-4o-mini; Judge: existing _call_judge (DeepInfra default)
 - v4 composite = equal-weight mean of 6 params; blended = 80% v3 + 20% v4
+
+---
+
+## 2026-04-15 — S2 Reweight + L3 MT Generator Fix
+
+### Problem
+- **S2 Response Quality (~40):** Lexical metrics (chrF+BLEU+ROUGE+METEOR) had 45% weight but contributed ~6% signal because bot and creator speak different languages (ES vs CA). Opus analysis confirmed scorer problem, not bot.
+- **L3 Action Justification (50):** MT generator produced casual chat with no business decision points. Bot never got the opportunity to make strategy-aligned recommendations → L3 stuck at 3/5.
+
+### Decision: S2 Reweight
+Remove BLEU and ROUGE (zero cross-language signal), reduce chrF (15→5), increase BERTScore (25→35) and C4 (5→15), add semsim_scores (=BERTScore vs GT, already computed) at 15.
+
+**New weights (total=100):** BERTScore×35 + C4×15 + C5×10 + chrF×5 + BLEU×0 + ROUGE×0 + METEOR×5 + length_ratio×15 + semsim×15
+
+Expected improvement: S2 40→53-58 for multilingual creators.
+
+### Decision: L3 MT Generator
+Add `_extract_product_hint()` helper that reads PRODUCTOS/SERVICIOS or ESTRATEGIA DE VENTA from the creator's compressed Doc D. In `simulate_lead_response()`, ~1/3 of simulated turns inject a product inquiry into the system prompt. `generate_conversation()` loads the hint once per conversation via `_load_compressed_doc_d(creator_id)`.
+
+**Universal:** no creator-specific hardcoding — works for any creator with a Doc D.
+
+### Files Modified
+- `core/evaluation/ccee_scorer.py`: S2 aggregate weights
+- `core/evaluation/multi_turn_generator.py`: `_extract_product_hint()`, `simulate_lead_response(product_hint=)`, `generate_conversation()` loads hint

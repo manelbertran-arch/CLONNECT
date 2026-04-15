@@ -538,14 +538,15 @@ def score_s2_response_quality(
     case_scores = []
     for i in range(n):
         raw = (
-            bert_scores[i] * 25
-            + c4_scores[i] * 5
+            bert_scores[i] * 35
+            + c4_scores[i] * 15
             + c5_scores[i] * 10
-            + chrf_scores[i] * 15
-            + bleu_scores[i] * 10
-            + rouge_scores[i] * 10
-            + meteor_scores[i] * 10
+            + chrf_scores[i] * 5
+            + bleu_scores[i] * 0
+            + rouge_scores[i] * 0
+            + meteor_scores[i] * 5
             + length_ratios[i] * 15
+            + semsim_scores[i] * 15
         )
         penalty = g1_penalties[i] + g2_penalties[i] + g4_penalties[i]
         case_scores.append(max(0.0, min(100.0, raw - penalty)))

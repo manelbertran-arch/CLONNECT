@@ -168,6 +168,7 @@ def simulate_lead_response(
     history: List[Dict[str, str]],
     test_case: Dict[str, Any],
     lead_profile: Optional[Dict[str, Any]] = None,
+    product_hint: str = "",
 ) -> str:
     """Simulate a lead's next message given conversation history.
 
@@ -204,6 +205,15 @@ def simulate_lead_response(
         f"Be natural — use informal language, occasional typos, emojis sparingly.\n"
         f"DO NOT be overly polite or formal. Real DM followers are casual and direct."
     )
+
+    # L3 fix: ~1 in 3 simulated turns ask about creator products/services
+    # This gives the bot a chance to make strategy-aligned recommendations (L3 Action Justification).
+    if product_hint and random.random() < 0.33:
+        system_prompt += (
+            f"\n\nIMPORTANT: In this message, ask about the creator's products or services — "
+            f"you're curious about signing up, pricing, or how it works. Be natural and brief. "
+            f"Creator's offerings context: {product_hint}"
+        )
 
     user_prompt = (
         f"Conversation so far:\n{history_text}\n\n"
@@ -245,6 +255,24 @@ def simulate_lead_response(
     except Exception as e:
         logger.warning(f"Lead simulator error: {e}")
         return "Hola, qué tal?"
+
+
+# ---------------------------------------------------------------------------
+# Product hint extraction (L3 Action Justification fix)
+# ---------------------------------------------------------------------------
+
+def _extract_product_hint(doc_d_text: str) -> str:
+    """Extract product/service context from compressed Doc D for lead simulator.
+
+    Universal — works for any creator. Returns up to 200 chars from the
+    PRODUCTOS/SERVICIOS or ESTRATEGIA DE VENTA section, or "" if not found.
+    """
+    for marker in ("PRODUCTOS/SERVICIOS:", "ESTRATEGIA DE VENTA:"):
+        idx = doc_d_text.find(marker)
+        if idx >= 0:
+            section = doc_d_text[idx + len(marker):].strip()
+            return section[:200]
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -638,6 +666,14 @@ def generate_conversation(
     agent = get_dm_agent(creator_id)
     sender_id = test_case.get("lead_uuid") or test_case.get("username") or "test_lead_multiturn"
 
+    # L3 fix: load product hint once per conversation for lead simulator
+    _product_hint = ""
+    try:
+        from core.evaluation.multi_turn_scorer import _load_compressed_doc_d
+        _product_hint = _extract_product_hint(_load_compressed_doc_d(creator_id))
+    except Exception:
+        pass
+
     history: List[Dict[str, str]] = []
     turn_timings: List[float] = []
     turn_metadata: List[Dict[str, Any]] = []
@@ -740,7 +776,7 @@ def generate_conversation(
             msg_type = "belief_shift"
 
         else:
-            user_msg = simulate_lead_response(history, test_case)
+            user_msg = simulate_lead_response(history, test_case, product_hint=_product_hint)
             msg_type = "simulated"
 
         # Add user message to history (merge extra_meta so scorer can read is_qa_probe etc.)
