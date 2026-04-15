@@ -1424,7 +1424,7 @@ class MemoryEngine:
         Format follows mem0 pattern: `- {fact_text}`
         with [PENDIENTE] suffix for commitments (Zep temporal-flag pattern).
         """
-        text = fact.fact_text.strip()[:100]
+        text = fact.fact_text.strip()[:200]
         suffix = " [PENDIENTE]" if fact.fact_type == "commitment" else ""
         return f"- {text}{suffix}"
 
@@ -1432,7 +1432,7 @@ class MemoryEngine:
         self,
         facts: List[LeadMemory],
         summary: Optional[ConversationSummaryData],
-        max_chars: int = 600,
+        max_chars: int = 2000,
     ) -> str:
         """Format memories as bulleted list with explicit usage protocol.
 
@@ -1465,27 +1465,16 @@ class MemoryEngine:
         if name:
             lines.append(f"Nombre: {name}")
 
-        # Compressed memo path — extract first meaningful sentence
+        # CC-aligned: memo + facts coexist (CC injects all selected files, no discarding)
         memo = next((f for f in facts if f.fact_type == "compressed_memo"), None)
+        non_memo_facts = [f for f in facts if f.fact_type != "compressed_memo"]
+
         if memo:
-            # Truncate at sentence boundary (SeCom denoising pattern)
-            raw = memo.fact_text.strip()[:200]
-            for sep in [". ", ", aunque", ", pero"]:
-                idx = raw.rfind(sep)
-                if idx > 60:
-                    raw = raw[:idx]
-                    break
-            lines.append(f"- {raw.rstrip('.')}")
-            # Add recent commitments not in memo
-            recent_commitments = [
-                f for f in facts
-                if f.fact_type == "commitment" and f.fact_text not in memo.fact_text
-            ]
-            recent_commitments = self._dedup_facts(recent_commitments)
-            for c in recent_commitments[:2]:
-                lines.append(self._fact_to_bullet(c))
-        elif facts:
-            deduped = self._dedup_facts(facts)
+            memo_text = memo.fact_text.strip()
+            lines.append(f"- {memo_text}")
+
+        if non_memo_facts:
+            deduped = self._dedup_facts(non_memo_facts)
             priority_order = {
                 "commitment": 0, "preference": 1, "objection": 2,
                 "personal_info": 3, "purchase_history": 4, "topic": 5,
