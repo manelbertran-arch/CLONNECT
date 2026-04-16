@@ -14,12 +14,6 @@ class TestPersonalizationModulesLoaded:
         assert callable(get_user_profile)
         assert UserProfile is not None
 
-    def test_personalized_ranking_module_loads(self):
-        """personalized_ranking module loads without errors"""
-        from core.personalized_ranking import adapt_system_prompt, personalize_results
-        assert callable(adapt_system_prompt)
-        assert callable(personalize_results)
-
     def test_reranker_module_loads(self):
         """reranker module loads without errors"""
         from core.rag.reranker import rerank, ENABLE_RERANKING
@@ -43,117 +37,6 @@ class TestPersonalizationModulesLoaded:
         )
         assert callable(get_conversation_memory)
         assert isinstance(ENABLE_SEMANTIC_MEMORY, bool)
-
-
-class TestAdaptSystemPrompt:
-    """Tests para adapt_system_prompt()"""
-
-    def test_adapt_prompt_with_interests(self):
-        """adapt_system_prompt adds user interests to prompt"""
-        from core.personalized_ranking import adapt_system_prompt
-
-        mock_profile = MagicMock()
-        mock_profile.get_summary.return_value = {
-            "top_interests": [("marketing", 1.0), ("ventas", 0.8)],
-            "recent_objections": [],
-            "interested_products": [],
-            "preferences": {}
-        }
-
-        base_prompt = "Eres un asistente de ventas."
-        adapted = adapt_system_prompt(base_prompt, mock_profile)
-
-        assert "CONTEXTO DEL USUARIO" in adapted
-        assert "marketing" in adapted
-        assert "ventas" in adapted
-
-    def test_adapt_prompt_with_objections(self):
-        """adapt_system_prompt adds objections to prompt"""
-        from core.personalized_ranking import adapt_system_prompt
-
-        mock_profile = MagicMock()
-        mock_profile.get_summary.return_value = {
-            "top_interests": [],
-            "recent_objections": ["precio alto", "falta de tiempo"],
-            "interested_products": [],
-            "preferences": {}
-        }
-
-        base_prompt = "Eres un asistente."
-        adapted = adapt_system_prompt(base_prompt, mock_profile)
-
-        assert "objeciones" in adapted.lower()
-        assert "precio alto" in adapted
-
-    def test_adapt_prompt_no_data_returns_original(self):
-        """adapt_system_prompt returns original if no user data"""
-        from core.personalized_ranking import adapt_system_prompt
-
-        mock_profile = MagicMock()
-        mock_profile.get_summary.return_value = {
-            "top_interests": [],
-            "recent_objections": [],
-            "interested_products": [],
-            "preferences": {}
-        }
-
-        base_prompt = "Eres un asistente."
-        adapted = adapt_system_prompt(base_prompt, mock_profile)
-
-        assert adapted == base_prompt
-
-    def test_adapt_prompt_none_profile_returns_original(self):
-        """adapt_system_prompt returns original if profile is None"""
-        from core.personalized_ranking import adapt_system_prompt
-
-        base_prompt = "Eres un asistente."
-        adapted = adapt_system_prompt(base_prompt, None)
-
-        assert adapted == base_prompt
-
-
-class TestPersonalizeResults:
-    """Tests para personalize_results()"""
-
-    def test_personalize_results_with_interests(self):
-        """personalize_results boosts results matching interests"""
-        from core.personalized_ranking import personalize_results
-
-        mock_profile = MagicMock()
-        mock_profile.get_top_interests.return_value = [("marketing", 1.0)]
-        mock_profile.get_content_score.return_value = 0.0
-
-        # Use similar base scores so personalization can make a difference
-        results = [
-            {"content": "Curso de cocina", "score": 0.75},
-            {"content": "Curso de marketing digital", "score": 0.70},
-        ]
-
-        personalized = personalize_results(results, mock_profile, alpha=0.5)
-
-        # Marketing result should be boosted due to interest match
-        assert personalized[0]["content"] == "Curso de marketing digital"
-        # Verify final_score was added
-        assert "final_score" in personalized[0]
-        assert "personal_score" in personalized[0]
-
-    def test_personalize_results_empty_returns_empty(self):
-        """personalize_results returns empty for empty input"""
-        from core.personalized_ranking import personalize_results
-
-        mock_profile = MagicMock()
-        result = personalize_results([], mock_profile)
-
-        assert result == []
-
-    def test_personalize_results_none_profile_returns_original(self):
-        """personalize_results returns original if profile is None"""
-        from core.personalized_ranking import personalize_results
-
-        results = [{"content": "test", "score": 0.5}]
-        result = personalize_results(results, None)
-
-        assert result == results
 
 
 class TestFeatureFlags:

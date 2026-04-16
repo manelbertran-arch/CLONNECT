@@ -9,11 +9,9 @@ from services.lead_service import LeadScore, LeadService, LeadStage
 from services.llm_service import LLMProvider, LLMResponse, LLMService
 from services.memory_service import FollowerMemory, MemoryStore
 from services.prompt_service import PromptBuilder
-from services.rag_service import DocumentChunk, RAGService
 
 __all__ = [
     "CloudinaryService",
-    "DocumentChunk",
     "FollowerMemory",
     "get_cloudinary_service",
     "InstagramService",
@@ -27,7 +25,6 @@ __all__ = [
     "LLMService",
     "MemoryStore",
     "PromptBuilder",
-    "RAGService",
     "UploadResult",
     "WebhookMessage",
 ]
