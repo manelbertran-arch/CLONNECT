@@ -16,7 +16,9 @@ Architecture and implementation decisions, in reverse chronological order.
   - Sprint 5 planeado (ARC1-ARC5) asume tokenizer 31B y caps derivados de W3.
   - 26B MoE tiene problemas documentados: fine-tuning inestable, A6 -50 con Sprint 2.
   - BUG-005 fallback OpenRouter mitiga respuestas vacías.
-- **Implementación:** `DEEPINFRA_MODEL=google/gemma-4-31B-it`, `DEEPINFRA_FALLBACK_PROVIDER=openrouter`. Monitorizar fallback trigger rate 72h — si >5% → rollback al 26B hasta que DeepInfra arregle.
+- **Implementación:** `DEEPINFRA_MODEL=google/gemma-4-31B-it`, `DEEPINFRA_FALLBACK_MODEL=google/gemma-4-31b-it` (slug lowercase OpenRouter), `DEEPINFRA_FALLBACK_PROVIDER=openrouter`. Monitorizar fallback trigger rate 72h — si >5% → rollback al 26B hasta que DeepInfra arregle.
+- **Smoke test pre-deploy (2026-04-16):** 10/10 calls 31B DeepInfra sin respuestas vacías (BUG-005 parece resuelto en DeepInfra). Fallback OpenRouter verificado funcional (circuit breaker forzado → `provider=openrouter-fallback`, respuesta válida). Cambio autorizado.
+- **Rollback plan:** `DEEPINFRA_MODEL=google/gemma-4-26B-A4B-it` si >5% fallback rate sostenido o latencia p95 >10s.
 - **Refs:** BUG-005 (2026-04-14), W7 baseline 31B, ARC1-ARC5 asumen 31B tokenizer.
 
 ---
