@@ -4,6 +4,27 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-16 — CHORE: Remove 30 orphan writes to cognitive_metadata
+
+- **Context:** W2 metadata flow audit identified 30 fields written to `cognitive_metadata` that are never read by any downstream consumer (not by postprocessing, not by the API response, not by tests).
+- **Fields removed:** RAG telemetry (7), hierarchical memory telemetry (3), SBS (4), PPA (3), loop/echo/quality flags (8), compaction/style flags (5). Full list in `docs/audit_phase2/QW1_cleanup_report.md`.
+- **Why:** Dead writes add noise to the dict, waste dict allocation, and create confusion about what cognitive_metadata actually exposes. They were telemetry stubs that never got a reader wired up.
+- **Invariants:** Logic of all systems (RAG gate, SBS, PPA, echo detection, style normalization) is preserved. Only the `cognitive_metadata["key"] = value` lines were removed. Logs unchanged.
+- **Not touched:** `prompt_injection_attempt`, `sensitive_detected` — reserved for QW3 alerting work.
+- **Tests:** 18 passed (test_context_analytics + sprint1_verification). 51 lines deleted across 3 files.
+
+---
+
+## 2026-04-15 — FIX: Cache boundary must not reorder prompt sections
+
+- **Regression:** `ENABLE_PROMPT_CACHE_BOUNDARY=true` caused G5 100→80, S3 74→64, L3 58→45.
+- **Root cause:** The ON path reordered sections (knowledge/products to #2/#3, fewshot from #2 to #4, safety to #13, advanced to #14). This broke the style→fewshot adjacency that anchors persona behavior and moved guardrails away from the recency-attention position.
+- **CC pattern (prompts.ts:560-576):** CC's boundary marker is passive — it sits between static and dynamic content at a fixed point. The section order is IDENTICAL regardless of caching. `splitSysPromptPrefix()` (api.ts:362-404) only splits at the boundary index, never reorders.
+- **Fix:** Single `_sections` list in original order for both ON and OFF paths. ON path appends knowledge/products/safety AFTER override (matching prompt_service.py natural order) instead of reordering them to the top. Only `_STATIC_LABELS` and `_CRITICAL_LABELS` differ between paths.
+- **Tests:** 21/21 test_cache_boundary passed, 7/7 smoke tests passed.
+
+---
+
 ## 2026-04-14 — BUG-006: Google AI Studio timeout limitation
 
 - Gemma 4 31B en Google AI Studio: prompts cortos (<50 facts) = 1.6s OK

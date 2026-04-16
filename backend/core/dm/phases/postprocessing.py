@@ -96,7 +96,6 @@ async def phase_postprocessing(
                     "[A2] Repetitive loop detected — response is exact duplicate of last message "
                     "(passing through; not replacing)"
                 )
-                cognitive_metadata["loop_detected"] = True
                 # Do NOT replace response_content — let the correct response through.
     except Exception as e:
         logger.debug(f"Loop detection failed: {e}")
@@ -123,7 +122,6 @@ async def phase_postprocessing(
                         f"[A2b] Intra-response repetition: "
                         f"'{_pat}' covers {_coverage:.0%} of response ({_count}x) — truncated"
                     )
-                    cognitive_metadata["repetition_truncated"] = _pat
                     llm_response.content = response_content
     except Exception as e:
         logger.debug(f"Intra-response repetition detection failed: {e}")
@@ -154,7 +152,6 @@ async def phase_postprocessing(
                             f"[A2c] Sentence repetition: '{_norm[0][:30]}' x{_max_count}"
                             f" — dedup {len(_sents)}→{len(_kept)} sentences"
                         )
-                        cognitive_metadata["sentence_dedup"] = _removed
                         response_content = _fixed
                         llm_response.content = response_content
     except Exception as e:
@@ -193,13 +190,11 @@ async def phase_postprocessing(
                             _jaccard, response_content[:40], _fallback,
                         )
                         response_content = _fallback
-                        cognitive_metadata["echo_detected"] = round(_jaccard, 2)
                     else:
                         logger.warning(
                             "[A3] Echo detected (Jaccard=%.2f) but no short_response_pool for %s, skipping replacement",
                             _jaccard, agent.creator_id,
                         )
-                        cognitive_metadata["echo_detected_no_pool"] = round(_jaccard, 2)
     except Exception as e:
         logger.debug(f"Echo detection failed: {e}")
 
@@ -236,8 +231,6 @@ async def phase_postprocessing(
             response_content, _bl_changed = apply_blacklist_replacement(
                 response_content, agent.creator_id
             )
-            if _bl_changed:
-                cognitive_metadata["blacklist_replacement"] = True
         except Exception as e:
             logger.debug(f"Blacklist replacement failed: {e}")
 
@@ -295,10 +288,6 @@ async def phase_postprocessing(
                 creator_id=agent.creator_id,
                 creator_name=getattr(agent, "creator_name", ""),
             )
-            cognitive_metadata["sbs_score"] = round(sbs_result.alignment_score, 2)
-            cognitive_metadata["sbs_scores"] = sbs_result.scores
-            cognitive_metadata["sbs_path"] = sbs_result.path
-            cognitive_metadata["sbs_llm_calls"] = sbs_result.total_llm_calls
             if sbs_result.path != "pass":
                 response_content = sbs_result.response
                 logger.info(
@@ -323,11 +312,8 @@ async def phase_postprocessing(
                 creator_id=agent.creator_id,
                 creator_name=getattr(agent, "creator_name", ""),
             )
-            cognitive_metadata["ppa_score"] = round(ppa_result.alignment_score, 2)
-            cognitive_metadata["ppa_scores"] = ppa_result.scores
             if ppa_result.was_refined:
                 response_content = ppa_result.response
-                cognitive_metadata["ppa_refined"] = True
                 logger.info("[PPA] Response refined (score=%.2f)", ppa_result.alignment_score)
         except Exception as e:
             logger.debug(f"PPA failed: {e}")
@@ -381,7 +367,6 @@ async def phase_postprocessing(
         if ENABLE_STYLE_NORMALIZER:
             response_content = normalize_style(response_content, agent.creator_id)
             if response_content != _pre_normalization_response:
-                cognitive_metadata["style_normalized"] = True
                 logger.debug("Style normalized: '%s' → '%s'", _pre_normalization_response[:40], response_content[:40])
     except Exception as e:
         logger.debug(f"Style normalization failed: {e}")

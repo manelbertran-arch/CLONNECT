@@ -304,7 +304,6 @@ async def phase_llm_generation(
         _anchor = _build_style_anchor(agent.creator_id)
         if _anchor:
             full_prompt += "\n" + _anchor
-            cognitive_metadata["style_anchor"] = True
 
     # Store for SBS retry — allows regenerating with identical prompt at lower temperature
     cognitive_metadata["_full_prompt"] = full_prompt
@@ -352,6 +351,15 @@ async def phase_llm_generation(
                 logger.info("[ContextHealth] INFO: %s", _w["message"])
     except Exception as _analytics_err:
         logger.debug("[TokenAnalytics] Skipped: %s", _analytics_err)
+
+    # G5: Cache boundary prefix metrics (Sprint 4)
+    _cache_prefix = cognitive_metadata.get("cache_prefix_chars", 0)
+    if _cache_prefix > 0:
+        _cache_ratio = _cache_prefix / len(system_prompt) if system_prompt else 0
+        logger.info(
+            "[CacheBoundary] prefix=%d/%d chars (%.0f%% cacheable)",
+            _cache_prefix, len(system_prompt), _cache_ratio * 100,
+        )
 
     # LLM generation: Flash-Lite → GPT-4o-mini (2 providers, nothing else)
     # Path: webhook → process_dm() → generate_dm_response() → gemini/openai
@@ -418,9 +426,6 @@ async def phase_llm_generation(
                         llm_messages[-1]["content"] += "\n" + content
                     else:
                         llm_messages.append({"role": role, "content": content})
-                cognitive_metadata["history_compaction"] = True
-                cognitive_metadata["history_compaction_kept"] = len(compacted)
-                cognitive_metadata["history_compaction_pool"] = len(raw_pool)
                 logger.info(
                     "[HISTORY-COMPACT] select_and_compact: %d→%d msgs (pool=%d)",
                     len(history), len(compacted), len(raw_pool),
@@ -625,7 +630,6 @@ async def phase_llm_generation(
                     f"Self-consistency: replaced (conf={consistency.confidence:.2f})"
                 )
                 llm_response.content = consistency.response
-                cognitive_metadata["self_consistency_replaced"] = True
         except Exception as e:
             logger.debug(f"Self-consistency failed: {e}")
 
