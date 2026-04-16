@@ -4,6 +4,17 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-16 — FIX: Wire _tone_config emoji_rule into system prompt (QW6)
+
+- **Bug:** `_tone_config` in `PromptBuilder.build_system_prompt` (services/prompt_service.py:75) was computed but immediately abandoned. The `emoji_rule` field ("- Uso de emojis: NINGUNO/frecuente/moderado") never reached the LLM, meaning all tones generated with generic LLM emoji behavior.
+- **Fix:** Added `_tone_config["emoji_rule"]` as the first bullet in the IMPORTANTE block. ~11 tokens per request.
+- **Also updated:** `_format_safety_section` in context.py accepts a `tone_key` param so cache-boundary parity test stays green.
+- **StyleNormalizer:** post-generation emoji normalization still runs; this fix addresses the upstream cause (LLM not instructed correctly).
+- **Tests:** 7 new in `TestToneEmojiRule`. Cache boundary parity tests all pass.
+- **Expected CCEE impact:** leve mejora S1 (style fidelity). No regression risk.
+
+---
+
 ## 2026-04-16 — CHORE: Remove 30 orphan writes to cognitive_metadata
 
 - **Context:** W2 metadata flow audit identified 30 fields written to `cognitive_metadata` that are never read by any downstream consumer (not by postprocessing, not by the API response, not by tests).

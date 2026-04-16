@@ -109,3 +109,59 @@ class TestBuildUserContext:
             history=history
         )
         assert "Hola" in context
+
+
+class TestToneEmojiRule:
+    """Test that _tone_config emoji_rule is injected into the system prompt."""
+
+    def test_professional_tone_injects_no_emoji_rule(self):
+        """Professional tone → 'NINGUNO' (no emojis) must appear in system prompt."""
+        from services.prompt_service import PromptBuilder
+        builder = PromptBuilder(personality={"tone": "professional", "name": "Bot"})
+        prompt = builder.build_system_prompt()
+        assert "NINGUNO" in prompt, "Professional tone emoji rule not injected"
+
+    def test_casual_tone_injects_frecuente_rule(self):
+        """Casual tone → 'frecuente' must appear in system prompt."""
+        from services.prompt_service import PromptBuilder
+        builder = PromptBuilder(personality={"tone": "casual", "name": "Bot"})
+        prompt = builder.build_system_prompt()
+        assert "frecuente" in prompt.lower(), "Casual tone emoji rule not injected"
+
+    def test_friendly_tone_injects_moderado_rule(self):
+        """Friendly tone → 'moderado' must appear in system prompt."""
+        from services.prompt_service import PromptBuilder
+        builder = PromptBuilder(personality={"tone": "friendly", "name": "Bot"})
+        prompt = builder.build_system_prompt()
+        assert "moderado" in prompt.lower(), "Friendly tone emoji rule not injected"
+
+    def test_default_tone_injects_emoji_rule(self):
+        """No tone specified → defaults to friendly → 'moderado' must appear."""
+        from services.prompt_service import PromptBuilder
+        builder = PromptBuilder(personality={"name": "Bot"})
+        prompt = builder.build_system_prompt()
+        assert "moderado" in prompt.lower(), "Default (friendly) tone emoji rule not injected"
+
+    def test_unknown_tone_falls_back_to_friendly(self):
+        """Unknown tone falls back to friendly → 'moderado' must appear."""
+        from services.prompt_service import PromptBuilder
+        builder = PromptBuilder(personality={"tone": "aggressive", "name": "Bot"})
+        prompt = builder.build_system_prompt()
+        assert "moderado" in prompt.lower(), "Fallback tone emoji rule not injected"
+
+    def test_emoji_rule_appears_in_importante_section(self):
+        """Emoji rule must be inside the IMPORTANTE block."""
+        from services.prompt_service import PromptBuilder
+        builder = PromptBuilder(personality={"tone": "professional", "name": "Bot"})
+        prompt = builder.build_system_prompt()
+        importante_pos = prompt.find("IMPORTANTE:")
+        ninguno_pos = prompt.find("NINGUNO")
+        assert importante_pos != -1, "IMPORTANTE section missing"
+        assert ninguno_pos > importante_pos, "Emoji rule must appear after IMPORTANTE:"
+
+    def test_skip_safety_omits_emoji_rule(self):
+        """When skip_safety=True, no IMPORTANTE block → emoji rule also absent."""
+        from services.prompt_service import PromptBuilder
+        builder = PromptBuilder(personality={"tone": "professional", "name": "Bot"})
+        prompt = builder.build_system_prompt(skip_safety=True)
+        assert "NINGUNO" not in prompt, "Emoji rule must not appear when safety is skipped"
