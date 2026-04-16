@@ -4,6 +4,22 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-16 — FEAT: Security event alerting for prompt_injection + sensitive flags (QW3)
+
+- **Problem:** `cognitive_metadata["prompt_injection_attempt"]` (detection.py:103) and `cognitive_metadata["sensitive_detected"]` (detection.py:125) were written on every match but never consumed by any downstream system. Orphan flags = zero observability on security incidents.
+- **Fix:** New `security_events` table + `alert_security_event()` dispatcher. Integrates at both detection.py sites via fire-and-forget `asyncio.create_task`.
+- **Table:** `security_events(id, creator_id, sender_id, event_type, severity, content_hash, message_length, event_metadata, created_at)` + composite index `(creator_id, sender_id, event_type, created_at DESC)`. Integer PK (autoincrement) — high-write event log, UUID not needed.
+- **GDPR:** never store raw message content. Only SHA256 hex (64 chars) + length. Fingerprint allows dedup/correlation without PII retention.
+- **Severity:** `prompt_injection`→WARNING (always). `sensitive_content`→WARNING below escalation threshold, CRITICAL at/above. INFO reserved for rate-limit summary rows.
+- **Rate limit:** in-process `TTLCache(maxsize=10_000, ttl=300)` from cachetools. Window=60s per `(creator, sender, event_type)`. Every 100th suppressed event writes an INFO summary row so bursts are still visible.
+- **Fail-silent:** entire dispatch body wrapped in try/except; any DB/hash/cache failure is logged at debug level and swallowed. Alerting never blocks or crashes the detection pipeline.
+- **Async pattern:** `asyncio.create_task(alert(...))` with module-level `_pending_tasks: set` + `add_done_callback(_pending_tasks.discard)` to prevent "Task was destroyed" warnings. DB write runs via `asyncio.to_thread(_sync_write)` using `get_db_session()` (same pattern as context.py:163).
+- **Out of scope:** Slack/email webhooks (next sprint). Current delivery is DB-only; consumers will poll `security_events` for reporting.
+- **Tests:** 9 unit tests (rate-limit, severity mapping, hash stability, fail-silent, suppression summary) + 3 integration tests (detection.py dispatches on both flags, never raises).
+- **Migration:** `045_add_security_events.py` (down_revision=044).
+
+---
+
 ## 2026-04-16 — FIX: Wire _tone_config emoji_rule into system prompt (QW6)
 
 - **Bug:** `_tone_config` in `PromptBuilder.build_system_prompt` (services/prompt_service.py:75) was computed but immediately abandoned. The `emoji_rule` field ("- Uso de emojis: NINGUNO/frecuente/moderado") never reached the LLM, meaning all tones generated with generic LLM emoji behavior.

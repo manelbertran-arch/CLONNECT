@@ -69,6 +69,9 @@ from api.models.profile import (
 # Sync
 from api.models.sync import SyncQueue, SyncState
 
+# Security
+from api.models.security import SecurityEvent
+
 # Re-export all for star imports
 __all__ = [
     "Base",
@@ -93,4 +96,5 @@ __all__ = [
     "UnifiedProfile", "PlatformIdentity",
     "FollowerMemoryDB", "UserProfileDB",
     "SyncQueue", "SyncState",
+    "SecurityEvent",
 ]
