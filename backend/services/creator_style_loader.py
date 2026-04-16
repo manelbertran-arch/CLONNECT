@@ -18,7 +18,13 @@ import os
 logger = logging.getLogger(__name__)
 
 # When true, use compressed Doc D (~1.3K chars) from CPE baseline metrics
-# instead of the 38K personality extraction. Optimized for Qwen3-14B.
+# instead of the 38K personality extraction. Originally optimized for Qwen3-14B.
+#
+# DO NOT enable for production with Gemma-4-31B:
+#   Validated 2026-04-16 (QW2 CCEE): composite regresses -10.69 points
+#   (69.42 → 58.73, 3 runs × 50 cases, iris_bertran). S1 Style -17.5,
+#   J_old Memory -37.4, G5 Persona -30.0. S3 improves +12.8 but does not
+#   compensate. See docs/audit_phase2/QW2_compressed_doc_d_report.md.
 USE_COMPRESSED_DOC_D = os.getenv("USE_COMPRESSED_DOC_D", "false").lower() in (
     "true", "1", "yes",
 )
