@@ -1023,6 +1023,53 @@ def _snapshot_doc_d(session, creator_db_id, doc_d_text: str, trigger: str, categ
     return version_id
 
 
+def _get_current_doc_d(session, creator_db_id) -> str:
+    """Read current Doc D from personality_docs.content (doc_type='doc_d').
+
+    QW5 fix: the Creator ORM has no `doc_d` column; runtime stores the doc in
+    personality_docs keyed by (creator_id, doc_type). Returns "" when missing.
+    """
+    from sqlalchemy import text
+
+    row = session.execute(
+        text(
+            """
+            SELECT content FROM personality_docs
+            WHERE creator_id = :cid AND doc_type = 'doc_d'
+            """
+        ),
+        {"cid": str(creator_db_id)},
+    ).fetchone()
+    return row[0] if row and row[0] is not None else ""
+
+
+def _set_current_doc_d(session, creator_db_id, new_text: str) -> None:
+    """Upsert Doc D content to personality_docs.
+
+    Mirrors the canonical pattern in core/personality_extraction/extractor.py:366
+    (INSERT … ON CONFLICT DO UPDATE). Unique constraint
+    `uq_personality_docs_creator_type` guarantees single row per doc_type.
+    """
+    from sqlalchemy import text
+
+    session.execute(
+        text(
+            """
+            INSERT INTO personality_docs (id, creator_id, doc_type, content)
+            VALUES (CAST(:id AS uuid), :cid, 'doc_d', :content)
+            ON CONFLICT (creator_id, doc_type)
+            DO UPDATE SET content = EXCLUDED.content,
+                          updated_at = now()
+            """
+        ),
+        {
+            "id": str(uuid.uuid4()),
+            "cid": str(creator_db_id),
+            "content": new_text or "",
+        },
+    )
+
+
 async def rollback_doc_d(creator_db_id, version_id) -> Dict:
     """Restore Doc D from a previous version snapshot."""
     from api.database import SessionLocal
@@ -1047,10 +1094,15 @@ async def rollback_doc_d(creator_db_id, version_id) -> Dict:
         if not creator:
             return {"status": "error", "message": "Creator not found"}
 
-        _snapshot_doc_d(session, creator_db_id, creator.doc_d or "", "rollback")
+        _snapshot_doc_d(
+            session,
+            creator_db_id,
+            _get_current_doc_d(session, creator_db_id),
+            "rollback",
+        )
 
-        # Apply rollback
-        creator.doc_d = old_text
+        # Apply rollback (QW5: writes to personality_docs; Creator has no doc_d column)
+        _set_current_doc_d(session, creator_db_id, old_text)
         session.commit()
 
         logger.info(f"[PERSONA] Rolled back Doc D for creator {creator_db_id} to version {version_id}")
@@ -1102,7 +1154,8 @@ async def compile_persona(creator_id: str, creator_db_id) -> Dict[str, Any]:
         if not creator:
             return {"status": "error", "message": "Creator not found"}
 
-        current_doc_d = creator.doc_d or ""
+        # QW5: Doc D lives in personality_docs, not on the Creator row
+        current_doc_d = _get_current_doc_d(session, creator_db_id)
         current_sections = _extract_current_sections(current_doc_d)
 
         # Step 4: Compile each category with enough evidence
@@ -1121,7 +1174,8 @@ async def compile_persona(creator_id: str, creator_db_id) -> Dict[str, Any]:
         # Step 5: Snapshot + apply + persist
         version_id = _snapshot_doc_d(session, creator_db_id, current_doc_d, "weekly_compilation", list(updates.keys()))
         new_doc_d = _apply_sections(current_doc_d, updates)
-        creator.doc_d = new_doc_d
+        # QW5: persist new Doc D to personality_docs (upsert by creator_id, doc_type)
+        _set_current_doc_d(session, creator_db_id, new_doc_d)
 
         # Mark pairs as analyzed
         pair_ids = [p.id for p in signals.get("pairs", [])]

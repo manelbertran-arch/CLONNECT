@@ -59,17 +59,18 @@ class TestCompilePersonaBasic:
                 "evaluations": [],
             }
 
-            # Mock creator
+            # Mock creator (existence check only; QW5: doc_d no longer lives here)
             mock_creator = MagicMock()
-            mock_creator.doc_d = "Existing Doc D content"
             mock_creator.id = uuid.uuid4()
             mock_session.query.return_value.filter_by.return_value.first.return_value = mock_creator
 
             # Mock _compile_section to return a section
             mock_compile.return_value = "Responde de forma breve, máximo 2 frases."
 
-            # Mock _snapshot_doc_d
-            with patch("services.persona_compiler._snapshot_doc_d") as mock_snap:
+            # QW5: patch Doc D store helpers so we don't hit real SQL
+            with patch("services.persona_compiler._get_current_doc_d", return_value="Existing Doc D content"), \
+                 patch("services.persona_compiler._set_current_doc_d") as mock_set, \
+                 patch("services.persona_compiler._snapshot_doc_d") as mock_snap:
                 mock_snap.return_value = str(uuid.uuid4())
 
                 # Mock _persist_run
@@ -78,6 +79,9 @@ class TestCompilePersonaBasic:
                     mock_session.query.return_value.filter.return_value.update.return_value = 5
 
                     result = await compile_persona("test_creator", uuid.uuid4())
+
+            # Writes go through _set_current_doc_d (personality_docs upsert), not Creator
+            assert mock_set.called, "compile_persona must upsert Doc D via personality_docs"
 
         assert result["status"] == "done"
         assert "categories_updated" in result
@@ -361,3 +365,129 @@ class TestBackwardCompat:
         assert callable(compile_persona_all)
         assert callable(analyze_creator_action)
         assert callable(_is_non_text_response)
+
+
+# ---------------------------------------------------------------------------
+# QW5 regression: PersonaCompiler must read/write personality_docs
+# (Creator ORM has no `doc_d` column — runtime store is `personality_docs`)
+# ---------------------------------------------------------------------------
+
+class TestQW5PersonalityDocsStore:
+    def test_get_current_doc_d_reads_from_personality_docs(self):
+        """_get_current_doc_d executes a SELECT against personality_docs.content."""
+        from services.persona_compiler import _get_current_doc_d
+
+        session = MagicMock()
+        fake_row = ("EXISTING_DOC_D_CONTENT",)
+        session.execute.return_value.fetchone.return_value = fake_row
+
+        result = _get_current_doc_d(session, uuid.uuid4())
+
+        assert result == "EXISTING_DOC_D_CONTENT"
+        # Verify the SQL targets personality_docs + doc_type='doc_d'
+        called_sql = str(session.execute.call_args[0][0])
+        assert "personality_docs" in called_sql
+        assert "doc_d" in called_sql
+
+    def test_get_current_doc_d_returns_empty_when_missing(self):
+        """When no row exists, returns '' (never AttributeError)."""
+        from services.persona_compiler import _get_current_doc_d
+
+        session = MagicMock()
+        session.execute.return_value.fetchone.return_value = None
+
+        assert _get_current_doc_d(session, uuid.uuid4()) == ""
+
+    def test_set_current_doc_d_upserts_personality_docs(self):
+        """_set_current_doc_d issues INSERT … ON CONFLICT DO UPDATE against personality_docs."""
+        from services.persona_compiler import _set_current_doc_d
+
+        session = MagicMock()
+        creator_id = uuid.uuid4()
+
+        _set_current_doc_d(session, creator_id, "NEW_DOC_D_TEXT")
+
+        assert session.execute.called
+        called_sql = str(session.execute.call_args[0][0])
+        params = session.execute.call_args[0][1]
+        # Canonical upsert shape (matches extractor.py:366)
+        assert "INSERT INTO personality_docs" in called_sql
+        assert "ON CONFLICT" in called_sql
+        assert "DO UPDATE" in called_sql
+        # Binds creator_id + content
+        assert params["cid"] == str(creator_id)
+        assert params["content"] == "NEW_DOC_D_TEXT"
+
+    @pytest.mark.asyncio
+    @patch("api.database.SessionLocal")
+    async def test_rollback_doc_d_uses_personality_docs(self, mock_session_cls):
+        """rollback_doc_d reads doc_d_versions and writes restore via personality_docs."""
+        from services.persona_compiler import rollback_doc_d
+
+        session = MagicMock()
+        mock_session_cls.return_value = session
+
+        # Version row exists
+        session.execute.return_value.fetchone.return_value = ("PREVIOUS_DOC_D",)
+        # Creator exists
+        session.query.return_value.filter_by.return_value.first.return_value = MagicMock()
+
+        with patch("services.persona_compiler._snapshot_doc_d") as mock_snap, \
+             patch("services.persona_compiler._get_current_doc_d", return_value="CURRENT") as mock_get, \
+             patch("services.persona_compiler._set_current_doc_d") as mock_set:
+            mock_snap.return_value = str(uuid.uuid4())
+
+            result = await rollback_doc_d(uuid.uuid4(), uuid.uuid4())
+
+        assert result["status"] == "rolled_back"
+        # Snapshot must capture the CURRENT doc from personality_docs before overwriting
+        mock_get.assert_called_once()
+        mock_snap.assert_called_once()
+        # Restore must go through the personality_docs upsert, NOT Creator.doc_d
+        mock_set.assert_called_once()
+        assert mock_set.call_args[0][2] == "PREVIOUS_DOC_D"
+
+    @pytest.mark.asyncio
+    @patch("api.database.SessionLocal")
+    async def test_compile_persona_no_creator_doc_d_attribute_access(self, mock_session_cls):
+        """Regression: compile_persona must not touch `creator.doc_d` (column doesn't exist)."""
+        from services.persona_compiler import compile_persona
+
+        session = MagicMock()
+        mock_session_cls.return_value = session
+        session.query.return_value.filter.return_value.order_by.return_value.first.return_value = None
+
+        # Creator mock without doc_d attribute (simulates real ORM)
+        class _CreatorNoDocD:
+            id = uuid.uuid4()
+
+        session.query.return_value.filter_by.return_value.first.return_value = _CreatorNoDocD()
+
+        with patch("services.persona_compiler._collect_signals") as mock_collect, \
+             patch("services.persona_compiler._get_current_doc_d", return_value="") as mock_get, \
+             patch("services.persona_compiler._set_current_doc_d") as mock_set, \
+             patch("services.persona_compiler._snapshot_doc_d", return_value=str(uuid.uuid4())), \
+             patch("services.persona_compiler._compile_section", new=AsyncMock(return_value="New section")), \
+             patch("services.persona_compiler._persist_run", new=AsyncMock()):
+
+            # 3+ pairs so we pass min_evidence and hit the doc_d read/write path
+            pairs = []
+            for i in range(4):
+                p = MagicMock()
+                p.id = uuid.uuid4()
+                p.chosen = f"a{i}"
+                p.rejected = f"bbb{i}"
+                p.action_type = "edited"
+                p.edit_diff = {"categories": ["shortened"], "length_delta": -10}
+                pairs.append(p)
+            mock_collect.return_value = {"pairs": pairs, "feedback": [], "evaluations": []}
+
+            session.query.return_value.filter.return_value.update.return_value = len(pairs)
+
+            result = await compile_persona("test_creator", uuid.uuid4())
+
+        # No AttributeError; compile executed end-to-end via personality_docs helpers
+        assert result["status"] in ("done", "no_updates")
+        assert mock_get.called, "Must read current Doc D from personality_docs"
+        if result["status"] == "done":
+            assert mock_set.called, "Must persist new Doc D via personality_docs upsert"
