@@ -4,6 +4,40 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-16 — CLEANUP: QW4.5 — migrate 2 legacy callers and remove dead systems
+
+- **Context:** QW4 (`d4a6d94d`) removed 6 dead code systems but left 2 blocked by active imports: `core/semantic_memory.py` (imported by `api/startup/cache.py`) and `services/response_variator.py` (imported by `services/bot_orchestrator.py`).
+- **semantic_memory migration:** The `cache.py` import (`ENABLE_SEMANTIC_MEMORY`, `_get_embeddings`) was a ChromaDB pre-warm block that **never ran** in production (`ENABLE_SEMANTIC_MEMORY` defaults `false`). Removed the 7-line block; no replacement needed since `semantic_memory_pgvector` uses the OpenAI API (no local model to pre-warm).
+- **response_variator migration:** `bot_orchestrator.py` called `variator.process(message)` → `(Optional[str], str)`. Migrated to `ResponseVariatorV2.try_pool_response()` → `PoolMatch(matched, response, category, confidence)`. V2 gains conv-level dedup, calibration-driven pools, and TF-IDF context-aware selection.
+- **Files deleted:** `core/semantic_memory.py`, `services/response_variator.py`, `tests/audit/test_audit_semantic_memory.py`, `tests/test_response_variator.py`. Legacy-only tests in `test_personalization.py` and `test_personalization_integration.py` also removed.
+- **Tests:** 37 tests pass post-migration (personalization + bot_orchestrator suites).
+- **Refs:** W1_inventory_37_systems.md §4.4.
+
+---
+
+## 2026-04-16 — DECISION: No activar USE_COMPRESSED_DOC_D para Iris (QW2)
+
+- **Contexto:** flag en `services/creator_style_loader.py:22` redirige `get_creator_style_prompt()` a un Doc D comprimido (~1.6K chars) en lugar de la personalidad completa (~38K). Objetivo hipotético: reducir context pressure en Gemma-4-31B.
+- **Medición:** 3 runs × 50 cases × iris_bertran, matched seed, flag OFF vs ON. Config idéntica a `sprint4_postfix2_31b.json` (gemma-4-31B-it, Qwen3-30B-A3B judge, multi-turn).
+- **Resultado:** composite cae **-10.69 pts** (69.42 → 58.73). v4_composite cae **-6.3 pts** (68.8 → 62.5). Las 3 corridas compressed están entre -10.4 y -12.2 vs baseline — regresión consistente, no ruido.
+- **Dimensiones clave:** S1 Style -17.5, J_old Memory -37.4, G5 Persona -30.0. Ganancia en S3 Strategic (+12.8) no compensa.
+- **Veredicto:** >5 pts → NO activar. Flag queda en default `false`. Ningún cambio de código.
+- **Followup:** comprimido híbrido con exemplars + guardrails de persona podría recuperar S1/G5. Documentado en `docs/audit_phase2/QW2_compressed_doc_d_report.md`.
+
+---
+
+## 2026-04-16 — FIX: PersonaCompiler persistence mismatch (QW5)
+
+- **Bug:** `services/persona_compiler.py` reads and writes `creator.doc_d` (lines 1050, 1053, 1105, 1124), but neither the `Creator` ORM (`api/models/creator.py:28`) nor the live DB (Neon) has a `doc_d` column. Every run crashes with `AttributeError: 'Creator' object has no attribute 'doc_d'` — confirmed via `pattern_analysis_runs` query: 30 errors since 2026-04-15 with identical message. Runtime Doc D is in `personality_docs.content` (`doc_type='doc_d'`), written by `core/personality_extraction/extractor.py:366`.
+- **Scenario:** A (modified) — column never existed; no data migration needed. `doc_d_versions` snapshot table exists but is empty (crash happens before snapshot INSERT).
+- **Fix:** Add `_get_current_doc_d()` and `_set_current_doc_d()` helpers that read/upsert `personality_docs` (canonical pattern from extractor.py). Replace the 4 `creator.doc_d` call sites. Keep `doc_d_versions` snapshot table — its INSERT was never the failure, just unreachable.
+- **No schema changes, no data migration, no backup required.** Pure code redirection.
+- **Tests:** 3 new in `tests/test_persona_compiler.py` — verify compiler reads from personality_docs, writes via upsert, rollback_doc_d uses new store.
+- **Expected impact:** PersonaCompiler can be activated (ENABLE_PERSONA_COMPILER=true) without AttributeError. `pattern_analysis_runs` will start showing `status='done'` again instead of `error`.
+- **Follow-up:** Activar flag en staging para Iris/Stefano post-merge y correr 1 ciclo; verificar nuevos rows `done` en pattern_analysis_runs.
+
+---
+
 ## 2026-04-16 — FEAT: Security event alerting for prompt_injection + sensitive flags (QW3)
 
 - **Problem:** `cognitive_metadata["prompt_injection_attempt"]` (detection.py:103) and `cognitive_metadata["sensitive_detected"]` (detection.py:125) were written on every match but never consumed by any downstream system. Orphan flags = zero observability on security incidents.

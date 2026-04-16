@@ -32,7 +32,7 @@ from services.message_splitter import (
     MessageSplitter,
     get_message_splitter,
 )
-from services.response_variator import ResponseVariator, get_response_variator
+from services.response_variator_v2 import ResponseVariatorV2, get_response_variator_v2
 from services.timing_service import TimingService, get_timing_service
 
 logger = logging.getLogger(__name__)
@@ -70,12 +70,12 @@ class BotOrchestrator:
 
     def __init__(
         self,
-        variator: ResponseVariator = None,
+        variator: ResponseVariatorV2 = None,
         memory_service: ConversationMemoryService = None,
         splitter: MessageSplitter = None,
         timing: TimingService = None,
     ):
-        self.variator = variator or get_response_variator()
+        self.variator = variator or get_response_variator_v2()
         self.memory_service = memory_service or get_conversation_memory_service()
         self.splitter = splitter or get_message_splitter()
         self.timing = timing or get_timing_service()
@@ -120,13 +120,17 @@ class BotOrchestrator:
         # ═══════════════════════════════════════════════════════════════════
         # STEP 2: Try quick pool response
         # ═══════════════════════════════════════════════════════════════════
-        pool_response, msg_type = self.variator.process(message)
+        pool_match = self.variator.try_pool_response(
+            lead_message=message,
+            conv_id=lead_id,
+            creator_id=creator_id,
+        )
 
-        if pool_response:
-            delay = self.timing.calculate_delay(len(pool_response), len(message))
-            logger.debug(f"Pool response for {lead_id}: {msg_type}")
+        if pool_match.matched and pool_match.response:
+            delay = self.timing.calculate_delay(len(pool_match.response), len(message))
+            logger.debug(f"Pool response for {lead_id}: {pool_match.category}")
             return BotResponse(
-                messages=[pool_response],
+                messages=[pool_match.response],
                 delays=[delay],
                 used_pool=True,
                 should_escalate=False,

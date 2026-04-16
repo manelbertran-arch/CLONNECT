@@ -29,15 +29,6 @@ class TestPersonalizationModulesLoaded:
         assert callable(get_semantic_memory)
         assert isinstance(ENABLE_SEMANTIC_MEMORY_PGVECTOR, bool)
 
-    def test_semantic_memory_chromadb_module_loads(self):
-        """semantic_memory (ChromaDB) module loads without errors"""
-        from core.semantic_memory import (
-            get_conversation_memory,
-            ENABLE_SEMANTIC_MEMORY
-        )
-        assert callable(get_conversation_memory)
-        assert isinstance(ENABLE_SEMANTIC_MEMORY, bool)
-
 
 class TestFeatureFlags:
     """Tests para verificar feature flags"""
@@ -49,13 +40,6 @@ class TestFeatureFlags:
         if "ENABLE_RERANKING" not in os.environ:
             from core.rag.reranker import ENABLE_RERANKING
             assert ENABLE_RERANKING == True
-
-    def test_semantic_memory_flag_defaults_false(self):
-        """ENABLE_SEMANTIC_MEMORY should default to false"""
-        import os
-        if "ENABLE_SEMANTIC_MEMORY" not in os.environ:
-            from core.semantic_memory import ENABLE_SEMANTIC_MEMORY
-            assert ENABLE_SEMANTIC_MEMORY == False
 
     def test_pgvector_flag_defaults_true(self):
         """ENABLE_SEMANTIC_MEMORY_PGVECTOR should default to true"""
@@ -110,12 +94,3 @@ class TestSemanticMemoryIntegration:
         assert memory.creator_id == "test_creator"
         assert memory.follower_id == "test_follower"
 
-    def test_chromadb_memory_factory_creates_instance(self):
-        """get_conversation_memory creates a memory instance"""
-        with patch('core.semantic_memory.ConversationMemory._init_vector_store'):
-            from core.semantic_memory import get_conversation_memory, _memories
-
-            _memories.clear()
-            memory = get_conversation_memory("test_user", "test_creator")
-
-            assert memory is not None

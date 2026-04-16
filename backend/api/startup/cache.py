@@ -48,16 +48,6 @@ async def _do_prewarm(SessionLocal):
     active_creators = list(active_creators)
     logger.info(f"Pre-warming caches for {len(active_creators)} creators: {active_creators}")
 
-    try:
-        from core.semantic_memory import ENABLE_SEMANTIC_MEMORY, _get_embeddings
-
-        if ENABLE_SEMANTIC_MEMORY:
-            _t_emb = time.time()
-            _get_embeddings()
-            logger.info(f"Pre-loaded embedding model in {time.time() - _t_emb:.2f}s")
-    except Exception as e:
-        logger.warning(f"Could not pre-load embedding model: {e}")
-
     from core.tone_service import get_tone_prompt_section
 
     for creator_id in active_creators:
