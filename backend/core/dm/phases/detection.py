@@ -21,6 +21,13 @@ from core.context_detector import detect_all as detect_context
 from core.dm.models import DMResponse, DetectionResult
 from core.dm.text_utils import _message_mentions_product
 from core.feature_flags import flags
+from core.security.alerting import (
+    EVENT_PROMPT_INJECTION,
+    EVENT_SENSITIVE_CONTENT,
+    SEVERITY_CRITICAL,
+    SEVERITY_WARNING,
+    dispatch_fire_and_forget as _dispatch_security_alert,
+)
 from core.sensitive_detector import detect_sensitive_content, get_crisis_resources
 
 logger = logging.getLogger(__name__)
@@ -95,6 +102,14 @@ async def phase_detection(
         logger.warning("Oversized message from sender %s (%d chars) — truncating to 3000", sender_id, len(message))
         message = message[:3000]
 
+    # QW3 helper: resolve creator_id once for all security-alert dispatches.
+    # Agents always carry a slug; falling back to "unknown" would poison the
+    # security_events table, so log loudly if that path ever fires.
+    _alert_creator_id = getattr(agent, "creator_id", None)
+    if not _alert_creator_id:
+        logger.warning("phase_detection: agent.creator_id missing — security alerts will be tagged 'unknown'")
+        _alert_creator_id = "unknown"
+
     # GUARD 1 (observability): Prompt injection / jailbreak attempt detection.
     # Per Perez & Ribeiro (2022). Flags only — no blocking. LLM + guardrails handle response.
     if flags.prompt_injection_detection:
@@ -105,6 +120,18 @@ async def phase_detection(
                     "Prompt injection pattern detected from sender %s: pattern=%s",
                     sender_id, _pat.pattern[:60],
                 )
+                # QW3: fire-and-forget alert. Fail-silent — dispatcher swallows errors.
+                try:
+                    _dispatch_security_alert(
+                        creator_id=_alert_creator_id,
+                        sender_id=sender_id,
+                        event_type=EVENT_PROMPT_INJECTION,
+                        content=message,
+                        severity=SEVERITY_WARNING,
+                        metadata={"pattern_prefix": _pat.pattern[:60]},
+                    )
+                except Exception:
+                    logger.debug("security alerting dispatch failed", exc_info=True)
                 break  # one match is enough to flag
 
     # GUARD 2: Media placeholder detection
@@ -124,6 +151,26 @@ async def phase_detection(
                 logger.warning(f"Sensitive content detected: {sensitive_result.type.value}")
                 cognitive_metadata["sensitive_detected"] = True
                 cognitive_metadata["sensitive_category"] = sensitive_result.type.value
+                # QW3: fire-and-forget alert. CRITICAL if at/above escalation threshold.
+                _severity = (
+                    SEVERITY_CRITICAL
+                    if sensitive_result.confidence >= AGENT_THRESHOLDS.sensitive_escalation
+                    else SEVERITY_WARNING
+                )
+                try:
+                    _dispatch_security_alert(
+                        creator_id=_alert_creator_id,
+                        sender_id=sender_id,
+                        event_type=EVENT_SENSITIVE_CONTENT,
+                        content=message,
+                        severity=_severity,
+                        metadata={
+                            "sensitive_category": sensitive_result.type.value,
+                            "confidence": float(sensitive_result.confidence),
+                        },
+                    )
+                except Exception:
+                    logger.debug("security alerting dispatch failed", exc_info=True)
                 if sensitive_result.confidence >= AGENT_THRESHOLDS.sensitive_escalation:
                     # Resolve crisis language from creator's dialect (BUG-S2 fix)
                     _dialect = getattr(agent, "personality", {}).get("dialect", "neutral") or "neutral"
