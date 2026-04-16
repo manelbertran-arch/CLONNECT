@@ -4,6 +4,23 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-16 — Modelo producción: Gemma4-31B Dense
+
+- **Decisión:** volver a Gemma4-31B Dense como modelo de producción.
+- **Contexto:**
+  - 12-abril: decisión original de usar 31B (no documentada en DECISIONS.md, solo en memoria).
+  - 14-abril: BUG-005 identificó respuestas vacías intermitentes → rollback operacional al 26B.
+  - 16-abril: re-decisión de volver al 31B con fallback OpenRouter como safety net.
+- **Razones:**
+  - CCEE solo medido en 31B — W3/W7/QWs todos contra 31B baseline (70.0 composite).
+  - Sprint 5 planeado (ARC1-ARC5) asume tokenizer 31B y caps derivados de W3.
+  - 26B MoE tiene problemas documentados: fine-tuning inestable, A6 -50 con Sprint 2.
+  - BUG-005 fallback OpenRouter mitiga respuestas vacías.
+- **Implementación:** `DEEPINFRA_MODEL=google/gemma-4-31B-it`, `DEEPINFRA_FALLBACK_PROVIDER=openrouter`. Monitorizar fallback trigger rate 72h — si >5% → rollback al 26B hasta que DeepInfra arregle.
+- **Refs:** BUG-005 (2026-04-14), W7 baseline 31B, ARC1-ARC5 asumen 31B tokenizer.
+
+---
+
 ## 2026-04-16 — CLEANUP: QW4.5 — migrate 2 legacy callers and remove dead systems
 
 - **Context:** QW4 (`d4a6d94d`) removed 6 dead code systems but left 2 blocked by active imports: `core/semantic_memory.py` (imported by `api/startup/cache.py`) and `services/response_variator.py` (imported by `services/bot_orchestrator.py`).
