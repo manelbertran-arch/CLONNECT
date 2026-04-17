@@ -15,6 +15,7 @@ Feature flag: ENABLE_PERSONA_COMPILER (default false)
 """
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -1002,15 +1003,55 @@ async def _compile_section(
 # NEW: Version control
 # ---------------------------------------------------------------------------
 
-def _snapshot_doc_d(session, creator_db_id, doc_d_text: str, trigger: str, categories_updated: Optional[List[str]] = None) -> str:
-    """Save current Doc D to doc_d_versions table before update. Returns version ID."""
+def _snapshot_doc_d(
+    session,
+    creator_db_id,
+    doc_d_text: str,
+    trigger: str,
+    categories_updated: Optional[List[str]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> str:
+    """Save current Doc D to doc_d_versions before update. Returns version ID.
+
+    SHA256 dedup: if identical content was already snapshotted for this creator
+    in the last 24 hours, skip the INSERT and return the existing row's ID.
+    """
     from sqlalchemy import text
 
+    content_hash = hashlib.sha256((doc_d_text or "").encode()).hexdigest()
+
+    # Dedup check: same hash within last 24h?
+    existing = session.execute(
+        text("""
+            SELECT id FROM doc_d_versions
+            WHERE creator_id = CAST(:cid AS uuid)
+              AND content_hash = :hash
+              AND created_at > now() - INTERVAL '24 hours'
+            ORDER BY created_at DESC
+            LIMIT 1
+        """),
+        {"cid": str(creator_db_id), "hash": content_hash},
+    ).fetchone()
+
+    if existing:
+        return str(existing[0])
+
     version_id = str(uuid.uuid4())
+    meta = metadata or {}
+
     session.execute(
         text("""
-            INSERT INTO doc_d_versions (id, creator_id, doc_d_text, trigger, categories_updated)
-            VALUES (CAST(:vid AS uuid), CAST(:cid AS uuid), :doc_d, :trigger, CAST(:cats AS jsonb))
+            INSERT INTO doc_d_versions
+                (id, creator_id, doc_d_text, trigger, categories_updated, content_hash, metadata)
+            VALUES (
+                CAST(:vid AS uuid),
+                CAST(:cid AS uuid),
+                :doc_d,
+                :trigger,
+                CAST(:cats AS jsonb),
+                :content_hash,
+                CAST(:metadata AS jsonb)
+            )
         """),
         {
             "vid": version_id,
@@ -1018,9 +1059,36 @@ def _snapshot_doc_d(session, creator_db_id, doc_d_text: str, trigger: str, categ
             "doc_d": doc_d_text or "",
             "trigger": trigger,
             "cats": json.dumps(categories_updated or []),
+            "content_hash": content_hash,
+            "metadata": json.dumps(meta),
         },
     )
     return version_id
+
+
+def get_active_doc_d_version_id(session, creator_name: str) -> Optional[str]:
+    """Return the latest doc_d_versions.id for a creator slug. None if none exists."""
+    from sqlalchemy import text
+
+    creator_row = session.execute(
+        text("SELECT id FROM creators WHERE name = :name LIMIT 1"),
+        {"name": creator_name},
+    ).fetchone()
+
+    if not creator_row:
+        return None
+
+    version_row = session.execute(
+        text("""
+            SELECT id FROM doc_d_versions
+            WHERE creator_id = CAST(:cid AS uuid)
+            ORDER BY created_at DESC
+            LIMIT 1
+        """),
+        {"cid": str(creator_row[0])},
+    ).fetchone()
+
+    return str(version_row[0]) if version_row else None
 
 
 def _get_current_doc_d(session, creator_db_id) -> str:

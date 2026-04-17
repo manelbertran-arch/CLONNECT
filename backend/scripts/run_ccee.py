@@ -852,6 +852,9 @@ def _build_metadata(args) -> Dict[str, Any]:
             "v41_metrics": getattr(args, "v41_metrics", False),
             "v5": getattr(args, "v5", False),
         },
+        "doc_d_version_id": getattr(args, "doc_d_version_id", None),
+        "doc_d_snapshot_at": getattr(args, "doc_d_snapshot_at", None),
+        "doc_d_char_length": getattr(args, "doc_d_char_length", None),
     }
 
 
@@ -1373,6 +1376,31 @@ def main():
             print(f"\n[G3] Loaded {len(jailbreak_prompts_data)} jailbreak prompts")
         else:
             print(f"\n[G3] WARNING: {jp_path} not found")
+
+    # Capture Doc D traceability for CCEE metadata
+    _doc_d_resolved = _resolve_doc_d(style_profile, creator)
+    args.doc_d_char_length = len(_doc_d_resolved)
+    args.doc_d_snapshot_at = datetime.now().isoformat()
+    args.doc_d_version_id = None
+    try:
+        from sqlalchemy import create_engine, text as _text
+        _engine = create_engine(os.environ.get("DATABASE_URL", ""), pool_pre_ping=True)
+        with _engine.connect() as _db:
+            _creator_row = _db.execute(
+                _text("SELECT id FROM creators WHERE name = :n LIMIT 1"), {"n": creator}
+            ).fetchone()
+            if _creator_row:
+                _ver_row = _db.execute(
+                    _text("""SELECT id FROM doc_d_versions
+                             WHERE creator_id = CAST(:cid AS uuid)
+                             ORDER BY created_at DESC LIMIT 1"""),
+                    {"cid": str(_creator_row[0])},
+                ).fetchone()
+                if _ver_row:
+                    args.doc_d_version_id = str(_ver_row[0])
+    except Exception as _e:
+        print(f"  [DOC_D] Could not resolve version ID: {_e}")
+    print(f"  [DOC_D] version_id={args.doc_d_version_id} chars={args.doc_d_char_length}")
 
     # Run evaluation
     scorer = CCEEScorer(style_profile, strategy_map, adaptation_profile, weights)
