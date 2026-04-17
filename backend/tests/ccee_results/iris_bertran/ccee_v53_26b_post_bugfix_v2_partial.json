@@ -1,0 +1,1469 @@
+{
+  "partial": true,
+  "runs_completed": 3,
+  "composites": [
+    58.91,
+    59.77,
+    58.95
+  ],
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 62.5,
+        "detail": {
+          "A1_length": 96.99,
+          "A2_emoji": 98.46,
+          "A2_contextual": 57.87,
+          "A3_exclamations": 50.09,
+          "A4_questions": 43.73,
+          "A5_vocabulary": 40.0,
+          "A6_language": 18.77,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 99.12,
+          "A9_catchphrases": 20.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 40.14,
+        "detail": {
+          "bertscore_mean": 0.8172,
+          "chrf_mean": 0.092,
+          "bleu4_mean": 0.0995,
+          "rouge_l_mean": 0.0276,
+          "meteor_mean": 0.017,
+          "semsim_mean": 0.8172,
+          "c4_relevance_mean": 0.8171,
+          "self_rep_mean": 0.934,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 3.87,
+          "per_case": [
+            52.98,
+            38.24,
+            35.01,
+            35.1,
+            52.07,
+            46.67,
+            43.63,
+            48.63,
+            44.89,
+            44.94,
+            45.9,
+            35.34,
+            31.19,
+            51.01,
+            40.77,
+            32.07,
+            33.31,
+            52.11,
+            51.39,
+            40.56,
+            33.87,
+            45.67,
+            42.36,
+            24.5,
+            50.85,
+            43.28,
+            33.58,
+            36.23,
+            43.84,
+            43.24,
+            34.57,
+            43.85,
+            53.08,
+            25.99,
+            41.54,
+            13.69,
+            47.46,
+            51.8,
+            19.09,
+            36.15,
+            51.92,
+            46.9,
+            44.08,
+            28.49,
+            15.65,
+            31.05,
+            58.46,
+            41.25,
+            34.04,
+            34.92
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 47.59,
+        "detail": {
+          "e1_per_case_mean": 36.7,
+          "e2_distribution_match": 73.01,
+          "bot_strategy_distribution": {
+            "INFORM": 0.02,
+            "ASK": 0.38,
+            "VALIDATE": 0.42,
+            "IGNORE": 0.1,
+            "REDIRECT": 0.08
+          },
+          "per_case": [
+            8.4,
+            23.5,
+            23.5,
+            53.7,
+            53.7,
+            23.5,
+            53.7,
+            100.0,
+            17.2,
+            17.2,
+            33.1,
+            25.4,
+            25.4,
+            100.0,
+            25.4,
+            25.4,
+            27.7,
+            33.4,
+            25.4,
+            100.0,
+            27.7,
+            27.7,
+            27.7,
+            27.7,
+            27.7,
+            25.4,
+            25.4,
+            27.7,
+            27.7,
+            25.4,
+            27.7,
+            33.4,
+            100.0,
+            27.7,
+            25.4,
+            25.4,
+            33.4,
+            25.4,
+            27.7,
+            27.7,
+            27.7,
+            25.4,
+            42.6,
+            30.6,
+            30.6,
+            42.6,
+            100.0,
+            43.1,
+            29.4,
+            42.2
+          ],
+          "mean": 47.59
+        }
+      },
+      "S4_adaptation": {
+        "score": 57.78,
+        "detail": {
+          "mode": "blended",
+          "proximity_mean": 58.5,
+          "proximity_n": 50,
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 76.8,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 100.0,
+        "B1": {
+          "score": null,
+          "detail": {
+            "reason": "insufficient_ocean_signal",
+            "creator_nonzero_dims": 1,
+            "bot_nonzero_dims": 5,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.0053,
+              0.0053,
+              0.0053,
+              0.0053,
+              0.0053
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 50,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 43.67,
+        "H2": {
+          "score": 43.67,
+          "detail": {
+            "cosine_similarity": 0.4367,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.259,
+              0.28,
+              0.28,
+              0.38,
+              0.2,
+              1.0,
+              0.248,
+              0.1,
+              0.05
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 49.37,
+        "detail": {
+          "length_consistency": 57.01,
+          "emoji_consistency": 96.01,
+          "question_consistency": 43.73,
+          "exclamation_consistency": 50.09,
+          "cv_match": 0.0,
+          "bot_length_std": 24.96,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 49.69,
+      "composite": 58.91,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    },
+    {
+      "S1_style_fidelity": {
+        "score": 66.16,
+        "detail": {
+          "A1_length": 92.52,
+          "A2_emoji": 92.29,
+          "A2_contextual": 60.2,
+          "A3_exclamations": 38.09,
+          "A4_questions": 79.73,
+          "A5_vocabulary": 56.0,
+          "A6_language": 23.65,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 99.12,
+          "A9_catchphrases": 20.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 38.3,
+        "detail": {
+          "bertscore_mean": 0.8078,
+          "chrf_mean": 0.0935,
+          "bleu4_mean": 0.0843,
+          "rouge_l_mean": 0.0289,
+          "meteor_mean": 0.0227,
+          "semsim_mean": 0.8078,
+          "c4_relevance_mean": 0.813,
+          "self_rep_mean": 0.9166,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 4.17,
+          "per_case": [
+            51.73,
+            42.22,
+            35.09,
+            37.73,
+            46.13,
+            33.52,
+            45.6,
+            51.4,
+            48.19,
+            34.33,
+            34.34,
+            33.61,
+            25.7,
+            50.88,
+            40.47,
+            27.4,
+            42.53,
+            43.52,
+            44.25,
+            40.66,
+            33.56,
+            34.47,
+            45.77,
+            24.17,
+            51.52,
+            24.61,
+            34.48,
+            35.06,
+            35.82,
+            42.44,
+            33.37,
+            42.49,
+            36.67,
+            49.27,
+            45.79,
+            14.15,
+            53.3,
+            52.23,
+            18.73,
+            34.26,
+            41.24,
+            45.85,
+            43.22,
+            32.38,
+            14.39,
+            30.72,
+            56.07,
+            31.76,
+            34.03,
+            33.78
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 48.15,
+        "detail": {
+          "e1_per_case_mean": 37.15,
+          "e2_distribution_match": 73.81,
+          "bot_strategy_distribution": {
+            "INFORM": 0.02,
+            "VALIDATE": 0.52,
+            "REDIRECT": 0.18,
+            "ASK": 0.2,
+            "IGNORE": 0.08
+          },
+          "per_case": [
+            8.4,
+            53.7,
+            42.2,
+            53.7,
+            53.7,
+            23.5,
+            42.2,
+            42.2,
+            33.1,
+            31.0,
+            31.0,
+            25.4,
+            27.7,
+            27.7,
+            33.4,
+            25.4,
+            27.7,
+            27.7,
+            33.4,
+            100.0,
+            27.7,
+            27.7,
+            27.7,
+            27.7,
+            27.7,
+            27.7,
+            27.7,
+            33.4,
+            27.7,
+            25.4,
+            27.7,
+            33.4,
+            27.7,
+            100.0,
+            27.7,
+            25.4,
+            100.0,
+            25.4,
+            27.7,
+            27.7,
+            27.7,
+            100.0,
+            42.6,
+            30.6,
+            30.6,
+            42.6,
+            30.6,
+            22.4,
+            29.4,
+            53.7
+          ],
+          "mean": 48.15
+        }
+      },
+      "S4_adaptation": {
+        "score": 57.13,
+        "detail": {
+          "mode": "blended",
+          "proximity_mean": 58.99,
+          "proximity_n": 50,
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 67.3,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 100.0,
+        "B1": {
+          "score": null,
+          "detail": {
+            "reason": "insufficient_ocean_signal",
+            "creator_nonzero_dims": 1,
+            "bot_nonzero_dims": 3,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.0054,
+              0.0,
+              0.0108,
+              0.0054,
+              0.0
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 50,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 47.97,
+        "H2": {
+          "score": 47.97,
+          "detail": {
+            "cosine_similarity": 0.4797,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.2995,
+              0.2,
+              0.34,
+              0.2,
+              0.28,
+              1.0,
+              0.312,
+              0.1,
+              0.05
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 51.32,
+        "detail": {
+          "length_consistency": 58.76,
+          "emoji_consistency": 80.01,
+          "question_consistency": 79.73,
+          "exclamation_consistency": 38.09,
+          "cv_match": 0.0,
+          "bot_length_std": 31.18,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 50.66,
+      "composite": 59.77,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    },
+    {
+      "S1_style_fidelity": {
+        "score": 67.14,
+        "detail": {
+          "A1_length": 94.99,
+          "A2_emoji": 89.2,
+          "A2_contextual": 62.05,
+          "A3_exclamations": 30.09,
+          "A4_questions": 71.73,
+          "A5_vocabulary": 60.0,
+          "A6_language": 24.2,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 99.12,
+          "A9_catchphrases": 40.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 38.3,
+        "detail": {
+          "bertscore_mean": 0.8136,
+          "chrf_mean": 0.0951,
+          "bleu4_mean": 0.0823,
+          "rouge_l_mean": 0.0337,
+          "meteor_mean": 0.0279,
+          "semsim_mean": 0.8136,
+          "c4_relevance_mean": 0.8158,
+          "self_rep_mean": 0.917,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 4.15,
+          "per_case": [
+            49.61,
+            47.82,
+            38.09,
+            35.59,
+            53.98,
+            34.78,
+            45.72,
+            53.44,
+            51.02,
+            34.83,
+            34.67,
+            40.85,
+            28.99,
+            48.91,
+            40.96,
+            36.2,
+            49.86,
+            38.07,
+            26.81,
+            33.19,
+            23.64,
+            34.8,
+            41.68,
+            20.42,
+            47.25,
+            43.84,
+            32.19,
+            35.75,
+            35.01,
+            42.39,
+            45.05,
+            44.55,
+            38.87,
+            23.84,
+            49.58,
+            13.51,
+            37.79,
+            52.24,
+            26.06,
+            42.43,
+            47.43,
+            48.78,
+            48.5,
+            33.39,
+            14.32,
+            33.06,
+            28.34,
+            39.32,
+            33.49,
+            34.27
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 43.42,
+        "detail": {
+          "e1_per_case_mean": 35.02,
+          "e2_distribution_match": 63.03,
+          "bot_strategy_distribution": {
+            "VALIDATE": 0.56,
+            "ASK": 0.24,
+            "REDIRECT": 0.18,
+            "IGNORE": 0.02
+          },
+          "per_case": [
+            53.7,
+            53.7,
+            53.7,
+            53.7,
+            53.7,
+            23.5,
+            53.7,
+            53.7,
+            17.2,
+            33.1,
+            31.0,
+            25.4,
+            27.7,
+            27.7,
+            25.4,
+            27.7,
+            25.4,
+            27.7,
+            27.7,
+            27.7,
+            25.4,
+            33.4,
+            27.7,
+            27.7,
+            27.7,
+            33.4,
+            33.4,
+            33.4,
+            27.7,
+            25.4,
+            27.7,
+            25.4,
+            33.4,
+            27.7,
+            27.7,
+            27.7,
+            25.4,
+            33.4,
+            27.7,
+            100.0,
+            33.4,
+            25.4,
+            42.6,
+            42.6,
+            30.6,
+            42.6,
+            30.6,
+            43.1,
+            30.4,
+            53.7
+          ],
+          "mean": 43.42
+        }
+      },
+      "S4_adaptation": {
+        "score": 58.27,
+        "detail": {
+          "mode": "blended",
+          "proximity_mean": 59.82,
+          "proximity_n": 50,
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 73.8,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 100.0,
+        "B1": {
+          "score": null,
+          "detail": {
+            "reason": "insufficient_ocean_signal",
+            "creator_nonzero_dims": 1,
+            "bot_nonzero_dims": 4,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.0054,
+              0.0,
+              0.0108,
+              0.0054,
+              0.0054
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 50,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 50.24,
+        "H2": {
+          "score": 50.24,
+          "detail": {
+            "cosine_similarity": 0.5024,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.2891,
+              0.16,
+              0.38,
+              0.24,
+              0.3,
+              1.0,
+              0.3,
+              0.1,
+              0.1
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 46.16,
+        "detail": {
+          "length_consistency": 56.96,
+          "emoji_consistency": 72.01,
+          "question_consistency": 71.73,
+          "exclamation_consistency": 30.09,
+          "cv_match": 0.0,
+          "bot_length_std": 24.8,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 48.08,
+      "composite": 58.95,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "bot_responses_per_run": [
+    [
+      "Daleee reina! Siii, a las 12:15 te veo ahí!",
+      "Hola reina. 🩷 Ja he. Escolta, que no he pogut sentir l'audio bé. 🫠 Em pots escriure? 😘",
+      "Hola reina. He escuchao el audio, qué risa ha sido he Pero a ver, ¿qué me estás contando?",
+      "Burbuja 1: Qué BRUTAL esa foto. \nBurbuja 2: Estás espectacular nena",
+      "Burbuja 1: Ja, ja. Qué plan más rico. \nBurbuja 2: Disfruta de l'aigua amb sal, reina.",
+      "¿En serio?? ¿Qué has visto??",
+      "Burbuja 1: Qué bien eso de los baños de sal.",
+      "Qué buenaaa. \nMe encantaaa",
+      "ja! Q es esooo??",
+      "ja Q haces reina?",
+      "Qué risaaaa. 😂 Ja ja ja 🫠",
+      "¿En serio?? Ja ja ja Uf no lo sé seguro, déjame mirarlo",
+      "jaaa la Vicenta?? qué buenaaaa",
+      "¡Esooo! \nQué ganas de baileee",
+      "Holaaa reina! He todo bien! Y tuuu? Qué tal todooo?",
+      "ja pero q dices?? no se ve nadaaaa",
+      "Bon Nadal reina! Qué bueno que la Dra Torrents esté ok!!",
+      "Daleee. A las 7 me viene de diez.",
+      "Daleee! Dimeee, q cuentas?",
+      "Daleee",
+      "Burbuja 1: Me encantaaa. 😍\nBurbuja 2: Siii, súbelo ya reina. 🩷",
+      "Buaaa que fuerteoo. Ja he A ver si m'agrada eh.",
+      "Síii, ja estic a casa. 🏠 Descansa molt, reina. ❤️",
+      "Daleee!!\nCompartim a stories y a rularrr 🩷\nJa he!",
+      "Siii, ja ho havia vist. D'acord, a les 12 anem allà i ho gravem.",
+      "Buaaa que fuerteoo He? 🫠 Siii, a les 12! 🩷 A veure què tal queda!",
+      "Heee! Tota bona! Y tuuu? Qué alegría leerte!",
+      "jaaaa\nbuenooo\nes que flipas con las portadas. 😂🩷",
+      "Siii, a veure què passa. 🫠 Això de les portades és BRUTAL, de veritat. 😍🩷",
+      "Nooo qué fuerteoo. 😱 ¿En serio?? he. Qué casualidad más loca reina. 🩷",
+      "Siii. A ver qué tal queda al final, espero que te encanteee",
+      "Buaaa A ver si al final sale bien!!",
+      "Esaaa. Qué bueno nena.",
+      "Ay qué linda. Muchas gracias por la mención reina.",
+      "Buaaa qué fuerte. No me digas eso?? 🫠 Qué fuerte de verdad.",
+      "Burbuja 1: \"Ja. 10 min de estiraments?\" Burbuja 2: \"Molt poc nenaaaa \"",
+      "Todo bienee. Tava un pel kao he",
+      "¡Genialnnn! ¿Para qué clase os apuntáis?",
+      "Siii!\nTinc unes ganes de veure'l jaaa S'ha de quedar BRUTAL he!",
+      "Daleee. 🩷 Si no, no t'hi posis, no passa resss 🫠",
+      "Burbuja 1: Qué bien reina. 🩷\nBurbuja 2: Descansa mucho que te lo mereces he.",
+      "¿Perdonaaa? No se ve nadaaaa ha ¿Qué video??",
+      "Ja séoo!! Pero bueno, lo importante es que vinisteis he. Q quedaràs de locos amb el teu cotxe!",
+      "Buaaa els clips?? Nooo me els ha passat encara Digue'm que no eren brutals.",
+      "Bon dia reina. Avui toca canya o q?",
+      "Buaaa qué planazo!! 😍 Me encantaaaa\nla idea de la reina maga para la rutina de hipopilates 👑✨ Dime una cosa...",
+      "[image]",
+      "Buaaa qué envidia. 🫠 Disfruta de l'aigua i el descans reina. 🩷 I ànims amb les classes de demà, ja ho faràs tot súper bé. 💪",
+      "jaaa Pero qué risa. Venga, vamos a ver qué pasa con lo de la Andrea a ver qué sale",
+      "Buaaa qué risa he. Ese audio me ha encantado reina."
+    ],
+    [
+      "Daleee reina! No hi ha problemaoo! A les 12:15 m'anotes ja!",
+      "Ay qué risa. Ja ja ja, nooo. Pero qué bien suena todo eso.",
+      "Ay qué risa! 😂 No passa res reina, no m'importa!",
+      "Burbuja 1: Buaaa que BRUTAL!! \nBurbuja 2: Estàs espectacular reina",
+      "Burbuja 1: Ja, ja. Burbuja 2: T'entenc tant.",
+      "Ay nooo. ¿En serio?? Ja Que exageradaaa reina.",
+      "Burbuja 1: Ay qué ricooo! \nBurbuja 2: Els banys d'aigua amb sal son lo mejorrr\nBurbuja 3: Disfruta del descans, reina!",
+      "Buaaa que BRUTAL. He vist el videooo Q cançons.",
+      "Buaaa ja ja ja ja ja 🤣 No passa res reina.",
+      "jaaaa\nTava un poco kao pero ya mejor!",
+      "Buaaa qué risa \nMe he quedado loca con las fotos.\nEs que es BRUTAL",
+      "¿En serio?? \nja\nPero qué pregunta me haces reinaaa",
+      "ja ja ja ja\nqué fuerteee \nla Vicentaaa!!",
+      "Bon dia reina! ❤️‍ Ja ho sé, no passa res!!",
+      "Buaaa\nTava kao moni \nPero todo bien.",
+      "Ay nooo, es que no se ve nadaaa ¿Pero qué es eso? No se nota nada la mica, nena.",
+      "Bon Nadal reina. 🎄🩷 Menos malggg. 🫠 Me alegro un montón que esté bien la Dra.",
+      "¡JA! Pero qué fuerteoo! Esa mica te queda increíble, nena!",
+      "Buaaa es que no se ve nadaaa Pero se nota que es BRUTAL!!",
+      "Tranqui",
+      "Burbuja 1: Está BRUTAL nenaaa. 😍\nBurbuja 2: Me encantaaaa ha\nBurbuja 3: Súbelo yaaa que queda de locos 🩷",
+      "Qué fuerteoo. 🩷 Ja Pero si no es que apenas se ve, es que es un misterio total 😂 A ver si te gusta, si es así lo subimos ya mismo. 🫶",
+      "Síii, ja estic a casa. 🩷 Ja vaig estar un poc kao de la jornada he 😂",
+      "Daleee. Compartim a stories ya mismo. A ver si rula fuerteoo",
+      "Burbuja 1: Siii de veras.\nBurbuja 2: Me encantaaa",
+      "Buaaa es que sí!!\nFlipas de verdad \nHe de dir que me encantaaa\nA ver si rula fuerte!!",
+      "Eeee.\nJa\nQué biennn",
+      "Es que síii!!\nDemasiadas opciones he Buaaa es que flipo con lo bien que queda todo!",
+      "Siii, a ver qué dice ellaa 🫠 A ver qué pasa al final. 🩷",
+      "¿En serio??\nQué locooo ha de ser encontrarla ahí",
+      "Siii!! 🩷 He de dir que flipo con las portadas, de verdaaa 🫠",
+      "Buaaa nooo \nQ agonia me daaa!!",
+      "Burbuja 1: \"Esaaa. \"\nBurbuja 2: \"Me alegro un montón reina. \"",
+      "Ay que linda. Gracias reina.",
+      "Uf, pero qué fuerte... \nNo me digas eso, nena.",
+      "Buaaa 10 min de estirament?? Es que no es nadaaa Ja!",
+      "Todo bienee. Hevaaa.",
+      "Genialnnn. Sois dos? Qué biennn.",
+      "Siii. Tinc unes ganes de veure com queda. A veure si rula de nou.",
+      "Daleee!! Si ho fas m'encantaaa he.",
+      "Siii, ja estic a casa. 🩷 I que bé, descansant i amb l'aigua amb sal, que et vendrà genial. 🫠",
+      "Ya estas flor",
+      "Buaaa que biennn! Menos mal que ja vindràs amb el teu! ja he de veure com vas venir de guapaa",
+      "Burbuja 1: Ay nooo. Burbuja 2: Q clips?? Burbuja 3: No me digas eso reina.",
+      "Bon dia reina! Avui toca canyaoo! Què tens pensat fer?",
+      "Buaaa qué plan de locos. Me encantaaaa\nDimecres 7 la idea de la reina maga es BRUTAL Lo de la corona o la capa lo busco segurooo.",
+      "Holaa??",
+      "Buaaa qué bien eso de descansar un poco I a preparar classes a casa de la teva mare?",
+      "ja ja ja ja ja. Ese calendario va a estar BRUTAL. Tinc unes ganes de fer-ho jaaa",
+      "Burbuja 1: Ay que fuerteoo. \nBurbuja 2: Nooo, qué bajón lo del coche con el Lucito \nBurbuja 3: Pero bueno, ya vendrán más ocasiones para venir en el tuyo reina."
+    ],
+    [
+      "Daleee reina. 🩷 Pero a esa hora ja No llegas al barre nena 🫠",
+      "¡Ay qué bueno! 😍 Ja he. No m'hi vaig a perdre!! 🩷",
+      "Ay qué risa!! Nooo, no passa res, ja vindràs la prossima!",
+      "Buaaa qué fuerteoo Pero qué fotones, reina. Me has dejado loca he",
+      "Burbuja 1: Síii ja estic a casa. 🩷\nBurbuja 2: Qué descans de veritat, te lo mereces.",
+      "Ay nooo!! ¿En serio?? Ja ja ja nooo, no se nota tanto!",
+      "Qué bueno nena! Disfruta un montón de l'aigua i el descans! Ja m'ho contaràs tot!",
+      "Buaaa qué buenaaa. Ja ja ja he de dir-te que el vídeo és top.",
+      "jaaaa buenooo no pasa nadaaa! tranqui reina, ja ja Dimeeee! Q planes hoy??",
+      "ja\nqué risaaa \ntava kao total",
+      "Qué buenaaa \nMe he quedado loca con las fotos!!",
+      "Ja ja ja\n¿En serio?? \nQué pregunta, nena.",
+      "Jajaja qué fuerte!!\nLa Vicentaaaa",
+      "Bon dia reina. Ja ho sé, no passa res x el cotxe.",
+      "heee. Todo bien por acáa Tú cómo vas?",
+      "Buaaa nooo Es que apenas se ve, de veras.",
+      "¿En serio?? Qué buena noticia, reina.",
+      "¡Qué fuerteeee! 😂\nMe encanta la idea de la reina maga 👑🩷\nBuaaa, lo de la mica de cintura es BRUTAL ha\nMe matas con el vídeo, qué risa!",
+      "ja ja ja\npero si no se ve nadaaa \nque fuerteooo",
+      "Siii!!\nA les 12 i ja anem, he.",
+      "Burbuja 1: \"A ver si me gusta? ja\" Burbuja 2: \"Seguro que sí reina!",
+      "Buaaa que BRUTAL! He visto el vídeo! Me encantaaa I a les 12 vaig a mirar el del postural, ja! A ver que tal ha quedat!!",
+      "Siii.\nJa estic a casaa Descansa molt, reina.",
+      "Daleee. Compartim ja mateix a stories A veure si rula de veritat ha ha.",
+      "Burbuja 1: Siii, ja ho sabiaaa! \nBurbuja 2: Ha quedat brutal, de veritat.",
+      "Buaaa es que sí. Demà el compartim a stories i que acabin de rular.",
+      "Siii! He de dir que estic una mica kao he",
+      "Buaaa!\nEs que síii Demasiadas opciones!\nHe flipado he",
+      "Siii, a ver qué pasaaa\nA ver qué dice la Andreaa 🫠",
+      "¿En serio?? Nooo, qué fuerte reina! ha ha",
+      "Siii. Ja ja ja qué grande.",
+      "Buaaa siii A les 12 m'ho passes? Q es vegi BRUTAL jaa",
+      "Qué bueno nena. Me alegra un montón que ya estés mejorrr.",
+      "¡Ay que linda! 🩷 Mil gracias por la mención reina! 🫶✨",
+      "Perdona, no entenc res de què parles",
+      "Buaaa \n10 min d'estirament no són res reina!\nNooo, t'has quedat curtaa",
+      "Todo bienee. Tava un pelit kao he Y tuuu? Qué cuentas?",
+      "Daleee reina. Anotadísimas entonces.",
+      "Siii. 😍\nTinc unes ganes de veure'l jaaa. 🩷",
+      "Daleee. Siii, queda de locos.",
+      "Qué biennn \nDisfruta de ese descans.",
+      "Buaaa es que no se ve nada!! ¿Pero qué ha pasado??",
+      "Ahhh entenc. Pero qué bien que vinisteis así de guapos he La próxima vez ya vienes con el tuyo y a topeoo",
+      "Burbuja 1: Ay nena!! \nBurbuja 2: Qué fuerte lo de los clips...",
+      "Bon dia reina. Avui toca canyaoo. T'has despertat con energia??",
+      "Buaaa que planazo. Dimecres 7.\nla idea de la reina maga es BRUTAL Ja. me encantaaa",
+      "Hola que ase?",
+      "Buaaa qué bien eso de descansar un poco. 🩷 Y lo de los clips. qué fuerte. 🫠 A ver si al final no pasa nada, reina. 🫶",
+      "Ay que risas. Ese calendario va a estar BRUTAL nena Dime que el de barre tropicoqueta es mi favorito.",
+      "Burbuja 1: Ay que risa he \nBurbuja 2: Pero qué bien te escuchas reina."
+    ]
+  ],
+  "test_cases": [
+    {
+      "user_input": "[audio]",
+      "ground_truth": "Ara a les 10:00 faré una i mitja de ZUMBA",
+      "trust_score": 0.97,
+      "username": "wa_34679971800",
+      "lead_uuid": "b6cd86bd-4ac5-4357-86d7-7eff300b47dc",
+      "input_type": "MEDIA",
+      "created_at": "2026-01-02 14:50:00+00:00"
+    },
+    {
+      "user_input": "[audio]",
+      "ground_truth": "Jo ho faria a l’inversa no?",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "MEDIA",
+      "created_at": "2026-02-15 16:57:03+00:00"
+    },
+    {
+      "user_input": "[audio]",
+      "ground_truth": "La Erika",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "MEDIA",
+      "created_at": "2026-01-11 19:01:01+00:00"
+    },
+    {
+      "user_input": "[image]",
+      "ground_truth": "Que tudo passa🤍",
+      "trust_score": 1.0,
+      "username": "wa_34689479599",
+      "lead_uuid": "3fc6ed83-5f1e-42a7-bac7-ec56b1ce0f33",
+      "input_type": "MEDIA",
+      "created_at": "2025-12-26 22:08:40+00:00"
+    },
+    {
+      "user_input": "[audio]",
+      "ground_truth": "M’he quedat a bcn mama està plovent moltíssim, em llevaré d’hora i demà després de barre vinc ok😘",
+      "trust_score": 0.14,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "input_type": "MEDIA",
+      "created_at": "2025-12-06 23:48:34+00:00"
+    },
+    {
+      "user_input": "[🎤 Audio]: No, chocho, te he fijado una mica de cintura en el vídeo que te he enviado ahora, en el primero En el primero",
+      "ground_truth": "Talla la quinta",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "MEDIA",
+      "created_at": "2026-03-24 14:25:09.060807+00:00"
+    },
+    {
+      "user_input": "[audio]",
+      "ground_truth": "[🎤 Audio]: El problema, mama, és que t'has estat prenent al matí i a la nit la mateixa pastilla. Com que ho has fet com has volgut, ara, si em dius que s'ha acabat la del matí, l'hem cagat perquè no tenim recepta per comprar-ho. Tallar la del matí, aquí sí que te la jugues, perquè són 30 mil·ligrams de cop. Espero que em diguis que no s'han acabat les del matí, perquè si és així ho tenim malament. Gràcies.",
+      "trust_score": 0.14,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "input_type": "MEDIA",
+      "created_at": "2026-01-16 22:27:54+00:00"
+    },
+    {
+      "user_input": "[video]",
+      "ground_truth": "Es que lo que tengo ya toy cansada y no me da tiempo a nada",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "MEDIA",
+      "created_at": "2025-11-28 18:54:56+00:00"
+    },
+    {
+      "user_input": "JAJAJAJAJAJAJAJAJAJ",
+      "ground_truth": "Yo toy felisss xk me encanta mi publicazzione de hoy🥹🥹🥹🥹🥹🤩🤩🤩",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "LAUGH",
+      "created_at": "2025-12-28 17:46:49+00:00"
+    },
+    {
+      "user_input": "Kajajajakaa",
+      "ground_truth": "[📷 Photo]",
+      "trust_score": 0.99,
+      "username": "+34636022878",
+      "lead_uuid": "c9a93563-be70-4445-b9f4-7cc3e2d743c9",
+      "input_type": "LAUGH",
+      "created_at": "2026-02-01 19:23:13+00:00"
+    },
+    {
+      "user_input": "Jajaja",
+      "ground_truth": "Mira Merceeeew",
+      "trust_score": 1.0,
+      "username": "wa_34619302901",
+      "lead_uuid": "f0eb221a-fb04-4798-951d-838b6c84d835",
+      "input_type": "LAUGH",
+      "created_at": "2025-12-20 19:16:23+00:00"
+    },
+    {
+      "user_input": "Pro una pregunta qui es desde el tru punt de vista la millor instructora d'igualada ?",
+      "ground_truth": "Bon dia carinyu❤️",
+      "trust_score": 1.0,
+      "username": "wa_41779950952",
+      "lead_uuid": "77f24981-82ca-47f8-85f0-48038d12dad9",
+      "input_type": "OTHER",
+      "created_at": "2026-01-24 12:16:42+00:00"
+    },
+    {
+      "user_input": "Tengo a la Vicenta",
+      "ground_truth": "Ya vengo eee",
+      "trust_score": 0.99,
+      "username": "wa_34638569076",
+      "lead_uuid": "67490a27-449e-4d81-862d-8b1c7caddaaf",
+      "input_type": "OTHER",
+      "created_at": "2026-02-19 09:54:26+00:00"
+    },
+    {
+      "user_input": "❤️‍🔥🕺🏻",
+      "ground_truth": "No xk t’ho va passar l’Aida",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-01-03 18:03:00+00:00"
+    },
+    {
+      "user_input": "can bo",
+      "ground_truth": "[🎤 Audio]: Mira, els nostres timings no van gaire bé. Tenia una cita de 8 a 9, però no vaig poder anar. T'ho volia dir, però el meu turmell, que ja fa un mes que el tinc bloquejat per les operacions, em fa molt mal. Com que el Raül no m'agafa fins a l'abril, estic aguantant, però avui ja vaig molt tocada i no el forçaré.\n\nAvui no gravo amb l'Albert i no sé què fer. Pujar a Barcelona per la Júlia em fa molt pal. No sé si pedalant em farà mal el maleïdol, és un dolor horrible. El Raül m'ha de fer una atracció per desbloquejar-me, i això ho he de fer cada mes. Des que no m'ha agafat, no puc córrer.\n\nAra em prendré alguna cosa, però tampoc no tinc res. No sé si pujar a Barcelona i anar a fer un lapsus abans del 2 de la Júlia. Com que no gravo, gravaré dissabte a veure si se'm calma una mica el dolor.\n\nA més, no he tingut temps de repassar amb tota la sessió de barre. Ahir vaig dormir dues hores. Avui no saps la cagada de Pato. Deu haver-hi una passa o alguna cosa. Ara t'ensenyo la panxa d'ahir, encara estic inflamada.\n\nAixò és el que tinc de nou. Després he de tornar a la lavau, no tinc lliure. Comença la 10 i ja enganxo.",
+      "trust_score": 0.99,
+      "username": "+34636022878",
+      "lead_uuid": "c9a93563-be70-4445-b9f4-7cc3e2d743c9",
+      "input_type": "OTHER",
+      "created_at": "2026-01-31 12:18:42+00:00"
+    },
+    {
+      "user_input": "O sigui esq a penas se ve eh",
+      "ground_truth": "Que peresssa😂😂",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-12-10 07:35:43+00:00"
+    },
+    {
+      "user_input": "La Dra Torrents esta ok",
+      "ground_truth": "Flor Avui me l’emporto a urgències a la teknon xk",
+      "trust_score": 1.0,
+      "username": "wa_34669514595",
+      "lead_uuid": "db3300c8-7f52-4705-9265-c4fa200e2c9d",
+      "input_type": "OTHER",
+      "created_at": "2025-12-01 13:37:21+00:00"
+    },
+    {
+      "user_input": "Perfe",
+      "ground_truth": "Es que la gente no paga tia",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-12-17 11:25:20+00:00"
+    },
+    {
+      "user_input": "Dale si",
+      "ground_truth": "Agafa els més top o originals",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-12-28 18:27:47+00:00"
+    },
+    {
+      "user_input": "I a les 12 vam dir allo q gravavem lo del postural sas aquell q thavia enviat?",
+      "ground_truth": "Aunque dura cinco segundos más, pica al final que falla el de... que parlo como con la cámara. No me recuerdo ahora la frase. Queda como mal cortado, así que me quedo abajo como una joroba de Notre Dame. ¿Sabes?",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-02-03 12:43:16+00:00"
+    },
+    {
+      "user_input": "A ver si te gusta y lo subi",
+      "ground_truth": "Adió",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-01-16 07:41:55+00:00"
+    },
+    {
+      "user_input": "Super top princess",
+      "ground_truth": "Info 14 de Març\nDinàmic sport",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-01-10 18:44:23+00:00"
+    },
+    {
+      "user_input": "Tot bé iris,jà estàs a casa?",
+      "ground_truth": "La Carla vindrà cap a les 10:30 -11:00 ok que ja li he dit que tu fas el teu ritual així que dorm tranquila",
+      "trust_score": 0.14,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "input_type": "OTHER",
+      "created_at": "2025-11-29 19:28:32+00:00"
+    },
+    {
+      "user_input": "Dema el compartim a stories i que acabi de rular",
+      "ground_truth": "Tiene que estar",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-12-09 20:04:47+00:00"
+    },
+    {
+      "user_input": "Sisisi thavia entes aixo perfe",
+      "ground_truth": "I tampoc vull que perdis una classe x gravarme",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-02-25 10:04:54+00:00"
+    },
+    {
+      "user_input": "FLIPAS",
+      "ground_truth": "Hombre, yo creo que sí, tía, va a ser una gastroenteritis. , le he cogido la cagalera porque se intoxicó. Pero ya va a decir que estaba mejor el endemá. Tía, es el último concert de Madrid, . Es que además lo ha hecho tan bien, porque así el viernes tengo fiesta, tía. ¿Sabes? Y no pierdo trabajo. , y no me pierdo el dijous, que mala pera, pues esas clases las voy a poner. Porque ni se dan cuenta ni se van a... Bueno, con todo lo que regalo de horas. Muy fuerte, muy fuerte Pero a Albert no se lo creo Digo, yo flipo el poder que tienes Digo, tío, no sé Son las cosas de hacer bien las cosas ¿No algún día han de llegar a cosas así? Yo qué sé Muy fuerte, muy fuerte Bueno, es que ahora llegaré a casa Y me vuelvo a mirar el vídeo 3.000 veces M'ha encantado, ¿, Erika? Muchísimas gracias porque es un súper trabajazo",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-11-26 16:07:05+00:00"
+    },
+    {
+      "user_input": "Geniaaal",
+      "ground_truth": "🩷",
+      "trust_score": 0.99,
+      "username": "+34636022878",
+      "lead_uuid": "c9a93563-be70-4445-b9f4-7cc3e2d743c9",
+      "input_type": "OTHER",
+      "created_at": "2026-01-02 13:02:04+00:00"
+    },
+    {
+      "user_input": "fua quin plaer hay un monton de posibles portadas",
+      "ground_truth": "De sus stories",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-01-29 07:13:03+00:00"
+    },
+    {
+      "user_input": "Pues si esperem lo de la andrea a ver a pasa",
+      "ground_truth": "[🎤 Audio]: Ja no dic res perquè com que no sabem el que petarà i el que no petarà a Instagram, és brutal, eh? És que m'encanta. És que m'encanta.",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-02-03 12:42:13+00:00"
+    },
+    {
+      "user_input": "Look who I stumbled on @Wallapop_US - Cariana M. https://www.wallapop.com/user/carianam-68675538?_pid=wi&_uid=68675538",
+      "ground_truth": "cari creo que me voy para casa tía estoy muy cansada estoy reventada me doy las rodillas la p*** corio y en teoría hoy tengo que follar entonces creo que prefiero dormir y me jode porque porque quería ir a correr con bruna pero bueno si el sábado que viene vengo mejor como iré a hacer el examen No estaré tan cansada, ¿sabes? Es que hoy Paula nos ha metido una caña que flipa, hostia , he muerto Literal Hoy hacía mucho calor, ¿sabes? Así que nada Me despido, ¿? No te me enfades Como ahora vas fumada Vas a sogar Y a tomar por culo, ni iris ni nada Un besito",
+      "trust_score": 0.33999999999999997,
+      "username": "wa_34602629683",
+      "lead_uuid": "65126c66-965c-4f44-8c3d-5cc0e75a5789",
+      "input_type": "OTHER",
+      "created_at": "2026-02-26 15:16:47+00:00"
+    },
+    {
+      "user_input": "Que bien mamasita",
+      "ground_truth": "[🎤 Audio]: Fuà tia, ara ja a mitja hora entro a la classe, Erika. Perquè no està quadrat, la tercera part no està quadrada, no entra amb el tempo, que és la que ja no vas fer tu.",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-01-13 11:37:51+00:00"
+    },
+    {
+      "user_input": "Ai bebee🥲🥲🥲",
+      "ground_truth": "He utilizado WeTransfer, la forma más sencilla de enviar y recibir archivos.\n\nHaz clic en el enlace de descarga: https://we.tl/t-oAoxj8CENCxTTGJg",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-12-11 21:49:42+00:00"
+    },
+    {
+      "user_input": "Yesss, puc",
+      "ground_truth": "Eso velitas pa mi mami",
+      "trust_score": 1.0,
+      "username": "wa_34666722290",
+      "lead_uuid": "7b8a6206-501c-487c-a204-24871916d301",
+      "input_type": "OTHER",
+      "created_at": "2025-12-08 16:17:33+00:00"
+    },
+    {
+      "user_input": "Mención en story",
+      "ground_truth": "Sent an attachment",
+      "trust_score": 1.0,
+      "username": "dinamicsportgym",
+      "lead_uuid": "8e32ece2-8a8c-4dd7-b461-21d5ec6a9de4",
+      "input_type": "OTHER",
+      "created_at": "2026-02-27 19:43:45+00:00"
+    },
+    {
+      "user_input": "test latency e2e_1773515421",
+      "ground_truth": "Necessites malles les tens",
+      "trust_score": 1.0,
+      "username": "Manel",
+      "lead_uuid": "356d60a7-58eb-45d6-9a54-585e0df40e5a",
+      "input_type": "OTHER",
+      "created_at": "2026-03-14 19:10:22.000075+00:00"
+    },
+    {
+      "user_input": "I 10 min estirament",
+      "ground_truth": "Ok",
+      "trust_score": 0.99,
+      "username": "wa_34629258733",
+      "lead_uuid": "899a2d72-4006-43f6-a4ea-ab698d060a4c",
+      "input_type": "OTHER",
+      "created_at": "2026-01-22 13:26:49+00:00"
+    },
+    {
+      "user_input": "Com estas cuca?",
+      "ground_truth": "Vota a zumba / barre",
+      "trust_score": 0.99,
+      "username": "+34636022878",
+      "lead_uuid": "c9a93563-be70-4445-b9f4-7cc3e2d743c9",
+      "input_type": "OTHER",
+      "created_at": "2025-12-10 07:25:52+00:00"
+    },
+    {
+      "user_input": "Vale",
+      "ground_truth": "Espero que anés benne amb la Sonia",
+      "trust_score": 1.0,
+      "username": "wa_34606434377",
+      "lead_uuid": "84f853fd-68ea-4eec-a335-3e3676394b2e",
+      "input_type": "OTHER",
+      "created_at": "2026-01-07 12:44:06+00:00"
+    },
+    {
+      "user_input": "Tinc ganes",
+      "ground_truth": "No pasa ná ta perfecteeee",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-02-01 19:28:49+00:00"
+    },
+    {
+      "user_input": "Si tho vaig posar aqui xoxooo",
+      "ground_truth": "[🎤 Audio]: No pasa nada tía, me jode la vida porque es la canción de Fuma, que es una coria súper fácil, la que hice la caja negra, que tu primo la va a hacer con bambas. Espero que vengas cuando la tornemos a hacer, porque es muy fácil, mucho más que lo que hace con Martina. Así te lo digo, ¿sabes? Como si tuviera que quedar contigo para enseñártela. Yo creo que hoy tu primo se va a borrir, pero como es la vajilla, pues de esto. Claro, obviamente, anda que no lo he visto. No solo faltaría con lo que te remarque los tiempos, con lo que marco los tiempos y las palabras de esto. Es normal, cariño, es normal, ¿sabes? Pero esta coreo la has de hacer, Erika, porque es muy fácil. De esta no te escapas. Solo te digo esto: no voy a acabar de escuchar el audio porque voy muy tarde, me lo acabo de escuchar después.",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-12-27 21:26:44+00:00"
+    },
+    {
+      "user_input": "Mes o mens,fent mi els meus Banñys d'aigua amb sal i descansant",
+      "ground_truth": "Es que que no veus que torna estar tot el puto turmell inflat mama",
+      "trust_score": 0.14,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "input_type": "OTHER",
+      "created_at": "2025-11-29 19:43:23+00:00"
+    },
+    {
+      "user_input": "Pq no set sent al video",
+      "ground_truth": "Segur que tiene amigas que se tocan el toto",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-12-08 18:11:03+00:00"
+    },
+    {
+      "user_input": "Esq ahir vam venir amb el lucito els dos amb el cotxe, pero per a futurs ja vindre amb el meu cotxe",
+      "ground_truth": "Cuelga esta tal\nCual\nAsí y ya está no cortes nada pa\nQue se vea alguna mas pero baja el\nVolumen cuando se acaba el\nVideo",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "GREETING",
+      "created_at": "2026-02-20 07:29:16+00:00"
+    },
+    {
+      "user_input": "Lo millor es que no ens pasi res,peró,una cosa,els clips que em va posar la noia quan els treuen",
+      "ground_truth": "Y le das al si",
+      "trust_score": 0.14,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "input_type": "GREETING",
+      "created_at": "2025-12-02 08:20:52+00:00"
+    },
+    {
+      "user_input": "Bon dia baby! Avui q pengem?",
+      "ground_truth": "[audio]",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "GREETING",
+      "created_at": "2025-11-30 08:00:03+00:00"
+    },
+    {
+      "user_input": "- ⁠diumenge 21 - CALENDARI ADVENT 1️⃣\n\n- dimarts 23 - outfit nadal\n- dimecres 24 - Ball merry xmas\n- ⁠diumenge 28 - barre tropicoqueta \n\n- Dimecres 31 - CALENDARI ADVENT 2️⃣\n- ⁠dijous 2 - barre jailhouse rock\n- ⁠diumenge 4 -\n\n- dimecres 7 - rutina hipopilates regal reis *Pendent gravar* podries aconseguir una corona /capa per fer show reina maga???",
+      "ground_truth": "Cuka l’he tret",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "GREETING",
+      "created_at": "2025-12-21 10:49:07+00:00"
+    },
+    {
+      "user_input": "Hola baby",
+      "ground_truth": "[audio]",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "GREETING",
+      "created_at": "2025-12-02 15:21:38+00:00"
+    },
+    {
+      "user_input": "Haig de preparar ls classes de demà a la barra de casa mama",
+      "ground_truth": "Si mama però avui m’ha vingut la regla i estic kao i demà gravo🫠",
+      "trust_score": 0.14,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "input_type": "QUESTION_SERVICE",
+      "created_at": "2026-01-24 21:20:15+00:00"
+    },
+    {
+      "user_input": "🤣🤣💝💝💝💝💝",
+      "ground_truth": "[audio]",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "EMOJI_ONLY",
+      "created_at": "2025-12-31 09:50:28+00:00"
+    },
+    {
+      "user_input": "[audio]",
+      "ground_truth": "[🏷️ Sticker]",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "MEDIA",
+      "created_at": "2026-03-05 13:46:45+00:00"
+    }
+  ]
+}

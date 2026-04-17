@@ -1,0 +1,797 @@
+{
+  "partial": true,
+  "runs_completed": 1,
+  "composites": [
+    63.53
+  ],
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 68.54,
+        "detail": {
+          "A1_length": 98.55,
+          "A2_emoji": 92.29,
+          "A2_contextual": 60.84,
+          "A3_exclamations": 54.09,
+          "A4_questions": 75.73,
+          "A5_vocabulary": 44.0,
+          "A6_language": 21.03,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 98.88,
+          "A9_catchphrases": 40.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 40.97,
+        "detail": {
+          "bertscore_mean": 0.8059,
+          "chrf_mean": 0.0844,
+          "bleu4_mean": 0.1143,
+          "rouge_l_mean": 0.02,
+          "meteor_mean": 0.0149,
+          "semsim_mean": 0.8059,
+          "c4_relevance_mean": 0.8104,
+          "self_rep_mean": 0.867,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 2.25,
+          "per_case": [
+            47.53,
+            51.19,
+            36.41,
+            49.81,
+            45.12,
+            33.66,
+            41.2,
+            48.12,
+            43.92,
+            42.06,
+            34.97,
+            53.01,
+            24.94,
+            50.82,
+            39.82,
+            34.45,
+            29.4,
+            48.25,
+            51.79,
+            41.45,
+            25.06,
+            47.62,
+            43.41,
+            43.53,
+            52.16,
+            43.1,
+            31.65,
+            35.04,
+            32.8,
+            42.25,
+            43.4,
+            40.72,
+            49.7,
+            34.84,
+            46.88,
+            35.56,
+            45.41,
+            50.26,
+            49.8,
+            40.08,
+            43.45,
+            42.11,
+            47.12,
+            27.7,
+            21.26,
+            33.87,
+            27.37,
+            44.29,
+            34.07,
+            46.25
+          ]
+        }
+      },
+      "S3_strategic_alignment": {
+        "score": 60.95,
+        "detail": {
+          "e1_per_case_mean": 50.49,
+          "e2_distribution_match": 85.36,
+          "bot_strategy_distribution": {
+            "REDIRECT": 0.32,
+            "ASK": 0.22,
+            "IGNORE": 0.28,
+            "VALIDATE": 0.18
+          },
+          "per_case": [
+            42.2,
+            42.2,
+            42.2,
+            23.5,
+            42.2,
+            23.5,
+            100.0,
+            42.2,
+            100.0,
+            100.0,
+            33.1,
+            27.7,
+            25.4,
+            100.0,
+            100.0,
+            25.4,
+            27.7,
+            33.4,
+            33.4,
+            100.0,
+            27.7,
+            33.4,
+            100.0,
+            100.0,
+            33.4,
+            33.4,
+            25.4,
+            27.7,
+            27.7,
+            25.4,
+            100.0,
+            100.0,
+            100.0,
+            27.7,
+            25.4,
+            25.4,
+            25.4,
+            33.4,
+            33.4,
+            100.0,
+            100.0,
+            27.7,
+            30.9,
+            30.9,
+            30.6,
+            30.9,
+            30.6,
+            43.1,
+            30.4,
+            100.0
+          ],
+          "mean": 60.95
+        }
+      },
+      "S4_adaptation": {
+        "score": 58.49,
+        "detail": {
+          "mode": "blended",
+          "proximity_mean": 61.26,
+          "proximity_n": 50,
+          "per_metric": {
+            "length": 50.0,
+            "emoji": 67.3,
+            "exclamation": 50.0,
+            "question": 50.0
+          },
+          "segments_used": [
+            "UNKNOWN",
+            "INTIMATE"
+          ]
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 100.0,
+        "B1": {
+          "score": null,
+          "detail": {
+            "reason": "insufficient_ocean_signal",
+            "creator_nonzero_dims": 1,
+            "bot_nonzero_dims": 3,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.0071,
+              0.0,
+              0.0071,
+              0.0,
+              0.0071
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 50,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 46.12,
+        "H2": {
+          "score": 46.12,
+          "detail": {
+            "cosine_similarity": 0.4612,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.1926,
+              0.2,
+              0.26,
+              0.22,
+              0.22,
+              1.0,
+              0.2,
+              0.1,
+              0.1
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 53.13,
+        "detail": {
+          "length_consistency": 55.84,
+          "emoji_consistency": 80.01,
+          "question_consistency": 75.73,
+          "exclamation_consistency": 54.09,
+          "cv_match": 0.0,
+          "bot_length_std": 20.79,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 51.56,
+      "composite": 63.53,
+      "params_active": 28,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ]
+    }
+  ],
+  "bot_responses_per_run": [
+    [
+      "Daleee reina🩷 Apuntada quedas! No pasa nada si te vas antes🫠",
+      "Daleee!! A las 7 me va genial reina",
+      "Daleee. T'espero a les 7 entonces reina",
+      "Buaaa!! Què és això??",
+      "Siii reina Ya estoy por casaaa",
+      "¿¿¿Queeee??? No me digas eso nena. A ver que mirooo",
+      "Ay nenaaa. No me digas esooo",
+      "Daleee!! A las 7 me va genial reina",
+      "ha estás loca nena",
+      "ha estoy bien reina",
+      "ja peroo no me digasaa 🫠 que fuerte nenaaa 😂",
+      "jaaa yo obviooo",
+      "jaaa ¿Pero qué pasa con la Vicenta?? 😂 estás loquiii 🫠",
+      "Daleee. Nos vemos entonces😘🩷",
+      "Hola reina. Todo biennn",
+      "¿Cómo que no se ve?? Buaaa no me digas eso",
+      "Bon Nadal reinaaa! Buaaa que fotos!! Y genial lo de la Dra Torrents he",
+      "buenooo ya te he visto nenaaa està BRUTAL",
+      "haaa ya veo. está brutal reina",
+      "Siii!! Daleee hagámoslo 🩷",
+      "Siii daleee. A ver que tal ha quedado reina",
+      "Siii daleee!! Lo miramos a las 12 entonces",
+      "Siii nena! Acabo d'arribar 🫠",
+      "Siii daleee. Lo subimos yaaa",
+      "Siii daleee A les 12 quedem i ho mirem Segur que queda BRUTAL nena",
+      "Siii daleee. Lo vemos y lo subimo si mola Va a quedar BRUTAL reina",
+      "Siii!! Todo bien nenaaa ?",
+      "Siii. Tinc unes idees BRUTALES Ja em pots dir quines t'agraden mes",
+      "Siii A ver qué dice la nena.",
+      "Buaaa no me digas?? ¿En serio es ella?",
+      "Siii reina Va a quedar BRUTAL",
+      "Siii nenaaa Dimeeee",
+      "Daleee. Siii reina🩷",
+      "Burbuja 1: Ayyyy nenaaa Burbuja 2: Te has pasado. Burbuja 3: Te quierooo",
+      "¿Pero qué te pasa?? ¿De dónde sale esto??",
+      "Buaaa nenaaa Tant estirament??",
+      "Hola reinaaa! Todo biennn🩷 Y tuuu??",
+      "Daleee. Me parece genial reina",
+      "Yo tambiénnnn va a quedar BRUTAL",
+      "Siii!! lo he vistt",
+      "Siii reina Tava kao",
+      "Nooo No me sentía cómoda nena",
+      "Ahhh valeee Ya me decía yo😂 Siii mejor así reina🩷",
+      "Jajajaja, sí. Ya estoy en casa. Un bañito relajante suena genial. Y sí, lo mejor es que no pase nada, nena. Sobre los clips, ni idea.",
+      "Bon dia reina. A veureee. Què tenim per pendre??",
+      "Bonaaa baby Daleee me encanta el plan. Lo de la corona lo miro y te digooo",
+      "Hola que ase?",
+      "Daleee!! A tope con esas clases reina🩷",
+      "Buaaa q fuerte. Me encanta el plan nena",
+      "Daleee!! Me encantaaa"
+    ]
+  ],
+  "test_cases": [
+    {
+      "user_input": "[audio]",
+      "ground_truth": "Ara a les 10:00 faré una i mitja de ZUMBA",
+      "trust_score": 0.97,
+      "username": "wa_34679971800",
+      "lead_uuid": "b6cd86bd-4ac5-4357-86d7-7eff300b47dc",
+      "input_type": "MEDIA",
+      "created_at": "2026-01-02 14:50:00+00:00"
+    },
+    {
+      "user_input": "[audio]",
+      "ground_truth": "Jo ho faria a l’inversa no?",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "MEDIA",
+      "created_at": "2026-02-15 16:57:03+00:00"
+    },
+    {
+      "user_input": "[audio]",
+      "ground_truth": "La Erika",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "MEDIA",
+      "created_at": "2026-01-11 19:01:01+00:00"
+    },
+    {
+      "user_input": "[image]",
+      "ground_truth": "Que tudo passa🤍",
+      "trust_score": 1.0,
+      "username": "wa_34689479599",
+      "lead_uuid": "3fc6ed83-5f1e-42a7-bac7-ec56b1ce0f33",
+      "input_type": "MEDIA",
+      "created_at": "2025-12-26 22:08:40+00:00"
+    },
+    {
+      "user_input": "[audio]",
+      "ground_truth": "M’he quedat a bcn mama està plovent moltíssim, em llevaré d’hora i demà després de barre vinc ok😘",
+      "trust_score": 0.14,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "input_type": "MEDIA",
+      "created_at": "2025-12-06 23:48:34+00:00"
+    },
+    {
+      "user_input": "[🎤 Audio]: No, chocho, te he fijado una mica de cintura en el vídeo que te he enviado ahora, en el primero En el primero",
+      "ground_truth": "Talla la quinta",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "MEDIA",
+      "created_at": "2026-03-24 14:25:09.060807+00:00"
+    },
+    {
+      "user_input": "[audio]",
+      "ground_truth": "[🎤 Audio]: El problema, mama, és que t'has estat prenent al matí i a la nit la mateixa pastilla. Com que ho has fet com has volgut, ara, si em dius que s'ha acabat la del matí, l'hem cagat perquè no tenim recepta per comprar-ho. Tallar la del matí, aquí sí que te la jugues, perquè són 30 mil·ligrams de cop. Espero que em diguis que no s'han acabat les del matí, perquè si és així ho tenim malament. Gràcies.",
+      "trust_score": 0.14,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "input_type": "MEDIA",
+      "created_at": "2026-01-16 22:27:54+00:00"
+    },
+    {
+      "user_input": "[video]",
+      "ground_truth": "Es que lo que tengo ya toy cansada y no me da tiempo a nada",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "MEDIA",
+      "created_at": "2025-11-28 18:54:56+00:00"
+    },
+    {
+      "user_input": "JAJAJAJAJAJAJAJAJAJ",
+      "ground_truth": "Yo toy felisss xk me encanta mi publicazzione de hoy🥹🥹🥹🥹🥹🤩🤩🤩",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "LAUGH",
+      "created_at": "2025-12-28 17:46:49+00:00"
+    },
+    {
+      "user_input": "Kajajajakaa",
+      "ground_truth": "[📷 Photo]",
+      "trust_score": 0.99,
+      "username": "+34636022878",
+      "lead_uuid": "c9a93563-be70-4445-b9f4-7cc3e2d743c9",
+      "input_type": "LAUGH",
+      "created_at": "2026-02-01 19:23:13+00:00"
+    },
+    {
+      "user_input": "Jajaja",
+      "ground_truth": "Mira Merceeeew",
+      "trust_score": 1.0,
+      "username": "wa_34619302901",
+      "lead_uuid": "f0eb221a-fb04-4798-951d-838b6c84d835",
+      "input_type": "LAUGH",
+      "created_at": "2025-12-20 19:16:23+00:00"
+    },
+    {
+      "user_input": "Pro una pregunta qui es desde el tru punt de vista la millor instructora d'igualada ?",
+      "ground_truth": "Bon dia carinyu❤️",
+      "trust_score": 1.0,
+      "username": "wa_41779950952",
+      "lead_uuid": "77f24981-82ca-47f8-85f0-48038d12dad9",
+      "input_type": "OTHER",
+      "created_at": "2026-01-24 12:16:42+00:00"
+    },
+    {
+      "user_input": "Tengo a la Vicenta",
+      "ground_truth": "Ya vengo eee",
+      "trust_score": 0.99,
+      "username": "wa_34638569076",
+      "lead_uuid": "67490a27-449e-4d81-862d-8b1c7caddaaf",
+      "input_type": "OTHER",
+      "created_at": "2026-02-19 09:54:26+00:00"
+    },
+    {
+      "user_input": "❤️‍🔥🕺🏻",
+      "ground_truth": "No xk t’ho va passar l’Aida",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-01-03 18:03:00+00:00"
+    },
+    {
+      "user_input": "can bo",
+      "ground_truth": "[🎤 Audio]: Mira, els nostres timings no van gaire bé. Tenia una cita de 8 a 9, però no vaig poder anar. T'ho volia dir, però el meu turmell, que ja fa un mes que el tinc bloquejat per les operacions, em fa molt mal. Com que el Raül no m'agafa fins a l'abril, estic aguantant, però avui ja vaig molt tocada i no el forçaré.\n\nAvui no gravo amb l'Albert i no sé què fer. Pujar a Barcelona per la Júlia em fa molt pal. No sé si pedalant em farà mal el maleïdol, és un dolor horrible. El Raül m'ha de fer una atracció per desbloquejar-me, i això ho he de fer cada mes. Des que no m'ha agafat, no puc córrer.\n\nAra em prendré alguna cosa, però tampoc no tinc res. No sé si pujar a Barcelona i anar a fer un lapsus abans del 2 de la Júlia. Com que no gravo, gravaré dissabte a veure si se'm calma una mica el dolor.\n\nA més, no he tingut temps de repassar amb tota la sessió de barre. Ahir vaig dormir dues hores. Avui no saps la cagada de Pato. Deu haver-hi una passa o alguna cosa. Ara t'ensenyo la panxa d'ahir, encara estic inflamada.\n\nAixò és el que tinc de nou. Després he de tornar a la lavau, no tinc lliure. Comença la 10 i ja enganxo.",
+      "trust_score": 0.99,
+      "username": "+34636022878",
+      "lead_uuid": "c9a93563-be70-4445-b9f4-7cc3e2d743c9",
+      "input_type": "OTHER",
+      "created_at": "2026-01-31 12:18:42+00:00"
+    },
+    {
+      "user_input": "O sigui esq a penas se ve eh",
+      "ground_truth": "Que peresssa😂😂",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-12-10 07:35:43+00:00"
+    },
+    {
+      "user_input": "La Dra Torrents esta ok",
+      "ground_truth": "Flor Avui me l’emporto a urgències a la teknon xk",
+      "trust_score": 1.0,
+      "username": "wa_34669514595",
+      "lead_uuid": "db3300c8-7f52-4705-9265-c4fa200e2c9d",
+      "input_type": "OTHER",
+      "created_at": "2025-12-01 13:37:21+00:00"
+    },
+    {
+      "user_input": "Perfe",
+      "ground_truth": "Es que la gente no paga tia",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-12-17 11:25:20+00:00"
+    },
+    {
+      "user_input": "Dale si",
+      "ground_truth": "Agafa els més top o originals",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-12-28 18:27:47+00:00"
+    },
+    {
+      "user_input": "I a les 12 vam dir allo q gravavem lo del postural sas aquell q thavia enviat?",
+      "ground_truth": "Aunque dura cinco segundos más, pica al final que falla el de... que parlo como con la cámara. No me recuerdo ahora la frase. Queda como mal cortado, así que me quedo abajo como una joroba de Notre Dame. ¿Sabes?",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-02-03 12:43:16+00:00"
+    },
+    {
+      "user_input": "A ver si te gusta y lo subi",
+      "ground_truth": "Adió",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-01-16 07:41:55+00:00"
+    },
+    {
+      "user_input": "Super top princess",
+      "ground_truth": "Info 14 de Març\nDinàmic sport",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-01-10 18:44:23+00:00"
+    },
+    {
+      "user_input": "Tot bé iris,jà estàs a casa?",
+      "ground_truth": "La Carla vindrà cap a les 10:30 -11:00 ok que ja li he dit que tu fas el teu ritual així que dorm tranquila",
+      "trust_score": 0.14,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "input_type": "OTHER",
+      "created_at": "2025-11-29 19:28:32+00:00"
+    },
+    {
+      "user_input": "Dema el compartim a stories i que acabi de rular",
+      "ground_truth": "Tiene que estar",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-12-09 20:04:47+00:00"
+    },
+    {
+      "user_input": "Sisisi thavia entes aixo perfe",
+      "ground_truth": "I tampoc vull que perdis una classe x gravarme",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-02-25 10:04:54+00:00"
+    },
+    {
+      "user_input": "FLIPAS",
+      "ground_truth": "Hombre, yo creo que sí, tía, va a ser una gastroenteritis. , le he cogido la cagalera porque se intoxicó. Pero ya va a decir que estaba mejor el endemá. Tía, es el último concert de Madrid, . Es que además lo ha hecho tan bien, porque así el viernes tengo fiesta, tía. ¿Sabes? Y no pierdo trabajo. , y no me pierdo el dijous, que mala pera, pues esas clases las voy a poner. Porque ni se dan cuenta ni se van a... Bueno, con todo lo que regalo de horas. Muy fuerte, muy fuerte Pero a Albert no se lo creo Digo, yo flipo el poder que tienes Digo, tío, no sé Son las cosas de hacer bien las cosas ¿No algún día han de llegar a cosas así? Yo qué sé Muy fuerte, muy fuerte Bueno, es que ahora llegaré a casa Y me vuelvo a mirar el vídeo 3.000 veces M'ha encantado, ¿, Erika? Muchísimas gracias porque es un súper trabajazo",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-11-26 16:07:05+00:00"
+    },
+    {
+      "user_input": "Geniaaal",
+      "ground_truth": "🩷",
+      "trust_score": 0.99,
+      "username": "+34636022878",
+      "lead_uuid": "c9a93563-be70-4445-b9f4-7cc3e2d743c9",
+      "input_type": "OTHER",
+      "created_at": "2026-01-02 13:02:04+00:00"
+    },
+    {
+      "user_input": "fua quin plaer hay un monton de posibles portadas",
+      "ground_truth": "De sus stories",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-01-29 07:13:03+00:00"
+    },
+    {
+      "user_input": "Pues si esperem lo de la andrea a ver a pasa",
+      "ground_truth": "[🎤 Audio]: Ja no dic res perquè com que no sabem el que petarà i el que no petarà a Instagram, és brutal, eh? És que m'encanta. És que m'encanta.",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-02-03 12:42:13+00:00"
+    },
+    {
+      "user_input": "Look who I stumbled on @Wallapop_US - Cariana M. https://www.wallapop.com/user/carianam-68675538?_pid=wi&_uid=68675538",
+      "ground_truth": "cari creo que me voy para casa tía estoy muy cansada estoy reventada me doy las rodillas la p*** corio y en teoría hoy tengo que follar entonces creo que prefiero dormir y me jode porque porque quería ir a correr con bruna pero bueno si el sábado que viene vengo mejor como iré a hacer el examen No estaré tan cansada, ¿sabes? Es que hoy Paula nos ha metido una caña que flipa, hostia , he muerto Literal Hoy hacía mucho calor, ¿sabes? Así que nada Me despido, ¿? No te me enfades Como ahora vas fumada Vas a sogar Y a tomar por culo, ni iris ni nada Un besito",
+      "trust_score": 0.33999999999999997,
+      "username": "wa_34602629683",
+      "lead_uuid": "65126c66-965c-4f44-8c3d-5cc0e75a5789",
+      "input_type": "OTHER",
+      "created_at": "2026-02-26 15:16:47+00:00"
+    },
+    {
+      "user_input": "Que bien mamasita",
+      "ground_truth": "[🎤 Audio]: Fuà tia, ara ja a mitja hora entro a la classe, Erika. Perquè no està quadrat, la tercera part no està quadrada, no entra amb el tempo, que és la que ja no vas fer tu.",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-01-13 11:37:51+00:00"
+    },
+    {
+      "user_input": "Ai bebee🥲🥲🥲",
+      "ground_truth": "He utilizado WeTransfer, la forma más sencilla de enviar y recibir archivos.\n\nHaz clic en el enlace de descarga: https://we.tl/t-oAoxj8CENCxTTGJg",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-12-11 21:49:42+00:00"
+    },
+    {
+      "user_input": "Yesss, puc",
+      "ground_truth": "Eso velitas pa mi mami",
+      "trust_score": 1.0,
+      "username": "wa_34666722290",
+      "lead_uuid": "7b8a6206-501c-487c-a204-24871916d301",
+      "input_type": "OTHER",
+      "created_at": "2025-12-08 16:17:33+00:00"
+    },
+    {
+      "user_input": "Mención en story",
+      "ground_truth": "Sent an attachment",
+      "trust_score": 1.0,
+      "username": "dinamicsportgym",
+      "lead_uuid": "8e32ece2-8a8c-4dd7-b461-21d5ec6a9de4",
+      "input_type": "OTHER",
+      "created_at": "2026-02-27 19:43:45+00:00"
+    },
+    {
+      "user_input": "test latency e2e_1773515421",
+      "ground_truth": "Necessites malles les tens",
+      "trust_score": 1.0,
+      "username": "Manel",
+      "lead_uuid": "356d60a7-58eb-45d6-9a54-585e0df40e5a",
+      "input_type": "OTHER",
+      "created_at": "2026-03-14 19:10:22.000075+00:00"
+    },
+    {
+      "user_input": "I 10 min estirament",
+      "ground_truth": "Ok",
+      "trust_score": 0.99,
+      "username": "wa_34629258733",
+      "lead_uuid": "899a2d72-4006-43f6-a4ea-ab698d060a4c",
+      "input_type": "OTHER",
+      "created_at": "2026-01-22 13:26:49+00:00"
+    },
+    {
+      "user_input": "Com estas cuca?",
+      "ground_truth": "Vota a zumba / barre",
+      "trust_score": 0.99,
+      "username": "+34636022878",
+      "lead_uuid": "c9a93563-be70-4445-b9f4-7cc3e2d743c9",
+      "input_type": "OTHER",
+      "created_at": "2025-12-10 07:25:52+00:00"
+    },
+    {
+      "user_input": "Vale",
+      "ground_truth": "Espero que anés benne amb la Sonia",
+      "trust_score": 1.0,
+      "username": "wa_34606434377",
+      "lead_uuid": "84f853fd-68ea-4eec-a335-3e3676394b2e",
+      "input_type": "OTHER",
+      "created_at": "2026-01-07 12:44:06+00:00"
+    },
+    {
+      "user_input": "Tinc ganes",
+      "ground_truth": "No pasa ná ta perfecteeee",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2026-02-01 19:28:49+00:00"
+    },
+    {
+      "user_input": "Si tho vaig posar aqui xoxooo",
+      "ground_truth": "[🎤 Audio]: No pasa nada tía, me jode la vida porque es la canción de Fuma, que es una coria súper fácil, la que hice la caja negra, que tu primo la va a hacer con bambas. Espero que vengas cuando la tornemos a hacer, porque es muy fácil, mucho más que lo que hace con Martina. Así te lo digo, ¿sabes? Como si tuviera que quedar contigo para enseñártela. Yo creo que hoy tu primo se va a borrir, pero como es la vajilla, pues de esto. Claro, obviamente, anda que no lo he visto. No solo faltaría con lo que te remarque los tiempos, con lo que marco los tiempos y las palabras de esto. Es normal, cariño, es normal, ¿sabes? Pero esta coreo la has de hacer, Erika, porque es muy fácil. De esta no te escapas. Solo te digo esto: no voy a acabar de escuchar el audio porque voy muy tarde, me lo acabo de escuchar después.",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-12-27 21:26:44+00:00"
+    },
+    {
+      "user_input": "Mes o mens,fent mi els meus Banñys d'aigua amb sal i descansant",
+      "ground_truth": "Es que que no veus que torna estar tot el puto turmell inflat mama",
+      "trust_score": 0.14,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "input_type": "OTHER",
+      "created_at": "2025-11-29 19:43:23+00:00"
+    },
+    {
+      "user_input": "Pq no set sent al video",
+      "ground_truth": "Segur que tiene amigas que se tocan el toto",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "OTHER",
+      "created_at": "2025-12-08 18:11:03+00:00"
+    },
+    {
+      "user_input": "Esq ahir vam venir amb el lucito els dos amb el cotxe, pero per a futurs ja vindre amb el meu cotxe",
+      "ground_truth": "Cuelga esta tal\nCual\nAsí y ya está no cortes nada pa\nQue se vea alguna mas pero baja el\nVolumen cuando se acaba el\nVideo",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "GREETING",
+      "created_at": "2026-02-20 07:29:16+00:00"
+    },
+    {
+      "user_input": "Lo millor es que no ens pasi res,peró,una cosa,els clips que em va posar la noia quan els treuen",
+      "ground_truth": "Y le das al si",
+      "trust_score": 0.14,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "input_type": "GREETING",
+      "created_at": "2025-12-02 08:20:52+00:00"
+    },
+    {
+      "user_input": "Bon dia baby! Avui q pengem?",
+      "ground_truth": "[audio]",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "GREETING",
+      "created_at": "2025-11-30 08:00:03+00:00"
+    },
+    {
+      "user_input": "- ⁠diumenge 21 - CALENDARI ADVENT 1️⃣\n\n- dimarts 23 - outfit nadal\n- dimecres 24 - Ball merry xmas\n- ⁠diumenge 28 - barre tropicoqueta \n\n- Dimecres 31 - CALENDARI ADVENT 2️⃣\n- ⁠dijous 2 - barre jailhouse rock\n- ⁠diumenge 4 -\n\n- dimecres 7 - rutina hipopilates regal reis *Pendent gravar* podries aconseguir una corona /capa per fer show reina maga???",
+      "ground_truth": "Cuka l’he tret",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "GREETING",
+      "created_at": "2025-12-21 10:49:07+00:00"
+    },
+    {
+      "user_input": "Hola baby",
+      "ground_truth": "[audio]",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "GREETING",
+      "created_at": "2025-12-02 15:21:38+00:00"
+    },
+    {
+      "user_input": "Haig de preparar ls classes de demà a la barra de casa mama",
+      "ground_truth": "Si mama però avui m’ha vingut la regla i estic kao i demà gravo🫠",
+      "trust_score": 0.14,
+      "username": "+34660042310",
+      "lead_uuid": "e49a42de-1bb5-4ad3-9cfa-8c96c2ea812a",
+      "input_type": "QUESTION_SERVICE",
+      "created_at": "2026-01-24 21:20:15+00:00"
+    },
+    {
+      "user_input": "🤣🤣💝💝💝💝💝",
+      "ground_truth": "[audio]",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "EMOJI_ONLY",
+      "created_at": "2025-12-31 09:50:28+00:00"
+    },
+    {
+      "user_input": "[audio]",
+      "ground_truth": "[🏷️ Sticker]",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "input_type": "MEDIA",
+      "created_at": "2026-03-05 13:46:45+00:00"
+    }
+  ]
+}

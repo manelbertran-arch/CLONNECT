@@ -1,0 +1,468 @@
+{
+  "metadata": {
+    "ccee_version": "v4",
+    "timestamp": "2026-04-16T14:07:52.674815",
+    "model": "unknown",
+    "provider": "unknown",
+    "judge_model": "Qwen/Qwen3-30B-A3B",
+    "lead_sim_model": "Qwen/Qwen3-30B-A3B",
+    "cases": 5,
+    "runs": 1,
+    "mt_conversations": 5,
+    "mt_turns": 10,
+    "flags": {
+      "generate_only": false,
+      "multi_turn": false,
+      "v4_composite": false,
+      "v41_metrics": false,
+      "v5": false
+    }
+  },
+  "creator_id": "iris_bertran",
+  "timestamp": "20260416_140752",
+  "n_runs": 1,
+  "n_cases": 5,
+  "overrides": {},
+  "runs": [
+    {
+      "S1_style_fidelity": {
+        "score": 50.76,
+        "detail": {
+          "A1_length": 100.0,
+          "A2_emoji": 97.56,
+          "A2_contextual": 56.03,
+          "A3_exclamations": 26.09,
+          "A4_questions": 0.0,
+          "A5_vocabulary": 8.0,
+          "A6_language": 20.83,
+          "A7_fragmentation": 100.0,
+          "A8_formality": 99.12,
+          "A9_catchphrases": 0.0
+        }
+      },
+      "S2_response_quality": {
+        "score": 61.37,
+        "detail": {
+          "bertscore_mean": 0.8148,
+          "chrf_mean": 0.0806,
+          "bleu4_mean": 0.1123,
+          "rouge_l_mean": 0.0,
+          "meteor_mean": 0.0,
+          "semsim_mean": 0.8148,
+          "c4_relevance_mean": 0.8218,
+          "self_rep_mean": 0.5794,
+          "g1_hallucination_count": 0,
+          "g2_bot_reveal_count": 0,
+          "g4_echo_mean": 1.81,
+          "per_case": [
+            71.64,
+            59.85,
+            65.3,
+            58.14,
+            51.93
+          ]
+        },
+        "score_enhanced": 59.46
+      },
+      "S3_strategic_alignment": {
+        "score": 61.98,
+        "detail": {
+          "e1_per_case_mean": 64.56,
+          "e2_distribution_match": 55.94,
+          "bot_strategy_distribution": {
+            "ASK": 0.8,
+            "REDIRECT": 0.2
+          },
+          "per_case": [
+            76.1,
+            100.0,
+            76.1,
+            31.2,
+            39.4
+          ],
+          "mean": 61.98
+        }
+      },
+      "S4_adaptation": {
+        "score": 54.08,
+        "detail": {
+          "mode": "proximity_only",
+          "proximity_mean": 54.08,
+          "proximity_n": 5
+        }
+      },
+      "B_persona_fidelity": {
+        "score": 71.67,
+        "B1": {
+          "score": null,
+          "detail": {
+            "reason": "insufficient_ocean_signal",
+            "creator_nonzero_dims": 1,
+            "bot_nonzero_dims": 0,
+            "creator_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0152,
+              0.0
+            ],
+            "bot_vector": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "B4": {
+          "score": 100.0,
+          "detail": {
+            "total_responses": 5,
+            "violations": 0,
+            "violation_examples": []
+          }
+        }
+      },
+      "G_safety": {
+        "score": 100.0,
+        "G1_score": 100.0,
+        "G3": {
+          "score": 100.0,
+          "detail": "no jailbreak tests run"
+        }
+      },
+      "H_indistinguishability": {
+        "score": 30.39,
+        "H2": {
+          "score": 30.39,
+          "detail": {
+            "cosine_similarity": 0.3039,
+            "creator_vector": [
+              0.2546,
+              0.3,
+              0.0305,
+              0.0986,
+              1.0,
+              0.2732,
+              0.4471,
+              0.0054,
+              1.0
+            ],
+            "bot_vector": [
+              0.285,
+              0.4,
+              0.4,
+              0.8,
+              0.04,
+              1.0,
+              0.2,
+              0.1,
+              0.0
+            ]
+          }
+        }
+      },
+      "J1_memory_recall": {
+        "score": 50.0,
+        "detail": "no multi-turn data"
+      },
+      "J2_multiturn_consistency": {
+        "score": 31.67,
+        "detail": {
+          "length_consistency": 52.27,
+          "emoji_consistency": 79.99,
+          "question_consistency": 0.0,
+          "exclamation_consistency": 26.09,
+          "cv_match": 0.0,
+          "bot_length_std": 8.07,
+          "creator_length_std": 178.04
+        }
+      },
+      "J_cognitive_fidelity": 40.84,
+      "composite": 57.82,
+      "params_active": 32,
+      "params_total": 44,
+      "weights": {
+        "S1": 0.2,
+        "S2": 0.15,
+        "S3": 0.2,
+        "S4": 0.1,
+        "B": 0.1,
+        "G": 0.05,
+        "H": 0.05,
+        "I": 0.05,
+        "J": 0.1
+      },
+      "dimensions_present": [
+        "B",
+        "G",
+        "H",
+        "J",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "LLM_judge": {
+        "B2_persona_consistency": {
+          "score": 40.0,
+          "per_case": [
+            25.0,
+            25.0,
+            50.0,
+            50.0,
+            50.0
+          ]
+        },
+        "B5_emotional_signature": {
+          "score": 75.0,
+          "per_case": [
+            75.0,
+            75.0,
+            25.0,
+            100.0,
+            100.0
+          ]
+        },
+        "C2_naturalness": {
+          "score": 85.0,
+          "per_case": [
+            75.0,
+            100.0,
+            50.0,
+            100.0,
+            100.0
+          ]
+        },
+        "C3_contextual_appropriateness": {
+          "score": 25.0,
+          "per_case": [
+            50.0,
+            0.0,
+            25.0,
+            0.0,
+            50.0
+          ]
+        },
+        "H1_turing_test_rate": 100.0,
+        "model": "Qwen/Qwen3-30B-A3B",
+        "n_cases": 5,
+        "total_time_seconds": 78.0
+      }
+    }
+  ],
+  "composites": [
+    57.82
+  ],
+  "human_eval_cases": [
+    {
+      "case_idx": 0,
+      "trust_segment": "INTIMATE",
+      "user_message": "Vale ja mho mirare tranqilament i a ver que",
+      "iris_real_response": "Silla rosa? O madrid lo que tu quieras",
+      "bot_response": "Jajaja, me flipa la propuesta. Tienes alguna hora en mente?",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 1,
+      "trust_segment": "EXTRA",
+      "user_message": "Dimecres segurament podria treure algun forat",
+      "iris_real_response": "[image]",
+      "bot_response": "Molt bé Fer. Quan vulguis fem el carret. 💪🏾",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 2,
+      "trust_segment": "EXTRA",
+      "user_message": "Ja em diras si et sembla be q  pugem avui la coreo",
+      "iris_real_response": "Tranquila ya está descartado también",
+      "bot_response": "Que detallazo, me flipa la propuesta! Tienes alguna hora en mente?",
+      "input_type": "OTHER"
+    },
+    {
+      "case_idx": 3,
+      "trust_segment": "EXTRA",
+      "user_message": "[audio]",
+      "iris_real_response": "[sticker]",
+      "bot_response": "Jajaja, mami, que fuerte! Tienes alguna hora en mente?",
+      "input_type": "MEDIA"
+    },
+    {
+      "case_idx": 3,
+      "trust_segment": "EDGE_CASE",
+      "user_message": "[audio]",
+      "iris_real_response": "[sticker]",
+      "bot_response": "Jajaja, mami, que fuerte! Tienes alguna hora en mente?",
+      "input_type": "MEDIA",
+      "s3_score": 31.2
+    }
+  ],
+  "weights_used": {
+    "S1": 0.2,
+    "S2": 0.15,
+    "S3": 0.2,
+    "S4": 0.1,
+    "B": 0.1,
+    "G": 0.05,
+    "H": 0.05,
+    "I": 0.05,
+    "J": 0.1
+  },
+  "per_case_records": [
+    {
+      "idx": 0,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Vale ja mho mirare tranqilament i a ver que",
+      "iris_real_response": "Silla rosa? O madrid lo que tu quieras",
+      "bot_response": "Jajaja, me flipa la propuesta. Tienes alguna hora en mente?",
+      "s1_score": 55.7,
+      "s2_score": 71.64,
+      "s3_score": 76.1,
+      "s4_score": 61.55
+    },
+    {
+      "idx": 1,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Dimecres segurament podria treure algun forat",
+      "iris_real_response": "[image]",
+      "bot_response": "Molt bé Fer. Quan vulguis fem el carret. 💪🏾",
+      "s1_score": 64.76,
+      "s2_score": 59.85,
+      "s3_score": 100.0,
+      "s4_score": 65.86
+    },
+    {
+      "idx": 2,
+      "input_type": "OTHER",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Ja em diras si et sembla be q  pugem avui la coreo",
+      "iris_real_response": "Tranquila ya está descartado también",
+      "bot_response": "Que detallazo, me flipa la propuesta! Tienes alguna hora en mente?",
+      "s1_score": 46.52,
+      "s2_score": 65.3,
+      "s3_score": 76.1,
+      "s4_score": 43.51
+    },
+    {
+      "idx": 3,
+      "input_type": "MEDIA",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "[audio]",
+      "iris_real_response": "[sticker]",
+      "bot_response": "Jajaja, mami, que fuerte! Tienes alguna hora en mente?",
+      "s1_score": 46.15,
+      "s2_score": 58.14,
+      "s3_score": 31.2,
+      "s4_score": 47.32
+    },
+    {
+      "idx": 4,
+      "input_type": "QUESTION_SERVICE",
+      "trust_score": 1.0,
+      "username": "èrica ✨",
+      "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+      "user_message": "Tia esq tots igual, com la paula",
+      "iris_real_response": "[🏷️ Sticker]",
+      "bot_response": "Jajaja, me flipa la propuesta. 😂😂😂 Tienes alguna hora en mente?",
+      "s1_score": 49.31,
+      "s2_score": 51.93,
+      "s3_score": 39.4,
+      "s4_score": 52.18
+    }
+  ],
+  "per_run_records": [
+    [
+      {
+        "idx": 0,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "Vale ja mho mirare tranqilament i a ver que",
+        "iris_real_response": "Silla rosa? O madrid lo que tu quieras",
+        "bot_response": "Jajaja, me flipa la propuesta. Tienes alguna hora en mente?",
+        "s1_score": 55.7,
+        "s2_score": 71.64,
+        "s3_score": 76.1,
+        "s4_score": 61.55
+      },
+      {
+        "idx": 1,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "Dimecres segurament podria treure algun forat",
+        "iris_real_response": "[image]",
+        "bot_response": "Molt bé Fer. Quan vulguis fem el carret. 💪🏾",
+        "s1_score": 64.76,
+        "s2_score": 59.85,
+        "s3_score": 100.0,
+        "s4_score": 65.86
+      },
+      {
+        "idx": 2,
+        "run": 0,
+        "input_type": "OTHER",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "Ja em diras si et sembla be q  pugem avui la coreo",
+        "iris_real_response": "Tranquila ya está descartado también",
+        "bot_response": "Que detallazo, me flipa la propuesta! Tienes alguna hora en mente?",
+        "s1_score": 46.52,
+        "s2_score": 65.3,
+        "s3_score": 76.1,
+        "s4_score": 43.51
+      },
+      {
+        "idx": 3,
+        "run": 0,
+        "input_type": "MEDIA",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "[audio]",
+        "iris_real_response": "[sticker]",
+        "bot_response": "Jajaja, mami, que fuerte! Tienes alguna hora en mente?",
+        "s1_score": 46.15,
+        "s2_score": 58.14,
+        "s3_score": 31.2,
+        "s4_score": 47.32
+      },
+      {
+        "idx": 4,
+        "run": 0,
+        "input_type": "QUESTION_SERVICE",
+        "trust_score": 1.0,
+        "trust_segment": "UNKNOWN",
+        "username": "èrica ✨",
+        "lead_uuid": "ca9890c9-ee00-4f22-8774-1c4ca4245feb",
+        "user_message": "Tia esq tots igual, com la paula",
+        "iris_real_response": "[🏷️ Sticker]",
+        "bot_response": "Jajaja, me flipa la propuesta. 😂😂😂 Tienes alguna hora en mente?",
+        "s1_score": 49.31,
+        "s2_score": 51.93,
+        "s3_score": 39.4,
+        "s4_score": 52.18
+      }
+    ]
+  ]
+}
