@@ -28,7 +28,7 @@ async def main():
     from api.database import SessionLocal
     from sqlalchemy import text
 
-    # Step 1: Find affected leads (no ig_ prefix, no memories, has messages post-Sprint 3)
+    # Step 1: Find affected leads (no memories at all, has 3+ messages — no date filter)
     session = SessionLocal()
     try:
         rows = session.execute(text("""
@@ -36,14 +36,14 @@ async def main():
             FROM leads l
             JOIN creators c ON l.creator_id = c.id
             WHERE c.name = 'iris_bertran'
-              AND l.platform_user_id NOT LIKE 'ig_%%'
               AND NOT EXISTS (
                 SELECT 1 FROM lead_memories lm
-                WHERE lm.lead_id = l.id AND lm.is_active = true
+                WHERE lm.lead_id = l.id
               )
               AND EXISTS (
                 SELECT 1 FROM messages m
-                WHERE m.lead_id = l.id AND m.created_at >= '2026-04-10'
+                WHERE m.lead_id = l.id
+                GROUP BY m.lead_id HAVING COUNT(*) >= 3
               )
         """)).fetchall()
     finally:

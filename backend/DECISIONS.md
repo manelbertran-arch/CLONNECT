@@ -17,7 +17,10 @@ Architecture and implementation decisions, in reverse chronological order.
   - 26B MoE tiene problemas documentados: fine-tuning inestable, A6 -50 con Sprint 2.
   - BUG-005 fallback OpenRouter mitiga respuestas vacías.
 - **Implementación:** `DEEPINFRA_MODEL=google/gemma-4-31B-it`, `DEEPINFRA_FALLBACK_MODEL=google/gemma-4-31b-it` (slug lowercase OpenRouter), `DEEPINFRA_FALLBACK_PROVIDER=openrouter`. Monitorizar fallback trigger rate 72h — si >5% → rollback al 26B hasta que DeepInfra arregle.
-- **Smoke test pre-deploy (2026-04-16):** 10/10 calls 31B DeepInfra sin respuestas vacías (BUG-005 parece resuelto en DeepInfra). Fallback OpenRouter verificado funcional (circuit breaker forzado → `provider=openrouter-fallback`, respuesta válida). Cambio autorizado.
+- **Smoke test pre-deploy (2026-04-16 — intento 1):** 20/20 EMPTY — falso negativo por `source .env` sin `set -a` (API key no llegaba a Python). Descartado.
+- **Smoke test pre-deploy (2026-04-16 — intento 2, válido):** 10/20 OK, 10/20 EMPTY (50% empty rate). Timeouts de 8s, circuit breaker activado 3 veces. **Resultado: >15% → NO se cambió DEEPINFRA_MODEL en Railway.**
+- **Estado 2026-04-16:** Railway sigue con `DEEPINFRA_MODEL` no seteado (default `Qwen/Qwen3-32B`). El 31B en DeepInfra sigue inestable — BUG-005 NO está resuelto en producción.
+- **Próximo paso:** Re-evaluar tras estabilización DeepInfra o activar DEEPINFRA_FALLBACK_PROVIDER=openrouter para absorber los vacíos antes de switchear.
 - **Rollback plan:** `DEEPINFRA_MODEL=google/gemma-4-26B-A4B-it` si >5% fallback rate sostenido o latencia p95 >10s.
 - **Refs:** BUG-005 (2026-04-14), W7 baseline 31B, ARC1-ARC5 asumen 31B tokenizer.
 
