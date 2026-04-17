@@ -542,7 +542,7 @@ async def _try_deepinfra(
     try:
         from core.providers.deepinfra_provider import call_deepinfra
 
-        timeout = float(os.getenv("DEEPINFRA_TIMEOUT", "8"))
+        timeout = float(os.getenv("DEEPINFRA_TIMEOUT", "30"))  # 30s default — Gemma-4-31B needs 30-40s
         result = await asyncio.wait_for(
             call_deepinfra(messages, max_tokens, temperature, model_id=model_id),
             timeout=timeout,
@@ -550,11 +550,11 @@ async def _try_deepinfra(
         if result:
             asyncio.create_task(_async_log_usage(result, call_type))
             return result
-        logger.warning("DeepInfra returned empty, falling back to Gemini")
+        logger.warning("[DI-FALLBACK] reason=empty_response model=%s timeout=%.0fs", model_id, timeout)
     except asyncio.TimeoutError:
-        logger.warning("DeepInfra timeout, falling back to Gemini")
+        logger.warning("[DI-FALLBACK] reason=timeout model=%s timeout=%.0fs", model_id, timeout)
     except Exception as e:
-        logger.warning("DeepInfra failed: %s, falling back to Gemini", e)
+        logger.warning("[DI-FALLBACK] reason=error model=%s timeout=%.0fs error=%s", model_id, timeout, e)
     return None
 
 

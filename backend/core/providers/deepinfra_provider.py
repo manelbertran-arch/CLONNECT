@@ -210,7 +210,7 @@ async def call_deepinfra(
     if cfg_runtime:
         timeout = float(cfg_runtime.get("timeout_seconds", 8))
     else:
-        timeout = float(os.getenv("DEEPINFRA_TIMEOUT", "8"))
+        timeout = float(os.getenv("DEEPINFRA_TIMEOUT", "30"))  # 30s default — Gemma-4-31B needs 30-40s
 
     base_url = cfg_provider.get("base_url") or DEEPINFRA_BASE_URL
 

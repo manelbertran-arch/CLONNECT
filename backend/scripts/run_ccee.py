@@ -1296,6 +1296,7 @@ def main():
     print(f"{'='*60}")
     print(f" CCEE Evaluation — {creator}")
     print(f" Runs: {args.runs} | Cases: {args.cases}")
+    print(f" DEEPINFRA_TIMEOUT = {os.getenv('DEEPINFRA_TIMEOUT', '30')}s")
     print(f"{'='*60}\n")
 
     # Load profiles
