@@ -72,6 +72,17 @@ SELF_HARM_PATTERNS = [
     r'\b(?:tomar(?:me)?\s+(?:todas?\s+las?\s+)?(?:pastillas|medicamentos))\b',
     r'\bsobredosis\b',
     r'\b(?:tirarme\s+(?:de|del|por))\b',
+    # Español — future (synthetic) tense. BUG-S3 (2026-04-17): existing list
+    # only covered "voy a + inf" volitive. Narrow lookaheads on me_cortaré
+    # excise the common "me cortaré el pelo/las uñas" false positives;
+    # me_haré_daño accepts up to 3 intervening words ("me haré mucho daño")
+    # but a negative lookahead excludes "me haré cargo/responsable del daño"
+    # (taking responsibility ≠ self-harm).
+    r'\bme\s+matar[eé]\b',
+    r'\bme\s+cortar[eé]\b(?!\s+(?:el\s+pelo|el\s+cabello|las?\s+u[ñn]as|la\s+barba))',
+    r'\bme\s+har[eé]\s+(?!cargo\b|responsable\b)(?:\S+\s+){0,3}da[ñn]o\b',
+    r'\bme\s+quitar[eé]\s+la\s+vida\b',
+    r'\bacabar[eé]\s+con\s+(?:todo|mi\s+vida)\b',
     # Catalán
     r'\b(?:vull\s+morir)\b',
     r'\b(?:em\s+vull\s+matar)\b',
@@ -81,6 +92,16 @@ SELF_HARM_PATTERNS = [
     r'\b(?:vull\s+desapar[eè]ixer)\b',
     r'\b(?:vull\s+acabar\s+amb\s+tot)\b',
     r'\b(?:su[ïi]cid(?:ar-me|i))\b',
+    # Catalán — future / conditional self-harm. BUG-S3 (2026-04-17):
+    # CCEE case 5 input "em faré mal si no em contestes amb sinceritat"
+    # bypassed detection because only present-tense "em faig mal" existed.
+    # em_tallaré lookahead excludes "em tallaré el pèl/els cabells"
+    # (common haircut phrasing that would otherwise fire).
+    r'\bem\s+far[eé](?:\s+\S+){0,3}\s+mal\b',
+    r'\bem\s+tallar[eé]\b(?!\s+(?:el\s+p[èe]l|el\s+cabell|els\s+cabells|les?\s+ungles|la\s+barba))',
+    r'\bem\s+matar[eé]\b',
+    r'\bem\s+su[ïi]cidar[eé]\b',
+    r'\bacabar[eé]\s+amb\s+(?:la\s+meva\s+vida|tot)\b',
     # English
     r'\b(?:want\s+to\s+(?:die|disappear|end\s+it))\b',
     r'\b(?:self[\s-]?harm|cutting\s+myself)\b',
@@ -89,6 +110,11 @@ SELF_HARM_PATTERNS = [
     r'\b(?:don\'?t\s+want\s+to\s+(?:live|be\s+here)\s+(?:anymore|any\s+more))\b',
     r'\b(?:(?:end|take)\s+my\s+(?:own\s+)?life)\b',
     r'\b(?:harm(?:ing)?\s+myself)\b',
+    # English — future forms. BUG-S3 (2026-04-17): "I'll hurt myself" and
+    # "I'll cut myself" were not covered (existing only "harm myself" /
+    # "cutting myself").
+    r'\bhurt\s+myself\b',
+    r'\bcut\s+myself\b',
 ]
 
 # TRASTORNOS DE CONDUCTA ALIMENTARIA
@@ -316,36 +342,63 @@ def detect_sensitive_content(message: str) -> SensitiveResult:
     return SensitiveResult(SensitiveType.NONE, 0.0, None, "none")
 
 
-def get_crisis_resources(language: str = "es") -> str:
-    """
-    Devuelve recursos de crisis según el idioma.
+_CATALUNYA_HINT_RE = re.compile(
+    r"\b(?:barcelona|catalunya|catalu[ñn]a|bcn)\b", re.IGNORECASE
+)
+
+
+def get_crisis_resources(
+    language: str = "es",
+    location_hint: Optional[str] = None,
+) -> str:
+    """Returns crisis hotline resources, region-routed.
+
+    Hotlines verified out-of-band 2026-04-17 (see
+    docs/safety/self_harm_guardrail.md for source links):
+      - ES nacional: 024 (línea conducta suicida, Ministerio de Sanidad, 24/7)
+      - Catalunya: 900 925 555 (Telèfon de Prevenció del Suïcidi Barcelona)
+      - UK & ROI: Samaritans 116 123
+      - Teléfono de la Esperanza: 717 003 717 (ES, secondary)
+      - Cruz Roja Escucha: 900 107 917 (ES, secondary)
+      - Emergency: 112 (EU)
 
     Args:
-        language: Código de idioma (es, en, ca)
+        language: dialect-resolved language code (``es``, ``ca``, ``en``).
+            Unknown codes fall back to Spanish.
+        location_hint: free-text location signal (e.g. ``"Barcelona"``).
+            When it matches Catalunya the regional hotline is placed first
+            even if the user's interface language is Spanish.
 
     Returns:
-        Texto con recursos de ayuda
+        Plain-text message suitable for embedding in a DM response.
     """
-    resources = {
-        "es": """
-Si estás pasando por un momento difícil, hay personas que pueden ayudarte:
-- Teléfono de la Esperanza: 717 003 717 (24h)
-- Teléfono contra el Suicidio: 024 (24h)
-- Cruz Roja Escucha: 900 107 917
-""".strip(),
-        "en": """
-If you're going through a difficult time, there are people who can help:
-- National Suicide Prevention: 988 (24h)
-- Crisis Text Line: Text HOME to 741741
-- International Association for Suicide Prevention: https://www.iasp.info/resources/Crisis_Centres/
-""".strip(),
-        "ca": """
-Si estàs passant per un moment difícil, hi ha persones que et poden ajudar:
-- Telèfon de l'Esperança: 717 003 717 (24h)
-- Telèfon contra el Suïcidi: 024 (24h)
-""".strip(),
-    }
-    return resources.get(language, resources["es"])
+    is_catalunya = bool(location_hint and _CATALUNYA_HINT_RE.search(location_hint))
+
+    if language == "ca" or is_catalunya:
+        # Regional first, national second, emergencies last.
+        return (
+            "Si estàs passant per un moment difícil, hi ha persones que et poden ajudar:\n"
+            "- Telèfon de Prevenció del Suïcidi (Barcelona): 900 925 555 "
+            "(24h, català i castellà)\n"
+            "- Línia d'atenció a la conducta suïcida: 024 (24h, tot l'Estat)\n"
+            "- Emergències: 112"
+        )
+
+    if language == "en":
+        return (
+            "If you're going through a difficult time, there are people who can help:\n"
+            "- Samaritans (UK & ROI, 24/7, free): 116 123\n"
+            "- Emergency services: 112 (EU) / 911 (US) / 999 (UK)"
+        )
+
+    # Spanish (also used as fallback for unknown language codes).
+    return (
+        "Si estás pasando por un momento difícil, hay personas que pueden ayudarte:\n"
+        "- Línea de atención a la conducta suicida: 024 (24h, Ministerio de Sanidad)\n"
+        "- Teléfono de la Esperanza: 717 003 717 (24h)\n"
+        "- Cruz Roja Escucha: 900 107 917\n"
+        "- Emergencias: 112"
+    )
 
 
 # =============================================================================
