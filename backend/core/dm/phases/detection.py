@@ -172,10 +172,22 @@ async def phase_detection(
                 except Exception:
                     logger.debug("security alerting dispatch failed", exc_info=True)
                 if sensitive_result.confidence >= AGENT_THRESHOLDS.sensitive_escalation:
-                    # Resolve crisis language from creator's dialect (BUG-S2 fix)
-                    _dialect = getattr(agent, "personality", {}).get("dialect", "neutral") or "neutral"
+                    # Resolve crisis language from creator's dialect (BUG-S2 fix).
+                    # BUG-S3 (2026-04-17): Catalan creators default to the Barcelona
+                    # regional hotline first (900 925 555). An explicit location
+                    # value from agent metadata wins over this default when present.
+                    # `agent.personality` may be explicitly None in some loaders,
+                    # so collapse both "missing attribute" and "None attribute" to {}.
+                    _personality = getattr(agent, "personality", None) or {}
+                    _dialect = _personality.get("dialect", "neutral") or "neutral"
                     _crisis_lang = _DIALECT_TO_LANG.get(_dialect.lower(), "es")
-                    crisis_response = get_crisis_resources(language=_crisis_lang)
+                    _location_hint = (
+                        _personality.get("location")
+                        or ("Barcelona" if _crisis_lang == "ca" else None)
+                    )
+                    crisis_response = get_crisis_resources(
+                        language=_crisis_lang, location_hint=_location_hint,
+                    )
                     result.pool_response = DMResponse(
                         content=crisis_response,
                         intent="sensitive_content",

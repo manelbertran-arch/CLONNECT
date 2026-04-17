@@ -140,27 +140,32 @@ class TestEscalacion:
             )
 
     def test_mensaje_escalacion_correcto(self):
-        """Crisis resources include phone numbers for immediate help.
+        """Crisis resources include verified phone numbers for immediate help.
 
-        The get_crisis_resources function must return actionable contact
-        information including telephone numbers.
+        Contract reflects the 2026-04-17 hotline update (BUG-S3):
+          * ES primary line is 024 (Ministerio de Sanidad).
+          * CA resources lead with 900 925 555 (Telèfon de Prevenció del
+            Suïcidi, Barcelona) and include 024 as national backup.
+          * EN uses Samaritans 116 123 (UK/ROI) — US-only 988/741741 dropped
+            because the backend serves creators in Spain by default.
+        See `docs/safety/self_harm_guardrail.md` for verified source list.
         """
         # Spanish resources
         resources_es = get_crisis_resources("es")
         assert "717 003 717" in resources_es, "Missing Telefono de la Esperanza"
-        assert "024" in resources_es, "Missing Telefono contra el Suicidio"
+        assert "024" in resources_es, "Missing linea 024"
         assert "900 107 917" in resources_es, "Missing Cruz Roja Escucha"
 
-        # English resources
+        # English resources — Samaritans replaces US-only lines.
         resources_en = get_crisis_resources("en")
-        assert "988" in resources_en, "Missing National Suicide Prevention"
-        assert "741741" in resources_en, "Missing Crisis Text Line"
+        assert "116 123" in resources_en, "Missing Samaritans"
+        assert "Samaritans" in resources_en, "Missing Samaritans label"
 
-        # Catalan resources
+        # Catalan resources — regional (900 925 555) + national (024).
         resources_ca = get_crisis_resources("ca")
-        assert "717 003 717" in resources_ca, "Missing Catalan crisis number"
-        assert "024" in resources_ca, "Missing Catalan suicide line"
+        assert "900 925 555" in resources_ca, "Missing Barcelona regional hotline"
+        assert "024" in resources_ca, "Missing national Catalan suicide line"
 
-        # Unknown language should fall back to Spanish
+        # Unknown language should fall back to Spanish.
         resources_unknown = get_crisis_resources("xx")
-        assert "717 003 717" in resources_unknown, "Fallback should use Spanish"
+        assert "024" in resources_unknown, "Fallback should use Spanish (024)"
