@@ -4,6 +4,21 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-17 — Doc D automatic versioning + CCEE traceability (feat/doc-d-versioning)
+
+- **Decisión:** Añadir snapshotting automático de Doc D en `doc_d_versions` antes de cada `weekly_compilation`, con SHA256 dedup en ventana de 24h, y propagar `doc_d_version_id` al JSON output de CCEE.
+- **Contexto:** El Doc D se sobrescribía silenciosamente sin snapshot, imposibilitando reproducir baselines CCEE históricos. El último insert en `doc_d_versions` fue el 21-Mar — 26 días sin versionado.
+- **Implementación:**
+  - `services/persona_compiler.py`: `_snapshot_doc_d()` con SHA256 dedup + `metadata` JSONB; nueva `get_active_doc_d_version_id(session, creator_name)`.
+  - `alembic/versions/046_add_doc_d_versions_table.py`: migración idempotente (CREATE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS para `content_hash` y `metadata`) + 2 índices.
+  - `scripts/run_ccee.py`: `_build_metadata()` con `doc_d_version_id`, `doc_d_snapshot_at`, `doc_d_char_length`.
+  - `scripts/doc_d_snapshot.py`: CLI manual (`--creator`, `--tag`).
+  - `tests/test_doc_d_versioning.py`: 12 tests (12/12 pass). Smoke tests: 7/7 pass.
+- **Invariante:** snapshot es PREVIO a `_set_current_doc_d` — el update sigue funcionando.
+- **Dedup:** SHA256(content) + `created_at > now()-24h` → skip INSERT, retorna ID existente.
+
+---
+
 ## 2026-04-16 — Modelo producción: Gemma4-31B Dense
 
 - **Decisión:** volver a Gemma4-31B Dense como modelo de producción.
