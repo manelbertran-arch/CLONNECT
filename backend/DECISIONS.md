@@ -4,6 +4,22 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-18 — FIX W8-T1-BUG3: DNA analyze double-schedule (thread + asyncio.create_task) para el mismo lead
+
+- **Trigger:** W8 Tier-1 forensic audit (`docs/audit_sprint5/tier1/W8_T1_dna_update_triggers.md` + `W8_T1_relationship_dna.md`) detectó que dos call sites independientes podían disparar `analyze_and_update_dna(creator_id, follower_id, …)` concurrentemente para el mismo par:
+  1. `core/dm/post_response.py:211` → `triggers.schedule_async_update(...)` → `services.dna_update_triggers.schedule_dna_update(...)` (thread daemon).
+  2. `core/dm/phases/context.py:498-520` → `asyncio.create_task(_run_full_analysis())` (loop event).
+  El primero dispara en post-response cuando `should_update` devuelve True; el segundo en pre-generación cuando `should_update_dna` de `RelationshipAnalyzer` lo pide. Si un mensaje llega con DNA stale y luego la respuesta sigue cumpliendo el trigger, ambos corren — dos llamadas Gemini, dos escrituras UPDATE sobre la misma fila, race condition benigna pero costosa.
+- **Fix (Option B — dedup por (creator_id, follower_id)):** nuevo set a nivel de módulo en `services/dna_update_triggers.py` con `threading.Lock`, más dos helpers públicos `try_register_inflight(cid, fid) -> bool` y `release_inflight(cid, fid)`.
+  - `schedule_dna_update` llama `try_register_inflight` antes de spawnear el thread; si devuelve False, no se agenda y se loggea a debug. El `run_update` libera en `finally`.
+  - `core/dm/phases/context.py::_run_full_analysis` importa los mismos helpers; registra antes de `asyncio.create_task`, libera en `finally` dentro del coroutine.
+- **Por qué Option B y no una única cola:** mantener minimal — el lock no tiene contención significativa (dos call sites, dedup O(1)), el set se limpia al terminar, ningún scheduler nuevo, ninguna tabla nueva, ninguna config flag. Si mañana se añade una tercera ruta (p.ej. un consumer Celery), basta con que también use el helper.
+- **Tests:** `TestInflightDedup` en `tests/services/test_dna_update_triggers.py` (5 casos): register-first-time, register-second-time-returns-false, different-pairs-independent, schedule_dna_update-skips-double (mockea `threading.Thread` y verifica que no se spawnea), release-is-idempotent. Los 4 tests existentes siguen pasando.
+- **Scope:** 2 archivos editados + 1 archivo de test extendido. No se toca el scheduler, la cooldown de 24h, ni el `should_update` de triggers. La semántica de "si analysis está en-flight, salta este tick" es exactamente lo que se pedía en el audit.
+- **Refs:** W8 B.2a tier-1 audit summary (`docs/audit_sprint5/tier1/W8_T1_summary.md`), top-5 priority #3.
+
+---
+
 ## 2026-04-18 — FIX W8-T1-BUG2: memory_consolidator gates 4-5 anidados bypassaban throttle para creators nuevos
 
 - **Trigger:** W8 Tier-1 forensic audit (`docs/audit_sprint5/tier1/W8_T1_memory_consolidator.md`) detectó que los gates 4 (scan throttle, CC autoDream.ts:143-151) y 5 (activity ≥ MIN_MESSAGES_SINCE, autoDream.ts:153-171) vivían dentro del `if last_at is not None` de `consolidation_job()`. Cualquier creator sin registro previo en la tabla de consolidación (`last_at = None`) saltaba gate 3 (time), **y también 4 y 5**, y aterrizaba directamente en el advisory lock + `consolidate_creator()`.

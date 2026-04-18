@@ -11,7 +11,7 @@ Part of RELATIONSHIP-DNA feature.
 import logging
 import threading
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,34 @@ MIN_MESSAGES_FOR_FIRST_ANALYSIS = 5
 NEW_MESSAGE_THRESHOLD = 10  # Re-analyze after 10+ new messages
 COOLDOWN_HOURS = 24  # Minimum hours between re-analyses
 STALE_DAYS = 30  # Force re-analysis after 30 days
+
+
+# W8-T1-BUG3: in-flight dedup set keyed by (creator_id, follower_id).
+# Two call sites (services.dna_update_triggers.schedule_dna_update and
+# core.dm.phases.context._run_full_analysis) can fire concurrently for the
+# same lead. Both call try_register_inflight() first; only one proceeds.
+_inflight_lock = threading.Lock()
+_inflight: Set[Tuple[str, str]] = set()
+
+
+def try_register_inflight(creator_id: str, follower_id: str) -> bool:
+    """Atomically claim (creator_id, follower_id) for analysis.
+
+    Returns True if the caller gets the slot (must later call
+    release_inflight), False if another worker is already running.
+    """
+    key = (creator_id, follower_id)
+    with _inflight_lock:
+        if key in _inflight:
+            return False
+        _inflight.add(key)
+        return True
+
+
+def release_inflight(creator_id: str, follower_id: str) -> None:
+    """Release the inflight slot. Safe to call if not registered."""
+    with _inflight_lock:
+        _inflight.discard((creator_id, follower_id))
 
 
 def schedule_dna_update(
@@ -34,25 +62,34 @@ def schedule_dna_update(
         messages: Conversation history
 
     Returns:
-        True if scheduled successfully
+        True if scheduled, False if an analysis is already in-flight for this pair.
     """
-    def run_update():
-        for attempt in range(2):
-            try:
-                from services.relationship_dna_service import get_dna_service
+    if not try_register_inflight(creator_id, follower_id):
+        logger.debug(
+            f"Skipping DNA update for {creator_id}/{follower_id} — already in-flight"
+        )
+        return False
 
-                service = get_dna_service()
-                service.analyze_and_update_dna(creator_id, follower_id, messages)
-                logger.info(f"Background DNA update completed for {creator_id}/{follower_id}")
-                return
-            except Exception as e:
-                logger.error(
-                    f"Background DNA update failed (attempt {attempt + 1}/2) "
-                    f"for {creator_id}/{follower_id}: {e}"
-                )
-                if attempt == 0:
-                    import time
-                    time.sleep(2)
+    def run_update():
+        try:
+            for attempt in range(2):
+                try:
+                    from services.relationship_dna_service import get_dna_service
+
+                    service = get_dna_service()
+                    service.analyze_and_update_dna(creator_id, follower_id, messages)
+                    logger.info(f"Background DNA update completed for {creator_id}/{follower_id}")
+                    return
+                except Exception as e:
+                    logger.error(
+                        f"Background DNA update failed (attempt {attempt + 1}/2) "
+                        f"for {creator_id}/{follower_id}: {e}"
+                    )
+                    if attempt == 0:
+                        import time
+                        time.sleep(2)
+        finally:
+            release_inflight(creator_id, follower_id)
 
     thread = threading.Thread(target=run_update, daemon=True)
     thread.start()
