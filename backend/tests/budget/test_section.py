@@ -150,7 +150,7 @@ class TestComputeValueScore:
         score = compute_value_score(
             "rag", {"rag_signal": True, "intent_category": "purchase_intent"}
         )
-        assert score == min(0.75 * 1.2, 1.0)
+        assert score == min(0.75 * 1.4, 1.0)
 
     def test_rag_casual_penalty(self):
         score = compute_value_score(

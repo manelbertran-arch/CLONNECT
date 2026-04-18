@@ -44,7 +44,7 @@ class AssembledContext:
 SECTION_CAPS: dict[str, int] = {
     "style":       800,
     "few_shots":   350,
-    "recalling":   400,
+    "recalling":   500,  # A1.5: raised from 400; K1 deficit (-18.62 vs baseline) justified by heavy recalling blocks in episodic+DNA+state+memory scenarios
     "audio":       250,
     "rag":         350,
     "history":     500,
@@ -79,7 +79,7 @@ def compute_value_score(section_name: str, cognitive_metadata: dict) -> float:
 
     intent = cognitive_metadata.get("intent_category")
     if intent == "purchase_intent" and section_name == "rag":
-        score *= 1.2
+        score *= 1.4  # A1.5: raised from 1.2; S3 E1 per-case +8.97 in A1.3 confirms RAG is max-value for product queries
     if intent == "casual" and section_name == "rag":
         score *= 0.5
 
