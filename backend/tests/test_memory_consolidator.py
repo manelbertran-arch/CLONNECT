@@ -370,6 +370,85 @@ class TestConsolidationJob:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# W8-T1-BUG2: First-time creator gate ordering (gates 4 & 5 must run)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestFirstTimeCreatorGates:
+    """W8-T1-BUG2: When last_at is None (first-time creator), gates 4 (scan
+    throttle) and 5 (activity count) MUST still execute. Previously they were
+    nested inside `if last_at is not None`, so new creators bypassed both
+    → thundering herd + premature consolidation.
+    """
+
+    def setup_method(self):
+        reset_scan_state()
+
+    @pytest.mark.asyncio
+    async def test_first_time_creator_runs_activity_gate(self):
+        """last_at=None with <MIN_MESSAGES total must block at gate 5."""
+        import services.memory_consolidator as mod
+
+        creator_id = str(uuid.uuid4())
+        msg_count_calls = []
+
+        async def fake_count(cid: str, since: datetime) -> int:
+            msg_count_calls.append((cid, since))
+            return 5  # < MIN_MESSAGES_SINCE (20)
+
+        async def fake_last_at(cid: str):
+            return None  # First-time creator
+
+        async def fake_to_thread(fn, *a, **kw):
+            return [creator_id]
+
+        with patch("services.memory_consolidator.asyncio.to_thread", fake_to_thread), \
+             patch.object(mod, "_get_last_consolidated_at", fake_last_at), \
+             patch.object(mod, "_count_messages_since", fake_count), \
+             patch.object(mod, "_try_acquire_lock", new_callable=AsyncMock) as lock_mock, \
+             patch.object(mod, "consolidate_creator", new_callable=AsyncMock) as consolidate_mock:
+            lock_mock.return_value = (True, MagicMock())
+            await consolidation_job()
+
+        assert len(msg_count_calls) == 1, "activity gate must run for first-time creator"
+        assert msg_count_calls[0][0] == creator_id
+        consolidate_mock.assert_not_called()  # Blocked at gate 5
+
+    @pytest.mark.asyncio
+    async def test_first_time_creator_runs_scan_throttle_gate(self):
+        """last_at=None with throttled scan must skip before counting messages."""
+        import services.memory_consolidator as mod
+
+        creator_id = str(uuid.uuid4())
+        _record_scan(creator_id)  # Mark as throttled
+
+        count_called = []
+
+        async def fake_count(cid: str, since: datetime) -> int:
+            count_called.append(cid)
+            return 999
+
+        async def fake_last_at(cid: str):
+            return None
+
+        async def fake_to_thread(fn, *a, **kw):
+            return [creator_id]
+
+        orig_throttle = mod.SCAN_THROTTLE_SECONDS
+        mod.SCAN_THROTTLE_SECONDS = 3600
+        try:
+            with patch("services.memory_consolidator.asyncio.to_thread", fake_to_thread), \
+                 patch.object(mod, "_get_last_consolidated_at", fake_last_at), \
+                 patch.object(mod, "_count_messages_since", fake_count), \
+                 patch.object(mod, "consolidate_creator", new_callable=AsyncMock) as consolidate_mock:
+                await consolidation_job()
+        finally:
+            mod.SCAN_THROTTLE_SECONDS = orig_throttle
+
+        assert count_called == [], "scan throttle must block before activity gate"
+        consolidate_mock.assert_not_called()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # G4 FIX: MEMO_REFRESH_MIN_NEW_FACTS is configurable
 # ═══════════════════════════════════════════════════════════════════════════════
 

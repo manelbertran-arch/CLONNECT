@@ -409,21 +409,30 @@ async def consolidation_job() -> None:
                         creator_id[:8], hours_since, MIN_CONSOLIDATION_HOURS,
                     )
                     continue
+            else:
+                # First-time consolidation for this creator — gate 3 passes
+                # (treat as "infinite time ago"); gates 4 and 5 still apply.
+                last_at_utc = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
-                # Gate 4: SCAN THROTTLE (CC: autoDream.ts:143-151)
-                if _is_scan_throttled(creator_id):
-                    logger.debug("[Consolidator] Skip creator=%s — scan throttled", creator_id[:8])
-                    continue
-                _record_scan(creator_id)
+            # Gate 4: SCAN THROTTLE (CC: autoDream.ts:143-151)
+            # MUST run for all creators (including first-time) to prevent
+            # thundering herd when many new creators are processed in a single tick.
+            if _is_scan_throttled(creator_id):
+                logger.debug("[Consolidator] Skip creator=%s — scan throttled", creator_id[:8])
+                continue
+            _record_scan(creator_id)
 
-                # Gate 5: ACTIVITY (CC: autoDream.ts:153-171)
-                msg_count = await _count_messages_since(creator_id, last_at_utc)
-                if msg_count < MIN_MESSAGES_SINCE:
-                    logger.debug(
-                        "[Consolidator] Skip creator=%s — %d msgs < %d",
-                        creator_id[:8], msg_count, MIN_MESSAGES_SINCE,
-                    )
-                    continue
+            # Gate 5: ACTIVITY (CC: autoDream.ts:153-171)
+            # MUST run for all creators. For first-time (last_at_utc=epoch),
+            # this counts all messages ever → blocks premature consolidation
+            # for creators with < MIN_MESSAGES_SINCE total activity.
+            msg_count = await _count_messages_since(creator_id, last_at_utc)
+            if msg_count < MIN_MESSAGES_SINCE:
+                logger.debug(
+                    "[Consolidator] Skip creator=%s — %d msgs < %d",
+                    creator_id[:8], msg_count, MIN_MESSAGES_SINCE,
+                )
+                continue
 
             # Gate 6: LOCK (CC: consolidationLock.ts:46-84)
             acquired, lock_session = await _try_acquire_lock(creator_id)

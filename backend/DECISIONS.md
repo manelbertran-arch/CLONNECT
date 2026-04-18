@@ -4,6 +4,17 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-18 — FIX W8-T1-BUG2: memory_consolidator gates 4-5 anidados bypassaban throttle para creators nuevos
+
+- **Trigger:** W8 Tier-1 forensic audit (`docs/audit_sprint5/tier1/W8_T1_memory_consolidator.md`) detectó que los gates 4 (scan throttle, CC autoDream.ts:143-151) y 5 (activity ≥ MIN_MESSAGES_SINCE, autoDream.ts:153-171) vivían dentro del `if last_at is not None` de `consolidation_job()`. Cualquier creator sin registro previo en la tabla de consolidación (`last_at = None`) saltaba gate 3 (time), **y también 4 y 5**, y aterrizaba directamente en el advisory lock + `consolidate_creator()`.
+- **Impacto en prod:** (a) thundering herd cuando llegan varios creators nuevos en el mismo tick del scheduler — todos consolidan a la vez sin throttle; (b) consolidación prematura de creators con < 20 mensajes totales, desperdiciando tokens LLM y produciendo memos de baja señal.
+- **Fix:** minimal — mover gates 4 y 5 fuera del `if last_at is not None` y añadir una rama `else` que trata primera vez como `last_at_utc = datetime(1970, 1, 1, tzinfo=utc)` (infinito pasado). Gate 3 sigue pasando implícitamente; gates 4/5 ahora corren para todos los creators. Con epoch como sentinel, `_count_messages_since(creator_id, epoch)` cuenta todos los mensajes jamás enviados, por lo que el gate 5 bloquea correctamente creators con actividad < MIN_MESSAGES_SINCE.
+- **Tests:** `TestFirstTimeCreatorGates` en `tests/test_memory_consolidator.py` — dos casos: (1) `last_at=None` + `msg_count=5 < 20` → activity gate ejecuta y bloquea antes de consolidar; (2) `last_at=None` + `_record_scan` previo → scan throttle bloquea antes de contar mensajes. Ambos fallan en el código pre-fix (`consolidate_creator` se llamaba indebidamente), pasan post-fix.
+- **Scope:** estrictamente el bloque de gates en `consolidation_job`. No se tocan `MIN_CONSOLIDATION_HOURS`, `MIN_MESSAGES_SINCE`, `SCAN_THROTTLE_SECONDS`, ni el advisory lock. No se modifica la semántica de `_count_messages_since` ni el scheduler.
+- **Refs:** W8 B.2a tier-1 audit summary (`docs/audit_sprint5/tier1/W8_T1_summary.md`), top-5 priority #2.
+
+---
+
 ## 2026-04-18 — FIX W8-T1-BUG1: Copilot discard autolearning silently failing (NameError)
 
 - **Trigger:** W8 Tier-1 forensic audit (`docs/audit_sprint5/tier1/W8_T1_copilot_cluster.md`) found that `discard_response_impl` in `core/copilot/actions.py:264,282` referenced `_Cr` and `_lead` that were never imported / never defined. The outer `try/except` at line 287 swallowed the resulting `NameError` and logged it at `debug` level, so the `copilot_discard` preference-pairs / autolearning signal silently stopped firing in prod since the rename that introduced the bug.
