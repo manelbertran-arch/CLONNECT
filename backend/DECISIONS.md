@@ -4,6 +4,30 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-19 — ARC1 A1.4: 4 remaining gates (memory, audio, commitments, dna) + S4-proximity fix
+
+- **Trigger:** ARC1 Worker A1.4. A1.3 CCEE measurement (flag-OFF=70.14, flag-ON=70.14, no delta, GO) confirmed BudgetOrchestrator is neutral. A1.4 adds 4 gates covering content types missing in A1.2 + fixes S4 regression.
+- **What changed:**
+  1. `core/dm/budget/gates/memory.py` (new): wraps `hier_memory_context` into HIGH (if recalled) or LOW (otherwise) priority section. Dynamic priority avoids low-relevance memory crowding out style.
+  2. `core/dm/budget/gates/audio.py` (new): wraps `audio_context` gated on `audio_intel` cognitive signal (value=0.70 if set, else 0.0). Only activates when an audio note has semantic content for the LLM.
+  3. `core/dm/budget/gates/commitments.py` (new): wraps `commitment_text` gated on `commitments_pending` flag (value=0.60 if set, else 0.0). Cap=150 tokens per §2.5.
+  4. `core/dm/budget/gates/dna.py` (new): wraps `dna_context` at MEDIUM priority. Value=0.75 static — DNA is always useful for persona consistency.
+  5. `core/dm/budget/gates/__init__.py`: re-exported all 8 gates.
+  6. `core/dm/budget/section.py`: added `"memory": 400` and `"dna": 300` to SECTION_CAPS; added `"memory"` and `"dna"` to `compute_value_score` base dict.
+  7. `core/dm/phases/context.py`:
+     - `_ContextAssemblyInputs` extended with 3 new optional fields: `dna_context`, `commitment_text`, `message` (all `str = ""`).
+     - `_assemble_context_new` inline `_make()` now gates non-CRITICAL zero-value sections (returns `None` if `priority != CRITICAL and value <= 0.0`).
+     - `_assemble_context_new`: S4-proximity fix — appends `<RECENT_LEAD_MESSAGE>` with last 200 chars of `inp.message` inside CRITICAL style section; adds 4 new section calls for memory/commitments/dna (+ audio already existed).
+     - Call site in `phase_memory_and_context`: 3 new kwargs passed (`dna_context`, `commitment_text`, `message`).
+  8. `tests/budget/gates/` (new): `test_memory.py`, `test_audio.py`, `test_commitments.py`, `test_dna.py` — 20 unit tests.
+  9. `tests/budget/test_integration_8gates.py` (new): 12 integration tests covering S4-proximity + all 4 new gates in orchestrator pipeline.
+- **S4-proximity fix rationale:** A1.3 measurement showed style consuming 40% of budget in some conversations. The `<RECENT_LEAD_MESSAGE>` anchor at 200 chars is CRITICAL (never dropped) and ensures tone-adaptation signals from the raw message are always visible to the LLM regardless of budget pressure.
+- **zero-value gate at `_make()`:** audio (`audio_intel` absent) and commitments (`commitments_pending` absent) produce value=0.0. Added `if priority != CRITICAL and value <= 0.0: return None` to `_make()` — consistent with gate module behavior and avoids wasteful token allocation for non-signal sections.
+- **Tests:** 126/126 passing. Smoke 7/7 pass.
+- **Next:** A1.5 — re-measure CCEE (target v5 ≥ 71.5) to validate S4 fix resolved the regression.
+
+---
+
 ## 2026-04-18 — ARC1 A1.2: Integrate BudgetOrchestrator in context.py via feature flag + shadow mode
 
 - **Trigger:** ARC1 Worker A1.2. A1.1 (commit b3720ad1) left `core/dm/budget/` ready. This step wires it into `phase_memory_and_context` without touching the production path.

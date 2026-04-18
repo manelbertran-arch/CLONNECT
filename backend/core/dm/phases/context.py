@@ -299,6 +299,10 @@ class _ContextAssemblyInputs:
     creator_id: str
     provider: str
     model: str
+    # A1.4 optional fields — default "" for backward compat with existing tests/callers
+    dna_context: str = ""
+    commitment_text: str = ""
+    message: str = ""
 
 
 def _assemble_context_legacy(inp: _ContextAssemblyInputs) -> Tuple[str, str]:
@@ -399,6 +403,8 @@ def _assemble_context_new(inp: _ContextAssemblyInputs) -> Tuple[str, str]:
     ) -> Optional[Section]:
         if not content:
             return None
+        if priority != Priority.CRITICAL and value <= 0.0:
+            return None
         return Section(
             name=name,
             content=content,
@@ -407,18 +413,34 @@ def _assemble_context_new(inp: _ContextAssemblyInputs) -> Tuple[str, str]:
             value_score=value,
         )
 
+    # S4-proximity fix (A1.4): anchor the lead's raw message inside CRITICAL style section
+    _style_content = inp.style_prompt
+    if inp.message:
+        _recent = inp.message[-200:].strip()
+        if _recent:
+            _style_content = _style_content + f"\n<RECENT_LEAD_MESSAGE>{_recent}</RECENT_LEAD_MESSAGE>"
+
     raw_sections = [
-        _make("style",      inp.style_prompt,       Priority.CRITICAL, 1.00),
-        _make("few_shots",  inp.few_shot_section,   Priority.CRITICAL, 0.95),
-        _make("friend",     inp.friend_context,     Priority.HIGH,     0.60),
-        _make("recalling",  inp.recalling,          Priority.HIGH,     compute_value_score("recalling", cog)),
-        _make("audio",      inp.audio_context,      Priority.HIGH,     0.70),
-        _make("rag",        inp.rag_context,        Priority.HIGH,     compute_value_score("rag", cog)),
-        _make("kb",         inp.kb_context,         Priority.FINAL,    0.10),
-        _make("hier_memory",inp.hier_memory_context,Priority.LOW,      0.40),
-        _make("advanced",   inp.advanced_section,   Priority.LOW,      0.30),
-        _make("citation",   inp.citation_context,   Priority.FINAL,    0.20),
-        _make("override",   inp.prompt_override,    Priority.CRITICAL, 1.00),
+        _make("style",       _style_content,         Priority.CRITICAL, 1.00),
+        _make("few_shots",   inp.few_shot_section,   Priority.CRITICAL, 0.95),
+        _make("friend",      inp.friend_context,     Priority.HIGH,     0.60),
+        _make("recalling",   inp.recalling,          Priority.HIGH,     compute_value_score("recalling", cog)),
+        # audio: conditional on audio_intel signal (A1.4)
+        _make("audio",       inp.audio_context,      Priority.HIGH,     compute_value_score("audio", cog)),
+        _make("rag",         inp.rag_context,        Priority.HIGH,     compute_value_score("rag", cog)),
+        _make("kb",          inp.kb_context,         Priority.FINAL,    0.10),
+        # A1.4 new sections — hier_memory superseded by memory gate (dynamic priority)
+        _make(
+            "memory",
+            inp.hier_memory_context,
+            Priority.HIGH if (cog.get("memory_recalled") or cog.get("episodic_recalled")) else Priority.LOW,
+            compute_value_score("memory", cog),
+        ),
+        _make("commitments", inp.commitment_text,    Priority.MEDIUM,   compute_value_score("commitments", cog)),
+        _make("dna",         inp.dna_context,        Priority.MEDIUM,   compute_value_score("dna", cog)),
+        _make("advanced",    inp.advanced_section,   Priority.LOW,      0.30),
+        _make("citation",    inp.citation_context,   Priority.FINAL,    0.20),
+        _make("override",    inp.prompt_override,    Priority.CRITICAL, 1.00),
     ]
     sections = [s for s in raw_sections if s is not None]
 
@@ -1209,6 +1231,9 @@ async def phase_memory_and_context(
         creator_id=agent.creator_id,
         provider=os.getenv("LLM_PRIMARY_PROVIDER", "gemini"),
         model=os.getenv("ACTIVE_MODEL_STRING", "gemini-2.0-flash-lite"),
+        dna_context=dna_context,
+        commitment_text=commitment_text,
+        message=message,
     )
     combined_context, system_prompt = await _assemble_context(_assembly_inp)
 

@@ -50,6 +50,8 @@ SECTION_CAPS: dict[str, int] = {
     "history":     500,
     "commitments": 150,
     "hier_memory": 200,
+    "memory":      400,   # A1.4: hierarchical memory gate (supersedes hier_memory in orchestrator path)
+    "dna":         300,   # A1.4: relationship DNA gate (derived from DNA mean 200-400 chars)
     "kb":          100,
     "citations":   50,
     "friend_context": 0,
@@ -67,6 +69,9 @@ def compute_value_score(section_name: str, cognitive_metadata: dict) -> float:
         "history":     0.50,
         "commitments": 0.60 if cognitive_metadata.get("commitments_pending") else 0.0,
         "hier_memory": 0.40,
+        # A1.4 entries
+        "memory":      0.80 if (cognitive_metadata.get("memory_recalled") or cognitive_metadata.get("episodic_recalled")) else 0.40,
+        "dna":         0.75,
         "kb":          0.10,
         "citations":   0.20,
     }
