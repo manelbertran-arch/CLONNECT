@@ -44,7 +44,7 @@ class AssembledContext:
 SECTION_CAPS: dict[str, int] = {
     "style":       800,
     "few_shots":   350,
-    "recalling":   700,  # A1.5-bis: raised 400→500→700; K1 deficit (-18.62 vs baseline) + 1173 tokens headroom in 8-gate worst case; heavy recalling blocks benefit from more room
+    "recalling":   400,  # A1.5-bis revert: 700 caused S3 -9.1 (strategic drift); K1 gain not worth ST cost. Keeps rag ×1.4 from A1.5.
     "audio":       250,
     "rag":         350,
     "history":     500,
