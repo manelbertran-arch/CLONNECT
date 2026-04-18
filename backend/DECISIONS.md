@@ -4,6 +4,21 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-18 — FIX W8-T1-BUG4: Copilot debounce race condition — regen sobrescribía la respuesta manual del creator
+
+- **Trigger:** W8 cross-system matrix audit (`docs/audit_sprint5/W8_C_compatibility_matrix.md:67-69`) detectó que `_debounced_regeneration_impl` en `core/copilot/messaging.py` hace `await asyncio.sleep(DEBOUNCE_SECONDS)` y luego regenera sin verificar si el creator respondió manualmente durante ese sleep. El único gate existente (`pending_msg.status != "pending_approval"`) no cubre el escenario: el path de respuesta manual del creator crea un `Message` nuevo con `role=assistant, approved_by=creator_manual` pero NO muta `pending_msg.status`. Resultado: a T+15s el debounce pisaba `pending_msg.content` / `pending_msg.suggested_response` con la regeneración stale.
+- **Helper ya existente:** `CopilotService.has_creator_reply_after(lead_id, since_time, session)` en `core/copilot/service.py:246` — exactamente el check que se necesita. Filtra por `role=assistant + approved_by=creator_manual + created_at > since_time`. No requiere código nuevo, solo callsites.
+- **Fix:**
+  1. En `schedule_debounced_regen_impl`: añadir `debounce_started_at = datetime.now(timezone.utc)` y `lead_id` al dict `_debounce_metadata[lead_key]`. Se captura en el momento de agendar, no tras el sleep.
+  2. En `_debounced_regeneration_impl`: tras fetch de `pending_msg`, llamar `service.has_creator_reply_after(pending_msg.lead_id, meta["debounce_started_at"], session=session)`; si True → log + return sin commit.
+  3. Doble-check pre-commit: tras la llamada LLM (`agent.process_dm` tarda varios segundos), re-ejecutar el mismo check antes del UPDATE final. Captura races donde el creator respondió durante la generación.
+- **Por qué `debounce_started_at` y no `datetime.now()` tras el sleep:** el task lo pide explícitamente. Si usamos "ahora" como cota, cualquier reply anterior al sleep quedaría fuera de la ventana — precisamente las que queremos detectar. El timestamp de inicio cubre toda la ventana de riesgo (schedule → sleep → LLM → commit).
+- **Tests:** `tests/unit/test_copilot_debounce_race.py` (3 casos): (1) reply durante sleep → skip sin commit, `process_dm` no se llama; (2) sanity happy-path — sin reply, commit y update ocurren; (3) reply durante LLM call — pre-commit re-check atrapa el race. Los 3 fallan pre-fix, pasan post-fix.
+- **Scope:** 1 archivo editado (`core/copilot/messaging.py`: +22 líneas en 2 bloques) + 1 archivo de test nuevo. No se toca `DEBOUNCE_SECONDS` (protegido por CLAUDE.md, sigue en 15s). No se toca `has_creator_reply_after` ni su firma. No se toca el path de send manual del creator.
+- **Refs:** `docs/audit_sprint5/W8_C_compatibility_matrix.md:67-69`, W8 cross-matrix priority 🔴.
+
+---
+
 ## 2026-04-18 — FIX W8-T1-BUG3: DNA analyze double-schedule (thread + asyncio.create_task) para el mismo lead
 
 - **Trigger:** W8 Tier-1 forensic audit (`docs/audit_sprint5/tier1/W8_T1_dna_update_triggers.md` + `W8_T1_relationship_dna.md`) detectó que dos call sites independientes podían disparar `analyze_and_update_dna(creator_id, follower_id, …)` concurrentemente para el mismo par:
