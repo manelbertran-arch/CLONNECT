@@ -229,13 +229,17 @@ def schedule_debounced_regen_impl(
         existing_task.cancel()
         logger.info(f"[Copilot:Debounce] Cancelled previous regen timer for lead {lead_key}")
 
-    # Store metadata for the regeneration
+    # Store metadata for the regeneration.
+    # W8-T1-BUG4: debounce_started_at lets the post-sleep regen detect if
+    # the creator replied manually while we were sleeping; if so we skip.
     service._debounce_metadata[lead_key] = {
         "creator_id": creator_id,
         "follower_id": follower_id,
         "platform": platform,
         "pending_message_id": pending_message_id,
         "username": username,
+        "debounce_started_at": datetime.now(timezone.utc),
+        "lead_id": lead_id,
     }
 
     # Schedule new delayed regeneration
@@ -279,6 +283,21 @@ async def _debounced_regeneration_impl(service, lead_key: str):
             )
             return
 
+        # W8-T1-BUG4: if creator replied manually during the debounce sleep,
+        # the pending status may still be "pending_approval" (parallel reply
+        # path doesn't touch it), so we also check has_creator_reply_after
+        # against debounce_started_at — not "now" — to catch replies that
+        # arrived during sleep.
+        debounce_started_at = meta.get("debounce_started_at")
+        if debounce_started_at and service.has_creator_reply_after(
+            pending_msg.lead_id, debounce_started_at, session=session
+        ):
+            logger.info(
+                f"[Copilot:Debounce] Creator replied manually for lead {lead_key} "
+                f"during debounce window — skipping regen to avoid overwrite"
+            )
+            return
+
         # Get the latest user message for this lead
         latest_user_msg = (
             session.query(Message)
@@ -313,6 +332,18 @@ async def _debounced_regeneration_impl(service, lead_key: str):
         if pending_msg.status != "pending_approval":
             logger.info(
                 f"[Copilot:Debounce] Pending msg changed to {pending_msg.status} during regen — skipping"
+            )
+            return
+
+        # W8-T1-BUG4: re-check creator-reply between the post-sleep gate and
+        # now (LLM call can take several seconds — creator may have replied
+        # during generation).
+        if debounce_started_at and service.has_creator_reply_after(
+            pending_msg.lead_id, debounce_started_at, session=session
+        ):
+            logger.info(
+                f"[Copilot:Debounce] Creator replied during LLM regen for lead {lead_key} "
+                f"— skipping write"
             )
             return
 

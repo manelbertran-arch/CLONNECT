@@ -92,3 +92,60 @@ class TestDNAUpdateTriggers:
 
             assert result is True
             mock_schedule.assert_called_once()
+
+
+class TestInflightDedup:
+    """W8-T1-BUG3: dedup by (creator_id, follower_id)."""
+
+    def setup_method(self):
+        from services.dna_update_triggers import _inflight, _inflight_lock
+        with _inflight_lock:
+            _inflight.clear()
+
+    def test_register_returns_true_first_time(self):
+        from services.dna_update_triggers import (
+            try_register_inflight, release_inflight,
+        )
+        assert try_register_inflight("c1", "f1") is True
+        release_inflight("c1", "f1")
+
+    def test_register_returns_false_if_already_inflight(self):
+        from services.dna_update_triggers import (
+            try_register_inflight, release_inflight,
+        )
+        assert try_register_inflight("c1", "f1") is True
+        assert try_register_inflight("c1", "f1") is False
+        release_inflight("c1", "f1")
+        assert try_register_inflight("c1", "f1") is True
+        release_inflight("c1", "f1")
+
+    def test_different_pairs_independent(self):
+        from services.dna_update_triggers import (
+            try_register_inflight, release_inflight,
+        )
+        assert try_register_inflight("c1", "f1") is True
+        assert try_register_inflight("c1", "f2") is True
+        assert try_register_inflight("c2", "f1") is True
+        release_inflight("c1", "f1")
+        release_inflight("c1", "f2")
+        release_inflight("c2", "f1")
+
+    def test_schedule_dna_update_skips_double(self):
+        """Second schedule_dna_update for same pair returns False without scheduling."""
+        from services.dna_update_triggers import (
+            schedule_dna_update, try_register_inflight,
+        )
+        # Pre-register to simulate a concurrent analysis already in-flight.
+        assert try_register_inflight("c1", "f1") is True
+        try:
+            with patch("threading.Thread") as mock_thread:
+                result = schedule_dna_update("c1", "f1", [])
+                assert result is False
+                mock_thread.assert_not_called()
+        finally:
+            from services.dna_update_triggers import release_inflight
+            release_inflight("c1", "f1")
+
+    def test_release_is_idempotent(self):
+        from services.dna_update_triggers import release_inflight
+        release_inflight("never-registered", "x")  # No error

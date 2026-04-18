@@ -259,9 +259,10 @@ async def discard_response_impl(
         # Preference pairs hook: fire-and-forget via unified FeedbackCapture
         try:
             from services.feedback_store import capture as feedback_capture
-            from api.models import Message as _Msg2
+            from api.models import Creator, Lead, Message as _Msg2
 
-            _cr = session.query(_Cr).filter_by(name=creator_id).first() if not locals().get("_creator") else _creator
+            _cr = session.query(Creator).filter_by(name=creator_id).first()
+            _lead = session.query(Lead).filter_by(id=msg.lead_id).first() if msg.lead_id else None
             if _cr:
                 # BUG-1 fix: fetch preceding user message
                 _preceding2 = session.query(_Msg2.content).filter(

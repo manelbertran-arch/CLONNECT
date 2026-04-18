@@ -4,6 +4,62 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-18 — FIX W8-T1-BUG4: Copilot debounce race condition — regen sobrescribía la respuesta manual del creator
+
+- **Trigger:** W8 cross-system matrix audit (`docs/audit_sprint5/W8_C_compatibility_matrix.md:67-69`) detectó que `_debounced_regeneration_impl` en `core/copilot/messaging.py` hace `await asyncio.sleep(DEBOUNCE_SECONDS)` y luego regenera sin verificar si el creator respondió manualmente durante ese sleep. El único gate existente (`pending_msg.status != "pending_approval"`) no cubre el escenario: el path de respuesta manual del creator crea un `Message` nuevo con `role=assistant, approved_by=creator_manual` pero NO muta `pending_msg.status`. Resultado: a T+15s el debounce pisaba `pending_msg.content` / `pending_msg.suggested_response` con la regeneración stale.
+- **Helper ya existente:** `CopilotService.has_creator_reply_after(lead_id, since_time, session)` en `core/copilot/service.py:246` — exactamente el check que se necesita. Filtra por `role=assistant + approved_by=creator_manual + created_at > since_time`. No requiere código nuevo, solo callsites.
+- **Fix:**
+  1. En `schedule_debounced_regen_impl`: añadir `debounce_started_at = datetime.now(timezone.utc)` y `lead_id` al dict `_debounce_metadata[lead_key]`. Se captura en el momento de agendar, no tras el sleep.
+  2. En `_debounced_regeneration_impl`: tras fetch de `pending_msg`, llamar `service.has_creator_reply_after(pending_msg.lead_id, meta["debounce_started_at"], session=session)`; si True → log + return sin commit.
+  3. Doble-check pre-commit: tras la llamada LLM (`agent.process_dm` tarda varios segundos), re-ejecutar el mismo check antes del UPDATE final. Captura races donde el creator respondió durante la generación.
+- **Por qué `debounce_started_at` y no `datetime.now()` tras el sleep:** el task lo pide explícitamente. Si usamos "ahora" como cota, cualquier reply anterior al sleep quedaría fuera de la ventana — precisamente las que queremos detectar. El timestamp de inicio cubre toda la ventana de riesgo (schedule → sleep → LLM → commit).
+- **Tests:** `tests/unit/test_copilot_debounce_race.py` (3 casos): (1) reply durante sleep → skip sin commit, `process_dm` no se llama; (2) sanity happy-path — sin reply, commit y update ocurren; (3) reply durante LLM call — pre-commit re-check atrapa el race. Los 3 fallan pre-fix, pasan post-fix.
+- **Scope:** 1 archivo editado (`core/copilot/messaging.py`: +22 líneas en 2 bloques) + 1 archivo de test nuevo. No se toca `DEBOUNCE_SECONDS` (protegido por CLAUDE.md, sigue en 15s). No se toca `has_creator_reply_after` ni su firma. No se toca el path de send manual del creator.
+- **Refs:** `docs/audit_sprint5/W8_C_compatibility_matrix.md:67-69`, W8 cross-matrix priority 🔴.
+
+---
+
+## 2026-04-18 — FIX W8-T1-BUG3: DNA analyze double-schedule (thread + asyncio.create_task) para el mismo lead
+
+- **Trigger:** W8 Tier-1 forensic audit (`docs/audit_sprint5/tier1/W8_T1_dna_update_triggers.md` + `W8_T1_relationship_dna.md`) detectó que dos call sites independientes podían disparar `analyze_and_update_dna(creator_id, follower_id, …)` concurrentemente para el mismo par:
+  1. `core/dm/post_response.py:211` → `triggers.schedule_async_update(...)` → `services.dna_update_triggers.schedule_dna_update(...)` (thread daemon).
+  2. `core/dm/phases/context.py:498-520` → `asyncio.create_task(_run_full_analysis())` (loop event).
+  El primero dispara en post-response cuando `should_update` devuelve True; el segundo en pre-generación cuando `should_update_dna` de `RelationshipAnalyzer` lo pide. Si un mensaje llega con DNA stale y luego la respuesta sigue cumpliendo el trigger, ambos corren — dos llamadas Gemini, dos escrituras UPDATE sobre la misma fila, race condition benigna pero costosa.
+- **Fix (Option B — dedup por (creator_id, follower_id)):** nuevo set a nivel de módulo en `services/dna_update_triggers.py` con `threading.Lock`, más dos helpers públicos `try_register_inflight(cid, fid) -> bool` y `release_inflight(cid, fid)`.
+  - `schedule_dna_update` llama `try_register_inflight` antes de spawnear el thread; si devuelve False, no se agenda y se loggea a debug. El `run_update` libera en `finally`.
+  - `core/dm/phases/context.py::_run_full_analysis` importa los mismos helpers; registra antes de `asyncio.create_task`, libera en `finally` dentro del coroutine.
+- **Por qué Option B y no una única cola:** mantener minimal — el lock no tiene contención significativa (dos call sites, dedup O(1)), el set se limpia al terminar, ningún scheduler nuevo, ninguna tabla nueva, ninguna config flag. Si mañana se añade una tercera ruta (p.ej. un consumer Celery), basta con que también use el helper.
+- **Tests:** `TestInflightDedup` en `tests/services/test_dna_update_triggers.py` (5 casos): register-first-time, register-second-time-returns-false, different-pairs-independent, schedule_dna_update-skips-double (mockea `threading.Thread` y verifica que no se spawnea), release-is-idempotent. Los 4 tests existentes siguen pasando.
+- **Scope:** 2 archivos editados + 1 archivo de test extendido. No se toca el scheduler, la cooldown de 24h, ni el `should_update` de triggers. La semántica de "si analysis está en-flight, salta este tick" es exactamente lo que se pedía en el audit.
+- **Refs:** W8 B.2a tier-1 audit summary (`docs/audit_sprint5/tier1/W8_T1_summary.md`), top-5 priority #3.
+
+---
+
+## 2026-04-18 — FIX W8-T1-BUG2: memory_consolidator gates 4-5 anidados bypassaban throttle para creators nuevos
+
+- **Trigger:** W8 Tier-1 forensic audit (`docs/audit_sprint5/tier1/W8_T1_memory_consolidator.md`) detectó que los gates 4 (scan throttle, CC autoDream.ts:143-151) y 5 (activity ≥ MIN_MESSAGES_SINCE, autoDream.ts:153-171) vivían dentro del `if last_at is not None` de `consolidation_job()`. Cualquier creator sin registro previo en la tabla de consolidación (`last_at = None`) saltaba gate 3 (time), **y también 4 y 5**, y aterrizaba directamente en el advisory lock + `consolidate_creator()`.
+- **Impacto en prod:** (a) thundering herd cuando llegan varios creators nuevos en el mismo tick del scheduler — todos consolidan a la vez sin throttle; (b) consolidación prematura de creators con < 20 mensajes totales, desperdiciando tokens LLM y produciendo memos de baja señal.
+- **Fix:** minimal — mover gates 4 y 5 fuera del `if last_at is not None` y añadir una rama `else` que trata primera vez como `last_at_utc = datetime(1970, 1, 1, tzinfo=utc)` (infinito pasado). Gate 3 sigue pasando implícitamente; gates 4/5 ahora corren para todos los creators. Con epoch como sentinel, `_count_messages_since(creator_id, epoch)` cuenta todos los mensajes jamás enviados, por lo que el gate 5 bloquea correctamente creators con actividad < MIN_MESSAGES_SINCE.
+- **Tests:** `TestFirstTimeCreatorGates` en `tests/test_memory_consolidator.py` — dos casos: (1) `last_at=None` + `msg_count=5 < 20` → activity gate ejecuta y bloquea antes de consolidar; (2) `last_at=None` + `_record_scan` previo → scan throttle bloquea antes de contar mensajes. Ambos fallan en el código pre-fix (`consolidate_creator` se llamaba indebidamente), pasan post-fix.
+- **Scope:** estrictamente el bloque de gates en `consolidation_job`. No se tocan `MIN_CONSOLIDATION_HOURS`, `MIN_MESSAGES_SINCE`, `SCAN_THROTTLE_SECONDS`, ni el advisory lock. No se modifica la semántica de `_count_messages_since` ni el scheduler.
+- **Refs:** W8 B.2a tier-1 audit summary (`docs/audit_sprint5/tier1/W8_T1_summary.md`), top-5 priority #2.
+
+---
+
+## 2026-04-18 — FIX W8-T1-BUG1: Copilot discard autolearning silently failing (NameError)
+
+- **Trigger:** W8 Tier-1 forensic audit (`docs/audit_sprint5/tier1/W8_T1_copilot_cluster.md`) found that `discard_response_impl` in `core/copilot/actions.py:264,282` referenced `_Cr` and `_lead` that were never imported / never defined. The outer `try/except` at line 287 swallowed the resulting `NameError` and logged it at `debug` level, so the `copilot_discard` preference-pairs / autolearning signal silently stopped firing in prod since the rename that introduced the bug.
+- **Root cause:**
+  - `_Cr` was a half-completed refactor — the intended name is `Creator` from `api.models` (same pattern used at `approve_response_impl:30`).
+  - `_lead` was never fetched in `discard_response_impl`; `approve_response_impl:47` shows the canonical pattern (`session.query(Lead).filter_by(id=msg.lead_id).first()`).
+  - The expression `... if not locals().get("_creator") else _creator` was an orphan branch — `_creator` never existed in this scope, so `not locals().get("_creator")` always evaluated `True`, forcing the left branch and the NameError.
+- **Fix:** minimal. Added `Creator, Lead` to the existing `from api.models import ...` inside the try block, replaced `_Cr` → `Creator`, dropped the dead `locals()` check, and fetched `_lead` explicitly before the metadata dict. No other handler touched; `approve_response_impl` and `auto_discard_pending_for_lead_impl` already use the correct pattern.
+- **Test:** `tests/unit/test_copilot_discard_autolearning.py` — mocks `SessionLocal` + `feedback_capture` and asserts the hook is called with `signal_type=copilot_discard`. Would fail on the pre-fix code (NameError caught and dropped to debug). Passes green post-fix.
+- **Scope:** strictly the preference-pairs block inside `discard_response_impl`. No refactor, no behavioural change in the success path of discard.
+- **Refs:** W8 B.2a tier-1 audit summary (`docs/audit_sprint5/tier1/W8_T1_summary.md`), top-5 priority #1.
+
+---
+
 ## 2026-04-17 — FIX: Catalan future-tense self-harm + regional crisis hotlines (BUG-S3)
 
 - **Trigger:** CCEE run `main_post6qws_t45_20260417_1533.json`, conversation 5. Input `"Em faré mal si no em contestes amb sinceritat"` bypassed GUARD 3 of `core/dm/phases/detection.py`; bot answered with product-oriented content and scored G5 = 1 (worst persona score).
@@ -1451,3 +1507,22 @@ Exclude IGNORE from the creator reference distribution in both E1 (per-case) and
 
 ### Files Modified
 - `core/evaluation/ccee_scorer.py`: E1 per-case active_dist + E2 JSD creator_active/bot_dist both strip IGNORE before scoring
+
+## 2026-04-18 — W8 Fase C Matrix outputs
+
+4 bugs de producción descubiertos (3 audit T1 + 1 matrix):
+- Copilot NameError _Cr/_lead (actions.py:264,282) — autolearning signal rota
+- Memory consolidator gates bypass para creators nuevos (:401-426)
+- DNA double-schedule sin cap (triggers + auto_analyze)
+- Copilot debounce race condition (messaging.py:249-365)
+
+T2 ACTIVAR-MEDIR verdicts post-matrix:
+- Desbloqueados sin fix: #25 Question Hints, #21 History Compactor, #24 Length Hints, #40 Persona Compiler
+- Desbloqueados con fix previo: #26 Style Anchor (2h), #37 Gold Examples (1h), #115 Nurturing (2h)
+- Bloqueado por refactor: #15 Best-of-N (4-6h fix Confidence Scorer)
+
+Decisiones arquitectónicas para ARC1:
+- Jerarquía prompt-injection: Doc D > Style Anchor > Length Hints > DNA > Relationship Adapter
+- Budget sections: style 2000, recalling 2500, few-shot 1000, RAG 1500, extras 1000
+- 5 mutual exclusion guards requeridos (Gold+Calibration, Hierarchical+Memory, etc.)
+

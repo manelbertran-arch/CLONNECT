@@ -501,24 +501,36 @@ async def phase_memory_and_context(
             msg_count = follower.total_messages or len(hist)
             if msg_count >= 5 and hist:
                 from services.relationship_analyzer import RelationshipAnalyzer
+                from services.dna_update_triggers import (
+                    try_register_inflight,
+                    release_inflight,
+                )
                 _analyzer = RelationshipAnalyzer()
                 if _analyzer.should_update_dna(raw_dna, msg_count):
-                    async def _run_full_analysis():
-                        try:
-                            from services.relationship_dna_service import get_dna_service
-                            svc = get_dna_service()
-                            await asyncio.to_thread(
-                                svc.analyze_and_update_dna,
-                                agent.creator_id, sender_id, hist,
-                            )
-                            logger.info(
-                                f"[DNA-ANALYZE] Full analysis completed for {sender_id} "
-                                f"({msg_count} msgs)"
-                            )
-                        except Exception as e:
-                            logger.debug(f"DNA full analysis failed: {e}")
-                    asyncio.create_task(_run_full_analysis())
-                    cognitive_metadata["dna_full_analysis_triggered"] = True
+                    # W8-T1-BUG3: dedup against schedule_dna_update (post_response.py)
+                    if try_register_inflight(agent.creator_id, sender_id):
+                        async def _run_full_analysis():
+                            try:
+                                from services.relationship_dna_service import get_dna_service
+                                svc = get_dna_service()
+                                await asyncio.to_thread(
+                                    svc.analyze_and_update_dna,
+                                    agent.creator_id, sender_id, hist,
+                                )
+                                logger.info(
+                                    f"[DNA-ANALYZE] Full analysis completed for {sender_id} "
+                                    f"({msg_count} msgs)"
+                                )
+                            except Exception as e:
+                                logger.debug(f"DNA full analysis failed: {e}")
+                            finally:
+                                release_inflight(agent.creator_id, sender_id)
+                        asyncio.create_task(_run_full_analysis())
+                        cognitive_metadata["dna_full_analysis_triggered"] = True
+                    else:
+                        logger.debug(
+                            f"[DNA-ANALYZE] Skipped for {sender_id} — already in-flight"
+                        )
         except Exception as e:
             logger.debug(f"DNA auto-analyze check failed: {e}")
 
