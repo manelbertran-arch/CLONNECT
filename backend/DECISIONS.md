@@ -1492,3 +1492,22 @@ Exclude IGNORE from the creator reference distribution in both E1 (per-case) and
 
 ### Files Modified
 - `core/evaluation/ccee_scorer.py`: E1 per-case active_dist + E2 JSD creator_active/bot_dist both strip IGNORE before scoring
+
+## 2026-04-18 — W8 Fase C Matrix outputs
+
+4 bugs de producción descubiertos (3 audit T1 + 1 matrix):
+- Copilot NameError _Cr/_lead (actions.py:264,282) — autolearning signal rota
+- Memory consolidator gates bypass para creators nuevos (:401-426)
+- DNA double-schedule sin cap (triggers + auto_analyze)
+- Copilot debounce race condition (messaging.py:249-365)
+
+T2 ACTIVAR-MEDIR verdicts post-matrix:
+- Desbloqueados sin fix: #25 Question Hints, #21 History Compactor, #24 Length Hints, #40 Persona Compiler
+- Desbloqueados con fix previo: #26 Style Anchor (2h), #37 Gold Examples (1h), #115 Nurturing (2h)
+- Bloqueado por refactor: #15 Best-of-N (4-6h fix Confidence Scorer)
+
+Decisiones arquitectónicas para ARC1:
+- Jerarquía prompt-injection: Doc D > Style Anchor > Length Hints > DNA > Relationship Adapter
+- Budget sections: style 2000, recalling 2500, few-shot 1000, RAG 1500, extras 1000
+- 5 mutual exclusion guards requeridos (Gold+Calibration, Hierarchical+Memory, etc.)
+
