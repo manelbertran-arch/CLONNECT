@@ -1526,3 +1526,19 @@ Decisiones arquitectónicas para ARC1:
 - Budget sections: style 2000, recalling 2500, few-shot 1000, RAG 1500, extras 1000
 - 5 mutual exclusion guards requeridos (Gold+Calibration, Hierarchical+Memory, etc.)
 
+
+## 2026-04-18 18:15 — Prod pipeline broken (cachetools)
+
+Post-merge fix/W8-prod-bugs, Railway deploy running antiguo build sin cachetools.
+Síntoma: ModuleNotFoundError en core/security/alerting.py:32 al importar TTLCache.
+Error cascade en core/dm/phases/detection.py → process_dm devuelve "Lo siento, hubo un error".
+
+Impacto: NULO (bot_active=false en ambos creators, se mide en local).
+
+Fix pendiente (no urgente):
+1. grep cachetools requirements.txt (confirmar que está pineado)
+2. Si está: force rebuild Railway (empty commit o clear cache desde dashboard)
+3. Si no está: re-pin cachetools>=5.3.0,<6.0.0 y push
+
+Hacer antes de reactivar bot_active=true para cualquier creator.
+
