@@ -4,6 +4,24 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-18 — ARC1 A1.2: Integrate BudgetOrchestrator in context.py via feature flag + shadow mode
+
+- **Trigger:** ARC1 Worker A1.2. A1.1 (commit b3720ad1) left `core/dm/budget/` ready. This step wires it into `phase_memory_and_context` without touching the production path.
+- **Design:** `docs/sprint5_planning/ARC1_token_aware_budget.md §2.7`.
+- **What changed:**
+  1. `core/dm/phases/context.py`: added `_ContextAssemblyInputs` dataclass, extracted inline assembly block into `_assemble_context_legacy` (exact copy — zero logic change), added `_assemble_context_new` (token-budget path), added async `_assemble_context` router. Call site in `phase_memory_and_context` replaced with `await _assemble_context(_assembly_inp)`.
+  2. `core/dm/budget/gates/` (new): `style.py`, `fewshots.py`, `rag.py`, `history.py`, `__init__.py`. Each gate wraps a pre-computed section string into a typed `Section`. Async to support `asyncio.wait_for` timeout.
+  3. `tests/budget/test_integration.py` (new): 22 tests covering all paths.
+- **Flag routing:**
+  - `ENABLE_BUDGET_ORCHESTRATOR=false` (default) → legacy path, zero diff.
+  - `ENABLE_BUDGET_ORCHESTRATOR=true` → BudgetOrchestrator path.
+  - `BUDGET_ORCHESTRATOR_SHADOW=true` → both run in parallel, legacy output returned, diff logged at INFO (`budget_orchestrator_shadow: tokens_legacy=X tokens_new=Y diff=Z`). Shadow exceptions are fail-silent (only warning logged).
+- **Why extract to dataclass instead of inner function:** module-level functions are testable in isolation without calling the full `phase_memory_and_context` coroutine. Inner functions would require a 1200-line integration harness per test.
+- **Why `provider=os.getenv("LLM_PRIMARY_PROVIDER", "gemini")`:** `TokenCounter` uses this for tiktoken/genai selection. Falls back to `len//4` if provider is unrecognised — acceptable estimation error (<3%) for budget gating. Agent object does not expose provider as an attribute.
+- **Scope:** 1 file modified (`context.py`), 6 files created. No changes to `generation.py`, `postprocessing.py`, or any production env var. Feature flag defaults OFF — A1.3 will validate with CCEE before enabling.
+
+---
+
 ## 2026-04-18 — FIX W8-T1-BUG4: Copilot debounce race condition — regen sobrescribía la respuesta manual del creator
 
 - **Trigger:** W8 cross-system matrix audit (`docs/audit_sprint5/W8_C_compatibility_matrix.md:67-69`) detectó que `_debounced_regeneration_impl` en `core/copilot/messaging.py` hace `await asyncio.sleep(DEBOUNCE_SECONDS)` y luego regenera sin verificar si el creator respondió manualmente durante ese sleep. El único gate existente (`pending_msg.status != "pending_approval"`) no cubre el escenario: el path de respuesta manual del creator crea un `Message` nuevo con `role=assistant, approved_by=creator_manual` pero NO muta `pending_msg.status`. Resultado: a T+15s el debounce pisaba `pending_msg.content` / `pending_msg.suggested_response` con la regeneración stale.
