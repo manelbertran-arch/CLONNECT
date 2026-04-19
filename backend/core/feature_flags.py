@@ -79,6 +79,14 @@ class FeatureFlags:
         default_factory=lambda: _flag("ENABLE_DUAL_WRITE_LEAD_MEMORIES", True)
     )
 
+    # === ARC2 Memory Consolidation — Phase 3 Read Cutover ===
+    # When ON: context.py reads memory from arc2_lead_memories via LeadMemoryService.
+    # When OFF: legacy path (ENABLE_MEMORY_ENGINE or empty). Default OFF — activate
+    # per-creator after CCEE validation confirms K1 improvement ≥ 5 points.
+    lead_memories_read: bool = field(
+        default_factory=lambda: _flag("ENABLE_LEAD_MEMORIES_READ", False)
+    )
+
     # === ARC5 Observability — Typed Metadata ===
     # Phase 2: replace flat dict writes in DM phases with Pydantic sub-models.
     # Default OFF — activate via USE_TYPED_METADATA=true for gradual rollout.

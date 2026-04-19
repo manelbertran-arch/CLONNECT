@@ -187,6 +187,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 if PROMETHEUS_AVAILABLE:
     app.add_middleware(MetricsMiddleware)
 
+# ARC5 Phase 3 — creator context middleware (auto-injects creator_id/lead_id into emit_metric)
+try:
+    from core.observability.middleware import CreatorContextMiddleware
+    app.add_middleware(CreatorContextMiddleware)
+    logging.info("[ARC5] CreatorContextMiddleware registered")
+except Exception as _e:
+    logging.warning("[ARC5] CreatorContextMiddleware not loaded: %s", _e)
+
 
 # ---------------------------------------------------------
 # ROUTERS

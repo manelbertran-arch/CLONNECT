@@ -37,6 +37,8 @@ ENABLE_QUESTION_HINTS = os.getenv("ENABLE_QUESTION_HINTS", "true").lower() == "t
 ENABLE_DNA_AUTO_ANALYZE = os.getenv("ENABLE_DNA_AUTO_ANALYZE", "true").lower() == "true"
 # Sprint 4 G5: cache boundary — CC pattern P1 (SYSTEM_PROMPT_DYNAMIC_BOUNDARY)
 ENABLE_PROMPT_CACHE_BOUNDARY = os.getenv("ENABLE_PROMPT_CACHE_BOUNDARY", "false").lower() == "true"
+# ARC2 Phase 3 — read cutover: read from arc2_lead_memories via LeadMemoryService
+ENABLE_LEAD_MEMORIES_READ = os.getenv("ENABLE_LEAD_MEMORIES_READ", "false").lower() == "true"
 
 # ── Universal RAG gate: dynamic keywords from creator's content_chunks ──
 
@@ -257,6 +259,162 @@ def _format_products_section(products: list) -> str:
             line += f"\n  Link: {url}"
         lines.append(line)
     return "\n".join(lines)
+
+
+# ── ARC2 read-cutover helpers ────────────────────────────────────────────────
+
+_MAX_ARC2_MEMORY_CHARS = 2000
+_ARC2_TYPE_LABELS = {
+    "identity": "Datos personales",
+    "interest": "Intereses",
+    "objection": "Objeciones",
+    "intent_signal": "Señales de intención",
+    "relationship_state": "Estado relación",
+}
+# RC3: priority ordering — identity+objection most critical for response quality
+_ARC2_TYPE_PRIORITY = ["identity", "objection", "intent_signal", "interest", "relationship_state"]
+
+
+def _format_arc2_memories(memories: list) -> str:
+    """Format arc2_lead_memories rows into a <memoria>-wrapped prompt block (≤2000 chars).
+
+    RC2: wraps output in <memoria>...</memoria> — matches footer instruction.
+    RC3: dedup by content, priority ordering, smart truncation (drop full items, not mid-string).
+    """
+    if not memories:
+        return ""
+
+    # Dedup by content (case-insensitive strip) — keep highest confidence per content
+    seen: dict[str, object] = {}
+    for m in memories:
+        key = (m.content or "").strip().lower()
+        if not key:
+            continue
+        existing = seen.get(key)
+        if existing is None or (m.confidence or 0.0) > (existing.confidence or 0.0):
+            seen[key] = m
+    deduped = list(seen.values())
+
+    # Group by type, sort within type by confidence DESC, then by created_at DESC
+    by_type: dict = {t: [] for t in _ARC2_TYPE_PRIORITY}
+    for m in deduped:
+        if m.memory_type in by_type:
+            by_type[m.memory_type].append(m)
+    for t in by_type:
+        by_type[t].sort(
+            key=lambda m: (-(m.confidence or 0.0), -(getattr(m, "created_at_ts", 0) or 0)),
+        )
+
+    # Build lines in priority order; track per-line to allow smart truncation
+    lines: list[str] = []
+    for memory_type in _ARC2_TYPE_PRIORITY:
+        label = _ARC2_TYPE_LABELS[memory_type]
+        items = by_type.get(memory_type, [])
+        if not items:
+            continue
+        contents = [m.content for m in items if m.content]
+        if contents:
+            lines.append(f"<memoria tipo=\"{memory_type}\">{label}: {', '.join(contents)}</memoria>")
+
+    if not lines:
+        return ""
+
+    # Smart truncation: drop low-priority lines from the end until fits
+    while lines:
+        result = "\n".join(lines)
+        if len(result) <= _MAX_ARC2_MEMORY_CHARS:
+            return result
+        lines.pop()  # drop lowest-priority line
+
+    return ""
+
+
+def _read_arc2_memories_sync(
+    creator_slug: str,
+    platform_user_id: str,
+    message: str = "",
+) -> str:
+    """Resolve creator + lead UUIDs, then read from arc2_lead_memories.
+
+    RC1: tries recall_semantic() first (pgvector cosine on current message).
+    Falls back to get_all() if no embeddings exist or embedding generation fails.
+    Uses its own SessionLocal — safe for asyncio.to_thread calls.
+    Returns empty string on any lookup failure (fail-silent).
+    """
+    from api.database import SessionLocal
+    from sqlalchemy import text as _text
+
+    try:
+        db = SessionLocal()
+    except Exception as exc:
+        logger.debug("[ARC2-MEMORY] _read_arc2_memories_sync failed: %s", exc)
+        return ""
+    try:
+        creator_row = db.execute(
+            _text("SELECT id FROM creators WHERE name = :slug LIMIT 1"),
+            {"slug": creator_slug},
+        ).fetchone()
+        if not creator_row:
+            return ""
+        creator_uuid = str(creator_row[0])
+
+        raw = platform_user_id
+        for prefix in ("ig_", "wa_", "tg_"):
+            if raw.startswith(prefix):
+                raw = raw[len(prefix):]
+                break
+        lead_row = db.execute(
+            _text(
+                "SELECT id FROM leads "
+                "WHERE creator_id = CAST(:cid AS uuid) "
+                "AND platform_user_id = ANY(ARRAY[:pid, :raw, :ig, :wa, :tg]) "
+                "LIMIT 1"
+            ),
+            {
+                "cid": creator_uuid,
+                "pid": platform_user_id,
+                "raw": raw,
+                "ig": f"ig_{raw}",
+                "wa": f"wa_{raw}",
+                "tg": f"tg_{raw}",
+            },
+        ).fetchone()
+        if not lead_row:
+            return ""
+        lead_uuid = str(lead_row[0])
+
+        from services.lead_memory_service import LeadMemoryService
+        svc = LeadMemoryService(db)
+
+        # RC1: semantic search on current message; fallback to get_all if no embeddings
+        memories = None
+        if message:
+            try:
+                from core.embeddings import generate_embedding
+                query_embedding = generate_embedding(message)
+                if query_embedding:
+                    memories = svc.recall_semantic(
+                        creator_uuid, lead_uuid, query_embedding, top_k=10, threshold=0.6
+                    )
+                    if not memories:
+                        # No embeddings populated yet — fall through to get_all
+                        memories = None
+            except Exception as emb_exc:
+                logger.warning("[ARC2-MEMORY] semantic search failed, falling back: %s", emb_exc)
+                memories = None
+
+        if memories is None:
+            memories = svc.get_all(creator_uuid, lead_uuid)
+
+        return _format_arc2_memories(memories)
+    except Exception as exc:
+        logger.debug("[ARC2-MEMORY] _read_arc2_memories_sync failed: %s", exc)
+        return ""
+    finally:
+        db.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 def _format_safety_section(name: str, tone_key: str = "friendly") -> str:
@@ -551,7 +709,18 @@ async def phase_memory_and_context(
 
     # Memory recall (per-lead context from past conversations)
     memory_context = ""
-    if os.getenv("ENABLE_MEMORY_ENGINE", "false").lower() == "true":
+    if ENABLE_LEAD_MEMORIES_READ:
+        try:
+            memory_context = await asyncio.to_thread(
+                _read_arc2_memories_sync, agent.creator_id, sender_id, message
+            )
+            if memory_context:
+                cognitive_metadata["memory_recalled"] = True
+                cognitive_metadata["memory_chars"] = len(memory_context)
+                cognitive_metadata["memory_source"] = "arc2_lead_memories"
+        except Exception as e:
+            logger.debug(f"[ARC2-MEMORY] recall failed: {e}")
+    elif os.getenv("ENABLE_MEMORY_ENGINE", "false").lower() == "true":
         try:
             from services.memory_engine import get_memory_engine
             mem_engine = get_memory_engine()
@@ -1034,7 +1203,7 @@ async def phase_memory_and_context(
         header = f"Sobre @{username}:"
         # Zep pattern: step-by-step usage instruction. MRPrompt (2026):
         # explicit protocol improves memory utilization in ≤14B models.
-        footer = "IMPORTANTE: Lee <memoria> y responde mencionando algo de ahí. No repitas textual."
+        footer = "IMPORTANTE: Lee las etiquetas <memoria> y responde mencionando algo de ahí. No repitas textual."
         return header + "\n" + "\n".join(parts) + "\n" + footer
 
     # Frustration note — factual, no behavior instruction (v2)
