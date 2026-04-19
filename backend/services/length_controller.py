@@ -362,6 +362,11 @@ def enforce_length(
     Returns:
         Response, possibly shortened but always complete sentences.
     """
+    # ARC4: kill switch for shadow testing — DISABLE_M6_NORMALIZE_LENGTH=true skips enforcement
+    import os
+    if os.getenv("DISABLE_M6_NORMALIZE_LENGTH", "false").lower() == "true":
+        return response
+
     if context is None:
         context = classify_lead_context(lead_message)
 

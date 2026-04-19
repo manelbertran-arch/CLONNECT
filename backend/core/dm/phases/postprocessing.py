@@ -109,7 +109,9 @@ async def phase_postprocessing(
     # Only trigger on longer responses (> 50 chars) to avoid chopping natural
     # short expressions like "jajajaja" (8 chars) or "dale dale" (9 chars).
     try:
-        if response_content and len(response_content) > 50:
+        if flags.m3_disable_dedupe_repetitions:
+            pass  # ARC4: shadow testing — skip M3
+        elif response_content and len(response_content) > 50:
             _resp_lower = response_content.lower()
             _match = re.search(r'(.{2,8})\1{4,}', _resp_lower)
             if _match:
@@ -136,7 +138,9 @@ async def phase_postprocessing(
     # Example: "On estas?  On estas?  On estas?" → "On estas?"
     # Trigger: any sentence appears 3+ times in the response.
     try:
-        if response_content and len(response_content) > 30:
+        if flags.m4_disable_dedupe_sentences:
+            pass  # ARC4: shadow testing — skip M4
+        elif response_content and len(response_content) > 30:
             _sents = re.split(r'(?<=[.!?\n])\s*|\s{2,}', response_content.strip())
             _sents = [s.strip() for s in _sents if len(s.strip()) > 3]
             if len(_sents) >= 3:
@@ -170,7 +174,9 @@ async def phase_postprocessing(
     # without false-flagging short agreements like "si, vale".
     _ECHO_THRESHOLD = float(os.environ.get("ECHO_JACCARD_THRESHOLD", "0.55"))
     try:
-        if response_content and message:
+        if flags.m5_disable_echo_detector:
+            pass  # ARC4: shadow testing — skip M5-alt echo detector
+        elif response_content and message:
             def _norm_words(text: str) -> set:
                 # NFD decompose + strip combining diacritics (accents)
                 # so "entès"=="entes", "Sí"=="si" — critical for Catalan
