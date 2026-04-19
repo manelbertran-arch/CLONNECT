@@ -444,7 +444,7 @@ async def _assemble_context(inp: _ContextAssemblyInputs) -> Tuple[str, str]:
     Shadow mode: runs both, logs diff, always returns legacy output.
     Fail-silent on shadow errors — the LLM request is never blocked.
     """
-    enable_budget = os.getenv("ENABLE_BUDGET_ORCHESTRATOR", "false") == "true"
+    enable_budget = os.getenv("ENABLE_BUDGET_ORCHESTRATOR", "true") == "true"
     shadow_mode = os.getenv("BUDGET_ORCHESTRATOR_SHADOW", "false") == "true"
 
     if not enable_budget and not shadow_mode:
