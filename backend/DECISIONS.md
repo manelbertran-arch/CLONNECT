@@ -1697,3 +1697,38 @@ scripts provide placeholder values `(pending re-extraction)` as required. The
 - `scripts/reextract_low_confidence.py`: LLM re-extraction for migration% records
 - `tests/memory/test_migration_scripts.py`: 21 tests (dry-run, idempotency, skip, embedding)
 - `docs/audit_sprint5/ARC2_migration_runbook.md`: pre-checks, steps, rollback, SQL verification
+
+---
+
+## ARC2 Bonus: Nightly extract_deep Scheduler — 2026-04-19
+
+**Context:** ARC2 implementation audit found that `extract_deep` (the LLM nightly branch of
+`MemoryExtractor`) had zero callers in production. This means 3 of the 5 memory types
+(`objection`, `interest`, `relationship_state`) were only populated via dual-write legacy,
+making A2.6 (legacy removal) blocked.
+
+**Decision: standalone script + native TaskScheduler integration**
+Created `scripts/nightly_extract_deep.py` as a CLI-runnable script plus registered the
+same job in `api/startup/handlers.py` using the existing `TaskScheduler`. The job is
+disabled by default (`ENABLE_NIGHTLY_EXTRACT_DEEP=false`) until 7 consecutive days of
+production validation are confirmed.
+
+**Decision: ENABLE_NIGHTLY_EXTRACT_DEEP=false default**
+Job is gated by env var. Activating it changes memory coverage in production. The gate
+ensures A2.6 removal only happens after the job proves stable (7-day criterion in runbook).
+
+**Decision: last_writer='extract_deep_nightly'**
+New writer name distinct from all existing writers. Allows SQL monitoring of coverage
+specifically from this job vs dual-write legacy, and tracks progress toward A2.6 criteria.
+
+**Decision: 1s sleep between LLM calls**
+Conservative rate limiting. OpenRouter burst limits are unknown; 1s ensures < 1 req/s
+across all leads, preventing circuit-breaker trips during the nightly batch.
+
+**Files added**
+- `scripts/nightly_extract_deep.py`: standalone CLI (--dry-run/--batch-size/--creator-id/--max-leads), idempotent, fail-silent
+- `tests/memory/test_nightly_extract_deep.py`: 15 tests covering dry-run, fail-silent, upsert, last_writer, max_leads, creator filter, stats
+- `docs/audit_sprint5/ARC2_nightly_extract_deep_runbook.md`: activation steps, monitoring SQL, LLM cost, A2.6 unblock criteria
+
+**Files modified**
+- `api/startup/handlers.py`: added JOB N (nightly_extract_deep, 86400s, 720s delay, ENABLE_NIGHTLY_EXTRACT_DEEP=false)
