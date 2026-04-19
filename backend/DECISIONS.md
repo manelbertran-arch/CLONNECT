@@ -1823,3 +1823,34 @@ logging false distill decisions before the service is production-ready.
 **Files modified**
 - `core/feature_flags.py`: ENABLE_COMPACTOR_SHADOW (default True) + USE_COMPACTION (default False)
 - `core/dm/phases/context.py`: _run_compactor_shadow + _build_compactor_sections + _log_shadow_compactor_sync + asyncio.create_task hook
+
+---
+
+## 2026-04-19 — ARC5 Phase 5: Contract Enforcement CI
+
+**Context:** ARC5 Phases 1–3 introduced typed metadata models (Pydantic) and a centralized
+emit_metric registry. Without enforcement, new PRs can still silently add direct
+`metadata["x"] = ...` writes or orphaned Pydantic fields — undoing the contract discipline.
+
+**Decision: 4-check CI script in --strict mode for PR gates**
+CHECK 1 (blocking): detect `metadata["key"] = ...` direct writes outside tests/scripts/alembic.
+CHECK 2 (warning): detect prometheus_client Counter/Gauge/Histogram instantiated without emit_metric.
+CHECK 3 (blocking): detect typed metadata fields with no reader, emit_metric call, or deprecated marker.
+CHECK 4 (warning): detect magic numbers in core/dm/, core/generation/, core/metadata/ pipeline dirs.
+Strict mode fails CI only on CHECK 1 + CHECK 3 — the patterns that cause orphan accumulation.
+
+**Decision: existing violations are tech debt, not blockers**
+Baseline audit found 44 CHECK1 errors (mostly ingestion/admin), 12 CHECK3 errors (Phase 2 fields
+pending integration), 262 CHECK4 warnings. None block CI for existing code — only NEW violations
+in PRs are blocked. Documented in docs/audit_sprint5/contract_violations_baseline.md.
+
+**Decision: # noqa: contract escape hatch**
+Legitimate exceptions (migration shims, admin harness) can suppress per-line with `# noqa: contract`.
+Must be accompanied by a comment explaining why. Keeps the block list auditable.
+
+**Files added**
+- `scripts/ci/contract_enforcement.py`: 4-check script with --strict flag
+- `.github/workflows/contract_enforcement.yml`: PR gate triggering on core/**+services/**+api/**
+- `tests/ci/test_contract_enforcement.py`: 20 unit tests (all checks + strict/non-strict modes)
+- `docs/sprint5_planning/ARC5_phase5_contract_enforcement.md`: design + fix patterns + escape hatch
+- `docs/audit_sprint5/contract_violations_baseline.md`: baseline audit results
