@@ -186,13 +186,29 @@ class DMResponderAgentV2:
             style_prompt = get_creator_style_prompt(creator_id)
             if style_prompt:
                 logger.info(f"Loaded style prompt for {creator_id}: {len(style_prompt)} chars")
-            # ARC3 Phase 1 shadow hook — USE_DISTILLED_DOC_D default OFF.
-            # Full distilled-content substitution wired in Phase 3.
+            # ARC3 Phase 1 — USE_DISTILLED_DOC_D: swap in cached distilled Doc D.
+            # Cache-only (no LLM call); populate with scripts/distill_style_prompts.py first.
+            # Fail-silent: if no cache or any error → keep full Doc D unmodified.
             if style_prompt and _flags.use_distilled_doc_d:
-                from services.style_distill_service import StyleDistillService  # noqa: F401
-                # Phase 3 will inject distilled Doc D here once DB session
-                # is available in this context. For now, read is a no-op.
-                pass
+                try:
+                    from services.creator_style_loader import get_distilled_style_prompt_sync
+                    _distilled = get_distilled_style_prompt_sync(creator_id, style_prompt)
+                    if _distilled:
+                        logger.info(
+                            "[ARC3] Using distilled Doc D for %s: %d → %d chars",
+                            creator_id, len(style_prompt), len(_distilled),
+                        )
+                        style_prompt = _distilled
+                    else:
+                        logger.debug(
+                            "[ARC3] No distill cache for '%s' (flag ON but cache empty)",
+                            creator_id,
+                        )
+                except Exception as _arc3_err:
+                    logger.warning(
+                        "[ARC3] Distill wiring failed for '%s': %s — using full Doc D",
+                        creator_id, _arc3_err,
+                    )
         except Exception as e:
             logger.warning(f"Could not load style prompt for {creator_id}: {e}")
 
