@@ -263,6 +263,13 @@ class MemoryStore:
         self._cache.set(cache_key, memory)
         self._save_to_json(memory)
         logger.debug(f"[MemoryStore] Saved {memory.follower_id}")
+        # ARC2 A2.4: dual-write (fire-and-forget, fail-silent)
+        try:
+            import asyncio as _asyncio
+            from services.dual_write import dual_write_from_follower_memory
+            _asyncio.create_task(dual_write_from_follower_memory(memory))
+        except Exception:
+            pass
 
     async def get_or_create(
         self,
@@ -468,6 +475,14 @@ class ConversationMemoryService:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Error saving conversation memory to {path}: {e}")
+
+        # ARC2 A2.4: dual-write (fire-and-forget, fail-silent)
+        try:
+            import asyncio as _asyncio
+            from services.dual_write import dual_write_from_conversation_memory
+            _asyncio.create_task(dual_write_from_conversation_memory(memory))
+        except Exception:
+            pass
 
     def detect_past_reference(self, message: str) -> bool:
         """Detecta si el usuario hace referencia a conversación pasada."""

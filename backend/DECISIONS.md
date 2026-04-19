@@ -4,6 +4,24 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-19 — ARC2 A2.4: Dual-write bridge — 3 legacy write points → arc2_lead_memories
+
+- **Worker:** A2.4 of ARC2 Memory Consolidation sprint. Branch `feature/arc2-dual-write`.
+- **Problem:** ARC2 Phase 1 migrated historical data but new live writes only go to the 3 legacy systems. arc2_lead_memories stays stale until Phase 3 read-cutover. Need a real-time bridge to keep it current.
+- **Design:** `services/dual_write.py` — central fail-silent bridge. 3 hook points: `services/memory_extraction.py::MemoryExtractor._do_extract` (after legacy store loop), `services/memory_service.py::MemoryStore.save` (after JSON persist), `services/memory_service.py::ConversationMemoryService.save` (after DB+JSON save). All calls via `asyncio.create_task` — fire-and-forget, never block the webhook path.
+- **Key decisions:**
+  1. Flag-gated (`ENABLE_DUAL_WRITE_LEAD_MEMORIES`, default false). Zero overhead when off — early return before any work.
+  2. No LLM in sync path — classification is pure dict lookup (`_MEMORY_EXTRACTION_MAP`, `_CONV_FACT_MAP`).
+  3. ID resolution (slug/platform_user_id → UUID) done in `asyncio.to_thread` to avoid blocking the event loop.
+  4. `_write_entries_sync` creates its own `SessionLocal()` — no shared session state with the caller.
+  5. Bot-side ConversationFact types (`price_given`, `link_shared`, `product_explained`, `question_asked`) explicitly mapped to `None` → skipped. Only lead-side signals written.
+  6. Fallback `why`/`how_to_apply` injected for `objection`/`relationship_state` to satisfy DB CHECK constraints when not provided by legacy system.
+- **Coverage:** 10/10 tests pass. All 3 modified files syntax-clean. Memory suite: 85 passed, 1 skipped.
+- **Drift report:** `scripts/dual_write_diff_report.py` — run to compare legacy vs arc2 write counts.
+- **Next:** Enable flag in prod after ARC2 Phase 1 migration verified. Soak 7 days → Phase 3 read-cutover.
+
+---
+
 ## 2026-04-19 — ARC2 A2.2: Unified memory extractor (5 types, hybrid regex+LLM, <200ms sync)
 
 - **Worker:** A2.2 of ARC2 Memory Consolidation sprint. Branch `feature/arc2-extractor-unified`.

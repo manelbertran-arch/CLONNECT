@@ -203,6 +203,70 @@ WHERE memory_type IN ('objection', 'relationship_state')
 
 ---
 
+## Phase 2 — Dual-Write (A2.4)
+
+Phase 2 activates the live dual-write bridge. Every legacy write to the 3 legacy systems
+also writes to `arc2_lead_memories` in real time. **Fail-silent** — never blocks a request.
+
+### Activate dual-write
+
+```bash
+# Set env var in Railway (or .env for local)
+ENABLE_DUAL_WRITE_LEAD_MEMORIES=true
+
+# Verify flag is ON after deploy
+curl -s https://www.clonnectapp.com/health | python3 -m json.tool | grep dual_write
+```
+
+### Monitor dual-write health
+
+```sql
+-- Live writes by source (check after 30 min)
+SELECT last_writer, COUNT(*) AS cnt, MAX(updated_at) AS last_seen
+FROM arc2_lead_memories
+WHERE last_writer LIKE 'dual_write_%' AND deleted_at IS NULL
+GROUP BY last_writer ORDER BY last_seen DESC;
+
+-- Recent drift: are writes flowing?
+SELECT last_writer, COUNT(*) AS cnt
+FROM arc2_lead_memories
+WHERE last_writer LIKE 'dual_write_%'
+  AND updated_at > NOW() - INTERVAL '1 hour'
+  AND deleted_at IS NULL
+GROUP BY last_writer;
+```
+
+Or run the drift report script:
+
+```bash
+.venv/bin/python3.11 -m scripts.dual_write_diff_report
+# JSON output for monitoring:
+.venv/bin/python3.11 -m scripts.dual_write_diff_report --json
+```
+
+### Kill switch (instant rollback)
+
+```bash
+# Turn off without deploy — Railway env var update takes effect on next request
+ENABLE_DUAL_WRITE_LEAD_MEMORIES=false
+```
+
+To remove already dual-written data:
+
+```sql
+DELETE FROM arc2_lead_memories
+WHERE last_writer LIKE 'dual_write_%';
+```
+
+### Criteria to advance to Phase 3 (read cutover)
+
+- [ ] `dual_write_memory_extraction`, `dual_write_follower_memory`, `dual_write_conversation_memory` all have rows
+- [ ] No spike in Railway error logs tagged `[DualWrite]`
+- [ ] Drift report shows coverage ≥ 80%
+- [ ] Soak period: minimum 7 days with flag ON in production
+
+---
+
 ## Notes
 
 - Scripts are **idempotent** — safe to re-run. ON CONFLICT DO NOTHING prevents duplicates.

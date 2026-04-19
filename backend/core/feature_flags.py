@@ -72,6 +72,20 @@ class FeatureFlags:
     intelligence: bool = field(default_factory=lambda: _flag("ENABLE_INTELLIGENCE", True))
     style_analyzer: bool = field(default_factory=lambda: _flag("ENABLE_STYLE_ANALYZER", True))
 
+    # === ARC2 Memory Consolidation ===
+    # Phase 2 dual-write: every legacy memory write also writes to arc2_lead_memories.
+    # Default OFF — activate per-creator or globally once Phase 1 migration verified.
+    dual_write_lead_memories: bool = field(
+        default_factory=lambda: _flag("ENABLE_DUAL_WRITE_LEAD_MEMORIES", False)
+    )
+
+    # === ARC5 Observability — Typed Metadata ===
+    # Phase 2: replace flat dict writes in DM phases with Pydantic sub-models.
+    # Default OFF — activate via USE_TYPED_METADATA=true for gradual rollout.
+    typed_metadata: bool = field(
+        default_factory=lambda: _flag("USE_TYPED_METADATA", False)
+    )
+
     # === Unaudited systems (default: disabled until forensic audit passes) ===
     confidence_scorer: bool = field(default_factory=lambda: _flag("ENABLE_CONFIDENCE_SCORER", False))
     blacklist_replacement: bool = field(default_factory=lambda: _flag("ENABLE_BLACKLIST_REPLACEMENT", False))
