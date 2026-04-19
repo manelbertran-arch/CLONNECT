@@ -130,27 +130,27 @@ def _get_session():
 
 
 def _fetch_active_creators(session, creator_id: Optional[str] = None) -> list[dict]:
-    """Return list of dicts with {id, nickname} for active creators."""
+    """Return list of dicts with {id, name} for active creators."""
     from sqlalchemy import text
 
     if creator_id:
         result = session.execute(
             text(
-                "SELECT id::text, nickname FROM creators"
-                " WHERE is_active = true AND id = :cid"
+                "SELECT id::text, name FROM creators"
+                " WHERE name = :cid"
             ),
             {"cid": creator_id},
         )
     else:
         result = session.execute(
             text(
-                "SELECT id::text, nickname FROM creators"
-                " WHERE is_active = true"
-                " ORDER BY nickname"
+                "SELECT id::text, name FROM creators"
+                " WHERE bot_active = true"
+                " ORDER BY name"
             )
         )
     rows = result.fetchall()
-    return [{"id": r[0], "nickname": r[1]} for r in rows]
+    return [{"id": r[0], "name": r[1]} for r in rows]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -166,13 +166,13 @@ async def _process_creator(
 ) -> CreatorResult:
     """Distill Doc D for a single creator. Returns CreatorResult."""
     cid = creator["id"]
-    nickname = creator["nickname"]
+    nickname = creator["name"]
 
     # Load Doc D
     try:
         from services.creator_style_loader import get_creator_style_prompt
 
-        doc_d = get_creator_style_prompt(nickname)  # creator_id is the slug/nickname
+        doc_d = get_creator_style_prompt(nickname)  # creator_id is the slug/name
     except Exception as exc:
         return CreatorResult(
             creator_id=cid, nickname=nickname, status="error",
