@@ -5,7 +5,8 @@ import logging
 import os
 import re
 import time
-from typing import Dict, List, Set
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from core.agent_config import AGENT_THRESHOLDS
 from core.bot_question_analyzer import QuestionType, get_bot_question_analyzer, is_short_affirmation
@@ -276,6 +277,201 @@ def _format_safety_section(name: str, tone_key: str = "friendly") -> str:
         f"- Si no tienes la info, dilo natural: \"Uf no lo sé seguro, déjame mirarlo\" o \"Pregunta a {name} directamente\".",
         "- Audios sin transcripción ('[audio]', '[🎤 Audio]'): reacciona con calidez según el contexto, nunca digas 'no puedo escuchar' ni 'escríbemelo'.",
     ])
+
+
+@dataclass
+class _ContextAssemblyInputs:
+    """All pre-computed inputs needed for context assembly."""
+    agent: Any
+    style_prompt: str
+    few_shot_section: str
+    friend_context: str
+    recalling: str
+    audio_context: str
+    rag_context: str
+    kb_context: str
+    hier_memory_context: str
+    advanced_section: str
+    citation_context: str
+    prompt_override: str
+    is_friend: bool
+    cognitive_metadata: Dict  # mutated in place by legacy path
+    creator_id: str
+    provider: str
+    model: str
+
+
+def _assemble_context_legacy(inp: _ContextAssemblyInputs) -> Tuple[str, str]:
+    """Legacy char-budget assembly — exact copy of the original inline block.
+
+    Returns (combined_context, system_prompt). Mutates inp.cognitive_metadata.
+    """
+    MAX_CONTEXT_CHARS = int(os.getenv("MAX_CONTEXT_CHARS", "8000"))
+    prompt_products = [] if inp.is_friend else inp.agent.products
+
+    _sections = [
+        # --- STATIC per creator (cacheable prefix) --- [PRIORITY: CRITICAL]
+        ("style", inp.style_prompt),
+        ("fewshot", inp.few_shot_section),
+        # --- VARIABLE per lead/message --- [PRIORITY: HIGH]
+        ("friend", inp.friend_context),
+        ("recalling", inp.recalling),
+        ("audio", inp.audio_context),
+        # --- FACTUAL (end) --- [PRIORITY: HIGH for product queries]
+        ("rag", inp.rag_context),
+        ("kb", inp.kb_context),
+        # --- NICE TO HAVE --- [PRIORITY: MEDIUM]
+        ("hier_memory", inp.hier_memory_context),
+        ("advanced", inp.advanced_section),
+        ("citation", inp.citation_context),
+        ("override", inp.prompt_override),
+    ]
+
+    _STATIC_LABELS = {"style"} if ENABLE_PROMPT_CACHE_BOUNDARY else set()
+
+    assembled = []
+    total_chars = 0
+    static_prefix_chars = 0
+    for label, section in _sections:
+        if not section:
+            continue
+        section_len = len(section)
+        if total_chars + section_len > MAX_CONTEXT_CHARS:
+            remaining = MAX_CONTEXT_CHARS - total_chars
+            if remaining > 200 and label in ("style", "recalling", "rag"):
+                assembled.append(section[:remaining])
+                total_chars += remaining
+                if label in _STATIC_LABELS:
+                    static_prefix_chars += remaining
+                logger.debug("[CONTEXT] Truncated %s: %d→%d chars", label, section_len, remaining)
+            else:
+                logger.debug("[CONTEXT] Skipped %s (%d chars) — over budget", label, section_len)
+                inp.cognitive_metadata[f"context_skipped_{label}"] = section_len
+            continue
+        assembled.append(section)
+        total_chars += section_len
+        if label in _STATIC_LABELS:
+            static_prefix_chars += section_len
+
+    combined_context = "\n\n".join(assembled)
+    inp.cognitive_metadata["context_total_chars"] = total_chars
+    inp.cognitive_metadata["context_sections"] = len(assembled)
+
+    system_prompt = inp.agent.prompt_builder.build_system_prompt(
+        products=prompt_products, custom_instructions=combined_context
+    )
+
+    if ENABLE_PROMPT_CACHE_BOUNDARY and static_prefix_chars > 0:
+        inp.cognitive_metadata["cache_prefix_chars"] = static_prefix_chars
+        try:
+            from core.dm.cache_boundary import (
+                check_cache_break, compute_prefix_hash,
+                log_cache_metrics, measure_cache_boundary,
+            )
+            _prefix_hash = compute_prefix_hash(combined_context[:static_prefix_chars])
+            _metrics = measure_cache_boundary(static_prefix_chars, len(system_prompt))
+            _break = check_cache_break(inp.agent.creator_id, _prefix_hash)
+            log_cache_metrics(_metrics, inp.agent.creator_id, _prefix_hash, _break)
+            inp.cognitive_metadata["cache_prefix_hash"] = _prefix_hash
+        except Exception as _cb_err:
+            logger.debug("[CacheBoundary] Metrics skipped: %s", _cb_err)
+
+    return combined_context, system_prompt
+
+
+def _assemble_context_new(inp: _ContextAssemblyInputs) -> Tuple[str, str]:
+    """Token-budget assembly via BudgetOrchestrator.
+
+    Builds Section objects from pre-computed strings and packs greedily.
+    Returns (combined_context, system_prompt).
+    """
+    from core.dm.budget.metrics import emit_budget_metrics
+    from core.dm.budget.orchestrator import BudgetOrchestrator
+    from core.dm.budget.section import (
+        SECTION_CAPS, Priority, Section, compute_value_score,
+    )
+    from core.dm.budget.tokenizer import TokenCounter
+
+    cog = inp.cognitive_metadata
+
+    def _make(
+        name: str, content: str, priority: Priority, value: float
+    ) -> Optional[Section]:
+        if not content:
+            return None
+        return Section(
+            name=name,
+            content=content,
+            priority=priority,
+            cap_tokens=SECTION_CAPS.get(name, 500),
+            value_score=value,
+        )
+
+    raw_sections = [
+        _make("style",      inp.style_prompt,       Priority.CRITICAL, 1.00),
+        _make("few_shots",  inp.few_shot_section,   Priority.CRITICAL, 0.95),
+        _make("friend",     inp.friend_context,     Priority.HIGH,     0.60),
+        _make("recalling",  inp.recalling,          Priority.HIGH,     compute_value_score("recalling", cog)),
+        _make("audio",      inp.audio_context,      Priority.HIGH,     0.70),
+        _make("rag",        inp.rag_context,        Priority.HIGH,     compute_value_score("rag", cog)),
+        _make("kb",         inp.kb_context,         Priority.FINAL,    0.10),
+        _make("hier_memory",inp.hier_memory_context,Priority.LOW,      0.40),
+        _make("advanced",   inp.advanced_section,   Priority.LOW,      0.30),
+        _make("citation",   inp.citation_context,   Priority.FINAL,    0.20),
+        _make("override",   inp.prompt_override,    Priority.CRITICAL, 1.00),
+    ]
+    sections = [s for s in raw_sections if s is not None]
+
+    tokenizer = TokenCounter(inp.provider, inp.model)
+    orchestrator = BudgetOrchestrator(
+        tokenizer=tokenizer,
+        budget_tokens=int(os.getenv("BUDGET_ORCHESTRATOR_TOKENS", "4000")),
+    )
+    assembled_ctx = orchestrator.pack(sections)
+    emit_budget_metrics(assembled_ctx, inp)
+
+    prompt_products = [] if inp.is_friend else inp.agent.products
+    system_prompt = inp.agent.prompt_builder.build_system_prompt(
+        products=prompt_products,
+        custom_instructions=assembled_ctx.combined,
+    )
+    return assembled_ctx.combined, system_prompt
+
+
+async def _assemble_context(inp: _ContextAssemblyInputs) -> Tuple[str, str]:
+    """Route assembly to legacy or BudgetOrchestrator path based on feature flags.
+
+    Shadow mode: runs both, logs diff, always returns legacy output.
+    Fail-silent on shadow errors — the LLM request is never blocked.
+    """
+    enable_budget = os.getenv("ENABLE_BUDGET_ORCHESTRATOR", "true") == "true"
+    shadow_mode = os.getenv("BUDGET_ORCHESTRATOR_SHADOW", "false") == "true"
+
+    if not enable_budget and not shadow_mode:
+        return _assemble_context_legacy(inp)
+
+    if shadow_mode:
+        legacy_result = _assemble_context_legacy(inp)
+        try:
+            import copy
+            shadow_inp = copy.copy(inp)
+            shadow_inp.cognitive_metadata = {}  # don't pollute real metadata
+            new_result = _assemble_context_new(shadow_inp)
+
+            legacy_tokens = len(legacy_result[0]) // 4
+            new_tokens = len(new_result[0]) // 4
+            diff = new_tokens - legacy_tokens
+            dropped = shadow_inp.cognitive_metadata.get("sections_dropped", [])
+            logger.info(
+                "budget_orchestrator_shadow: tokens_legacy=%d tokens_new=%d diff=%d sections_dropped=%s",
+                legacy_tokens, new_tokens, diff, dropped,
+            )
+        except Exception as _shadow_err:
+            logger.warning("budget_orchestrator_shadow failed (non-fatal): %s", _shadow_err)
+        return legacy_result
+
+    # Flag ON, shadow OFF → full orchestrator path
+    return _assemble_context_new(inp)
 
 
 async def phase_memory_and_context(
@@ -994,90 +1190,27 @@ async def phase_memory_and_context(
         episodic=episodic_context,
     )
 
-    # A1: Skip products for friends to avoid LLM injecting sales language
-    prompt_products = [] if is_friend else agent.products
-    creator_name = agent.personality.get("name", "Asistente") if hasattr(agent, "personality") else "Asistente"
-
-    # CC pattern (prompts.ts:560-576): the boundary is PASSIVE — it marks
-    # where the static/dynamic cut is for metrics, it does NOT reorder sections.
-    # Section order and PromptBuilder call are IDENTICAL regardless of flag.
-    # Flag only adds: prefix hash, cache break detection, savings logging.
-    _sections = [
-        # --- STATIC per creator (cacheable prefix) --- [PRIORITY: CRITICAL]
-        ("style", agent.style_prompt),
-        ("fewshot", few_shot_section),
-        # --- VARIABLE per lead/message --- [PRIORITY: HIGH]
-        ("friend", friend_context),
-        ("recalling", _recalling),
-        ("audio", audio_context),
-        # --- FACTUAL (end) --- [PRIORITY: HIGH for product queries]
-        ("rag", rag_context),
-        ("kb", kb_context),
-        # --- NICE TO HAVE --- [PRIORITY: MEDIUM]
-        ("hier_memory", hier_memory_context),
-        ("advanced", advanced_section),
-        ("citation", citation_context),
-        ("override", prompt_override),
-    ]
-
-    # Labels whose chars count toward the cacheable prefix (metrics only).
-    # "style" is the only truly static section (identical for all leads of a creator).
-    # CC equivalent: everything before SYSTEM_PROMPT_DYNAMIC_BOUNDARY.
-    _STATIC_LABELS = {"style"} if ENABLE_PROMPT_CACHE_BOUNDARY else set()
-
-    # Assemble with budget enforcement
-    assembled = []
-    total_chars = 0
-    static_prefix_chars = 0
-    for label, section in _sections:
-        if not section:
-            continue
-        section_len = len(section)
-        if total_chars + section_len > MAX_CONTEXT_CHARS:
-            # Over budget — truncate or skip lower-priority sections
-            remaining = MAX_CONTEXT_CHARS - total_chars
-            if remaining > 200 and label in ("style", "recalling", "rag"):
-                # Critical sections: truncate rather than skip
-                assembled.append(section[:remaining])
-                total_chars += remaining
-                if label in _STATIC_LABELS:
-                    static_prefix_chars += remaining
-                logger.debug("[CONTEXT] Truncated %s: %d→%d chars", label, section_len, remaining)
-            else:
-                logger.debug("[CONTEXT] Skipped %s (%d chars) — over budget", label, section_len)
-                cognitive_metadata[f"context_skipped_{label}"] = section_len
-            continue
-        assembled.append(section)
-        total_chars += section_len
-        if label in _STATIC_LABELS:
-            static_prefix_chars += section_len
-
-    combined_context = "\n\n".join(assembled)
-    cognitive_metadata["context_total_chars"] = total_chars
-    cognitive_metadata["context_sections"] = len(assembled)
-
-    # PromptBuilder call — IDENTICAL regardless of flag (CC pattern P1: passive boundary)
-    system_prompt = agent.prompt_builder.build_system_prompt(
-        products=prompt_products, custom_instructions=combined_context
+    # Route assembly through _assemble_context (legacy or BudgetOrchestrator)
+    _assembly_inp = _ContextAssemblyInputs(
+        agent=agent,
+        style_prompt=agent.style_prompt or "",
+        few_shot_section=few_shot_section,
+        friend_context=friend_context,
+        recalling=_recalling,
+        audio_context=audio_context,
+        rag_context=rag_context,
+        kb_context=kb_context,
+        hier_memory_context=hier_memory_context,
+        advanced_section=advanced_section,
+        citation_context=citation_context,
+        prompt_override=prompt_override,
+        is_friend=is_friend,
+        cognitive_metadata=cognitive_metadata,
+        creator_id=agent.creator_id,
+        provider=os.getenv("LLM_PRIMARY_PROVIDER", "gemini"),
+        model=os.getenv("ACTIVE_MODEL_STRING", "gemini-2.0-flash-lite"),
     )
-
-    # G5 cache boundary metrics (flag-gated, prompt-neutral)
-    if ENABLE_PROMPT_CACHE_BOUNDARY and static_prefix_chars > 0:
-        cognitive_metadata["cache_prefix_chars"] = static_prefix_chars
-        try:
-            from core.dm.cache_boundary import (
-                compute_prefix_hash, measure_cache_boundary,
-                check_cache_break, log_cache_metrics,
-            )
-            _prefix_hash = compute_prefix_hash(
-                combined_context[:static_prefix_chars]
-            )
-            _metrics = measure_cache_boundary(static_prefix_chars, len(system_prompt))
-            _break = check_cache_break(agent.creator_id, _prefix_hash)
-            log_cache_metrics(_metrics, agent.creator_id, _prefix_hash, _break)
-            cognitive_metadata["cache_prefix_hash"] = _prefix_hash
-        except Exception as _cb_err:
-            logger.debug("[CacheBoundary] Metrics skipped: %s", _cb_err)
+    combined_context, system_prompt = await _assemble_context(_assembly_inp)
 
     # Get conversation history from follower memory (JSON files)
     history = agent._get_history_from_follower(follower)
