@@ -288,6 +288,7 @@ class MemoryExtractor:
 
         # Store facts with conflict resolution
         stored_memories = []
+        stored_fact_dicts: List[dict] = []
         for i, fact in enumerate(extraction.facts):
             embedding = embeddings[i] if i < len(embeddings) else None
 
@@ -313,6 +314,17 @@ class MemoryExtractor:
             )
             if memory:
                 stored_memories.append(memory)
+                stored_fact_dicts.append(fact)
+
+        # ARC2 A2.4: dual-write to arc2_lead_memories (fire-and-forget, fail-silent)
+        if stored_fact_dicts:
+            try:
+                from services.dual_write import dual_write_from_extraction
+                _asyncio.create_task(
+                    dual_write_from_extraction(creator_id, lead_id, stored_fact_dicts)
+                )
+            except Exception:
+                pass
 
         # Store summary
         if extraction.summary:
