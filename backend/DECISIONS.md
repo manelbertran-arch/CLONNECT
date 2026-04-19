@@ -4,6 +4,22 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-19 — ARC2 A2.2: Unified memory extractor (5 types, hybrid regex+LLM, <200ms sync)
+
+- **Worker:** A2.2 of ARC2 Memory Consolidation sprint. Branch `feature/arc2-extractor-unified`.
+- **Problem:** 3 legacy extractors (memory_extraction.py / memory_engine.py / models/conversation_memory.py) have divergent type schemas, no shared body_structure, and the ConversationMemoryService uses Spanish-only hardcoded regex. None are active in production. ARC2 §2.5 specifies a unified extractor as prerequisite for dual-write (A2.4).
+- **Design:** Hybrid Opción C (ARC2 §2.5). `extract_from_message` uses regex-only (ES/CA/EN multilingual patterns) covering `identity` + `intent_signal` per-turn with <1ms latency (budget 200ms). `extract_deep` uses LLM with XML-structured prompt covering all 5 closed types (`identity`, `interest`, `objection`, `intent_signal`, `relationship_state`) for nightly job.
+- **Key decisions:**
+  1. Pydantic v2 `ExtractedMemory` (frozen) — immutable output, validates type against 5-type closed set at construction.
+  2. LLM prompt uses string `.replace()` substitution instead of `.format()` to avoid injection if conversation contains `{` / `}`.
+  3. `extract_deep` fail-silent on LLM error (returns `[]` + logs warning) — nightly job must not break pipeline.
+  4. Zero imports from 3 legacy systems — clean isolation, ready for Phase 5 removal.
+  5. `_classify_signal` pre-filter exits early for noise messages (empty/greeting) before running full regex pass.
+- **Coverage:** 89.4% (151 stmts, 16 missed). 29 tests, 7/7 smoke pass. Latency <1ms avg (200x within budget).
+- **Next:** A2.4 dual-write wires `extract_from_message` into post-turn webhook hook and persists via `LeadMemoryService` (A2.1). Elimination of Legacy 1+2 after coverage parity validated over 2 weeks prod traffic.
+
+---
+
 ## 2026-04-18 — FIX W8-T1-BUG4: Copilot debounce race condition — regen sobrescribía la respuesta manual del creator
 
 - **Trigger:** W8 cross-system matrix audit (`docs/audit_sprint5/W8_C_compatibility_matrix.md:67-69`) detectó que `_debounced_regeneration_impl` en `core/copilot/messaging.py` hace `await asyncio.sleep(DEBOUNCE_SECONDS)` y luego regenera sin verificar si el creator respondió manualmente durante ese sleep. El único gate existente (`pending_msg.status != "pending_approval"`) no cubre el escenario: el path de respuesta manual del creator crea un `Message` nuevo con `role=assistant, approved_by=creator_manual` pero NO muta `pending_msg.status`. Resultado: a T+15s el debounce pisaba `pending_msg.content` / `pending_msg.suggested_response` con la regeneración stale.

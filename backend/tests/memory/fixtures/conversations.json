@@ -1,0 +1,114 @@
+[
+  {
+    "id": "fx_01_age_detection",
+    "description": "Lead reveals age with strong intent — identity + intent_signal expected",
+    "trigger_message": {"role": "user", "content": "Hola, tengo 28 años y quiero empezar hoy mismo"},
+    "conversation": [
+      {"role": "bot", "content": "Hola! ¿En qué te puedo ayudar?"},
+      {"role": "user", "content": "Hola, tengo 28 años y quiero empezar hoy mismo"},
+      {"role": "bot", "content": "Perfecto, te ayudo a comenzar."}
+    ],
+    "expected_sync_types": ["identity", "intent_signal"],
+    "expected_deep_types": ["identity", "intent_signal"]
+  },
+  {
+    "id": "fx_02_name_only",
+    "description": "Lead introduces themselves by name only — identity expected",
+    "trigger_message": {"role": "user", "content": "Hola, me llamo Sofía, ¿en qué consistiría el programa?"},
+    "conversation": [
+      {"role": "bot", "content": "Hola! ¿Cómo te llamas?"},
+      {"role": "user", "content": "Hola, me llamo Sofía, ¿en qué consistiría el programa?"}
+    ],
+    "expected_sync_types": ["identity"],
+    "expected_deep_types": ["identity", "interest"]
+  },
+  {
+    "id": "fx_03_strong_purchase_intent",
+    "description": "Lead shows strong purchase intent — intent_signal only",
+    "trigger_message": {"role": "user", "content": "Me apunto, ¿cómo pago?"},
+    "conversation": [
+      {"role": "bot", "content": "El programa cuesta 297€ al mes."},
+      {"role": "user", "content": "Me apunto, ¿cómo pago?"}
+    ],
+    "expected_sync_types": ["intent_signal"],
+    "expected_deep_types": ["intent_signal"]
+  },
+  {
+    "id": "fx_04_medium_intent_thinking",
+    "description": "Lead is thinking about it — medium intent_signal",
+    "trigger_message": {"role": "user", "content": "Me lo estoy pensando, ¿qué incluye exactamente?"},
+    "conversation": [
+      {"role": "bot", "content": "Te puedo contar más sobre el programa si quieres."},
+      {"role": "user", "content": "Me lo estoy pensando, ¿qué incluye exactamente?"}
+    ],
+    "expected_sync_types": ["intent_signal"],
+    "expected_deep_types": ["intent_signal"]
+  },
+  {
+    "id": "fx_05_no_signal_greeting",
+    "description": "Generic greeting with no extractable signal — empty expected",
+    "trigger_message": {"role": "user", "content": "Hola! ¿Cómo estás?"},
+    "conversation": [
+      {"role": "user", "content": "Hola! ¿Cómo estás?"},
+      {"role": "bot", "content": "Muy bien, gracias! ¿En qué te puedo ayudar?"}
+    ],
+    "expected_sync_types": [],
+    "expected_deep_types": []
+  },
+  {
+    "id": "fx_06_location_and_profession",
+    "description": "Lead reveals location — identity expected",
+    "trigger_message": {"role": "user", "content": "Vivo en Barcelona y trabajo como diseñadora gráfica"},
+    "conversation": [
+      {"role": "bot", "content": "¿De dónde eres?"},
+      {"role": "user", "content": "Vivo en Barcelona y trabajo como diseñadora gráfica"}
+    ],
+    "expected_sync_types": ["identity"],
+    "expected_deep_types": ["identity"]
+  },
+  {
+    "id": "fx_07_price_objection",
+    "description": "Lead complains about price — intent_signal (abandon) expected",
+    "trigger_message": {"role": "user", "content": "Es muy caro para mí ahora mismo, no me lo puedo permitir"},
+    "conversation": [
+      {"role": "bot", "content": "El programa tiene un precio de 397€."},
+      {"role": "user", "content": "Es muy caro para mí ahora mismo, no me lo puedo permitir"}
+    ],
+    "expected_sync_types": ["intent_signal"],
+    "expected_deep_types": ["intent_signal", "objection"]
+  },
+  {
+    "id": "fx_08_catalan_age_and_intent",
+    "description": "Catalan: lead reveals age and strong intent — identity + intent_signal",
+    "trigger_message": {"role": "user", "content": "Tinc 25 anys i vull apuntar-me al curs"},
+    "conversation": [
+      {"role": "bot", "content": "Hola! En puc dir alguna cosa?"},
+      {"role": "user", "content": "Tinc 25 anys i vull apuntar-me al curs"}
+    ],
+    "expected_sync_types": ["identity", "intent_signal"],
+    "expected_deep_types": ["identity", "intent_signal"]
+  },
+  {
+    "id": "fx_09_english_strong_intent",
+    "description": "English: lead shows strong purchase intent",
+    "trigger_message": {"role": "user", "content": "I want to buy your coaching program, how do I sign up?"},
+    "conversation": [
+      {"role": "bot", "content": "Hi! How can I help you today?"},
+      {"role": "user", "content": "I want to buy your coaching program, how do I sign up?"}
+    ],
+    "expected_sync_types": ["intent_signal"],
+    "expected_deep_types": ["intent_signal", "interest"]
+  },
+  {
+    "id": "fx_10_multi_signal",
+    "description": "Multi-turn with name + age + interest — multiple identity + intent_signal",
+    "trigger_message": {"role": "user", "content": "Tengo 34 años, me interesa el plan premium, me llamo Carlos"},
+    "conversation": [
+      {"role": "bot", "content": "Hola! ¿Cómo te llamas y qué estás buscando?"},
+      {"role": "user", "content": "Tengo 34 años, me interesa el plan premium, me llamo Carlos"},
+      {"role": "bot", "content": "¡Hola Carlos! El plan premium es perfecto para tu perfil."}
+    ],
+    "expected_sync_types": ["identity", "intent_signal"],
+    "expected_deep_types": ["identity", "interest", "intent_signal"]
+  }
+]
