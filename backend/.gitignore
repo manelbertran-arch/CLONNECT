@@ -1,0 +1,6 @@
+
+# CCEE result JSONs (mediciones, no versionar)
+tests/ccee_results/
+
+# graphify outputs
+graphify-out/

@@ -1854,3 +1854,25 @@ Must be accompanied by a comment explaining why. Keeps the block list auditable.
 - `tests/ci/test_contract_enforcement.py`: 20 unit tests (all checks + strict/non-strict modes)
 - `docs/sprint5_planning/ARC5_phase5_contract_enforcement.md`: design + fix patterns + escape hatch
 - `docs/audit_sprint5/contract_violations_baseline.md`: baseline audit results
+
+---
+
+## 2026-04-19 — ARC3 Phase 1: USE_DISTILLED_DOC_D flag wiring to Doc D loader
+
+**Context:** ARC3 Phase 1 added StyleDistillCache (schema + service + distill script) but left
+USE_DISTILLED_DOC_D disconnected — the flag existed in feature_flags.py but the Doc D loader
+always served the full Doc D regardless. This PR wires the flag so the clone agent actually
+reads distilled Doc D when the flag is active.
+
+**Decision: wire flag in creator_style_loader.get_distilled_style_prompt_sync**
+The distilled Doc D path is lazy-imported inside the function to avoid circular imports
+(SessionLocal lives in api.database, DISTILL_PROMPT_VERSION in services.style_distill_service).
+Patch targets for tests must reference the source modules, not the loader module.
+
+**Decision: keep USE_DISTILLED_DOC_D=false in prod until CCEE validates ΔCCEE ≥ -3**
+Flag default is False. Activating per-creator only after CCEE shadow run confirms no regression.
+
+**Files modified**
+- `core/dm/agent.py`: pass distilled Doc D to context builder when flag is active
+- `services/creator_style_loader.py`: add get_distilled_style_prompt_sync + flag check
+- `tests/distill/test_distill_loader_wiring.py`: 10 unit tests for flag on/off paths

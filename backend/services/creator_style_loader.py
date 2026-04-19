@@ -12,8 +12,10 @@ formatted for prompt injection.
 Scalable for N creators - each can have their own patterns stored in DB.
 """
 
+import hashlib
 import logging
 import os
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +169,59 @@ def has_style_data(creator_id: str) -> bool:
         logger.warning("Suppressed error in from core.tone_service import get_tone_prompt_s...: %s", e)
 
     return False
+
+
+def get_distilled_style_prompt_sync(creator_id: str, full_doc_d: str) -> Optional[str]:
+    """Return distilled Doc D from cache (sync, cache-only, no LLM calls).
+
+    Called when USE_DISTILLED_DOC_D=true in the sync _load_creator_data path.
+    Returns None when:
+    - No distill row exists for this (creator, doc_d) pair
+    - DB lookup fails for any reason
+
+    Never triggers LLM generation — populate the cache first with
+    scripts/distill_style_prompts.py before enabling the flag.
+    """
+    if not full_doc_d:
+        return None
+
+    try:
+        from api.database import SessionLocal
+        from services.style_distill_service import DISTILL_PROMPT_VERSION
+        from sqlalchemy import text as _sql_text
+
+        doc_d_hash = hashlib.sha256(full_doc_d.encode()).hexdigest()[:16]
+
+        db = SessionLocal()
+        try:
+            # Resolve creator slug → UUID (creator_style_distill stores UUIDs)
+            uuid_row = db.execute(
+                _sql_text("SELECT id FROM creators WHERE name = :name LIMIT 1"),
+                {"name": creator_id},
+            ).fetchone()
+            if not uuid_row:
+                logger.debug("[ARC3] Creator UUID not found for slug '%s'", creator_id)
+                return None
+            creator_uuid = str(uuid_row[0])
+
+            # Cache lookup — no LLM call, read-only
+            distill_row = db.execute(
+                _sql_text(
+                    "SELECT distilled_short FROM creator_style_distill"
+                    " WHERE creator_id = :cid"
+                    "   AND doc_d_hash = :hash"
+                    "   AND distill_prompt_version = :pv"
+                    " LIMIT 1"
+                ),
+                {"cid": creator_uuid, "hash": doc_d_hash, "pv": DISTILL_PROMPT_VERSION},
+            ).fetchone()
+
+            return distill_row[0] if distill_row else None
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.warning("[ARC3] get_distilled_style_prompt_sync failed for '%s': %s", creator_id, exc)
+        return None
 
 
 def list_creators_with_style() -> list:
