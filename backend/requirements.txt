@@ -75,3 +75,5 @@ pytest-cov>=4.0.0
 langdetect>=1.0.9
 
 # cache-bust 20260419_1032
+
+# cache-bust 20260419_1435 — force rebuild after 4 merges
