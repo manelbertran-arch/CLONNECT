@@ -180,3 +180,14 @@ Ver `docs/sprint5_planning/SPRINT5_MASTERDOC.md` §9 para roadmap FT.
 | `ENABLE_CIRCUIT_BREAKER` | `true` ✅ | ARC3 Phase 4 safety net activo |
 | `USE_DISTILLED_DOC_D` | `false` ⏳ | APPROVE obtenido, pendiente decisión activación |
 | `USE_COMPACTION` | `false` ⏳ | Esperando Phase 3 live (1k turnos shadow) |
+
+---
+
+### Update 20-abr-2026: Distill A/B P1 completado
+
+Worker P1 ejecutado. Composite OFF baseline: 66.4 (v5, mean 3 runs, 50 cases × 3 + MT, protocolo estándar)
+
+Dimensiones: S1=72.3 S3=64.6 H=72.0 K=72.5 L=68.2 B=57.8 S2=47.0 S4=66.9
+MT composite: 73.09 (5 conv × 10 turns; individual: 65.0/77.3/70.0/74.2/78.9)
+
+Siguiente: Worker P2 con USE_DISTILLED_DOC_D=true.
