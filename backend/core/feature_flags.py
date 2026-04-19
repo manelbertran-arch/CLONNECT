@@ -113,6 +113,19 @@ class FeatureFlags:
         default_factory=lambda: _flag("USE_DISTILLED_DOC_D", False)
     )
 
+    # === ARC3 Phase 2 — PromptSliceCompactor ===
+    # Shadow mode: compactor runs in parallel, logs decisions, NEVER alters prompt.
+    # Default ON — safe, no output change. Disable with ENABLE_COMPACTOR_SHADOW=false.
+    enable_compactor_shadow: bool = field(
+        default_factory=lambda: _flag("ENABLE_COMPACTOR_SHADOW", True)
+    )
+
+    # Phase 3 activation: when ON, compactor output replaces the assembled context.
+    # Default OFF — activate after 1,000 shadow turns confirm <15% compaction rate.
+    use_compaction: bool = field(
+        default_factory=lambda: _flag("USE_COMPACTION", False)
+    )
+
     # === Unaudited systems (default: disabled until forensic audit passes) ===
     confidence_scorer: bool = field(default_factory=lambda: _flag("ENABLE_CONFIDENCE_SCORER", False))
     blacklist_replacement: bool = field(default_factory=lambda: _flag("ENABLE_BLACKLIST_REPLACEMENT", False))

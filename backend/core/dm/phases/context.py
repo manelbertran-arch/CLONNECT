@@ -457,6 +457,7 @@ class _ContextAssemblyInputs:
     creator_id: str
     provider: str
     model: str
+    sender_id: str = ""  # platform_user_id — for ARC3 shadow log correlation
 
 
 def _assemble_context_legacy(inp: _ContextAssemblyInputs) -> Tuple[str, str]:
@@ -596,6 +597,138 @@ def _assemble_context_new(inp: _ContextAssemblyInputs) -> Tuple[str, str]:
     return assembled_ctx.combined, system_prompt
 
 
+def _build_compactor_sections(inp: _ContextAssemblyInputs):
+    """Map _ContextAssemblyInputs fields to SectionSpec list for shadow compactor."""
+    from core.generation.compactor import SectionSpec
+
+    # Priority: 1=highest (preserve first), 10=lowest (cut first).
+    # Ratios reference DEFAULT_RATIOS keys where name matches.
+    _map = [
+        # (field_value,              shadow_name,        priority)
+        (inp.style_prompt,           "style_prompt",     2),
+        (inp.few_shot_section,       "few_shots",        5),
+        (inp.friend_context,         "lead_facts",       3),
+        (inp.recalling,              "lead_memories",    3),
+        (inp.rag_context,            "rag_hits",         4),
+        (inp.audio_context,          "rag_hits_audio",   5),
+        (inp.kb_context,             "kb",               8),
+        (inp.hier_memory_context,    "hier_memory",      6),
+        (inp.advanced_section,       "advanced",         7),
+        (inp.citation_context,       "citation",         9),
+        (inp.prompt_override,        "override",         1),
+    ]
+    return [
+        SectionSpec(
+            name=name,
+            content=content or "",
+            priority=priority,
+            is_whitelist=False,
+        )
+        for content, name, priority in _map
+        if content  # skip empty sections
+    ]
+
+
+def _log_shadow_compactor_sync(
+    creator_id_str: str,
+    sender_id: str,
+    total_budget: int,
+    actual_chars: int,
+    shadow_chars: int,
+    compaction_applied: bool,
+    reason: str,
+    sections_truncated: list,
+    distill_applied: bool,
+    model: str,
+) -> None:
+    """Sync DB insert for shadow log — called via asyncio.to_thread."""
+    import json
+    from uuid import UUID
+    from sqlalchemy import text as sa_text
+    try:
+        creator_uuid = UUID(str(creator_id_str))
+    except (ValueError, AttributeError, TypeError):
+        logger.debug("[ARC3-SHADOW] invalid creator_id, skipping log")
+        return
+
+    try:
+        from api.database import SessionLocal
+        db = SessionLocal()
+        try:
+            db.execute(sa_text("""
+                INSERT INTO context_compactor_shadow_log (
+                    creator_id, sender_id, total_budget_chars,
+                    actual_chars_before, shadow_chars_after,
+                    compaction_applied, reason, sections_truncated,
+                    distill_applied, divergence_chars, model
+                ) VALUES (
+                    :creator_id, :sender_id, :total_budget,
+                    :actual_chars, :shadow_chars,
+                    :compaction_applied, :reason, CAST(:sections AS jsonb),
+                    :distill_applied, :divergence, :model
+                )
+            """), {
+                "creator_id": str(creator_uuid),
+                "sender_id": sender_id or None,
+                "total_budget": total_budget,
+                "actual_chars": actual_chars,
+                "shadow_chars": shadow_chars,
+                "compaction_applied": compaction_applied,
+                "reason": (reason or "OK")[:50],
+                "sections": json.dumps(sections_truncated),
+                "distill_applied": distill_applied,
+                "divergence": abs(actual_chars - shadow_chars),
+                "model": (model or "")[:100] or None,
+            })
+            db.commit()
+        finally:
+            db.close()
+    except Exception as _db_err:
+        logger.debug("[ARC3-SHADOW] DB log failed (non-fatal): %s", _db_err)
+
+
+async def _run_compactor_shadow(inp: _ContextAssemblyInputs, actual_combined_chars: int) -> None:
+    """Run PromptSliceCompactor in shadow mode and log result. Fire-and-forget."""
+    from core.feature_flags import flags
+    from core.generation.compactor import DEFAULT_RATIOS, PromptSliceCompactor
+
+    if not flags.enable_compactor_shadow:
+        return
+
+    try:
+        max_ctx = int(os.getenv("MAX_CONTEXT_CHARS", "8000"))
+        sections = _build_compactor_sections(inp)
+
+        compactor = PromptSliceCompactor(
+            budget_chars=max_ctx,
+            ratios=DEFAULT_RATIOS,
+            distill_service=None,  # Phase 3 will wire StyleDistillService here
+        )
+        shadow_result = await compactor.pack(sections)
+
+        await asyncio.to_thread(
+            _log_shadow_compactor_sync,
+            inp.creator_id,
+            inp.sender_id,
+            max_ctx,
+            actual_combined_chars,
+            shadow_result.final_chars,
+            shadow_result.compaction_applied,
+            shadow_result.reason,
+            shadow_result.sections_truncated,
+            shadow_result.distill_applied,
+            inp.model,
+        )
+
+        logger.debug(
+            "[ARC3-SHADOW] creator=%s actual=%d shadow=%d compacted=%s reason=%s",
+            inp.creator_id, actual_combined_chars, shadow_result.final_chars,
+            shadow_result.compaction_applied, shadow_result.reason,
+        )
+    except Exception as _shadow_err:
+        logger.warning("[ARC3-SHADOW] shadow run failed (non-fatal): %s", _shadow_err)
+
+
 async def _assemble_context(inp: _ContextAssemblyInputs) -> Tuple[str, str]:
     """Route assembly to legacy or BudgetOrchestrator path based on feature flags.
 
@@ -606,17 +739,16 @@ async def _assemble_context(inp: _ContextAssemblyInputs) -> Tuple[str, str]:
     shadow_mode = os.getenv("BUDGET_ORCHESTRATOR_SHADOW", "false") == "true"
 
     if not enable_budget and not shadow_mode:
-        return _assemble_context_legacy(inp)
-
-    if shadow_mode:
-        legacy_result = _assemble_context_legacy(inp)
+        result = _assemble_context_legacy(inp)
+    elif shadow_mode:
+        result = _assemble_context_legacy(inp)
         try:
             import copy
             shadow_inp = copy.copy(inp)
             shadow_inp.cognitive_metadata = {}  # don't pollute real metadata
             new_result = _assemble_context_new(shadow_inp)
 
-            legacy_tokens = len(legacy_result[0]) // 4
+            legacy_tokens = len(result[0]) // 4
             new_tokens = len(new_result[0]) // 4
             diff = new_tokens - legacy_tokens
             dropped = shadow_inp.cognitive_metadata.get("sections_dropped", [])
@@ -626,10 +758,16 @@ async def _assemble_context(inp: _ContextAssemblyInputs) -> Tuple[str, str]:
             )
         except Exception as _shadow_err:
             logger.warning("budget_orchestrator_shadow failed (non-fatal): %s", _shadow_err)
-        return legacy_result
+    else:
+        # Flag ON, shadow OFF → full orchestrator path
+        result = _assemble_context_new(inp)
 
-    # Flag ON, shadow OFF → full orchestrator path
-    return _assemble_context_new(inp)
+    # ARC3 Phase 2 shadow hook — fire-and-forget, never blocks result
+    asyncio.create_task(
+        _run_compactor_shadow(inp, actual_combined_chars=len(result[0]))
+    )
+
+    return result
 
 
 async def phase_memory_and_context(
@@ -1378,6 +1516,7 @@ async def phase_memory_and_context(
         creator_id=agent.creator_id,
         provider=os.getenv("LLM_PRIMARY_PROVIDER", "gemini"),
         model=os.getenv("ACTIVE_MODEL_STRING", "gemini-2.0-flash-lite"),
+        sender_id=sender_id,
     )
     combined_context, system_prompt = await _assemble_context(_assembly_inp)
 
