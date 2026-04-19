@@ -22,6 +22,7 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+
 ## 2026-04-19 — ARC5 Phase 3: emit_metric helper + central registry + context middleware
 
 - **Worker:** ARC5 Phase 3. Branch `feature/arc5-phase3-emit-metric`.
