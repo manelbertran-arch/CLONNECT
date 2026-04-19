@@ -65,3 +65,4 @@ cloudinary>=1.36.0
 
 # Screenshot service for link previews and JavaScript rendering
 playwright>=1.40.0
+cachetools>=5.3.0,<6.0.0  # TTLCache used in core/security/alerting.py
