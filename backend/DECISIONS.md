@@ -4,6 +4,23 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-19 — ARC5 Phase 3: emit_metric helper + central registry + context middleware
+
+- **Worker:** ARC5 Phase 3. Branch `feature/arc5-phase3-emit-metric`.
+- **Problem:** ~24 prometheus_client objects scattered across `core/metrics.py` (20) and `core/dm/budget/metrics.py` (4) with no shared label conventions. Each file declares metrics inline, creating maintenance burden and inconsistent `creator_id` injection.
+- **Design:** `core/observability/metrics.py` — declarative `_REGISTRY` dict + `emit_metric(name, value, **labels)`. `core/observability/middleware.py` — ContextVars + `CreatorContextMiddleware` auto-injects `creator_id`/`lead_id` from request headers/path into every `emit_metric` call. Design: ARC5_observability.md §2.3 + §3.
+- **Key decisions:**
+  1. `_REGISTRY_META: Dict[str, str]` stores type ("Counter"/"Histogram"/"Gauge") separately from the metric object — allows `emit_metric` dispatch without `isinstance()`, which fails with MagicMock in tests.
+  2. Fail-open: unknown metric name → warning log only. Prometheus failure → error log only. Never raises.
+  3. `core/metrics.py` (20 legacy `clonnect_*` metrics) left untouched — gradual migration. Phase 4 will wire them to Grafana dashboards.
+  4. `core/dm/budget/metrics.py` migrated first (4 metrics, self-contained `emit_budget_metrics()` function). Removed direct prometheus_client declarations, moved to `_REGISTRY`.
+  5. Middleware insertion: after `MetricsMiddleware` in `api/main.py` (ASGI LIFO → context becomes outermost, set first for every request).
+- **Migration count:** 4 metrics migrated (dm_budget_*). 20 in `core/metrics.py` pending Phase 4.
+- **Coverage:** 19/19 observability tests pass. 237/237 total (memory+budget+metadata+observability). 7/7 smoke.
+- **Next:** Phase 4 Grafana dashboards — wire `generation_duration_ms`, `dm_budget_utilization`, `dual_write_*` to 5 dashboards in `docs/observability/dashboards/`.
+
+---
+
 ## 2026-04-19 — ARC5 Phase 2: Typed metadata integration into DM pipeline phases
 
 - **Worker:** ARC5 Phase 2. Branch `feature/arc5-phase2-integration`.
