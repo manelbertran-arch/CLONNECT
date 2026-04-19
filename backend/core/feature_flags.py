@@ -113,6 +113,15 @@ class FeatureFlags:
         default_factory=lambda: _flag("USE_DISTILLED_DOC_D", False)
     )
 
+    # === ARC3 Phase 4 — CircuitBreaker ===
+    # Prevents retry loops when generation fails 3x consecutively for the same
+    # (creator, lead) pair. Returns fallback response + fires alert on trip.
+    # Default ON — this is a safety net, not an opt-in feature.
+    # Disable with ENABLE_CIRCUIT_BREAKER=false (emergency only).
+    enable_circuit_breaker: bool = field(
+        default_factory=lambda: _flag("ENABLE_CIRCUIT_BREAKER", True)
+    )
+
     # === ARC3 Phase 2 — PromptSliceCompactor ===
     # Shadow mode: compactor runs in parallel, logs decisions, NEVER alters prompt.
     # Default ON — safe, no output change. Disable with ENABLE_COMPACTOR_SHADOW=false.

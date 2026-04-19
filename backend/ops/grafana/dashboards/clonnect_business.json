@@ -1,0 +1,167 @@
+{
+  "__requires": [
+    {"type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0"},
+    {"type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0"},
+    {"type": "panel", "id": "timeseries", "name": "Time series", "version": ""},
+    {"type": "panel", "id": "stat", "name": "Stat", "version": ""},
+    {"type": "panel", "id": "text", "name": "Text", "version": ""}
+  ],
+  "annotations": {"list": [{"builtIn": 1, "datasource": {"type": "grafana", "uid": "-- Grafana --"}, "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard"}]},
+  "description": "Clonnect business metrics — DMs processed per creator, error rate per creator, LLM cost (TODO when metric added)",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "custom": {"lineWidth": 1, "fillOpacity": 10}},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"tooltip": {"mode": "multi"}, "legend": {"displayMode": "table", "placement": "right", "calcs": ["sum", "mean"]}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "expr": "sum(increase(webhook_processed_total{status=\"ok\",creator_id=~\"$creator_id\"}[1h])) by (creator_id)",
+          "legendFormat": "{{creator_id}}",
+          "refId": "A"
+        }
+      ],
+      "title": "DMs processed per creator per hour",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "custom": {"lineWidth": 1, "fillOpacity": 10},
+          "unit": "percentunit", "min": 0, "max": 1},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 2,
+      "options": {"tooltip": {"mode": "multi"}, "legend": {"displayMode": "list", "placement": "bottom"}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "expr": "sum(rate(llm_api_call_total{status=\"error\",creator_id=~\"$creator_id\"}[5m])) by (creator_id) / sum(rate(llm_api_call_total{creator_id=~\"$creator_id\"}[5m])) by (creator_id)",
+          "legendFormat": "{{creator_id}}",
+          "refId": "A"
+        }
+      ],
+      "title": "LLM error rate per creator",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "custom": {"lineWidth": 1, "fillOpacity": 10}},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 3,
+      "options": {"tooltip": {"mode": "multi"}, "legend": {"displayMode": "list", "placement": "bottom"}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "expr": "sum(rate(rule_violation_total{creator_id=~\"$creator_id\"}[5m])) by (creator_id, rule_name)",
+          "legendFormat": "{{creator_id}} / {{rule_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Rule violations by creator × rule (rate/s)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "custom": {"lineWidth": 1, "fillOpacity": 10}},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "id": 4,
+      "options": {"tooltip": {"mode": "multi"}, "legend": {"displayMode": "list", "placement": "bottom"}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "expr": "sum(rate(llm_api_call_total[5m])) by (model)",
+          "legendFormat": "{{model}}",
+          "refId": "A"
+        }
+      ],
+      "title": "LLM calls per model (model mix)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "custom": {"lineWidth": 1, "fillOpacity": 10}},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "id": 5,
+      "options": {"tooltip": {"mode": "multi"}, "legend": {"displayMode": "list", "placement": "bottom"}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "expr": "active_conversations_gauge",
+          "legendFormat": "{{creator_id}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Active conversations (live)",
+      "type": "timeseries"
+    },
+    {
+      "content": "## TODO — Business metrics pending instrumentation\n\n| Panel | Metric needed | How to add |\n|---|---|---|\n| Cost per request ($) | `llm_cost_usd_total` | Add token tracking + pricing table in llm provider layer |\n| OpenRouter 429 rate | `llm_429_total` | Emit on HTTP 429 from provider |\n| DM errors total | `dm_errors_total` | Emit in DM agent catch block |\n\nSee `core/observability/metrics.py` to register, then call `emit_metric()` at the right point.",
+      "datasource": {"type": "datasource", "uid": "grafana"},
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 24},
+      "id": 6,
+      "options": {"content": "## TODO — Business metrics pending instrumentation\n\n| Panel | Metric needed | How to add |\n|---|---|---|\n| Cost per request ($) | `llm_cost_usd_total` | Add token tracking + pricing table in llm provider layer |\n| OpenRouter 429 rate | `llm_429_total` | Emit on HTTP 429 from provider |\n| DM errors total | `dm_errors_total` | Emit in DM agent catch block |\n\nSee `core/observability/metrics.py` to register, then call `emit_metric()` at the right point.", "mode": "markdown"},
+      "title": "TODO — Future panels",
+      "type": "text"
+    }
+  ],
+  "refresh": "60s",
+  "schemaVersion": 38,
+  "tags": ["clonnect", "business", "kpi"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "type": "datasource",
+        "label": "Prometheus"
+      },
+      {
+        "current": {"selected": true, "text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "${datasource}"},
+        "definition": "label_values(webhook_processed_total, creator_id)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "creator_id",
+        "query": {"query": "label_values(webhook_processed_total, creator_id)", "refId": "StandardVariableQuery"},
+        "refresh": 2,
+        "sort": 1,
+        "type": "query",
+        "label": "Creator"
+      }
+    ]
+  },
+  "time": {"from": "now-24h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Clonnect — Business KPIs",
+  "uid": "clonnect-business",
+  "version": 0,
+  "weekStart": ""
+}

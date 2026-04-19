@@ -1,0 +1,121 @@
+groups:
+  - name: clonnect-critical
+    rules:
+      # Alert 1: High pipeline error rate
+      - alert: HighPipelineErrorRate
+        expr: >
+          sum(rate(webhook_processed_total{status="error"}[5m]))
+          /
+          sum(rate(webhook_processed_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: clonnect
+        annotations:
+          summary: "Pipeline error rate > 5% sustained for 5m"
+          description: "Current error rate: {{ $value | humanizePercentage }}. Check Railway logs for root cause."
+          runbook: "https://github.com/clonnect/backend/blob/main/docs/runbooks/grafana_cloud_setup.md"
+
+      # Alert 2: Generation latency P95 too high
+      - alert: GenerationLatencyP95High
+        expr: >
+          histogram_quantile(0.95,
+            sum(rate(generation_duration_ms_bucket[5m])) by (le)
+          ) > 3000
+        for: 10m
+        labels:
+          severity: critical
+          team: clonnect
+        annotations:
+          summary: "Generation P95 latency > 3000ms for 10m"
+          description: "P95 generation latency: {{ $value }}ms. LLM provider may be slow or overloaded."
+
+      # Alert 3: Dual-write failure rate
+      # Note: uses dual_write_failure_total / (success + failure) as divergence proxy.
+      # When dual_write_divergence_total is added, update this expr.
+      - alert: MemoryDualWriteFailureHigh
+        expr: >
+          sum(rate(dual_write_failure_total[5m]))
+          /
+          (sum(rate(dual_write_success_total[5m])) + sum(rate(dual_write_failure_total[5m]))) > 0.01
+        for: 10m
+        labels:
+          severity: critical
+          team: clonnect
+        annotations:
+          summary: "Dual-write failure rate > 1% for 10m — ARC2 memory at risk"
+          description: "Failure rate: {{ $value | humanizePercentage }}. arc2_lead_memories may diverge from legacy table."
+
+      # Alert 4: LLM API call error rate
+      - alert: LLMAPIErrorRateHigh
+        expr: >
+          sum(rate(llm_api_call_total{status="error"}[5m]))
+          /
+          sum(rate(llm_api_call_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: clonnect
+        annotations:
+          summary: "LLM API error rate > 5%"
+          description: "LLM error rate: {{ $value | humanizePercentage }}. Check OpenRouter/provider status."
+
+      # Alert 5: Budget utilization consistently maxed out
+      - alert: BudgetUtilizationSaturated
+        expr: >
+          histogram_quantile(0.95,
+            sum(rate(dm_budget_utilization_bucket[10m])) by (le)
+          ) > 0.95
+        for: 20m
+        labels:
+          severity: critical
+          team: clonnect
+        annotations:
+          summary: "Token budget P95 utilization > 95% for 20m"
+          description: "Context is consistently near the token cap. ARC1 truncations may be aggressive."
+
+  - name: clonnect-warning
+    rules:
+      # Alert 6: Compaction rate too high (may indicate runaway truncation)
+      - alert: CompactionAppliedRateHigh
+        expr: >
+          sum(rate(compaction_applied_total[10m]))
+          /
+          sum(rate(webhook_processed_total{status="ok"}[10m])) > 0.30
+        for: 30m
+        labels:
+          severity: warning
+          team: clonnect
+        annotations:
+          summary: "Compaction applied on > 30% of DMs for 30m — ARC3 shadow mode high trigger rate"
+          description: "Compaction rate: {{ $value | humanizePercentage }}. May indicate overly aggressive compaction threshold."
+
+      # Alert 7: Distill cache miss rate high
+      - alert: DistillCacheMissHigh
+        expr: >
+          sum(rate(cache_miss_total{cache_name="distill"}[10m]))
+          /
+          (sum(rate(cache_hit_total{cache_name="distill"}[10m])) + sum(rate(cache_miss_total{cache_name="distill"}[10m]))) > 0.30
+        for: 30m
+        labels:
+          severity: warning
+          team: clonnect
+        annotations:
+          summary: "Distill cache miss rate > 30% for 30m"
+          description: "Cache miss rate: {{ $value | humanizePercentage }}. Creator style data may not be caching correctly."
+
+  - name: clonnect-todo
+    # These alert rules reference metrics that do NOT yet exist in the registry.
+    # They are commented out and will be activated when the metrics are added.
+    # See: docs/sprint5_planning/ARC5_phase4_metrics_inventory.md § TODOs
+    rules: []
+
+# TODO alerts (activate when metrics exist):
+#
+# - alert: CircuitBreakerTrips
+#   expr: rate(circuit_breaker_tripped_total[5m]) > 0.005
+#   requires: circuit_breaker_tripped_total (ARC5 Phase 4 circuit breaker, not yet merged)
+#
+# - alert: OpenRouterRateLimit
+#   expr: rate(llm_429_total[5m]) > 0.001
+#   requires: llm_429_total (emit on HTTP 429 in provider layer)
