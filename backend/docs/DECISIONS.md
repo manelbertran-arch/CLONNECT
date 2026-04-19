@@ -247,3 +247,13 @@ Only `core/providers/google_provider.py` already loads from `config/models/{mode
 **Blast radius:** With `LLM_MODEL_NAME` unset (current Railway state), behavior is byte-identical to today: `_call_gemini` reads `GEMINI_PRESENCE_PENALTY`/`GEMINI_FREQUENCY_PENALTY` env vars (both 0.0 in prod), uses BLOCK_ONLY_HIGH safety, and `generate_dm_response` runs the existing `LLM_PRIMARY_PROVIDER` cascade (deepinfra → gemini → openai-fallback). Activation of `LLM_MODEL_NAME=qwen3_14b` in staging is the next gate (Step 9).
 
 ---
+
+---
+DATE: 2026-04-19
+ARC: ARC4
+DECISION: ARC4 Phase 3-5 APLAZADA a post-fine-tuning
+CONTEXT: Worker B completó 8 mediciones shadow (baseline + 7 mutations). 6/7 mutations son PROTECTIVE (Δ composite -2.2 a -4.7, ΔK1 -16 a -43). Solo M10 strip_question es NEUTRAL (+0.3 composite).
+RATIONALE: Plan original (eliminar 9-11 mutations para +3/+6 composite) INCORRECTO con Gemma-4-31B base. Las mutations NO son band-aids — son red de seguridad necesaria. K1 (memory continuity) colapsa -30/-40 puntos al eliminar M3/M7/M8 aunque composite solo baja -3. Eliminar M10 ganaría +0.3 (despreciable vs coste de iteración).
+NEXT: Re-medir las 7 mutations con modelo FINE-TUNED cuando FT esté listo (Sprint 6-7). Modelo FT probablemente no genere "jajajaja" ni echo espontáneo → mutations podrían eliminarse en bloque. Decisión más eficiente 1 vez con todas que 7 veces con el modelo base.
+STATUS: DEFERRED TO POST-FINE-TUNING
+---
