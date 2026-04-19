@@ -1790,3 +1790,36 @@ closer to M1 than cosmetic mutations. Phase 2 shadow will determine KEEP vs REPL
 - `docs/audit_sprint5/ARC4_per_mutation_ccee_impact.md`: template for CCEE shadow results
 - `docs/sprint5_planning/ARC4_prompt_rules_v1.md`: 9 prompt-time rules designed (M3-M11)
 - `docs/sprint5_planning/ARC4_phase1_rollout_plan.md`: rollout order by risk level
+
+## ARC3 Phase 2: PromptSliceCompactor Shadow Mode — 2026-04-19
+
+**Context:** ARC3 goal is to compact prompts to fit within MAX_CONTEXT_CHARS=8000. Phase 2
+implements the compactor in shadow mode — it computes decisions and logs them to DB but
+NEVER alters the actual prompt returned to the LLM.
+
+**Decision: shadow mode default ON (ENABLE_COMPACTOR_SHADOW=true)**
+Safe because the compactor output is discarded. Fire-and-forget via asyncio.create_task;
+any exception in the shadow path is caught and logged as warning. The production path
+(combined_context, system_prompt from _assemble_context) is never touched.
+
+**Decision: USE_COMPACTION=false until Phase 3 gate passes**
+Phase 3 activates live compaction only after 1,000 shadow turns confirm compaction rate
+< 15%. If > 15%, ratios are miscalibrated and must be retuned before activation.
+analyze_compactor_shadow.py outputs the gate verdict automatically.
+
+**Decision: distill_service=None in Phase 2 shadow**
+StyleDistillCache (ARC3 Phase 1) exists but CCEE validation is still pending.
+Wiring distill_service into the shadow compactor is deferred to Phase 3 to avoid
+logging false distill decisions before the service is production-ready.
+
+**Files added**
+- `alembic/versions/049_arc3_compactor_shadow_log.py`: context_compactor_shadow_log table
+- `core/generation/compactor.py`: PromptSliceCompactor §2.3.4 + truncate_preserving_structure
+- `tests/compactor/test_compactor.py`: 10 unit tests (all algorithm paths)
+- `tests/integration/test_compactor_shadow.py`: 9 integration tests
+- `scripts/analyze_compactor_shadow.py`: analysis CLI with Phase 3 gate check
+- `docs/sprint5_planning/ARC3_phase2_shadow_design.md`: architecture + runbook
+
+**Files modified**
+- `core/feature_flags.py`: ENABLE_COMPACTOR_SHADOW (default True) + USE_COMPACTION (default False)
+- `core/dm/phases/context.py`: _run_compactor_shadow + _build_compactor_sections + _log_shadow_compactor_sync + asyncio.create_task hook
