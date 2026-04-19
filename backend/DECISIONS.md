@@ -4,6 +4,23 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-19 — ARC3 Phase 1: StyleDistillCache — shadow distillation of Doc D
+
+- **Worker:** ARC3 Phase 1. Branch `feature/arc3-phase1-distill-cache`.
+- **Problem:** Creator Doc D (style_prompt) averages ~5 500 chars for iris_bertran, consuming ~69% of the 8 000-char context budget before any lead memory or RAG hits. ARC3 goal: cache a distilled ~1 500-char version that preserves voice/examples/tone rules while reducing token cost by ~73%.
+- **Design:** `creator_style_distill` table (migration 048) stores distilled Doc D keyed by (creator_id, doc_d_hash, distill_prompt_version). `StyleDistillService` calls OpenRouter (same provider as prod) with `DISTILL_PROMPT_V1` (ARC3 §2.2.3), validates output in [1 200, 1 800] chars, retries once on failure. Shadow phase: generation happens via `scripts/distill_style_prompts.py` batch CLI; prod agent reads full Doc D unchanged until `USE_DISTILLED_DOC_D=true`.
+- **Key decisions:**
+  1. Hash = SHA256[:16] of `style_prompt` content → invalidation is automatic when Doc D changes.
+  2. `DISTILL_PROMPT_V1` instructs LLM to preserve: voice tics, 3–5 concrete examples, tone rules per lead temperature, form constraints. Eliminate: generic phrases, redundancies, meta-commentary.
+  3. `USE_DISTILLED_DOC_D` flag default = False always. Activation gated on ΔCCEE_composite ≥ −3 (reference: QW2 compressed Doc D regressed −10.69 → unacceptable).
+  4. Phase 3 activation site marked with shadow hook comment in `core/dm/agent.py:186` — no DB session injected yet (would require refactor of `_load_creator_data`; deferred).
+  5. LLM: OpenRouter, `OPENROUTER_MODEL` env var (default `google/gemma-4-31b-it`), timeout 90s, max 2 retries with exponential backoff.
+- **CCEE validation:** Deferred — no `DATABASE_URL` / `OPENROUTER_API_KEY` in local env. Must run on staging before Phase 3 activation.
+- **Coverage:** 7/7 distill unit tests pass. All other suites (memory/budget/metadata/observability) unaffected. 7/7 smoke pass.
+- **Next:** Phase 2 (PromptSliceCompactor shadow) can run in parallel. Phase 3 activates live substitution after CCEE gate passes.
+
+---
+
 ## 2026-04-19 — ARC2 A2.5: Accept J4/S3/J6/L2 regressions as controlled tech debt
 
 - **Decision:** Accept ARC2 regressions in J4, S3, J6, L2 as controlled tech debt.

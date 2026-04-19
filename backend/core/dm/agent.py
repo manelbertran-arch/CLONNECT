@@ -186,6 +186,13 @@ class DMResponderAgentV2:
             style_prompt = get_creator_style_prompt(creator_id)
             if style_prompt:
                 logger.info(f"Loaded style prompt for {creator_id}: {len(style_prompt)} chars")
+            # ARC3 Phase 1 shadow hook — USE_DISTILLED_DOC_D default OFF.
+            # Full distilled-content substitution wired in Phase 3.
+            if style_prompt and _flags.use_distilled_doc_d:
+                from services.style_distill_service import StyleDistillService  # noqa: F401
+                # Phase 3 will inject distilled Doc D here once DB session
+                # is available in this context. For now, read is a no-op.
+                pass
         except Exception as e:
             logger.warning(f"Could not load style prompt for {creator_id}: {e}")
 

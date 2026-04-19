@@ -54,6 +54,17 @@ class FeatureFlags:
     question_removal: bool = field(default_factory=lambda: _flag("ENABLE_QUESTION_REMOVAL", True))
     vocabulary_extraction: bool = field(default_factory=lambda: _flag("ENABLE_VOCABULARY_EXTRACTION", True))
 
+    # === ARC4 — Per-mutation kill switches (default: False = mutation ACTIVE) ===
+    # Set to True to disable a specific post-generation mutation for shadow testing.
+    # Never disable M1 (guardrails). M2/M9/M11 don't exist in code.
+    # DISABLE = True means the mutation is SKIPPED (off). Default False = mutation runs.
+    m3_disable_dedupe_repetitions: bool = field(default_factory=lambda: _flag("DISABLE_M3_DEDUPE_REPETITIONS", False))
+    m4_disable_dedupe_sentences: bool = field(default_factory=lambda: _flag("DISABLE_M4_DEDUPE_SENTENCES", False))
+    m5_disable_echo_detector: bool = field(default_factory=lambda: _flag("DISABLE_M5_ECHO_DETECTOR", False))
+    m6_disable_length_enforce: bool = field(default_factory=lambda: _flag("DISABLE_M6_NORMALIZE_LENGTH", False))
+    m7_disable_normalize_emojis: bool = field(default_factory=lambda: _flag("DISABLE_M7_NORMALIZE_EMOJIS", False))
+    m8_disable_normalize_punctuation: bool = field(default_factory=lambda: _flag("DISABLE_M8_NORMALIZE_PUNCTUATION", False))
+
     # === Experimental (default: disabled) ===
     self_consistency: bool = field(default_factory=lambda: _flag("ENABLE_SELF_CONSISTENCY", False))
     finetuned_model: bool = field(default_factory=lambda: _flag("ENABLE_FINETUNED_MODEL", False))
@@ -92,6 +103,14 @@ class FeatureFlags:
     # Default OFF — activate via USE_TYPED_METADATA=true for gradual rollout.
     typed_metadata: bool = field(
         default_factory=lambda: _flag("USE_TYPED_METADATA", False)
+    )
+
+    # === ARC3 StyleDistillCache — Phase 1 shadow, Phase 3 activation ===
+    # When OFF (default): distillation is generated/cached but never used in prod.
+    # When ON: agent reads distilled Doc D instead of full Doc D.
+    # Activate per-creator after CCEE validation confirms ΔCCEE_composite ≥ -3.
+    use_distilled_doc_d: bool = field(
+        default_factory=lambda: _flag("USE_DISTILLED_DOC_D", False)
     )
 
     # === Unaudited systems (default: disabled until forensic audit passes) ===
