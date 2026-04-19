@@ -14,6 +14,8 @@ via cognitive_metadata and handled by the LLM + postprocessing guardrails.
 
 import logging
 import re
+import time
+from datetime import datetime, timezone
 from typing import Dict
 
 from core.agent_config import AGENT_THRESHOLDS
@@ -87,12 +89,36 @@ async def phase_detection(
     frustration/context signals, pool matching.
     Returns a DetectionResult; if pool_response is set the pipeline short-circuits.
     """
+    _t_detect_start = time.monotonic()
+    _arc5_start_ts = datetime.now(timezone.utc)
+    _arc5_security_flags: list = []
+    _arc5_security_severity = None
+    _arc5_matched_rules: list = []
     result = DetectionResult()
+
+    def _emit_arc5_detection_meta() -> None:
+        if not flags.typed_metadata:
+            return
+        try:
+            from core.metadata.models import DetectionMetadata
+            cognitive_metadata["_arc5_detection_meta"] = DetectionMetadata(
+                detection_ts=_arc5_start_ts,
+                detection_duration_ms=int((time.monotonic() - _t_detect_start) * 1000),
+                detected_intent="other",
+                confidence=1.0,
+                lang_detected=cognitive_metadata.get("detected_language", "unknown"),
+                matched_rules=_arc5_matched_rules,
+                security_flags=_arc5_security_flags,
+                security_severity=_arc5_security_severity,
+            )
+        except Exception as _arc5_err:
+            logger.warning("[ARC5] detection metadata failed: %s", _arc5_err)
 
     # GUARD 0: Empty / whitespace-only messages — skip all guards, let LLM handle
     if not message or not message.strip():
         metadata["is_empty_message"] = True
         logger.info("Empty message received from sender %s — skipping all guards", sender_id)
+        _emit_arc5_detection_meta()
         return result
 
     # GUARD 0b: Input length truncation (OWASP LLM10 — token flooding / context overflow).
@@ -116,6 +142,8 @@ async def phase_detection(
         for _pat in _PROMPT_INJECTION_PATTERNS:
             if _pat.search(message):
                 cognitive_metadata["prompt_injection_attempt"] = True
+                _arc5_security_flags.append("prompt_injection")
+                _arc5_matched_rules.append(_pat.pattern[:60])
                 logger.warning(
                     "Prompt injection pattern detected from sender %s: pattern=%s",
                     sender_id, _pat.pattern[:60],
@@ -151,6 +179,11 @@ async def phase_detection(
                 logger.warning(f"Sensitive content detected: {sensitive_result.type.value}")
                 cognitive_metadata["sensitive_detected"] = True
                 cognitive_metadata["sensitive_category"] = sensitive_result.type.value
+                _arc5_security_flags.append("sensitive_content")
+                if sensitive_result.confidence >= AGENT_THRESHOLDS.sensitive_escalation:
+                    _arc5_security_severity = "critical"
+                else:
+                    _arc5_security_severity = "medium"
                 # QW3: fire-and-forget alert. CRITICAL if at/above escalation threshold.
                 _severity = (
                     SEVERITY_CRITICAL
@@ -196,6 +229,7 @@ async def phase_detection(
                         tokens_used=0,
                         metadata={"sensitive_category": sensitive_result.type.value},
                     )
+                    _emit_arc5_detection_meta()
                     return result
         except Exception as e:
             # FAIL-CLOSED: if we can't verify it's NOT a crisis, escalate to human
@@ -212,6 +246,7 @@ async def phase_detection(
                 tokens_used=0,
                 metadata={"sensitive_failsafe": True, "error": str(e)},
             )
+            _emit_arc5_detection_meta()
             return result
 
     # GUARD 4a: Detect frustration level
@@ -282,6 +317,7 @@ async def phase_detection(
                                 ],
                             },
                         )
+                        _emit_arc5_detection_meta()
                         return result
 
                 logger.debug(f"Pool response matched: {pool_result.category}")
@@ -293,6 +329,8 @@ async def phase_detection(
                     tokens_used=0,
                     metadata={"pool_category": pool_result.category, "used_pool": True},
                 )
+                _emit_arc5_detection_meta()
                 return result
 
+    _emit_arc5_detection_meta()
     return result

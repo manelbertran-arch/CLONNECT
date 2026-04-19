@@ -4,11 +4,13 @@ import asyncio
 import logging
 import os
 import time
+from datetime import datetime, timezone
 from typing import Dict
 
 from core.agent_config import AGENT_THRESHOLDS
 from core.dm.models import ContextBundle
 from core.dm.strategy import _determine_response_strategy
+from core.feature_flags import flags
 from core.dm.text_utils import (
     _classify_user_message,
     _smart_truncate_context,
@@ -165,6 +167,8 @@ async def phase_llm_generation(
 ) -> LLMResponse:
     """Phase 4: Prompt finalization + LLM call with fallback chain."""
     _t2 = time.monotonic()
+    _arc5_generation_ts = datetime.now(timezone.utc)
+    _generation_retry_count = 0
     # Alias context fields for code compatibility
     intent_value = context.intent_value
     _rel_type = context.rel_type
@@ -315,6 +319,7 @@ async def phase_llm_generation(
         system_prompt = _smart_truncate_context(system_prompt, _MAX_CONTEXT_CHARS)
         cognitive_metadata["prompt_truncated"] = True
         logger.info(f"[PROMPT] Smart-truncated system prompt from {original_len} to {len(system_prompt)} chars")
+    _arc5_context_budget_pct = min(1.0, len(system_prompt) / _MAX_CONTEXT_CHARS) if _MAX_CONTEXT_CHARS > 0 else 0.0
 
     # Log prompt size for latency diagnosis
     _est_tokens = len(system_prompt) // 4
@@ -536,6 +541,7 @@ async def phase_llm_generation(
             _retry_cap = int(_llm_max_tokens * _retry_multiplier)
             _best_result = llm_result
             for _retry_n in range(MAX_TRUNCATION_RETRIES):
+                _generation_retry_count += 1
                 logger.warning(
                     "[TruncationRecovery] API signalled max_tokens hit (finish_reason=length, "
                     "attempt %d/%d), retrying with max_tokens=%d",
@@ -615,6 +621,30 @@ async def phase_llm_generation(
     #     )
     #     llm_response.content = _clean_content
     #     cognitive_metadata["loop_truncated"] = True
+
+    # ARC5: build GenerationMetadata after LLM call is complete
+    if flags.typed_metadata:
+        try:
+            from core.metadata.models import GenerationMetadata
+            _gen_model = llm_response.model if llm_result else (llm_response.model if not best_of_n_result else best_of_n_result.best.model)
+            _gen_temp = float(cognitive_metadata.get("temperature_used", 0.7))
+            cognitive_metadata["_arc5_generation_meta"] = GenerationMetadata(
+                generation_ts=_arc5_generation_ts,
+                generation_duration_ms=int((_t3 - _t2) * 1000),
+                generation_model=_gen_model,
+                temperature=_gen_temp,
+                prompt_tokens=llm_result.get("prompt_tokens", 0) if isinstance(llm_result, dict) else 0,
+                completion_tokens=llm_result.get("completion_tokens", 0) if isinstance(llm_result, dict) else 0,
+                total_tokens=llm_response.tokens_used,
+                compaction_applied=cognitive_metadata.get("prompt_truncated", False),
+                distill_cache_hit=False,
+                sections_truncated=["system_prompt"] if cognitive_metadata.get("prompt_truncated") else [],
+                context_budget_used_pct=_arc5_context_budget_pct,
+                retry_count=_generation_retry_count,
+                circuit_breaker_tripped=False,
+            )
+        except Exception as _arc5_err:
+            logger.warning("[ARC5] generation metadata failed: %s", _arc5_err)
 
     # Phase 4b: Self-consistency validation (expensive, default OFF)
     if ENABLE_SELF_CONSISTENCY:

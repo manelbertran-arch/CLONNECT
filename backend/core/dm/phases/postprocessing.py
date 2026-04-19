@@ -75,6 +75,10 @@ async def phase_postprocessing(
     history = context.history
     rag_results = context.rag_results
 
+    _arc5_safety_status = "OK"
+    _arc5_safety_reason = None
+    _arc5_rule_violations: list = []
+
     response_content = llm_response.content
 
     # A2 FIX: Detect repetitive loops — LOG ONLY, do NOT replace.
@@ -348,6 +352,12 @@ async def phase_postprocessing(
                 logger.warning(f"Guardrail triggered: {guardrail_result.get('reason')}")
                 if guardrail_result.get("corrected_response"):
                     response_content = guardrail_result["corrected_response"]
+                    _arc5_safety_status = "REGEN"
+                else:
+                    _arc5_safety_status = "BLOCK"
+                _arc5_safety_reason = guardrail_result.get("reason")
+                _reason = guardrail_result.get("reason") or "unknown"
+                _arc5_rule_violations.append(_reason)
                 cognitive_metadata["guardrail_triggered"] = guardrail_result.get("reason")
         except Exception as e:
             logger.debug(f"Guardrails check failed: {e}")
@@ -564,6 +574,31 @@ async def phase_postprocessing(
     }
     if cognitive_metadata.get("best_of_n"):
         _dm_metadata["best_of_n"] = cognitive_metadata["best_of_n"]
+
+    # ARC5: build PostGenMetadata and enrich _dm_metadata with typed structure
+    if flags.typed_metadata:
+        try:
+            from datetime import datetime, timezone
+            from core.metadata.models import MessageMetadata, PostGenMetadata
+            _arc5_postgen = PostGenMetadata(
+                post_gen_ts=datetime.now(timezone.utc),
+                safety_status=_arc5_safety_status,
+                safety_reason=_arc5_safety_reason,
+                pii_redacted_types=[],
+                rule_violations=_arc5_rule_violations,
+                length_regen_triggered=cognitive_metadata.get("truncation_recovery", False),
+            )
+            cognitive_metadata["_arc5_postgen_meta"] = _arc5_postgen
+            _typed_msg_meta = MessageMetadata(
+                detection=cognitive_metadata.get("_arc5_detection_meta"),
+                generation=cognitive_metadata.get("_arc5_generation_meta"),
+                post_gen=_arc5_postgen,
+            )
+            _dm_metadata["_arc5_typed_metadata"] = _typed_msg_meta.model_dump(
+                mode="json", exclude_none=True
+            )
+        except Exception as _arc5_err:
+            logger.warning("[ARC5] postgen metadata failed: %s", _arc5_err)
 
     return DMResponse(
         content=formatted_content,

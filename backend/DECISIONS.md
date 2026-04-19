@@ -4,6 +4,25 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-19 — ARC5 Phase 2: Typed metadata integration into DM pipeline phases
+
+- **Worker:** ARC5 Phase 2. Branch `feature/arc5-phase2-integration`.
+- **Problem:** DM pipeline emitted flat untyped dicts into `msg_metadata`. ARC5 Phase 1 built Pydantic models (`DetectionMetadata`, `GenerationMetadata`, `PostGenMetadata`) but they were unused in the actual pipeline.
+- **Design:** Three pipeline phases emit typed Pydantic models into `cognitive_metadata` during execution; postprocessing assembles them into a `MessageMetadata` container and writes to `_dm_metadata["_arc5_typed_metadata"]`. Flag `USE_TYPED_METADATA` (default OFF) gates all new writes — zero behavior change when off.
+- **Key decisions:**
+  1. Typed models stored in `cognitive_metadata` (ephemeral inter-phase dict), not DB helpers — phases lack `session`/`message_id` required by `helpers.py`.
+  2. Detection phase uses `_emit_arc5_detection_meta()` closure called before each of 6 return points (rather than try/finally which would require wholesale reindentation).
+  3. `detected_intent` at detection phase is always `"other"` — actual intent resolved in context phase (Phase 2), not detection (Phase 1). Acceptable for observability.
+  4. `lang_detected` uses `cognitive_metadata.get("detected_language", "unknown")` — language resolved in context phase, not available at detection time.
+  5. `context_budget_used_pct` computed as `len(system_prompt) / _MAX_CONTEXT_CHARS` after truncation.
+  6. Retry count tracked by `_generation_retry_count` counter incremented inside the truncation recovery loop.
+  7. ScoringMetadata skipped (score values not accessible at postprocessing phase — requires DB query). TODO(A2.x) when scoring pipeline is refactored.
+  8. ValidationError in any typed metadata build → `logger.warning` + fallback (no crash). Fail-silent to protect the hot webhook path.
+- **Coverage:** 116 passed, 1 skipped (all metadata + memory tests).
+- **Flag:** `USE_TYPED_METADATA=true` to activate. Default OFF for gradual rollout.
+
+---
+
 ## 2026-04-19 — ARC2 A2.4: Dual-write bridge — 3 legacy write points → arc2_lead_memories
 
 - **Worker:** A2.4 of ARC2 Memory Consolidation sprint. Branch `feature/arc2-dual-write`.
