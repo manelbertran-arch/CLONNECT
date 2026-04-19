@@ -474,6 +474,35 @@ async def phase_llm_generation(
                 llm_messages.append({"role": msg["role"], "content": content})
     llm_messages.append({"role": "user", "content": full_prompt})
 
+    # ARC3 Phase 4: CircuitBreaker pre-check — before any LLM call
+    _cb_creator_id = str(agent.creator_id)
+    _cb_lead_id = str(sender_id) if sender_id else ""
+    _cb_active = (
+        flags.enable_circuit_breaker
+        and not os.environ.get("CCEE_NO_FALLBACK")
+        and os.environ.get("DISABLE_FALLBACK") != "true"
+    )
+    _breaker = None
+    _cb_failure_type_cls = None
+    if _cb_active:
+        try:
+            from core.generation.circuit_breaker import FailureType as _FailureType, get_circuit_breaker
+            _breaker = get_circuit_breaker()
+            _cb_failure_type_cls = _FailureType
+            if not await _breaker.check(_cb_creator_id, _cb_lead_id):
+                cognitive_metadata["circuit_breaker_tripped"] = True
+                _fallback_text = await _breaker.get_fallback_response(_cb_creator_id, _cb_lead_id)
+                logger.warning("[CircuitBreaker] BLOCKED creator=%s lead=%s", _cb_creator_id, _cb_lead_id)
+                return LLMResponse(
+                    content=_fallback_text,
+                    model="circuit_breaker_fallback",
+                    tokens_used=0,
+                    metadata={"provider": "circuit_breaker", "latency_ms": 0},
+                )
+        except Exception as _cb_err:
+            logger.warning("[CircuitBreaker] pre-check failed, proceeding: %s", _cb_err)
+            _breaker = None
+
     # Best-of-N: generate 3 candidates at different temperatures (copilot only)
     best_of_n_result = None
     if ENABLE_BEST_OF_N:
@@ -521,11 +550,19 @@ async def phase_llm_generation(
         # TODO: re-enable after bisect confirms it's not the culprit.
         cognitive_metadata["temperature_used"] = _llm_temperature
 
-        llm_result = await generate_dm_response(
-            llm_messages,
-            max_tokens=_llm_max_tokens,
-            temperature=_llm_temperature,
-        )
+        try:
+            llm_result = await generate_dm_response(
+                llm_messages,
+                max_tokens=_llm_max_tokens,
+                temperature=_llm_temperature,
+            )
+        except Exception as _gen_exc:
+            if _breaker and _cb_failure_type_cls:
+                try:
+                    await _breaker.record_failure(_cb_creator_id, _cb_lead_id, _cb_failure_type_cls.LLM_5XX)
+                except Exception:
+                    pass
+            raise
 
         # G6: Truncation recovery — retry only when API signals max_tokens was hit.
         # Detection: finish_reason == "length" (OpenAI standard, propagated by all providers).
@@ -570,6 +607,19 @@ async def phase_llm_generation(
             if _best_result is not llm_result:
                 cognitive_metadata["truncation_recovery"] = True
             llm_result = _best_result
+
+        # ARC3 Phase 4: record outcome in circuit breaker
+        if _breaker and _cb_failure_type_cls:
+            try:
+                _cb_content = (llm_result or {}).get("content", "").strip() if llm_result else ""
+                if not _cb_content:
+                    await _breaker.record_failure(_cb_creator_id, _cb_lead_id, _cb_failure_type_cls.EMPTY_RESPONSE)
+                elif len(_cb_content) < 3:
+                    await _breaker.record_failure(_cb_creator_id, _cb_lead_id, _cb_failure_type_cls.RESPONSE_TOO_SHORT)
+                else:
+                    await _breaker.record_success(_cb_creator_id, _cb_lead_id)
+            except Exception:
+                pass
 
     _t3 = time.monotonic()
     logger.info(f"[TIMING] LLM call: {int((_t3 - _t2) * 1000)}ms")
@@ -641,7 +691,7 @@ async def phase_llm_generation(
                 sections_truncated=["system_prompt"] if cognitive_metadata.get("prompt_truncated") else [],
                 context_budget_used_pct=_arc5_context_budget_pct,
                 retry_count=_generation_retry_count,
-                circuit_breaker_tripped=False,
+                circuit_breaker_tripped=cognitive_metadata.get("circuit_breaker_tripped", False),
             )
         except Exception as _arc5_err:
             logger.warning("[ARC5] generation metadata failed: %s", _arc5_err)

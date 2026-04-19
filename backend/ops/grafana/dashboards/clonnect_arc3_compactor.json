@@ -1,0 +1,144 @@
+{
+  "__requires": [
+    {"type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0"},
+    {"type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0"},
+    {"type": "panel", "id": "timeseries", "name": "Time series", "version": ""},
+    {"type": "panel", "id": "text", "name": "Text", "version": ""}
+  ],
+  "annotations": {"list": [{"builtIn": 1, "datasource": {"type": "grafana", "uid": "-- Grafana --"}, "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard"}]},
+  "description": "ARC3 PromptSliceCompactor — shadow decisions, distill cache hit rate, compaction rate. TODO panels marked when metrics land.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "custom": {"lineWidth": 1, "fillOpacity": 10}},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"tooltip": {"mode": "multi"}, "legend": {"displayMode": "list", "placement": "bottom"}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "expr": "sum(rate(compaction_applied_total{creator_id=~\"$creator_id\"}[5m])) by (creator_id, reason)",
+          "legendFormat": "{{creator_id}} / {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Compaction applied by creator × reason (rate/s)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "custom": {"lineWidth": 1, "fillOpacity": 10},
+          "unit": "percentunit", "min": 0, "max": 1},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "options": {"tooltip": {"mode": "multi"}, "legend": {"displayMode": "list", "placement": "bottom"}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "expr": "sum(rate(cache_hit_total{cache_name=\"distill\"}[10m])) / (sum(rate(cache_hit_total{cache_name=\"distill\"}[10m])) + sum(rate(cache_miss_total{cache_name=\"distill\"}[10m])))",
+          "legendFormat": "Distill cache hit ratio",
+          "refId": "A"
+        }
+      ],
+      "title": "Distill cache hit ratio",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "custom": {"lineWidth": 1, "fillOpacity": 10}},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 3,
+      "options": {"tooltip": {"mode": "multi"}, "legend": {"displayMode": "list", "placement": "bottom"}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "expr": "sum(rate(cache_hit_total{cache_name=\"distill\"}[5m]))",
+          "legendFormat": "Distill cache hits/s",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "expr": "sum(rate(cache_miss_total{cache_name=\"distill\"}[5m]))",
+          "legendFormat": "Distill cache misses/s",
+          "refId": "B"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "expr": "sum(rate(cache_hit_total{cache_name=\"rag\"}[5m]))",
+          "legendFormat": "RAG cache hits/s",
+          "refId": "C"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "expr": "sum(rate(cache_miss_total{cache_name=\"rag\"}[5m]))",
+          "legendFormat": "RAG cache misses/s",
+          "refId": "D"
+        }
+      ],
+      "title": "Cache hit/miss rate by cache_name (distill, rag)",
+      "type": "timeseries"
+    },
+    {
+      "content": "## TODO — Pending metrics (add when registered in core/observability/metrics.py)\n\n| Panel | Metric needed | Reason missing |\n|---|---|---|\n| Distill applied rate | `distill_applied_total` | Not yet emitted in creator_style_loader.py |\n| Whitelist overflow rate | `whitelist_overflow_total` | Not yet emitted in compactor.py |\n| CircuitBreaker trips | `circuit_breaker_tripped_total` | ARC5 Phase 4 circuit breaker not merged yet |\n| Shadow decision log | `compactor_shadow_decision_total` | ARC3 Phase 3 (active mode) not started |\n\nThese panels will activate automatically once the corresponding `emit_metric(...)` calls are added and the metrics appear in `/metrics`.",
+      "datasource": {"type": "datasource", "uid": "grafana"},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+      "id": 4,
+      "options": {"content": "## TODO — Pending metrics (add when registered in core/observability/metrics.py)\n\n| Panel | Metric needed | Reason missing |\n|---|---|---|\n| Distill applied rate | `distill_applied_total` | Not yet emitted in creator_style_loader.py |\n| Whitelist overflow rate | `whitelist_overflow_total` | Not yet emitted in compactor.py |\n| CircuitBreaker trips | `circuit_breaker_tripped_total` | ARC5 Phase 4 circuit breaker not merged yet |\n| Shadow decision log | `compactor_shadow_decision_total` | ARC3 Phase 3 (active mode) not started |\n\nThese panels will activate automatically once the corresponding `emit_metric(...)` calls are added and the metrics appear in `/metrics`.", "mode": "markdown"},
+      "title": "TODO — Future panels when metrics are added",
+      "type": "text"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["clonnect", "arc3", "compactor", "distill"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "type": "datasource",
+        "label": "Prometheus"
+      },
+      {
+        "current": {"selected": true, "text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "${datasource}"},
+        "definition": "label_values(compaction_applied_total, creator_id)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "creator_id",
+        "query": {"query": "label_values(compaction_applied_total, creator_id)", "refId": "StandardVariableQuery"},
+        "refresh": 2,
+        "sort": 1,
+        "type": "query",
+        "label": "Creator"
+      }
+    ]
+  },
+  "time": {"from": "now-6h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Clonnect — ARC3 Compactor & Distill",
+  "uid": "clonnect-arc3-compactor",
+  "version": 0,
+  "weekStart": ""
+}
