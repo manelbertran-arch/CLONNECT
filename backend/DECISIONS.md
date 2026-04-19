@@ -4,6 +4,24 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-19 — ARC2 A2.5: Accept J4/S3/J6/L2 regressions as controlled tech debt
+
+- **Decision:** Accept ARC2 regressions in J4, S3, J6, L2 as controlled tech debt.
+- **Context:** Post-hotfix measurement (`arc2_POSTFIX_iris_20260419_1255.json`, commit `344c5c59`) shows net +2.0 composite over A1.3 baseline (72.6 vs 70.6) but 4 dimension regressions vs A1.3:
+  - J4 Line-to-Line: −6.68
+  - L2 Logical Reasoning: −3.26
+  - S3 Strategic Alignment: −3.20
+  - J6 Q&A Consistency: −10.00
+- **Rationale:**
+  1. K1 Context Retention +29.74 and S1 Style +7.00 outweigh regressions in composite weight.
+  2. Composite v5 72.6 > A1.3 70.6 by +2.0 (target was +0.5 above baseline).
+  3. Regressions likely caused by `<memoria tipo="X">` format adding visual noise to the prompt — the LLM partially attends to the tags as response content rather than pure context.
+  4. S3 has regressed in every arch iteration (ARC1 orchestrator introduction, ARC2 memory injection) — this is a systemic pattern to investigate, not an isolated hotfix artifact.
+  5. J6 recovers from 62.5 (PRE-hotfix) to 90.0 (POST) — the −10 vs A1.3=100 is a ceiling effect from cross-session Q&A with memory injection adding irrelevant facts.
+- **Next:** Investigate S3/J4/L2 root cause in ARC3 Memory Compaction (compact `<memoria>` block before injection) or ARC4 Mutations Removal (remove legacy mutation context that competes with memory tags).
+
+---
+
 ## 2026-04-19 — ARC5 Phase 3: emit_metric helper + central registry + context middleware
 
 - **Worker:** ARC5 Phase 3. Branch `feature/arc5-phase3-emit-metric`.
