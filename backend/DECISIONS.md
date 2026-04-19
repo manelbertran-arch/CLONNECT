@@ -4,6 +4,44 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-19 — ARC4 Phase 3-5: Decision deferred pending Worker B CCEE results
+
+- **Context:** ARC4 Phase 1 audit revealed that the original design assumption ("11 mutations are cosmetic band-aids") is likely wrong for Gemma-4-31B base. Real inventory: `services/response_post.py` does not exist; mutations are spread across `postprocessing.py`, `length_controller.py`, `style_normalizer.py`, `question_remover.py`. M2, M5, M9, M11 do not exist in code.
+- **Preliminary signal:** Worker B Phase 2 CCEE per-mutation runs indicate 4/4 measured mutations are PROTECTIVE (composite regresses when disabled). Full results PENDING.
+- **Decision:** Do NOT proceed with ARC4 Phase 3-5 (elimination of mutations) until Worker B CCEE results are complete. Manel decides between: (A) cancel Phase 3-5 until post-fine-tuning, (B) mini-sprint prompt rules only (no code elimination), (C) selective elimination of mutations with ΔCCEE ≥ 0.
+- **Rationale:** Eliminating PROTECTIVE mutations would regress composite. Fine-tuning is the correct lever to reduce mutation dependency — after SFT+DPO, re-evaluate whether mutations are still needed.
+- **Next:** Read Worker B output → Manel decision → update this entry.
+
+---
+
+## 2026-04-19 — Dockerfile uses requirements-lite.txt — cachetools root cause fix
+
+- **Incident:** 3 `ImportError: cachetools` failures in Railway prod on 2026-04-19 (commits `222ca91c`, `f5b74327`, `0df554c4` were workarounds).
+- **Root cause:** Railway Dockerfile installs from `requirements-lite.txt`, not `requirements.txt`. `cachetools` was only in `requirements.txt`. Any dependency added to `requirements.txt` without also adding to `requirements-lite.txt` will fail silently in prod until cache expires.
+- **Fix:** Commit `a592f66b` — add `cachetools>=5.0,<6` to `requirements-lite.txt`.
+- **Process rule going forward:** Every new Python dependency MUST be added to BOTH `requirements.txt` AND `requirements-lite.txt`. Add note to onboarding docs. Worker J to audit `requirements-lite.txt` vs `requirements.txt` for any other gaps.
+
+---
+
+## 2026-04-19 — ENABLE_NIGHTLY_EXTRACT_DEEP=true activated in prod — A2.6 counter started
+
+- **Action:** `ENABLE_NIGHTLY_EXTRACT_DEEP=true` set in Railway prod environment (19-abr-2026 ~18:30 CET). Counter for 7-day soak period started.
+- **Purpose:** Nightly scheduler runs `extract_deep` (LLM-based) to populate `arc2_lead_memories` with `objection`, `interest`, `relationship_state` types that regex-only sync extraction does not capture.
+- **Gate for A2.6:** After 7 days stable (no errors, types populated) → eligible to remove legacy memory systems: `services/memory_extraction.py` (Legacy 1), `services/memory_engine.py` (Legacy 2), `services/memory_service.py::ConversationMemoryService` (Legacy 3).
+- **Earliest removal date:** ~2026-04-26. Verify with: `SELECT memory_type, COUNT(*) FROM arc2_lead_memories WHERE created_at > NOW() - INTERVAL '7 days' GROUP BY memory_type`.
+
+---
+
+## 2026-04-19 — ENABLE_CIRCUIT_BREAKER=true default — ARC3 Phase 4 safety net
+
+- **Decision:** `ENABLE_CIRCUIT_BREAKER` defaults to `True` (unlike all other new features which default OFF). This is a safety net, not an opt-in feature.
+- **Implementation:** `core/generation/circuit_breaker.py` — TTLCache backend (in-memory, not Redis — design doc specified Redis but TTLCache is simpler, stateless across deploys, and sufficient for single-replica Railway). `MAX_CONSECUTIVE_FAILURES=3`, cooldown=60s, per (creator_id, lead_id) pair.
+- **Integration point:** `core/dm/phases/generation.py:477-503`.
+- **Disable:** `ENABLE_CIRCUIT_BREAKER=false` — emergency only. Documented in `docs/runbooks/circuit_breaker_ops.md`.
+- **Why default ON:** A generation that fails 3 times in a row for the same pair is in a hard failure state. Returning a fallback response and alerting is strictly better than an infinite retry loop that starves the event loop.
+
+---
+
 ## 2026-04-19 — ARC3 Phase 1: StyleDistillCache — shadow distillation of Doc D
 
 - **Worker:** ARC3 Phase 1. Branch `feature/arc3-phase1-distill-cache`.
