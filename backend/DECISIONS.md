@@ -1750,3 +1750,43 @@ across all leads, preventing circuit-breaker trips during the nightly batch.
 
 **Files modified**
 - `api/startup/handlers.py`: added JOB N (nightly_extract_deep, 86400s, 720s delay, ENABLE_NIGHTLY_EXTRACT_DEEP=false)
+
+---
+
+## ARC4 Phase 1: Mutations Inventory + DISABLE_M* Kill Switches — 2026-04-19
+
+**Context:** ARC4 goal is to eliminate 9 of 11 post-generation mutations and replace them
+with prompt-time rules. Phase 1 is analysis-only — no mutations eliminated yet.
+
+**Decision: design doc vs reality discrepancy documented**
+`ARC4_eliminate_mutations.md §1.2` assumes all mutations live in `services/response_post.py`.
+That file does not exist. Real locations: M3/M4/M5-alt inline in
+`core/dm/phases/postprocessing.py`; M6 is `services/length_controller.py`; M7/M8 are
+`core/dm/style_normalizer.py`; M10 is `services/question_remover.py`. M2 (pii_redactor),
+M9 (normalize_casing), M11 (insert_signature_tic) are NOT implemented in code.
+Documented in `docs/audit_sprint5/ARC4_mutations_inventory.md`.
+
+**Decision: DISABLE_M* flags default False (mutations stay active)**
+Added 6 kill-switch flags to `core/feature_flags.py`: DISABLE_M3_DEDUPE_REPETITIONS,
+DISABLE_M4_DEDUPE_SENTENCES, DISABLE_M5_ECHO_DETECTOR, DISABLE_M6_NORMALIZE_LENGTH,
+DISABLE_M7_NORMALIZE_EMOJIS, DISABLE_M8_NORMALIZE_PUNCTUATION. All default false — prod
+behavior unchanged. Setting true skips that mutation for CCEE shadow testing.
+M1 (guardrails) has no kill switch. M10 reuses existing ENABLE_QUESTION_REMOVAL flag.
+
+**Decision: M5-alt echo detector is RECONSIDER, not REPLACE**
+A3 block in postprocessing.py is Jaccard echo detection, not "remove_meta_questions" as
+the design doc assumed. Echo detection is defensive (prevents bot mirroring the lead),
+closer to M1 than cosmetic mutations. Phase 2 shadow will determine KEEP vs REPLACE.
+
+**Files modified**
+- `core/feature_flags.py`: 6 DISABLE_M* flags added (default False)
+- `core/dm/phases/postprocessing.py`: skip guards for M3 (A2b), M4 (A2c), M5-alt (A3)
+- `core/dm/style_normalizer.py`: skip guards for M7 (emoji), M8 (punctuation)
+- `services/length_controller.py`: skip guard for M6 (enforce_length)
+
+**Files added**
+- `tests/mutations/test_arc4_disable_flags.py`: 12 tests — flags default false, flag=true skips mutation
+- `docs/audit_sprint5/ARC4_mutations_inventory.md`: real state of all 11 mutations vs design doc
+- `docs/audit_sprint5/ARC4_per_mutation_ccee_impact.md`: template for CCEE shadow results
+- `docs/sprint5_planning/ARC4_prompt_rules_v1.md`: 9 prompt-time rules designed (M3-M11)
+- `docs/sprint5_planning/ARC4_phase1_rollout_plan.md`: rollout order by risk level

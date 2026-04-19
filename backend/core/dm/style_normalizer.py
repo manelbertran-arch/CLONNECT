@@ -274,7 +274,9 @@ def normalize_style(
     # ── 1. Exclamation normalization ─────────────────────────────────────────
     # Per-message probabilistic decision: keep_prob = creator_rate / bot_natural_rate.
     # Requires baseline AND bot natural rates; skipped if either is missing.
-    if "!" in result:
+    # ARC4: DISABLE_M8_NORMALIZE_PUNCTUATION=true skips this section for shadow testing.
+    _m8_disabled = os.getenv("DISABLE_M8_NORMALIZE_PUNCTUATION", "false").lower() == "true"
+    if not _m8_disabled and "!" in result:
         baseline = _load_baseline(creator_id)
         if baseline:
             punct = baseline.get("punctuation", {})
@@ -300,7 +302,9 @@ def normalize_style(
     # Direct-rate formula: keep_prob = creator_emoji_rate (0-1 fraction).
     # For each response: if random() > keep_prob → strip all emojis.
     # Skipped entirely if no emoji_rate data exists for this creator.
-    if _has_emoji(result):
+    # ARC4: DISABLE_M7_NORMALIZE_EMOJIS=true skips this section for shadow testing.
+    _m7_disabled = os.getenv("DISABLE_M7_NORMALIZE_EMOJIS", "false").lower() == "true"
+    if not _m7_disabled and _has_emoji(result):
         keep_prob = _get_creator_emoji_rate(creator_id)
         if keep_prob is None:
             logger.warning("[STYLE-NORM] emoji_rate not in profile for %s, skipping emoji normalization", creator_id)
