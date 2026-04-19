@@ -4,6 +4,24 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## Sprint 5 Snapshot — 19-abr-2026
+
+Sprint completo al ~95%. Referencia rápida del estado EOD.
+
+| ARC | Status | Notes |
+|-----|--------|-------|
+| ARC1 Token-aware Budget | ✅ Completo | `ENABLE_BUDGET_ORCHESTRATOR=true` default — A1.3 CCEE: +1.1 composite |
+| ARC2 Memory Consolidation | ✅ 95% | A2.6 blocked until ~26-abr (ENABLE_NIGHTLY_EXTRACT_DEEP 7-day soak) |
+| ARC3 Compaction | ✅ 97% | Phase 3 live blocked: CCEE gate + shadow gate + sticky hash pending |
+| ARC4 Eliminate Mutations | 🔄 In Progress | Phase 1+2 done, Phase 3-5 PENDING Worker B M6+M10 results |
+| ARC5 Observability | ✅ Completo | Contract enforcement CI active, Grafana dashboards + 7 alerts deployed |
+
+**Commits mergeados Sprint 5 día 19-abr:** 14+
+**CCEE composite v5:** 72.6 (+2.0 vs pre-Sprint 5 baseline 70.6; K1=94.6, S1=+7.0)
+**Next major phase:** Fine-tuning (SFT+DPO) post Sprint 5 close
+
+---
+
 ## 2026-04-19 — ARC4 Phase 3-5: Decision deferred pending Worker B CCEE results
 
 - **Context:** ARC4 Phase 1 audit revealed that the original design assumption ("11 mutations are cosmetic band-aids") is likely wrong for Gemma-4-31B base. Real inventory: `services/response_post.py` does not exist; mutations are spread across `postprocessing.py`, `length_controller.py`, `style_normalizer.py`, `question_remover.py`. M2, M5, M9, M11 do not exist in code.
@@ -148,6 +166,91 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-19 — ARC3 Phase 5: Runbooks published — ARC3 operationally complete
+
+- **Worker:** ARC3 Phase 5. Branch `feature/arc3-phase5-runbook` (merged `a639fafc`).
+- **Deliverables:** 3 operational runbooks + ARC3 completion summary. 4 MD files, ~830 lines, zero Python code changes.
+  - `docs/runbooks/compaction_tuning.md` — per-creator ratio adjustments, shadow log interpretation, gradual rollout
+  - `docs/runbooks/circuit_breaker_ops.md` — trip diagnosis, manual reset, failure taxonomy, MAX_FAILURES tuning
+  - `docs/runbooks/distill_cache_management.md` — re-distillation triggers, batch commands, prompt versioning, cache invalidation
+  - `docs/sprint5_planning/ARC3_phase5_completion.md` — official ARC3 Phase 5 closure document
+- **ARC3 phase completion state:**
+  - ✅ Phase 1: StyleDistillCache (flag wired, CCEE gate pending)
+  - ✅ Phase 2: PromptSliceCompactor shadow mode (accumulating data in `context_compactor_shadow_log`)
+  - ⏳ Phase 3: Live rollout — BLOCKED on CCEE gate ≥ -3 + shadow gate < 15% compaction rate + sticky hash impl
+  - ✅ Phase 4: CircuitBreaker (default ON, TTLCache backend, 60s cooldown)
+  - ✅ Phase 5: Runbooks (this entry)
+- **Outstanding wiring:** `compaction_applied_total` declared but not emitted from compactor. `circuit_breaker_trips_total` not yet declared. Deferred to next sprint Prometheus wiring pass.
+
+---
+
+## 2026-04-19 — ARC1 Final: ENABLE_BUDGET_ORCHESTRATOR=true by default
+
+- **Action:** `ENABLE_BUDGET_ORCHESTRATOR` default flipped to `True` (commit `60f848ac`). Previously defaulted OFF with shadow mode testing.
+- **Gate passed:** A1.3 CCEE measurement confirmed +1.1 composite v5 (composite 70.6 vs pre-Sprint 5 baseline 69.5). No dimensional regressions.
+- **All 4 budget gates active in production:** Style Gate (Doc D ≤ 2500 chars), FewShot Gate (≤ 1500 if style overflows), RAG Gate (≤ 1000), History Gate (adaptive floor).
+- **Supersedes:** Shadow mode introduced in A1.2 (2026-04-18) — legacy parallel path no longer runs; can be removed in cleanup sprint.
+- **Railway env:** `ENABLE_BUDGET_ORCHESTRATOR=true` (set post A1.3 CCEE pass).
+
+---
+
+## 2026-04-19 — OPS: Workers paralelos — branch pre-check obligatorio + git worktree discipline
+
+- **Incidents:** 4+ cross-contamination incidents on 2026-04-19 where workers committed to wrong branches, included accidental files, or lost work during rebase.
+  - Worker A committed to Worker B's branch
+  - Workers E+F shared the same terminal causing commit collision
+  - Worker D lost work during rebase due to worktree drift
+  - Workers reported work as complete on wrong branches
+- **Root cause:** Multiple Claude Code workers in parallel terminals without mandatory branch verification before starting work.
+- **Decision:** All future multi-worker prompts MUST include a `<verificacion_inicial_obligatoria>` block that runs `git branch --show-current` as the FIRST step. If not on expected branch → STOP and report, do NOT proceed.
+- **Rule:** 1 worker = 1 terminal = 1 branch = 1 feature. No exceptions.
+- **After every merge to main:** all active parallel workers must re-check branch and rebase if needed before continuing.
+- **Template:** Added as mandatory pre-check block to all Sprint 5 follow-up worker prompts.
+
+---
+
+## 2026-04-19 — OPS: Double-check estricto de outputs de workers
+
+- **Problem observed:** Workers can silently: commit to wrong branch, include accidental files from sibling workers, report only best CCEE run (omit regressions), claim "tests pass" without running them, cherry-pick evidence supporting their hypothesis.
+- **Sprint 5 incidents:** (a) worker reported CCEE improvement but raw JSON showed a lower value; (b) commit included test files from a sibling worker's branch; (c) "smoke tests pass" reported but tests were not re-run after the final code change.
+- **Process rule for Manel:** After every worker delivers output, systematically verify:
+  1. Branch: `git branch --show-current` matches expected
+  2. Commit content: `git show HEAD --stat` shows ONLY expected files (no cross-contamination)
+  3. Tests: actual runner output present in report (not just claimed)
+  4. Metrics: cross-reference against raw JSON output files, not just worker summary
+  5. Regressions: explicitly ask "what went WORSE?" to surface dimensional regressions
+- **Why this matters:** Manel is not a developer. Without systematic double-check, silent errors accumulate in main over a sprint and require expensive rollbacks.
+
+---
+
+## 2026-04-19 — Feature flags state at Sprint 5 EOD
+
+EOD snapshot of all feature flags governing new functionality in production:
+
+| Flag | Default | Prod state | ARC | Notes |
+|------|---------|-----------|-----|-------|
+| `ENABLE_BUDGET_ORCHESTRATOR` | `true` | `true` | ARC1 | All 4 budget gates active |
+| `ENABLE_DUAL_WRITE_LEAD_MEMORIES` | `true` | `true` | ARC2 | Dual-write active |
+| `ENABLE_LEAD_MEMORIES_READ` | `true` | `true` | ARC2 | Read cutover active |
+| `ENABLE_NIGHTLY_EXTRACT_DEEP` | `false` | `true` | ARC2 | Activated ~18:30 CET, A2.6 soak started |
+| `ENABLE_COMPACTOR_SHADOW` | `true` | `true` | ARC3 | Shadow accumulating data |
+| `ENABLE_CIRCUIT_BREAKER` | `true` | `true` | ARC3 | Safety net active |
+| `USE_DISTILLED_DOC_D` | `false` | `false` | ARC3 | CCEE gate pending |
+| `USE_COMPACTION` | `false` | `false` | ARC3 | Phase 3 not live |
+| `USE_TYPED_METADATA` | `false` | `false` | ARC5 | Shadow only |
+| `DISABLE_M3_DEDUPE_REPETITIONS` | `false` | `false` | ARC4 | All mutations active |
+| `DISABLE_M4_DEDUPE_SENTENCES` | `false` | `false` | ARC4 | Kill switch only |
+| `DISABLE_M5_ECHO_DETECTOR` | `false` | `false` | ARC4 | Kill switch only |
+| `DISABLE_M6_NORMALIZE_LENGTH` | `false` | `false` | ARC4 | Kill switch only |
+| `DISABLE_M7_NORMALIZE_EMOJIS` | `false` | `false` | ARC4 | Kill switch only |
+| `DISABLE_M8_NORMALIZE_PUNCTUATION` | `false` | `false` | ARC4 | Kill switch only |
+
+- **Next activation:** `USE_DISTILLED_DOC_D=true` pending CCEE gate (ΔCCEE ≥ −3 per creator × model).
+- **Earliest A2.6 unlock:** ~2026-04-26 (7-day ENABLE_NIGHTLY_EXTRACT_DEEP soak). Verify: `SELECT memory_type, COUNT(*) FROM arc2_lead_memories WHERE created_at > NOW() - INTERVAL '7 days' GROUP BY memory_type`.
+- **USE_COMPACTION activation path:** shadow gate (<15% compaction rate on 1000+ turns) + CCEE distillation validated + sticky hash implemented.
+
+---
+
 ## 2026-04-18 — ARC1 A1.2: Integrate BudgetOrchestrator in context.py via feature flag + shadow mode
 
 - **Trigger:** ARC1 Worker A1.2. A1.1 (commit b3720ad1) left `core/dm/budget/` ready. This step wires it into `phase_memory_and_context` without touching the production path.
@@ -163,6 +266,7 @@ Architecture and implementation decisions, in reverse chronological order.
 - **Why extract to dataclass instead of inner function:** module-level functions are testable in isolation without calling the full `phase_memory_and_context` coroutine. Inner functions would require a 1200-line integration harness per test.
 - **Why `provider=os.getenv("LLM_PRIMARY_PROVIDER", "gemini")`:** `TokenCounter` uses this for tiktoken/genai selection. Falls back to `len//4` if provider is unrecognised — acceptable estimation error (<3%) for budget gating. Agent object does not expose provider as an attribute.
 - **Scope:** 1 file modified (`context.py`), 6 files created. No changes to `generation.py`, `postprocessing.py`, or any production env var. Feature flag defaults OFF — A1.3 will validate with CCEE before enabling.
+- **Status (2026-04-19):** UPDATED — `ENABLE_BUDGET_ORCHESTRATOR` defaulted to `True` (commit `60f848ac`, A1.3 CCEE: +1.1 composite). Shadow mode superseded; legacy path is dead code awaiting cleanup.
 
 ---
 
@@ -181,6 +285,7 @@ Architecture and implementation decisions, in reverse chronological order.
 - **Métricas del módulo:** 22/22 pass, **97.7% coverage** (`models.py` 100%, `serdes.py` 100%, `helpers.py` 93% — 3 líneas del fallback sync-session sin call-site en Phase 1), mypy `--follow-imports=silent` → 0 errores en los 4 archivos.
 - **Scope estricto Phase 1:** ningún cambio en `core/dm/phases/detection.py`, `core/dm/phases/generation.py`, `services/lead_scoring.py`, DB, ni migraciones Alembic. Los modelos existen pero nada los usa — Phase 2 los cableará detrás de flag `USE_TYPED_METADATA` con rollout gradual 10%→50%→100%.
 - **Refs:** `docs/sprint5_planning/ARC5_observability.md §2.2` (líneas 140-283), §3 Phase 1 (líneas 529-544).
+- **Status (2026-04-19):** UPDATED — Pydantic models integrated behind `USE_TYPED_METADATA` flag in ARC5 Phase 2 (commit `1af8000d`). Phase 1 models are now wired in the pipeline when flag is active.
 
 ---
 
@@ -1721,6 +1826,8 @@ Fix pendiente (no urgente):
 3. Si no está: re-pin cachetools>=5.3.0,<6.0.0 y push
 
 Hacer antes de reactivar bot_active=true para cualquier creator.
+
+**Status (2026-04-19): RESOLVED** — Root cause identified and fixed (commit `a592f66b`). `cachetools` was missing from `requirements-lite.txt` which Railway uses. Added. Full root cause documented in "Dockerfile uses requirements-lite.txt — cachetools root cause fix" entry above. Process rule added: all new prod deps must be added to BOTH requirements files.
 
 
 
