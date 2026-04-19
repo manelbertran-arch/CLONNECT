@@ -1,0 +1,22 @@
+# requirements-dev.txt
+# Development and testing dependencies — NOT installed in production Docker image
+# Use this file locally and in CI for full test runs with coverage.
+#
+# Install: pip install -r requirements-dev.txt
+# (includes all prod deps via -r requirements-lite.txt)
+
+-r requirements-lite.txt
+
+# Testing extras
+pytest-cov>=4.0.0        # Coverage reports (not needed in prod)
+
+# Dashboard / visualization — DEV ONLY
+streamlit>=1.28.0        # scripts/dashboards/*.py
+
+# Dev tools
+ipython>=8.0.0           # Interactive debugging
+
+# Data pipeline scripts (not called from prod API)
+# yt-dlp and youtube-transcript-api ARE in requirements-lite.txt because
+# ingestion/youtube_connector.py is callable from prod API.
+# If you need offline batch tools only, they are already in lite.
