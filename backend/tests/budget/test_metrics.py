@@ -70,17 +70,14 @@ class TestEmitBudgetMetrics:
         ctx.creator_id = "iris_bertran"
         assembled = _assembled(utilization=0.5, selected=2, dropped=1, compressed=1)
 
-        mock_hist = MagicMock()
-        mock_gauge = MagicMock()
-        mock_counter = MagicMock()
-
-        with patch("core.dm.budget.metrics._PROMETHEUS_AVAILABLE", True), \
-             patch("core.dm.budget.metrics._budget_utilization", mock_hist), \
-             patch("core.dm.budget.metrics._sections_selected", mock_gauge), \
-             patch("core.dm.budget.metrics._sections_dropped", mock_counter), \
-             patch("core.dm.budget.metrics._sections_compressed", mock_counter):
+        # ARC5 Phase 3: budget/metrics.py now calls emit_metric — patch at that level
+        with patch("core.dm.budget.metrics.emit_metric") as mock_emit:
             emit_budget_metrics(assembled, ctx)
-            mock_hist.labels.assert_called_once_with(creator_id="iris_bertran")
+            # utilization and sections_selected must be emitted
+            calls = [c[0][0] for c in mock_emit.call_args_list]
+            assert "dm_budget_utilization" in calls
+            assert "dm_budget_sections_selected" in calls
+            assert "dm_budget_sections_dropped_total" in calls
 
     def test_empty_context(self):
         ctx = MagicMock()
@@ -92,7 +89,9 @@ class TestEmitBudgetMetrics:
         ctx = MagicMock()
         ctx.creator_id = "iris_bertran"
         assembled = _assembled()
-        with patch("core.dm.budget.metrics._PROMETHEUS_AVAILABLE", False):
+        # ARC5 Phase 3: emit_metric is always called (fail-silent if prometheus unavailable)
+        with patch("core.dm.budget.metrics.emit_metric") as mock_emit:
             with patch("core.dm.budget.metrics.logger") as mock_log:
                 emit_budget_metrics(assembled, ctx)
                 mock_log.debug.assert_called()
+                mock_emit.assert_called()  # emit_metric called regardless
