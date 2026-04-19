@@ -1150,6 +1150,24 @@ def register_startup_handlers(app: "FastAPI"):
 
         scheduler.register("memory_cleanup", _memory_cleanup_job, interval_seconds=300, initial_delay_seconds=120)
 
+        # JOB N: Nightly extract_deep — populates objection/interest/relationship_state
+        # Blocked by A2.6 gating: disabled by default until 7 consecutive days validated.
+        # Enable: set ENABLE_NIGHTLY_EXTRACT_DEEP=true in Railway env vars.
+        async def _nightly_extract_deep_job():
+            enable = os.getenv("ENABLE_NIGHTLY_EXTRACT_DEEP", "false").lower() == "true"
+            if not enable:
+                logger.debug("[NIGHTLY_EXTRACT_DEEP] Disabled via ENABLE_NIGHTLY_EXTRACT_DEEP, skipping")
+                return
+            from scripts.nightly_extract_deep import run_nightly
+            await run_nightly(
+                dry_run=False,
+                batch_size=50,
+                creator_id_filter=None,
+                max_leads=1000,
+            )
+
+        scheduler.register("nightly_extract_deep", _nightly_extract_deep_job, interval_seconds=86400, initial_delay_seconds=720)
+
         # Start all registered scheduled tasks
         await scheduler.start_all()
 
