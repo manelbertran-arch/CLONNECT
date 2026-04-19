@@ -4,6 +4,24 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-18 — ARC5 Phase 1: Typed Metadata Models (no integration yet)
+
+- **Trigger:** `docs/sprint5_planning/ARC5_observability.md §2.2` + §3 Phase 1 — introducir Pydantic models para el container `Message.msg_metadata` sin migración DB ni cambio de comportamiento.
+- **Módulos nuevos:**
+  - `core/metadata/models.py` — 5 Pydantic v2 models literales del doc: `DetectionMetadata` (con `security_flags`/`security_severity` para QW3), `ScoringMetadata`, `GenerationMetadata` (con `compaction_applied`/`distill_cache_hit`/`sections_truncated` para ARC1/ARC3), `PostGenMetadata` (con `rule_violations` para ARC4), `MessageMetadata` container con `schema_version: int = 1`.
+  - `core/metadata/serdes.py` — `write_metadata(msg, typed)` (`model_dump(mode="json", exclude_none=True)`) + `read_metadata(msg)` con fallback legacy §2.2.4 (try/except `ValidationError` → bump counter + `MessageMetadata()` vacío, nunca crashea el read).
+  - `core/metadata/helpers.py` — `update_detection_metadata` / `update_scoring_metadata` / `update_generation_metadata` / `update_post_gen_metadata`. Cada helper carga msg → `read_metadata` → reemplaza UNA sub-sección → `write_metadata` → commit. Race-safe por fase.
+- **Desviaciones documentadas del pseudo-código:**
+  1. **Columna real `msg_metadata`, no `metadata`** (api/models/message.py:41). `metadata` colisiona con `Base.metadata` de SQLAlchemy. Serdes duck-typea ambos: prefiere `msg_metadata`, cae a `metadata` para test doubles que siguen literalmente el doc.
+  2. **Contador legacy hybrid:** intenta `core.observability.metrics.legacy_metadata_read.inc()` si existe (Phase 2 lo cableará a Prometheus), y siempre incrementa un contador local `get_legacy_read_count()` para tests unitarios sin backend de métricas.
+  3. **`_load_message` + `_commit` duck-type async/sync:** el doc usa `await session.get(...)` / `await session.commit()`, pero Phase 2 decidirá la variante final (prod mezcla `SessionLocal` sync + `asyncio.to_thread`). Los helpers llaman `session.get` y `session.commit`; si devuelven awaitables, se awaitan; si no, se usan directamente.
+- **Tests:** `tests/metadata/test_models.py` — 22 casos agrupados en 6 clases: `TestContainerDefaults` (schema_version=1), `TestRoundTrip` (full + partial + `exclude_none`), `TestValidation` (intent/confidence/severity/safety_status fuera de Literal), `TestOptionalFields`, `TestLegacyCompat` (dict legacy no crashea + counter aumenta, `None` / `{}` no cuentan como legacy), `TestPartialUpdates` (cada helper preserva las otras 3 sub-secciones).
+- **Métricas del módulo:** 22/22 pass, **97.7% coverage** (`models.py` 100%, `serdes.py` 100%, `helpers.py` 93% — 3 líneas del fallback sync-session sin call-site en Phase 1), mypy `--follow-imports=silent` → 0 errores en los 4 archivos.
+- **Scope estricto Phase 1:** ningún cambio en `core/dm/phases/detection.py`, `core/dm/phases/generation.py`, `services/lead_scoring.py`, DB, ni migraciones Alembic. Los modelos existen pero nada los usa — Phase 2 los cableará detrás de flag `USE_TYPED_METADATA` con rollout gradual 10%→50%→100%.
+- **Refs:** `docs/sprint5_planning/ARC5_observability.md §2.2` (líneas 140-283), §3 Phase 1 (líneas 529-544).
+
+---
+
 ## 2026-04-18 — FIX W8-T1-BUG4: Copilot debounce race condition — regen sobrescribía la respuesta manual del creator
 
 - **Trigger:** W8 cross-system matrix audit (`docs/audit_sprint5/W8_C_compatibility_matrix.md:67-69`) detectó que `_debounced_regeneration_impl` en `core/copilot/messaging.py` hace `await asyncio.sleep(DEBOUNCE_SECONDS)` y luego regenera sin verificar si el creator respondió manualmente durante ese sleep. El único gate existente (`pending_msg.status != "pending_approval"`) no cubre el escenario: el path de respuesta manual del creator crea un `Message` nuevo con `role=assistant, approved_by=creator_manual` pero NO muta `pending_msg.status`. Resultado: a T+15s el debounce pisaba `pending_msg.content` / `pending_msg.suggested_response` con la regeneración stale.
