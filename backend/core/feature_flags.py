@@ -74,9 +74,9 @@ class FeatureFlags:
 
     # === ARC2 Memory Consolidation ===
     # Phase 2 dual-write: every legacy memory write also writes to arc2_lead_memories.
-    # Default OFF — activate per-creator or globally once Phase 1 migration verified.
+    # Default ON — A2.4 validated, fail-silent guarantees zero risk to legacy path.
     dual_write_lead_memories: bool = field(
-        default_factory=lambda: _flag("ENABLE_DUAL_WRITE_LEAD_MEMORIES", False)
+        default_factory=lambda: _flag("ENABLE_DUAL_WRITE_LEAD_MEMORIES", True)
     )
 
     # === ARC5 Observability — Typed Metadata ===
