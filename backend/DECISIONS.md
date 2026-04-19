@@ -1542,3 +1542,34 @@ Fix pendiente (no urgente):
 
 Hacer antes de reactivar bot_active=true para cualquier creator.
 
+
+
+## 2026-04-19 — ARC2 A2.3: Migration scripts for 3 legacy memory systems
+
+Worker A2.3 adds 4 migration scripts to backfill `arc2_lead_memories` from legacy systems.
+
+**Decision: Source mapping to actual codebase**
+Design doc referenced `conversation_memory` table and `data/memory/` JSON files, but actual
+codebase has `follower_memories` DB table (migration 006) and `data/followers/` JSON files.
+Adapted scripts accordingly: `migrate_conversation_memory.py` reads `follower_memories`,
+`migrate_follower_jsons.py` reads `data/followers/`. The `lead_memories` table (migration 030)
+remains the source for `migrate_legacy_lead_memories.py`.
+
+**Decision: ON CONFLICT DO NOTHING (not DO UPDATE)**
+Scripts use DO NOTHING instead of LeadMemoryService.upsert() (which does DO UPDATE).
+Reason: migration records have lower confidence and should not overwrite data already
+written by the real extractor (dm_extractor, copilot). Prevents migration runs from
+clobbering production-quality memories.
+
+**Decision: objection/relationship_state always get why + how_to_apply**
+DB CHECK constraint requires non-null why + how_to_apply for these types. Migration
+scripts provide placeholder values `(pending re-extraction)` as required. The
+`reextract_low_confidence.py` script will replace these with LLM-generated values.
+
+**Files added**
+- `scripts/migrate_conversation_memory.py`: follower_memories → arc2_lead_memories
+- `scripts/migrate_follower_jsons.py`: JSON files → arc2_lead_memories
+- `scripts/migrate_legacy_lead_memories.py`: lead_memories (pgvector preserved) → arc2_lead_memories
+- `scripts/reextract_low_confidence.py`: LLM re-extraction for migration% records
+- `tests/memory/test_migration_scripts.py`: 21 tests (dry-run, idempotency, skip, embedding)
+- `docs/audit_sprint5/ARC2_migration_runbook.md`: pre-checks, steps, rollback, SQL verification
