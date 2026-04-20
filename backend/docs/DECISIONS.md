@@ -273,6 +273,16 @@ STATUS: LESSON LEARNED - mediciones futuras calibradas por variance conocida
 
 ---
 DATE: 2026-04-20
+ARC: SPRINT 5 AGREGADO
+DECISION: Sprint 5 cerrado 100%. No se revisita arquitectura. Próximo foco: fine-tuning.
+CONTEXT: Worker S5-AB, commits fb2b1195 (pre) vs e62aaad4 (post). v5 pre=62.1 (σ=2.73, 50×3+MT), v5 post=66.4 (σ=0.88, 50×3+MT). Δv5=+4.3 (supera umbral ±4 variance). ΔS1-S4 agregado=+5.4 (dimensiones de fidelidad estilística, foco del sprint). σ reduction 3× (2.73 → 0.88): Sprint 5 estabiliza output como beneficio colateral.
+RATIONALE: Δ+4.3 supera la variance conocida de ±3-4 puntos → señal real, no ruido. La reducción de σ 3× es un beneficio adicional no planificado que refuerza la validez del sprint. Caveats: A/B mide impacto agregado, no contribución individual de cada ARC.
+NEXT: Fine-tuning (Sprint 6+). ARC4 y ARC3 Distill aplazados a post-FT.
+STATUS: CLOSED
+---
+
+---
+DATE: 2026-04-20
 ARC: ARC3 Phase 1
 DECISION: Distill Doc D NO activado en producción (aplazado post-fine-tuning)
 CONTEXT: Worker I (20×1 cases, 19-abr noche) dio veredicto APPROVE con delta composite -0.9 y K +12.3. Worker P2 con protocolo estándar 50×3+MT (20-abr mediodía) dio resultado distinto: composite -0.7, H -10, S4 -6.8, K -1.0.
