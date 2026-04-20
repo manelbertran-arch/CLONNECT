@@ -6,6 +6,8 @@
 **Código:** `core/generation/compactor.py`, `services/style_distill_service.py`
 **Shadow log:** tabla `context_compactor_shadow_log`
 
+> **⚠️ GOTCHA COLUMNA TIMESTAMP:** La columna temporal en `context_compactor_shadow_log` es **`timestamp`**, NO `created_at`. Queries con `WHERE created_at > ...` fallarán con `column "created_at" does not exist`. Usar siempre `WHERE timestamp > NOW() - INTERVAL '...'`. — Documentado 2026-04-20 tras error en activación S5.
+
 ---
 
 ## 1. Cuándo intervenir
@@ -211,17 +213,17 @@ Criterio no-go (rollback inmediato):
 
 ```bash
 # Railway: setear variable de entorno
-railway variables --set USE_COMPACTION=true
+railway variables set USE_COMPACTION=true
 
 # Verificar en logs
-railway logs -n 50 | grep -i "compactor\|compaction"
+railway logs --tail 50 | grep -i "compactor\|compaction"
 ```
 
 ### Kill switch
 
 ```bash
 # Desactivar compaction inmediatamente
-railway variables --set USE_COMPACTION=false
+railway variables set USE_COMPACTION=false
 # El siguiente deploy la desactiva. Para efecto inmediato, hacer deploy manual:
 railway up
 ```

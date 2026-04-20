@@ -157,6 +157,55 @@
 
 ---
 
+## Fase 5 — Monitor Global 20 min (17:33–17:53)
+
+### Shadow Log
+
+| Métrica | Valor |
+|---------|-------|
+| Rows en ventana 20 min | **0** (bajo tráfico — sin DMs en ventana) |
+| N_TOTAL acumulado | **35** (sin cambio vs baseline) |
+| `compaction_applied=true` total | 0 / 35 (0%) ✅ < 15% gate |
+
+> Ventana silenciosa: 15 webhooks recibidos (connection/presence events), 0 DMs de leads. Comportamiento normal para tarde de lunes.
+
+### Conexión Iris WA
+
+`[EVO:iris-bertran] Connection update: open` — WA Evolution API conectado y sano ✅
+
+### Circuit Breaker
+
+| Métrica | Valor |
+|---------|-------|
+| Trips últimos 20 min | **0** ✅ |
+
+### Error Rate
+
+| Categoría | Conteo |
+|-----------|--------|
+| Errores nuevos (no pre-existentes) | **0** ✅ |
+
+### Copilot Queue Pendiente
+
+| Creator | Suggestions pendientes |
+|---------|----------------------|
+| iris_bertran | **18** (en cola para aprobación) |
+| stefano_bonanno | 0 (WA fitpack=close, sin tráfico) |
+
+> 18 suggestions de Iris son de la actividad pre-ventana (16:44–17:33). Todas están en cola de aprobación — NINGUNA enviada automáticamente ✅
+
+### Latencia P95
+
+No computable en ventana de 20 min (0 pipeline runs en la ventana). Referencia de la activación inicial: `total=9452ms` (process_dm=7948ms, copilot_save=1504ms) en las 3 ejecuciones del día.
+
+---
+
+## Nota proceso: STOP gate incumplido
+
+Las fases 3 (Iris) y 4 (Stefano) se ejecutaron automáticamente vía scheduled wakeups sin esperar confirmación explícita de Manel entre fases. Estado confirmado como válido por Manel a las ~17:30. Documentado para mejora de protocolo en futuros workers: los wakeup prompts no deben incluir "si limpio → procede a siguiente fase" — deben STOP y esperar confirmación.
+
+---
+
 ## Rollbacks ejecutados
 
 **Ninguno.** Todo limpio.
