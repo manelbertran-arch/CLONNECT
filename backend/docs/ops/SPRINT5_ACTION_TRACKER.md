@@ -35,14 +35,18 @@ railway logs --tail 5000 | grep -iE "nightly_extract_deep|extract_deep_scheduler
 
 ---
 
-### [ ] Item 2 — ARC3 Phase 3: Live rollout compactor + distill
+### [ ] Item 2 — ARC3 Phase 3: Live rollout compactor (compaction only, NOT distill)
 
-**Unblock gate:**
-- Bot reactivado (Stefano + Iris)
-- ≥ 1,000 turnos shadow data acumulados en context_compactor_shadow_log
-- Worker I APPROVE ya confirmado ✅
+> **UPDATE 20-abr:** Worker S5-AUDIT descubrió bug UUID en shadow logger (`context.py:649`). Shadow log tiene 0 rows desde merge. Distill separado de este item — decisión: ESPERAR_FT (ver DECISIONS.md 2026-04-20). Solo compaction procede.
 
-**Gate check command:**
+**Pre-requisitos (ANTES del gate de 1000 turnos):**
+- [x] Worker I APPROVE confirmado ✅
+- [ ] **Fix UUID shadow logger** — `context.py:649` resolve slug→UUID (Worker S5-FIX, 30 min)
+- [ ] Deploy fix a Railway
+- [ ] Bot reactivado (Stefano + Iris)
+- [ ] Verificar que shadow log acumula rows: `SELECT COUNT(*) FROM context_compactor_shadow_log` > 0
+
+**Gate check command (solo funciona DESPUÉS del fix UUID):**
 ```bash
 .venv/bin/python3.11 << 'EOF'
 from sqlalchemy import create_engine, text
@@ -61,16 +65,17 @@ EOF
 ```
 
 **Criterio GO:**
+- Fix UUID deployed y verificado (rows > 0)
 - Turnos ≥ 1,000
 - Compaction rate < 15%
-- Worker I APPROVE confirmado ✅
 
 **Tareas cuando desbloquee (rollout 10→25→50→100%):**
-1. Activar `USE_DISTILLED_DOC_D=true` en Railway
-2. Activar `USE_COMPACTION=true` para 10% traffic primero
-3. Monitor 24h: latencia, error rate, composite canary
-4. Si verde → 25% → 50% → 100%
-5. Documentar en DECISIONS.md
+1. Activar `USE_COMPACTION=true` para 10% traffic
+2. Monitor 24h: latencia, error rate, composite canary
+3. Si verde → 25% → 50% → 100%
+4. Documentar en DECISIONS.md
+
+**NO activar USE_DISTILLED_DOC_D** — decisión final: ESPERAR_FT. Ver DECISIONS.md 2026-04-20.
 
 **Rollback:** desactivar flags en Railway (instantáneo).
 
@@ -203,8 +208,8 @@ Ver `docs/sprint5_planning/SPRINT5_MASTERDOC.md` §9 para roadmap FT.
 | `ENABLE_NIGHTLY_EXTRACT_DEEP` | `true` ✅ | ARC2 scheduler activado 19-abr |
 | `ENABLE_COMPACTOR_SHADOW` | `true` ✅ | ARC3 Phase 2 shadow activo |
 | `ENABLE_CIRCUIT_BREAKER` | `true` ✅ | ARC3 Phase 4 safety net activo |
-| `USE_DISTILLED_DOC_D` | `false` ⏳ | APPROVE obtenido, pendiente decisión activación |
-| `USE_COMPACTION` | `false` ⏳ | Esperando Phase 3 live (1k turnos shadow) |
+| `USE_DISTILLED_DOC_D` | `false` ❌ | **ESPERAR_FT** — no activar con modelo base (H -10, principio identity signals) |
+| `USE_COMPACTION` | `false` ⏳ | Esperando fix UUID shadow + 1k turnos datos reales |
 
 ---
 
@@ -220,3 +225,21 @@ Ver `docs/sprint5_planning/SPRINT5_MASTERDOC.md` §9 para roadmap FT.
 - Sprint 6 fine-tuning → cuando decidas
 
 **Referencia completa:** `docs/audit_sprint5/s5_aggregate_ab_results.md`
+
+---
+
+## Post-audit actions (20-abr-2026)
+
+Worker S5-AUDIT + S5-CROSSREF completados. Acciones derivadas:
+
+- [ ] Fix UUID compaction shadow logger (`context.py:649`) — 30 min, copy `dual_write.py` pattern
+- [ ] Merge ramas audit a main: `worker/s5-off-components-audit`, `worker/s5-crossref`, `worker/s5-docs-consolidation`
+- [ ] Decisión operacional Manel: reactivar bot (desbloquea Compaction Phase 3 shadow data)
+- [ ] Sesión 2 DeepInfra variance — 21-abr
+- [ ] Sesión 3 DeepInfra variance — 22-abr
+- [ ] A2.6 legacy removal — gate 26-abr (calendario)
+
+**Decisiones cerradas (no reabrir):**
+- `USE_DISTILLED_DOC_D=false` permanente con modelo base. Revisitar solo post-FT.
+- `USE_TYPED_METADATA=false` hasta cobertura ≥80% + dashboards Phase 4.
+- Principio "no comprimir identity signals pre-FT" documentado en CLAUDE.md.

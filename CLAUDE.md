@@ -44,6 +44,8 @@ YOU MUST NOT change these values without explicit user approval:
 
 YOU MUST NOT modify OAuth token handling (`api/routers/oauth/instagram.py`), webhook signature verification (`core/instagram_modules/webhook.py`), or scheduler timing (`core/task_scheduler.py`) without understanding the full flow first. Read before changing.
 
+IMPORTANT: Do NOT compress, summarize, reorder by importance, or rewrite identity-defining signals (Doc D persona, creator few-shots, mined style patterns, vocabulary profiles) while the model is not fine-tuned on creator data. Two independent experiments showed identical failure mode: Sprint 2 importance scoring of history messages removed style examples → S1 Style Fidelity -10.9; Sprint 5 Doc D distillation (70% compression) → H Turing -10.0, S4 Adaptation -6.8. Root cause: base models treat identity signals as literal in-context information — lossy compression destroys subtleties the model cannot reconstruct without fine-tuning. Exception: conversational history (transient context, not identity) may be compacted. Revisit post-fine-tuning. Reference: `docs/audit_sprint5/s5_off_components_decision_matrix.md`.
+
 ## Verification — Before Every Change
 
 1. Read the file(s) you intend to modify FIRST
