@@ -205,3 +205,18 @@ Ver `docs/sprint5_planning/SPRINT5_MASTERDOC.md` §9 para roadmap FT.
 | `ENABLE_CIRCUIT_BREAKER` | `true` ✅ | ARC3 Phase 4 safety net activo |
 | `USE_DISTILLED_DOC_D` | `false` ⏳ | APPROVE obtenido, pendiente decisión activación |
 | `USE_COMPACTION` | `false` ⏳ | Esperando Phase 3 live (1k turnos shadow) |
+
+---
+
+## 🎉 SPRINT 5 CERRADO 100% — 20-abr-2026 late PM
+
+**Validación agregada:** Δv5=+4.3 (Worker S5-AB), σ reducción 3×.
+
+**Items restantes NO son del Sprint 5 sino calendario/externos:**
+- A2.6 legacy removal → gate 26-abr
+- ARC3 Phase 3 live → requiere bot reactivado + shadow data
+- Grafana live → setup manual cuando tengas tiempo
+- DeepInfra sesiones 2-3 → 21-22 abril (decisión migración protocolo)
+- Sprint 6 fine-tuning → cuando decidas
+
+**Referencia completa:** `docs/audit_sprint5/s5_aggregate_ab_results.md`
