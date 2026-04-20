@@ -280,3 +280,30 @@ RATIONALE: Con protocolo estadísticamente serio distill NO aporta mejora. H Tur
 NEXT: Aplazar distill a post-fine-tuning. Cuando modelo FT esté listo (Sprint 6+): (a) re-medir prompt v1 con modelo FT, (b) si sigue no aportando, considerar prompt v2 como contexto adicional (no reemplazo del Doc D), como propuso Worker P2.
 STATUS: DEFERRED TO POST-FINE-TUNING
 ---
+
+---
+DATE: 2026-04-20
+ARC: Sprint 5 cierre
+DECISION: Sprint 5 validado agregadamente con evidencia medible — cerrado 100%
+CONTEXT: Worker S5-AB ejecutó A/B pre-Sprint 5 (commit fb2b1195, 9-abr) vs post-Sprint 5 (commit e62aaad4, 20-abr) con protocolo estándar 50×3+MT. Audit scorers confirmó CCEE v4 es instrumento válido para comparaciones arquitectónicas (cero dimensiones metadata-based → composite naive = composite fair).
+RATIONALE:
+- v5 pre = 62.1 (σ=2.73)
+- v5 post = 66.4 (σ=0.88)
+- Δv5 = +4.3 (supera umbral variance ±4)
+- Δ dimensiones S1-S4 agregado = +5.4 (fidelidad estilística, foco diseño del sprint)
+- σ reducción 3× (2.73→0.88) = beneficio colateral (output más predecible, menos outliers)
+- Primer run v1 crasheó por adversarial_prompts.json ausente en worktree fb2b1195; fix: copiado desde main (recurso instrumento CCEE, no sujeto); re-run v2 limpio
+CAVEATS: A/B mide impacto AGREGADO. NO mide contribución individual de cada ARC (requeriría 5 A/Bs separados, bloqueado por variance OpenRouter).
+NEXT: Sprint 5 cerrado. Próximo foco: fine-tuning (Sprint 6). A2.6 legacy removal sigue pendiente gate 26-abr. Sesiones 2-3 DeepInfra variance pendientes 21-22 abril.
+STATUS: CLOSED — Sprint 5 generó valor composite medible Y pagó tech debt simultáneamente
+---
+
+---
+DATE: 2026-04-20
+ARC: MEDICIÓN / PROTOCOLO
+DECISION: DeepInfra intra-sesión confirmado 2× más estable que OpenRouter — gate PASS sesiones 2-3
+CONTEXT: Worker DI-VAR ejecutó sesión 1/3 con DeepInfra directo (google/gemma-4-31b-it). σ_intra=0.419 vs OpenRouter σ_intra≈0.88.
+RATIONALE: v5 DeepInfra = 65.7 vs v5 OpenRouter = 66.4 (delta -0.7 indistinguible → providers producen bots equivalentes, solo varían en ruido). 0 errores 50 casos. Latencia ~4s/call comparable. σ < 1.0 gate PASS.
+NEXT: Sesiones 2 (21-abr) y 3 (22-abr) DeepInfra mismo SHA + comando. Tras 3 sesiones: calcular σ_inter-sesión DeepInfra vs OpenRouter ±3-4 conocido. Si DeepInfra inter-sesión también estable → migrar protocolo A/B oficial a DeepInfra. Si similar a OpenRouter → varianza es del modelo Gemma mismo, considerar otras estrategias.
+STATUS: SESSION 1/3 COMPLETED — pendiente sesiones 2-3 Manel
+---
