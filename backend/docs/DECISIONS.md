@@ -257,3 +257,16 @@ RATIONALE: Plan original (eliminar 9-11 mutations para +3/+6 composite) INCORREC
 NEXT: Re-medir las 7 mutations con modelo FINE-TUNED cuando FT esté listo (Sprint 6-7). Modelo FT probablemente no genere "jajajaja" ni echo espontáneo → mutations podrían eliminarse en bloque. Decisión más eficiente 1 vez con todas que 7 veces con el modelo base.
 STATUS: DEFERRED TO POST-FINE-TUNING
 ---
+
+---
+DATE: 2026-04-20
+ARC: MEDICIÓN / VARIANCE
+DECISION: Variance OpenRouter confirmada: ±3-4 puntos en composite, ±20-23 en dimensiones específicas
+CONTEXT: Triangulación de mediciones mismo código (commit 885fe454):
+- A2.5 POST (19-abr mediodía): S2=70.0, composite=72.6
+- AA repro (20-abr mañana): S2=46.4, composite=68.9
+- Diferencia: -23.6 S2 y -3.7 composite con CÓDIGO IDÉNTICO
+RATIONALE: La varianza OpenRouter es MUY grande en dimensiones específicas (S2, K). Worker R investigó si sentence_transformers missing era causa del drop S2 -23, pero está ausente en las 3 mediciones → no puede explicar diferencia. Conclusión: es ruido del provider, no regresión de código.
+NEXT: Para decisiones A/B fiables requiere delta ≥ 4 en composite. Considerar migrar a DeepInfra directo para mediciones futuras (provider menos variable).
+STATUS: LESSON LEARNED - mediciones futuras calibradas por variance conocida
+---
