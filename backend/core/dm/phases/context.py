@@ -645,16 +645,31 @@ def _log_shadow_compactor_sync(
     import json
     from uuid import UUID
     from sqlalchemy import text as sa_text
-    try:
-        creator_uuid = UUID(str(creator_id_str))
-    except (ValueError, AttributeError, TypeError):
-        logger.debug("[ARC3-SHADOW] invalid creator_id, skipping log")
-        return
 
     try:
         from api.database import SessionLocal
         db = SessionLocal()
         try:
+            # creator_id in Clonnect is always a slug (e.g. "iris_bertran"), never a
+            # UUID — see CLAUDE.md. UUID(slug) always raised ValueError, silently
+            # discarding every row (bug ref: audit commit 52986d00). Fix: try UUID
+            # parse first for forward-compat, then resolve slug→UUID via DB lookup,
+            # same pattern as services/dual_write.py:_resolve_creator_uuid.
+            try:
+                creator_uuid = str(UUID(str(creator_id_str)))
+            except (ValueError, AttributeError, TypeError):
+                _row = db.execute(
+                    sa_text("SELECT id FROM creators WHERE name = :name LIMIT 1"),
+                    {"name": creator_id_str},
+                ).fetchone()
+                if not _row:
+                    logger.warning(
+                        "[ARC3-SHADOW] creator slug '%s' not found in DB, skipping log",
+                        creator_id_str,
+                    )
+                    return
+                creator_uuid = str(_row[0])
+
             db.execute(sa_text("""
                 INSERT INTO context_compactor_shadow_log (
                     creator_id, sender_id, total_budget_chars,
@@ -668,7 +683,7 @@ def _log_shadow_compactor_sync(
                     :distill_applied, :divergence, :model
                 )
             """), {
-                "creator_id": str(creator_uuid),
+                "creator_id": creator_uuid,
                 "sender_id": sender_id or None,
                 "total_budget": total_budget,
                 "actual_chars": actual_chars,
