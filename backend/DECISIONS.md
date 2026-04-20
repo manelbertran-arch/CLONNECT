@@ -2021,3 +2021,52 @@ Flag default is False. Activating per-creator only after CCEE shadow run confirm
 - `core/dm/agent.py`: pass distilled Doc D to context builder when flag is active
 - `services/creator_style_loader.py`: add get_distilled_style_prompt_sync + flag check
 - `tests/distill/test_distill_loader_wiring.py`: 10 unit tests for flag on/off paths
+
+---
+
+## 2026-04-20 — Sprint 5 OFF-components: final decision with cross-referenced evidence
+
+**Context:** Three components merged to main in Sprint 5 remained with flags OFF. Forensic audit (Worker S5-AUDIT, commit `52986d00`) plus cross-reference analysis (Worker S5-CROSSREF, commit `0424bcd2`) produced definitive verdicts with triangulated evidence (source code + CCEE measurements + architectural principles + Claude Code repo comparison).
+
+### DISTILL (USE_DISTILLED_DOC_D=false) — ESPERAR_FT
+
+**Decision: do NOT activate with base model. Revisit post-fine-tuning only.**
+
+Worker P2 measured H Turing -10.0 and S4 Adaptation -6.8 on standard 50×3+MT protocol. Cross-reference confirmed: Claude Code NEVER compresses its system prompt (only conversation history). The distill prompt preserves WHAT the creator says (S1 +3.4) but loses HOW messages are structured (H -10.0). Compression from ~5K to ~1.5K chars (70% reduction) destroys subtle structural patterns (message length distribution, emoji positioning, opening/closing patterns) that the base model cannot reconstruct without fine-tuning.
+
+Historical precedent: QW2 compressed Doc D also regressed -10.69 composite (2026-04-16). Sprint 2 importance scoring — another deviation from CC's recency pattern — regressed S1 -10.9 by discarding short style-example messages.
+
+Architectural principle documented in CLAUDE.md: no compression of identity-defining signals pre-FT.
+
+Post-FT experiment: prompt v2 (preserve message structure, ≤50% compression, 6-8 examples). If H still regresses post-FT → abandon concept.
+
+### COMPACTION (USE_COMPACTION=false, ENABLE_COMPACTOR_SHADOW=true) — FIX BUG, THEN ACTIVATE
+
+**Decision: fix UUID bug, accumulate shadow data, then canary Phase 3.**
+
+**Bug confirmed:** `core/dm/phases/context.py:649` — `_log_shadow_compactor_sync` calls `UUID(creator_id_str)` where `creator_id_str` is always a slug (e.g. "iris_bertran"). `UUID("iris_bertran")` raises `ValueError`, caught silently (logger.debug), function returns before INSERT. Shadow log has 0 rows since merge despite `ENABLE_COMPACTOR_SHADOW=true`.
+
+Fix pattern exists: `services/dual_write.py:98-121` (`_resolve_creator_uuid`) resolves slug→UUID via `SELECT id FROM creators WHERE name = :name`. Fix is 15 lines, adapts pattern to sync context within the existing `SessionLocal()` in the same function.
+
+Compaction is NOT an identity signal transformation — it compacts transient prompt sections (history, RAG, KB). The architectural principle about identity signals does not apply. The 7-step algorithm is CC-faithful (though not a literal extraction).
+
+Action sequence: fix UUID (30 min) → deploy → accumulate ~1,000 shadow turns → analyze compaction rate → if <15% → canary Phase 3 (10→25→50→100%) with CCEE gate at each stage.
+
+### TYPED METADATA (USE_TYPED_METADATA=false) — ESPERAR_COMPLETAR
+
+**Decision: expand coverage systematically, activate when ≥80% of critical systems emit typed metadata.**
+
+Infrastructure is solid: Pydantic v2 models with runtime validation (`core/metadata/models.py`), central `emit_metric()` registry with 23 Prometheus metrics (`core/observability/metrics.py`), CI contract enforcement (`scripts/ci/contract_enforcement.py`). No bugs. No regressions possible when OFF.
+
+Current coverage: ~20% typed metadata (detection/generation/post-gen phases only when flag ON), ~10% emit_metric (budget metrics only). Missing: scoring pipeline (ScoringMetadata unreachable at post-gen time), RAG, Doc D retrieval, lead scoring. No Grafana dashboards.
+
+Action: Sprint 6-7 each P0/P1 system adds typed call sites. Activate `USE_TYPED_METADATA=true` when `grep -rn emit_metric core/ services/` shows coverage ≥80% of critical pipeline + Phase 4 dashboards exist.
+
+### Meta-learning
+
+This audit discovered a pattern across Sprint 2 and Sprint 5: both times Clonnect deviated from Claude Code patterns by touching identity-defining signals, CCEE regressed ~10 points in the affected dimension. When Clonnect followed CC patterns faithfully (Sprint 2 reversion to pure recency, ARC4 rule-based mutations), results were positive or neutral. Principle unified in CLAUDE.md.
+
+**References:**
+- `docs/audit_sprint5/s5_off_components_audit.md` (Worker S5-AUDIT)
+- `docs/audit_sprint5/s5_off_components_decision_matrix.md` (Worker S5-CROSSREF)
+- `docs/audit_sprint5/distill_AB_final_results.md` (Worker P2 CCEE results)
