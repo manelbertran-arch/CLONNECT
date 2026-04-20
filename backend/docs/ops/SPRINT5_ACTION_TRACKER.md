@@ -164,6 +164,31 @@ EOF
 
 ---
 
+---
+
+## Update 20-abr-2026: Distill A/B P1+P2 completado (50×3+MT)
+
+Protocolo estándar 50×3+MT. P1 y P2 corridos el mismo día (varianza intra-día ±1-2 pts).
+
+| | P1 OFF | P2 ON | Δ |
+|---|---|---|---|
+| v5 Composite | 66.4 | 65.7 | **-0.7** |
+| S1 Style Fidelity | 72.3 | 75.7 | +3.4 ✅ |
+| S4 Adaptation | 66.9 | 60.1 | -6.8 ❌ |
+| H Indistinguishab. | 72.0 | 62.0 | -10.0 ❌ |
+| K Context Retention | 72.5 | 71.5 | -1.0 ➖ |
+| MT Composite | 73.1 | 72.6 | -0.5 ➖ |
+
+**Veredicto: ⚪ INDISTINGUIBLE** — Δ=-0.7 dentro del ruido (varianza OR ±3-4 pts conocida).  
+Señales preocupantes: H -10 (Turing test) y S4 -6.8 (Adaptation).
+
+**Decisión: NO activar `USE_DISTILLED_DOC_D=true` en Railway.**  
+Iterate propuesto: distill v2d (distilled_short como contexto adicional, no reemplazo del doc_d).
+
+Reporte completo: `docs/audit_sprint5/distill_AB_final_results.md`
+
+---
+
 ## 🎯 Next phase: Fine-tuning
 
 Ver `docs/sprint5_planning/SPRINT5_MASTERDOC.md` §9 para roadmap FT.
