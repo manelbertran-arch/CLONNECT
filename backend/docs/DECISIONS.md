@@ -270,3 +270,13 @@ RATIONALE: La varianza OpenRouter es MUY grande en dimensiones específicas (S2,
 NEXT: Para decisiones A/B fiables requiere delta ≥ 4 en composite. Considerar migrar a DeepInfra directo para mediciones futuras (provider menos variable).
 STATUS: LESSON LEARNED - mediciones futuras calibradas por variance conocida
 ---
+
+---
+DATE: 2026-04-20
+ARC: ARC3 Phase 1
+DECISION: Distill Doc D NO activado en producción (aplazado post-fine-tuning)
+CONTEXT: Worker I (20×1 cases, 19-abr noche) dio veredicto APPROVE con delta composite -0.9 y K +12.3. Worker P2 con protocolo estándar 50×3+MT (20-abr mediodía) dio resultado distinto: composite -0.7, H -10, S4 -6.8, K -1.0.
+RATIONALE: Con protocolo estadísticamente serio distill NO aporta mejora. H Turing -10 y S4 Adaptation -6.8 son regresiones reales fuera del ruido. El APPROVE inicial de Worker I resultó ser artefacto del sample pequeño (20×1). El prompt distill v1 pierde señal crítica del Doc D para tareas Turing-like.
+NEXT: Aplazar distill a post-fine-tuning. Cuando modelo FT esté listo (Sprint 6+): (a) re-medir prompt v1 con modelo FT, (b) si sigue no aportando, considerar prompt v2 como contexto adicional (no reemplazo del Doc D), como propuso Worker P2.
+STATUS: DEFERRED TO POST-FINE-TUNING
+---
