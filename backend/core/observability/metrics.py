@@ -154,6 +154,24 @@ _METRIC_SPECS = [
      "Rule violation events",
      ["creator_id", "rule_name"], {}),
 
+    # ── Payment link injection (S6-T5.2 fix) ────────────────────────────────
+    ("payment_link_injected_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Payment links successfully injected into DM responses",
+     ["creator_id"], {}),
+
+    ("payment_link_skipped_present_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Payment link injection skipped — URL already present in response",
+     ["creator_id"], {}),
+
+    ("payment_link_body_trimmed_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Responses trimmed to make room for payment link (Instagram 1000-char limit)",
+     ["creator_id", "trim_method"], {}),
+
+    ("payment_link_body_trimmed_chars", Histogram if _PROMETHEUS_AVAILABLE else None,
+     "Characters trimmed from response body to accommodate payment link suffix",
+     ["creator_id"],
+     {"buckets": [5, 10, 25, 50, 100, 200, 500]}),
+
     # ── Active conversations ─────────────────────────────────────────────────
     ("active_conversations_gauge", Gauge if _PROMETHEUS_AVAILABLE else None,
      "Active conversations per creator",
