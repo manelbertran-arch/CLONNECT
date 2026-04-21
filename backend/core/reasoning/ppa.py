@@ -20,6 +20,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
+from core.observability.metrics import emit_metric
+
 logger = logging.getLogger(__name__)
 
 ENABLE_PPA = os.getenv("ENABLE_PPA", "false").lower() == "true"
@@ -404,8 +406,10 @@ async def score_before_speak(
     candidates = [{"response": response, "score": score, "scores": dim_scores, "source": "initial"}]
 
     logger.info("[SBS] Initial score=%.2f (threshold=%.2f)", score, ALIGNMENT_THRESHOLD)
+    emit_metric("sbs_score_initial", score, creator_id=creator_id)
 
     if score >= ALIGNMENT_THRESHOLD:
+        emit_metric("sbs_path_total", creator_id=creator_id, path="pass")
         return SBSResult(
             response=response, alignment_score=score, scores=dim_scores,
             total_llm_calls=0, path="pass", candidates=candidates,
@@ -415,6 +419,7 @@ async def score_before_speak(
     # Guard: skip retry if user_prompt is empty (full_prompt not set by generation phase)
     if not user_prompt:
         logger.debug("[SBS] No user_prompt available, skipping retry (returning original)")
+        emit_metric("sbs_path_total", creator_id=creator_id, path="pass")
         return SBSResult(
             response=response, alignment_score=score, scores=dim_scores,
             total_llm_calls=0, path="pass", candidates=candidates,
@@ -456,6 +461,8 @@ async def score_before_speak(
                 "[SBS] Retry score=%.2f. Best='%s' score=%.2f (from %s)",
                 retry_score, best["response"][:40], best["score"], best["source"],
             )
+            emit_metric("sbs_score_retry", retry_score, creator_id=creator_id)
+            emit_metric("sbs_path_total", creator_id=creator_id, path="retried")
 
             return SBSResult(
                 response=best["response"],
@@ -470,7 +477,8 @@ async def score_before_speak(
         logger.warning("[SBS] Retry generation failed: %s", e)
 
     # Retry failed or produced invalid output — return original unchanged
+    emit_metric("sbs_path_total", creator_id=creator_id, path="fail_retry_fallback")
     return SBSResult(
         response=response, alignment_score=score, scores=dim_scores,
-        total_llm_calls=0, path="pass", candidates=candidates,
+        total_llm_calls=0, path="fail_retry_fallback", candidates=candidates,
     )
