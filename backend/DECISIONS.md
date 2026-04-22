@@ -2070,3 +2070,23 @@ This audit discovered a pattern across Sprint 2 and Sprint 5: both times Clonnec
 - `docs/audit_sprint5/s5_off_components_audit.md` (Worker S5-AUDIT)
 - `docs/audit_sprint5/s5_off_components_decision_matrix.md` (Worker S5-CROSSREF)
 - `docs/audit_sprint5/distill_AB_final_results.md` (Worker P2 CCEE results)
+
+---
+
+## S6-T5.2 — Payment link injection bypass of Instagram 1000-char limit (2026-04-21)
+
+**Problem:** Step 7d in `phase_postprocessing` appended the payment link suffix **after** `format_message()` had already applied the 1000-char cap. The combined `formatted_content + "\n\n{plink}"` could exceed 1000 chars, causing the Instagram API to truncate the message — silently dropping the URL.
+
+**Decision: add `_trim_body_for_payment_link()` helper that re-verifies after injection and trims the body (never the link) if needed.**
+
+Trim strategy (boundary-first, raw-fallback):
+1. No trim needed → return as-is.
+2. Search the last 100 chars of the body for a rightmost sentence-ending marker (`". "`, `"? "`, `"! "`, newline variants). Cut there — sentence stays complete.
+3. No boundary found in window → raw cut at `max_body-3` + `"..."` (preserves more content than a distant boundary cut).
+
+The `boundary_window=100` parameter structurally prevents the "aggressive trim" scenario where the nearest boundary is hundreds of chars back: since the search is anchored to the LAST 100 chars, a sentence boundary at position 300 of a 960-char body is never seen and the raw fallback activates instead.
+
+4 Prometheus metrics added: `payment_link_injected_total`, `payment_link_skipped_present_total`, `payment_link_body_trimmed_total`, `payment_link_body_trimmed_chars` (Histogram).
+
+**Files modified:** `core/dm/phases/postprocessing.py`, `core/observability/metrics.py`
+**Tests:** `tests/postproc/test_payment_link_preservation.py` — 9 unit tests (no DB/network), all pass.

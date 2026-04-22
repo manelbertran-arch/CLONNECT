@@ -6,7 +6,7 @@ import os
 import re
 import time
 import unicodedata
-from typing import Any, Dict
+from typing import Any, Dict, NamedTuple, Tuple
 
 from core.agent_config import AGENT_THRESHOLDS
 from core.dm.models import ContextBundle, DetectionResult, DMResponse
@@ -22,6 +22,90 @@ from services.message_splitter import get_message_splitter
 from services.question_remover import process_questions
 
 logger = logging.getLogger(__name__)
+
+
+class TrimResult(NamedTuple):
+    """Metadata from _trim_body_for_payment_link, consumed by step 7d for metrics/logging."""
+    trim_applied: bool
+    trim_method: str | None  # "boundary" | "raw" | None
+    chars_trimmed: int
+
+
+def _trim_body_for_payment_link(
+    body: str,
+    suffix: str,
+    max_total_length: int = 1000,
+    boundary_window: int = 100,
+    boundary_markers: Tuple[str, ...] = (". ", "? ", "! ", ".\n", "?\n", "!\n"),
+) -> Tuple[str, TrimResult]:
+    """Combine body and suffix, trimming body if combined would exceed max_total_length.
+
+    S6-T5.2 fix: Instagram's 1000-char limit is enforced by format_message() before
+    the payment link suffix is known, so the link can push the total over the limit.
+    This function re-verifies after injection and trims the body (never the link).
+
+    Trim strategy:
+      1. No trim needed: return body + suffix as-is.
+      2. Boundary cut: search for the rightmost sentence-ending marker (. ? !) in
+         the last boundary_window chars before max_body. Cut there — sentence stays
+         complete. This prevents aggressive cuts (worst case: body shortened by at
+         most boundary_window chars).
+      3. Raw fallback: no boundary found in window → cut at max_body-3 + "...".
+         Preserves more body content than a distant boundary cut would.
+
+    The boundary_window parameter structurally prevents the "aggressive trim" scenario
+    (e.g. body=995 chars, nearest boundary at char 300): since the search is anchored
+    to the LAST window chars, a boundary at char 300 is never seen and the raw fallback
+    activates instead, keeping ~915 chars rather than cutting to 300.
+
+    Args:
+        body: Message body after format_message() — may already be up to 1000 chars.
+        suffix: Payment link suffix, e.g. "\\n\\nhttps://buy.stripe.com/abc".
+        max_total_length: Instagram's hard character limit.
+        boundary_window: How far back from max_body to search for a clean cut point.
+        boundary_markers: Sentence-ending markers to search for (same set as LC).
+
+    Returns:
+        (combined_text, TrimResult) — trim_applied=False when no trimming was needed.
+    """
+    combined = body + suffix
+    if len(combined) <= max_total_length:
+        return combined, TrimResult(trim_applied=False, trim_method=None, chars_trimmed=0)
+
+    max_body = max_total_length - len(suffix)
+
+    # Guard: suffix alone is at/near limit — can't trim to fit. Return combined as-is
+    # rather than silently drop the link. Unreachable with real payment links (<200 chars).
+    if max_body <= 3:
+        return combined, TrimResult(trim_applied=False, trim_method=None, chars_trimmed=0)
+
+    # Search for rightmost sentence boundary in the last boundary_window chars of body[:max_body]
+    search_start = max(0, max_body - boundary_window)
+    search_region = body[search_start:max_body]
+
+    best_idx = -1
+    for marker in boundary_markers:
+        idx = search_region.rfind(marker)
+        if idx != -1:
+            # +1: include the punctuation char itself (. ? !) but not the trailing space/\n
+            abs_idx = search_start + idx + 1
+            if abs_idx > best_idx:
+                best_idx = abs_idx
+
+    if best_idx > 0:
+        trimmed_body = body[:best_idx]
+        chars_trimmed = len(body) - best_idx
+        return trimmed_body + suffix, TrimResult(
+            trim_applied=True, trim_method="boundary", chars_trimmed=chars_trimmed,
+        )
+
+    # Fallback: raw cut — preserves more content than a distant boundary would
+    trimmed_body = body[:max_body - 3] + "..."
+    chars_trimmed = len(body) - (max_body - 3)
+    return trimmed_body + suffix, TrimResult(
+        trim_applied=True, trim_method="raw", chars_trimmed=chars_trimmed,
+    )
+
 
 # Cache for echo fallback pools
 _echo_pool_cache: dict = {}
@@ -410,6 +494,9 @@ async def phase_postprocessing(
     formatted_content = agent.instagram_service.format_message(response_content)
 
     # Step 7d: Inject payment link for purchase_intent if missing
+    # Fix S6-T5.2: link was previously appended after format_message(), bypassing
+    # Instagram's 1000-char limit. Now re-verifies combined length and trims the
+    # body (never the link) if needed. Idempotent: skipped if link already present.
     if intent_value.lower() in ("purchase_intent", "want_to_buy") and agent.products:
         msg_lower = message.lower()
         resp_lower = formatted_content.lower()
@@ -421,10 +508,45 @@ async def phase_postprocessing(
                 _message_mentions_product(pname, msg_lower)
                 or _message_mentions_product(pname, resp_lower)
             )
-            if pname and mentioned and plink and plink not in resp_lower:
-                formatted_content = f"{formatted_content}\n\n{plink}"
-                cognitive_metadata["payment_link_injected"] = plink
-                logger.info(f"[Step 7d] Injected payment link for '{pname}': {plink}")
+            if pname and mentioned and plink:
+                if plink not in resp_lower:
+                    suffix = f"\n\n{plink}"
+                    combined, trim_result = _trim_body_for_payment_link(
+                        formatted_content, suffix,
+                    )
+                    formatted_content = combined
+                    cognitive_metadata["payment_link_injected"] = plink
+                    if trim_result.trim_applied:
+                        cognitive_metadata["payment_link_body_trimmed"] = trim_result.chars_trimmed
+                        logger.warning(
+                            "[Step 7d] Body trimmed %d chars (%s) to fit payment link for '%s'",
+                            trim_result.chars_trimmed, trim_result.trim_method, pname,
+                        )
+                    logger.info("[Step 7d] Injected payment link for '%s': %s", pname, plink)
+                    try:
+                        from core.observability.metrics import emit_metric
+                        emit_metric("payment_link_injected_total", creator_id=agent.creator_id)
+                        if trim_result.trim_applied:
+                            emit_metric(
+                                "payment_link_body_trimmed_total",
+                                creator_id=agent.creator_id,
+                                trim_method=trim_result.trim_method,
+                            )
+                            emit_metric(
+                                "payment_link_body_trimmed_chars",
+                                trim_result.chars_trimmed,
+                                creator_id=agent.creator_id,
+                            )
+                    except Exception:
+                        pass
+                else:
+                    # Idempotent: link already present — no injection
+                    logger.debug("[Step 7d] Payment link already in response for '%s', skipping", pname)
+                    try:
+                        from core.observability.metrics import emit_metric
+                        emit_metric("payment_link_skipped_present_total", creator_id=agent.creator_id)
+                    except Exception:
+                        pass
                 break
 
     _t4 = time.monotonic()
