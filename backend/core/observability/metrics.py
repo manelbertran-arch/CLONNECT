@@ -176,6 +176,25 @@ _METRIC_SPECS = [
     ("active_conversations_gauge", Gauge if _PROMETHEUS_AVAILABLE else None,
      "Active conversations per creator",
      ["creator_id"], {}),
+
+    # ── SBS/PPA quality gate (S6-T5.1 fix) ──────────────────────────────────
+    ("sbs_path_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "SBS decisions by path (pass/retried/fail_retry_fallback)",
+     ["creator_id", "path"], {}),
+
+    ("sbs_score_initial", Histogram if _PROMETHEUS_AVAILABLE else None,
+     "SBS initial alignment score before any retry",
+     ["creator_id"],
+     {"buckets": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]}),
+
+    ("sbs_score_retry", Histogram if _PROMETHEUS_AVAILABLE else None,
+     "SBS alignment score of the retry response",
+     ["creator_id"],
+     {"buckets": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]}),
+
+    ("protections_reapplied_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Times content protections were re-applied after reasoning regeneration (T5.1 fix)",
+     ["creator_id", "reasoning_system"], {}),
 ]
 
 # _REGISTRY_META maps metric name → type string for dispatch (avoids isinstance on mocks in tests)
