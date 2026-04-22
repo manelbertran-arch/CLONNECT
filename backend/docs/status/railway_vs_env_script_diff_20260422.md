@@ -12,7 +12,7 @@ Para contexto y decisiones, ver commits referenciados.
 | `USE_COMPRESSED_DOC_D` | **true** | true | false | ⚠️ **DRIFT** — Railway debería ser false | Activado manualmente en algún punto post-QW2. Commit `83a1104d` ya advierte contra este flag. Memoria project_qw2: -10.69 regression con Gemma-4-31B |
 | `ENABLE_FEW_SHOT` | false | true | true | ✓ Railway intencional | `dbf0cd11` (2026-04-03): "turn OFF 16 unaudited systems pending forensic audit". Auditado en `8fed3b10` (W8-B2a) pero no reactivado |
 | `ENABLE_LENGTH_HINTS` | false | true | true | ✓ Railway intencional | `dbf0cd11` OFF list + `de7c319a` bisect: "disable 3 regression suspects — length hints, temp dual, loop detector" |
-| `ENABLE_RERANKING` | true | **false** | true | ✓ Railway correcto — env script erróneo | Env script desactivó reranking para algún ablation run y nunca se corrigió |
+| `ENABLE_RERANKING` | true | **false** | true | 🔴 **DRIFT** — condición "≥5 clientes de pago" no cumplida (beta: 2 testers, 0 pago) | Condición de activación pendiente; revertir a false |
 | `ENABLE_CITATIONS` | false | true | true | ✓ Railway intencional | `dbf0cd11` OFF list como "citations" |
 | `ENABLE_OUTPUT_VALIDATION` | false | true | true | ✓ Railway intencional | `1b3bc213`: "clean 655 lines dead code from output_validator.py — keep only validate_links()". Sistema vaciado |
 | `ENABLE_RESPONSE_FIXES` | false | true | true | ✓ Railway intencional | `dbf0cd11` OFF list como "response_fixes" |
@@ -44,7 +44,7 @@ Para contexto y decisiones, ver commits referenciados.
 export USE_COMPRESSED_DOC_D=false          # drift en Railway; memoria: stays off
 export ENABLE_FEW_SHOT=false               # intentional OFF desde dbf0cd11
 export ENABLE_LENGTH_HINTS=false           # bisect regression + dbf0cd11
-export ENABLE_RERANKING=true               # Railway=true; env script tenía false (ablation artifact)
+export ENABLE_RERANKING=false              # drift en Railway; condición ≥5 clientes no cumplida
 export ENABLE_CITATIONS=false              # dbf0cd11
 export ENABLE_OUTPUT_VALIDATION=false      # sistema vaciado (1b3bc213)
 export ENABLE_RESPONSE_FIXES=false         # dbf0cd11
@@ -54,7 +54,10 @@ export ENABLE_STYLE_ANCHOR=false           # Railway no tiene la var → efectiv
 export ENABLE_SELL_ARBITER_LIVE=true       # PR #80 — no está en env script pero sí en Railway
 ```
 
-**Acción pendiente en Railway:** `USE_COMPRESSED_DOC_D=true` en Railway es drift. Debe corregirse a `false` independientemente del CCEE run.
+**Acciones pendientes en Railway (2 drift confirmados):**
+- `USE_COMPRESSED_DOC_D=true` → drift (regression -10.69, stays off)
+- `ENABLE_RERANKING=true` → drift (condición ≥5 clientes de pago no cumplida: 0 pago, 2 beta testers)
+- `USE_COMPACTION=true` → **correcto** (activación deliberada commit `18e18766` 2026-04-20, shadow log validado)
 
 ---
 
@@ -71,7 +74,7 @@ export $(grep -v '^#' .env | grep DEEPINFRA_API_KEY | xargs)
 export USE_COMPRESSED_DOC_D=false
 export ENABLE_FEW_SHOT=false
 export ENABLE_LENGTH_HINTS=false
-export ENABLE_RERANKING=true
+export ENABLE_RERANKING=false              # drift — condición ≥5 clientes no cumplida
 export ENABLE_CITATIONS=false
 export ENABLE_OUTPUT_VALIDATION=false
 export ENABLE_RESPONSE_FIXES=false
@@ -81,6 +84,64 @@ export ENABLE_STYLE_ANCHOR=false
 export ENABLE_SELL_ARBITER_LIVE=true
 
 # 3. Run
+nohup .venv/bin/python3 -W ignore::FutureWarning -u scripts/run_ccee.py \
+    --creator iris_bertran \
+    --runs 3 --cases 50 \
+    --multi-turn --v4-composite --v5 \
+    --save-as "baseline_post_p4_live_20260422" \
+    > /tmp/baseline_post_p4.log 2>&1 &
+echo "PID: $!"
+```
+
+---
+
+## Reconciliación final — 2026-04-22
+
+### Drift confirmados en Railway (2)
+
+| Flag | Valor actual | Corrección | Evidencia |
+|------|-------------|------------|-----------|
+| `USE_COMPRESSED_DOC_D` | true | **false** | Memoria QW2: -10.69 composite Iris/Gemma-4-31B. Commit `83a1104d` advierte. Sin commit de re-activación posterior. |
+| `ENABLE_RERANKING` | true | **false** | Condición de activación: ≥5 clientes de pago. Estado actual: 0 clientes de pago, 2 beta testers (Iris, Stefano). |
+
+### No-drift confirmado (1)
+
+| Flag | Valor actual | Veredicto | Evidencia |
+|------|-------------|-----------|-----------|
+| `USE_COMPACTION` | true | **correcto — queda como está** | Commit `18e18766` (2026-04-20): activación deliberada S5. Shadow log validó: 19 rows/30min, 0 compaction_applied. Deploy OK, 0 errores. |
+
+### Comandos Railway para ejecutar (usuario)
+
+```bash
+railway variables set USE_COMPRESSED_DOC_D=false --service web
+railway variables set ENABLE_RERANKING=false --service web
+```
+
+### Estado post-corrección esperado
+
+Tras aplicar los 2 comandos + redeploy (~3 min), Railway quedará en estado prod-fiel para el baseline CCEE:
+- `USE_COMPRESSED_DOC_D=false` ✓
+- `ENABLE_RERANKING=false` ✓
+- `USE_COMPACTION=true` ✓ (intencional)
+- `ENABLE_SELL_ARBITER_LIVE=true` ✓ (PR #80)
+
+### Comando CCEE post-corrección (listo para ejecutar)
+
+```bash
+cd /Users/manelbertranluque/Clonnect/backend
+source config/env_ccee_gemma4_31b_full.sh
+export $(grep -v '^#' .env | grep DEEPINFRA_API_KEY | xargs)
+export USE_COMPRESSED_DOC_D=false
+export ENABLE_FEW_SHOT=false
+export ENABLE_LENGTH_HINTS=false
+export ENABLE_RERANKING=false
+export ENABLE_CITATIONS=false
+export ENABLE_OUTPUT_VALIDATION=false
+export ENABLE_RESPONSE_FIXES=false
+export ENABLE_MESSAGE_SPLITTING=false
+export ENABLE_BLACKLIST_REPLACEMENT=false
+export ENABLE_STYLE_ANCHOR=false
+export ENABLE_SELL_ARBITER_LIVE=true
 nohup .venv/bin/python3 -W ignore::FutureWarning -u scripts/run_ccee.py \
     --creator iris_bertran \
     --runs 3 --cases 50 \
