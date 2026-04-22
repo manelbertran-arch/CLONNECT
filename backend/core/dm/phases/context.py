@@ -13,6 +13,13 @@ from core.bot_question_analyzer import QuestionType, get_bot_question_analyzer, 
 from core.citation_service import get_citation_prompt_section
 from core.conversation_state import get_state_manager
 from core.dm.models import ContextBundle, DetectionResult
+from core.dm.sell_arbitration import (
+    SalesIntentResolver,
+    SellDirective,
+    extract_sell_arbiter_inputs,
+    render_directive_text,
+    synthesize_aux_text,
+)
 from core.query_expansion import get_query_expander
 from core.rag.reranker import ENABLE_RERANKING
 
@@ -39,6 +46,61 @@ ENABLE_DNA_AUTO_ANALYZE = os.getenv("ENABLE_DNA_AUTO_ANALYZE", "true").lower() =
 ENABLE_PROMPT_CACHE_BOUNDARY = os.getenv("ENABLE_PROMPT_CACHE_BOUNDARY", "false").lower() == "true"
 # ARC2 Phase 3 — read cutover: read from arc2_lead_memories via LeadMemoryService
 ENABLE_LEAD_MEMORIES_READ = os.getenv("ENABLE_LEAD_MEMORIES_READ", "false").lower() == "true"
+# P4 sell arbiter — replace the 4 contradictory injections with a single directive.
+# Default OFF; activated via Railway env var after merge. See sell_arbitration/README.md.
+ENABLE_SELL_ARBITER_LIVE = os.getenv("ENABLE_SELL_ARBITER_LIVE", "false").lower() == "true"
+
+# Stateless singleton; safe to share across requests.
+_SELL_RESOLVER = SalesIntentResolver()
+
+# SellDirective values that mean "no sale" → products are stripped from the
+# system prompt (consistent with legacy ``suppress_products`` behavior, now
+# extended to DNA-based NO_SELL cases that previously only had textual cues).
+_NO_PRODUCT_DIRECTIVES = frozenset({SellDirective.NO_SELL, SellDirective.REDIRECT})
+
+
+def _build_recalling_block(
+    username: str,
+    relational: str,
+    memory: str,
+    dna: str,
+    state: str,
+    frustration_note: str = "",
+    context_notes: str = "",
+    episodic: str = "",
+    directive_block: str = "",
+) -> str:
+    """Consolidate per-lead context into a single 'Sobre @username' block
+    with a Recalling trigger that instructs the LLM to use it naturally.
+
+    Moved from nested inside ``phase_memory_and_context`` to module scope in
+    P4 so it can be unit-tested (byte-identical output under flag OFF).
+
+    Note: lead_profile data is merged INTO the dna block via
+    format_unified_lead_context() — no separate lead_profile param needed.
+
+    ``directive_block`` is the P4 sell arbiter output (empty when the flag is
+    OFF). It slots between ``dna`` (identity signals) and ``state`` (sales
+    funnel phase verbs) because it's a meta-instruction about selling that,
+    when populated, supersedes the phase prompts. With the flag OFF the
+    default empty string is filtered out by ``if p``, preserving byte-identical
+    output vs. pre-P4.
+    """
+    # Order: memory LAST for high-attention end position (Liu et al.
+    # 2023 "Lost in the Middle", Chroma 2025 "Context Rot").
+    parts = [
+        p for p in [
+            relational, dna, directive_block, state, episodic,
+            frustration_note, context_notes, memory,
+        ] if p
+    ]
+    if not parts:
+        return ""
+    header = f"Sobre @{username}:"
+    # Zep pattern: step-by-step usage instruction. MRPrompt (2026):
+    # explicit protocol improves memory utilization in ≤14B models.
+    footer = "IMPORTANTE: Lee las etiquetas <memoria> y responde mencionando algo de ahí. No repitas textual."
+    return header + "\n" + "\n".join(parts) + "\n" + footer
 
 # ── Universal RAG gate: dynamic keywords from creator's content_chunks ──
 
@@ -1218,7 +1280,9 @@ async def phase_memory_and_context(
     # Silent product suppression only — ZERO prompt injection.
     # Only PERSONAL (score > 0.8) suppresses products; CLOSE/CASUAL/TRANSACTIONAL = normal.
     # _rel_type kept empty so strategy.py receives no relationship signal.
-    is_friend = _rel_score.suppress_products if _rel_score else False
+    # P4: ``_legacy_is_friend`` is the pre-arbiter derivation; final ``is_friend``
+    # is set below after the sell arbiter runs (when flag ON it may be overridden).
+    _legacy_is_friend = _rel_score.suppress_products if _rel_score else False
     _rel_type = ""
 
     # Lead stage (depends on follower)
@@ -1332,32 +1396,7 @@ async def phase_memory_and_context(
 
     # Build Recalling block: consolidate all per-lead context into one coherent section
     # with an explicit usage trigger (MRPrompt pattern) so the LLM actually uses the data.
-    def _build_recalling_block(
-        username: str,
-        relational: str,
-        memory: str,
-        dna: str,
-        state: str,
-        frustration_note: str = "",
-        context_notes: str = "",
-        episodic: str = "",
-    ) -> str:
-        """Consolidate per-lead context into a single 'Sobre @username' block
-        with a Recalling trigger that instructs the LLM to use it naturally.
-
-        Note: lead_profile data is merged INTO the dna block via
-        format_unified_lead_context() — no separate lead_profile param needed.
-        """
-        # Order: memory LAST for high-attention end position (Liu et al.
-        # 2023 "Lost in the Middle", Chroma 2025 "Context Rot").
-        parts = [p for p in [relational, dna, state, episodic, frustration_note, context_notes, memory] if p]
-        if not parts:
-            return ""
-        header = f"Sobre @{username}:"
-        # Zep pattern: step-by-step usage instruction. MRPrompt (2026):
-        # explicit protocol improves memory utilization in ≤14B models.
-        footer = "IMPORTANTE: Lee las etiquetas <memoria> y responde mencionando algo de ahí. No repitas textual."
-        return header + "\n" + "\n".join(parts) + "\n" + footer
+    # ``_build_recalling_block`` lives at module scope (testability — see P4).
 
     # Frustration note — factual, no behavior instruction (v2)
     _frustration_note = ""
@@ -1500,16 +1539,56 @@ async def phase_memory_and_context(
     # CC pattern: P1 (SYSTEM_PROMPT_DYNAMIC_BOUNDARY), P20 (quarantine).
     MAX_CONTEXT_CHARS = int(os.getenv("MAX_CONTEXT_CHARS", "8000"))
 
+    # ── P4 Sell Intent Arbiter (flag-gated) ─────────────────────────────────
+    # When LIVE, replaces the 4 contradictory injections (dna "NUNCA vender"
+    # hint is left intact as identity signal; state_context phase verbs, the
+    # L2 frustration note, and the scorer-driven product stripping are all
+    # superseded by the single directive emitted below).
+    _directive_block = ""
+    _aux_text_for_frustration = ""
+    if ENABLE_SELL_ARBITER_LIVE:
+        try:
+            _arb_inputs = extract_sell_arbiter_inputs(
+                creator_id=agent.creator_id,
+                raw_dna=raw_dna,
+                state_meta=state_meta,
+                cognitive_metadata=cognitive_metadata,
+                detection=detection,
+                rel_score=_rel_score,
+                commitment_text=commitment_text,
+            )
+            _arb_directive = _SELL_RESOLVER.resolve(_arb_inputs)
+            _directive_block = render_directive_text(_arb_directive)
+            _aux_text_for_frustration = synthesize_aux_text(_arb_directive, _arb_inputs)
+            cognitive_metadata["sell_directive"] = _arb_directive.value
+            is_friend = _arb_directive in _NO_PRODUCT_DIRECTIVES
+        except Exception as _arb_err:
+            # Fail-open: if the arbiter raises for any reason, fall back to
+            # the pre-P4 behavior so a resolver bug cannot take DM down.
+            logger.error(
+                "[SELL_ARB] arbiter failed, falling back to legacy path: %s",
+                _arb_err,
+            )
+            cognitive_metadata["sell_directive_error"] = str(_arb_err)
+            is_friend = _legacy_is_friend
+    else:
+        is_friend = _legacy_is_friend
+
     # Build the Recalling block (consolidated per-lead context)
     _recalling = _build_recalling_block(
         username=follower.username or sender_id,
         relational=relational_block,
         memory=memory_context,
         dna=dna_context,
-        state=state_context,
-        frustration_note=_frustration_note,
+        state="" if (ENABLE_SELL_ARBITER_LIVE and _directive_block) else state_context,
+        frustration_note=(
+            _aux_text_for_frustration
+            if (ENABLE_SELL_ARBITER_LIVE and _directive_block)
+            else _frustration_note
+        ),
         context_notes=_context_notes_str,
         episodic=episodic_context,
+        directive_block=_directive_block,
     )
 
     # Route assembly through _assemble_context (legacy or BudgetOrchestrator)

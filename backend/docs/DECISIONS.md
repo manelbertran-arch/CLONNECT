@@ -339,6 +339,34 @@ STATUS: OPEN — dm_history_service.py pendiente CASUAL fix
 
 ---
 DATE: 2026-04-22
+ARC: SELL ARBITRATION / ARQUITECTURA
+DECISION: P4 — integrar SalesIntentResolver (PR #79) al pipeline DM. Reemplazar 4 inyecciones contradictorias en `_build_recalling_block()` por una directive única del resolver, gated por `ENABLE_SELL_ARBITER_LIVE` (default False).
+CONTEXT: Audit jerarquización (commit d5616c68, BLQ-1) identificó que DNA Engine + Conversation State + Frustration Detector + Relationship Scorer escriben señales contradictorias al mismo recalling block. Sprint 6 re-matrix documentó 3 contradicciones Type-1 (R.4 FAMILIA vs PROPUESTA, R.5 frustración vs scorer, C.8 multi-trigger) que el LLM resolvía ad-hoc. PR #77 (intent dual) + #78 (ARC1 truncation) + #79 (resolver aislado) eran precondiciones. P4 conecta el resolver al pipeline.
+RATIONALE: Two-layer pattern (SafeCRS-inspired, research 2f71badc) ya validado aisladamente en PR #79 con 74 tests. Adapter en `core/dm/sell_arbitration/adapter.py` extrae 9 inputs del pipeline, normaliza uppercase, maneja fallbacks con telemetría (`sell_adapter_fallback`), y emite directive_text + aux_text. Callsite en `context.py:1541-1572` gated por flag; `_build_recalling_block` movida a module-level con nuevo param `directive_block` slot entre dna y state. No shadow mode (sin tráfico prod, activación directa).
+BEHAVIOR CHANGES (observables cuando flag ON):
+  (1) `state_context` SUPRIMIDO — las PHASE_INSTRUCTIONS ("FASE: PROPUESTA — Menciona el producto") dejan de inyectarse; la directive las sustituye.
+  (2) `_frustration_note` REEMPLAZADO por `aux_text` — el L2 "No vendas ahora." desaparece; NO_SELL + commitment pendiente genera R.9 aux_text.
+  (3) PRODUCTOS REMOVIDOS FÍSICAMENTE del system_prompt para directive ∈ {NO_SELL, REDIRECT} — antes DNA=FAMILIA/INTIMA solo emitía señal textual; ahora también quita productos (is_friend=True). COLABORADOR añadido a DNA_NO_SELL_SET (P3).
+  (4) Nuevo slot `directive_block` entre `dna` y `state` en el recalling — con flag OFF queda vacío y el filtro `if p` lo omite → output byte-identical a pre-P4 (verificado por `tests/dm/test_recalling_block.py`).
+  (5) `cognitive_metadata["sell_directive"]` expuesto downstream para correlación en logs/metrics.
+  (6) `cognitive_metadata["sensitive_action_required"]` persistido desde `detection.py` (antes se calculaba y descartaba) — necesario para P1 veto.
+KNOWN LIMITATIONS v1:
+  - `rel_hints` sigue vivo en dna_context ("Familiar directo — NUNCA vender" para FAMILIA). Coincide con NO_SELL del resolver para FAMILIA/INTIMA/COLABORADOR — sin contradicción. Si futuros rel_hints discrepan del directive, PR aparte suprime rel_hints con flag ON.
+  - `has_pending_sales_commitment` = `bool(commitment_text)` (proxy amplio). Admite false positives suaves (aux_text para commitments no-venta). Filter por `commitment_type` en backlog.
+  - Conv State stall: la state machine sigue avanzando fases aunque el resolver emita NO_SELL. Divergencia observable vía metrics; acoplar resolver↔state machine queda para v2 (opción B del design doc §1).
+CAMBIOS: core/dm/phases/context.py (import adapter, flag, singleton, _NO_PRODUCT_DIRECTIVES, _build_recalling_block movida a module-level con directive_block param, _legacy_is_friend rename, bloque arbiter fail-open con try/except, callsite modificado). core/dm/sell_arbitration/adapter.py (nuevo, 210 LOC). core/dm/sell_arbitration/inputs.py + arbitration_layer.py (COLABORADOR). core/dm/phases/detection.py (persist sensitive_action_required via getattr). core/observability/metrics.py (sell_adapter_fallback Counter). README + __init__ actualizados. Tests nuevos: tests/dm/test_recalling_block.py (10), tests/dm/test_p4_integration.py (12), tests/sell_arbitration/test_inputs.py (29), tests/sell_arbitration/test_adapter.py (42), tests/test_detection_sensitive_action.py (4). Suite sell_arbitration 74→149 tests.
+ACTIVACIÓN (post-merge):
+  1. Merge este PR con flag default False → zero behavior change en prod.
+  2. Setear `ENABLE_SELL_ARBITER_LIVE=true` en Railway env vars.
+  3. Monitor 15 min: `sell_resolver_total{layer,directive}`, `sell_adapter_fallback{field}`, `sell_veto_triggered`, `sell_arbitration_resolved`. Alert si fallback rate > 5% sostenido.
+  4. Rollback: env var OFF (instantáneo) o `git revert` si el bug es de código.
+STATUS: IMPLEMENTED — refactor/p4-sell-directive-integration, PR pendiente de apertura.
+TESTS: 381 passed + 3 xfailed (suites sell+dm+detection+budget+intent+sistema_07_08+episodic). Baseline diff vs main: 0 regresiones causales; 1 flaky e2e (`test_guardrails_response_is_valid`) contra prod — oscila pass/fail en aislamiento, ortogonal al path bajo test.
+REFS: PR #77 (intent classifier canonical), PR #78 (ARC1 truncation), PR #79 (SalesIntentResolver module), audit d5616c68 (BLQ-1).
+---
+
+---
+DATE: 2026-04-22
 ARC: BUDGET / BUG
 DECISION: Fix ARC1-TRUNCATION — non-CRITICAL sections con tok > cap concatenaban contenido completo mientras descontaban solo cap del remaining
 CONTEXT: Detectado en auditoría jerarquización (commit d5616c68, rama audit/jerarquizacion-gap). orchestrator.py._fit() solo aplicaba hard-truncate a secciones CRITICAL (force=True). Non-CRITICAL con tok>cap y compressor=None devolvían content completo pero effective_tok=cap → prompt sobre-presupuesto 5-15% típico, 25% peor caso (recalling cap=400 con 500-1000 tokens reales).

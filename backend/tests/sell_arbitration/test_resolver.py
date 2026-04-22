@@ -128,6 +128,20 @@ def test_frustrated_lead_asking_price(resolver: SalesIntentResolver) -> None:
     assert result is SellDirective.NO_SELL
 
 
+def test_colaborador_in_propuesta_yields_no_sell(resolver: SalesIntentResolver) -> None:
+    """COLABORADOR in phase=PROPUESTA → NO_SELL (P3 beats P6).
+
+    Added in P4: cross-promo partners are not a sales target. Without this,
+    a COLABORADOR in PROPUESTA would have triggered SELL_ACTIVELY, damaging
+    the professional relationship.
+    """
+    result = resolver.resolve(_valid_inputs(
+        dna_relationship_type="COLABORADOR",
+        conv_phase="PROPUESTA",
+    ))
+    assert result is SellDirective.NO_SELL
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Edge cases
 # ─────────────────────────────────────────────────────────────────────────────

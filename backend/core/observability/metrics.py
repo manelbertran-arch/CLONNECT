@@ -208,6 +208,10 @@ _METRIC_SPECS = [
     ("sell_resolver_total", Counter if _PROMETHEUS_AVAILABLE else None,
      "Sell arbiter total invocations",
      ["creator_id", "layer", "directive"], {}),
+
+    ("sell_adapter_fallback", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Sell arbiter adapter fell back to default for a missing/invalid upstream field",
+     ["creator_id", "field"], {}),
 ]
 
 # _REGISTRY_META maps metric name → type string for dispatch (avoids isinstance on mocks in tests)

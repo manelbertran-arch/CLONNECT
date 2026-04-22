@@ -179,6 +179,13 @@ async def phase_detection(
                 logger.warning(f"Sensitive content detected: {sensitive_result.type.value}")
                 cognitive_metadata["sensitive_detected"] = True
                 cognitive_metadata["sensitive_category"] = sensitive_result.type.value
+                # P4 sell arbiter: expose action_required for adapter consumption.
+                # getattr-guarded so that exotic SensitiveResult stand-ins in tests
+                # (or a schema drift upstream) do not push us down the fail-closed
+                # escalation branch below.
+                _action_required = getattr(sensitive_result, "action_required", None)
+                if _action_required:
+                    cognitive_metadata["sensitive_action_required"] = _action_required
                 _arc5_security_flags.append("sensitive_content")
                 if sensitive_result.confidence >= AGENT_THRESHOLDS.sensitive_escalation:
                     _arc5_security_severity = "critical"
