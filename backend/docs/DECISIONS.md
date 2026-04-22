@@ -307,3 +307,20 @@ RATIONALE: v5 DeepInfra = 65.7 vs v5 OpenRouter = 66.4 (delta -0.7 indistinguibl
 NEXT: Sesiones 2 (21-abr) y 3 (22-abr) DeepInfra mismo SHA + comando. Tras 3 sesiones: calcular σ_inter-sesión DeepInfra vs OpenRouter ±3-4 conocido. Si DeepInfra inter-sesión también estable → migrar protocolo A/B oficial a DeepInfra. Si similar a OpenRouter → varianza es del modelo Gemma mismo, considerar otras estrategias.
 STATUS: SESSION 1/3 COMPLETED — pendiente sesiones 2-3 Manel
 ---
+
+---
+DATE: 2026-04-21
+ARC: MEDICIÓN / VARIANCE
+DECISION: DeepInfra variance sesión 2/3 completada — σ_inter-sesión significativo (+3.0 puntos vs 1/3)
+CONTEXT: Sesión 2/3 ejecutada con mismo protocolo que 1/3 (DeepInfra Gemma4-31B, Qwen3 judge, 3 runs × 50 cases + MT). Pipeline idéntico (solo docs mergeados entre sesiones).
+RATIONALE:
+- v5 sesión 2/3 = 68.7 ± 0.94 (runs: 68.50, 70.69, 68.98)
+- v5 sesión 1/3 = 65.7 ± 0.42
+- Delta inter-sesión: +3.0 puntos
+- Gate intra-sesión PASS (σ<1 en ambas)
+- Incidentes: 1 DeepInfra timeout Run 2 recuperado, 1 case skipped Run 3
+- Warning: style context budget 43-45% (umbral 40%)
+CAVEATS: Con 2 sesiones NO se puede calcular σ_inter fiable. Hypothesis en pendiente hasta sesión 3/3.
+NEXT: Sesión 3/3 mañana 22-abr. Si converge a ~68 → nuevo baseline DeepInfra. Si vuelve a ~65 → σ_inter alto, sesión 2/3 outlier.
+STATUS: SESSION 2/3 COMPLETED — pendiente sesión 3/3 para calcular σ_inter final
+---
