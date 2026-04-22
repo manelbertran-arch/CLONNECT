@@ -47,7 +47,7 @@ def _valid_inputs(**overrides: Any) -> SellArbiterInputs:
 # _check_p3 in isolation — DNA no-sell set
 # ─────────────────────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("dna_type", ["FAMILIA", "INTIMA"])
+@pytest.mark.parametrize("dna_type", ["FAMILIA", "INTIMA", "COLABORADOR"])
 def test_check_p3_fires_for_no_sell_dna(dna_type: str) -> None:
     fires, directive, reason = _check_p3(_valid_inputs(dna_relationship_type=dna_type))
     assert fires is True
@@ -61,6 +61,16 @@ def test_check_p3_silent_for_other_dna(dna_type: str) -> None:
     assert fires is False
     assert directive is None
     assert reason == ""
+
+
+def test_check_p3_colaborador_beats_propuesta_phase() -> None:
+    """COLABORADOR in a sell phase must still yield NO_SELL (P3 beats P6)."""
+    fires, directive, reason = _check_p3(
+        _valid_inputs(dna_relationship_type="COLABORADOR", conv_phase="PROPUESTA")
+    )
+    assert fires is True
+    assert directive is SellDirective.NO_SELL
+    assert reason == "dna:COLABORADOR"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -153,6 +163,12 @@ def test_arb_p3_no_sell_for_familia() -> None:
 def test_arb_p3_no_sell_for_intima() -> None:
     assert evaluate_arbitration(
         _valid_inputs(dna_relationship_type="INTIMA")
+    ) is SellDirective.NO_SELL
+
+
+def test_arb_p3_no_sell_for_colaborador() -> None:
+    assert evaluate_arbitration(
+        _valid_inputs(dna_relationship_type="COLABORADOR")
     ) is SellDirective.NO_SELL
 
 

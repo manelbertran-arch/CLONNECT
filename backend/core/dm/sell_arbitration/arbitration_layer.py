@@ -22,7 +22,7 @@ from core.observability.metrics import emit_metric
 
 logger = logging.getLogger(__name__)
 
-DNA_NO_SELL_SET = frozenset({"FAMILIA", "INTIMA"})
+DNA_NO_SELL_SET = frozenset({"FAMILIA", "INTIMA", "COLABORADOR"})
 DNA_SOFT_SET = frozenset({"AMISTAD_CERCANA"})
 SELL_PHASES = frozenset({"PROPUESTA", "CIERRE"})
 

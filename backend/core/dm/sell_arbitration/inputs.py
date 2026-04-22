@@ -22,6 +22,7 @@ VALID_DNA_TYPES = frozenset({
     "AMISTAD_CERCANA",
     "AMISTAD_CASUAL",
     "CLIENTE",
+    "COLABORADOR",
     "DESCONOCIDO",
 })
 
