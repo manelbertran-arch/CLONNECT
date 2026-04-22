@@ -324,3 +324,15 @@ CAVEATS: Con 2 sesiones NO se puede calcular σ_inter fiable. Hypothesis en pend
 NEXT: Sesión 3/3 mañana 22-abr. Si converge a ~68 → nuevo baseline DeepInfra. Si vuelve a ~65 → σ_inter alto, sesión 2/3 outlier.
 STATUS: SESSION 2/3 COMPLETED — pendiente sesión 3/3 para calcular σ_inter final
 ---
+
+---
+DATE: 2026-04-22
+ARC: INTENT / ARQUITECTURA
+DECISION: Establecer services.IntentClassifier como clasificador canónico único — deprecar classify_intent_simple()
+CONTEXT: Dos clasificadores de intent corrían en paralelo sin coordinarse: classify_intent_simple() (7-string legacy) en core/context_detector/orchestration.py y services.IntentClassifier (32 valores) en dm/phases/context.py. Divergencia ~31% en muestra de 100 mensajes.
+RATIONALE: services.IntentClassifier tiene 32 valores granulares (8 sub-tipos objección), es la fuente que alimenta routing y estrategia real. classify_intent_simple() solo alimentaba DetectedContext.context_notes (informativo). Migración de orchestration.py a canonico es de bajo riesgo. dm_history_service.py bloqueado hasta fix CASUAL short-message bug (len<15 catch-all convierte "ayuda", "error", "no funciona" en CASUAL en vez de support).
+CAMBIOS: core/context_detector/intent_mapping.py (nuevo — Tabla A + Tabla B), orchestration.py migrado a canonical, classify_intent_simple() marcado deprecated (logging.warning una vez por proceso), bug documentado en docs/bugs/intent_classifier_casual_short_msg.md.
+BEHAVIOR CHANGES: (1) ESCALATION: ctx.intent era OTHER, ahora ESCALATION — solo afecta context_notes. (2) "cuéntame más": interest_level era soft, ahora strong (semánticamente correcto).
+NEXT: fix/intent-classifier-casual-short (fix bug len<15 CASUAL), luego fix/dm-history-service-canonical-intent (migrar dm_history_service.py + hacer classify_intent_simple delegate a canonical).
+STATUS: OPEN — dm_history_service.py pendiente CASUAL fix
+---
