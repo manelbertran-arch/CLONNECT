@@ -158,6 +158,19 @@ _METRIC_SPECS = [
     ("active_conversations_gauge", Gauge if _PROMETHEUS_AVAILABLE else None,
      "Active conversations per creator",
      ["creator_id"], {}),
+
+    # ── Sales Intent Arbitration (S6 — two-layer resolver) ──────────────────
+    ("sell_veto_triggered", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Sell arbiter Layer-1 hard veto triggered",
+     ["creator_id", "priority", "reason"], {}),
+
+    ("sell_arbitration_resolved", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Sell arbiter Layer-2 ordinal arbitration resolved",
+     ["creator_id", "priority", "directive", "reason"], {}),
+
+    ("sell_resolver_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Sell arbiter total invocations",
+     ["creator_id", "layer", "directive"], {}),
 ]
 
 # _REGISTRY_META maps metric name → type string for dispatch (avoids isinstance on mocks in tests)
