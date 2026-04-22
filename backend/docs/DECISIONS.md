@@ -336,3 +336,14 @@ BEHAVIOR CHANGES: (1) ESCALATION: ctx.intent era OTHER, ahora ESCALATION — sol
 NEXT: fix/intent-classifier-casual-short (fix bug len<15 CASUAL), luego fix/dm-history-service-canonical-intent (migrar dm_history_service.py + hacer classify_intent_simple delegate a canonical).
 STATUS: OPEN — dm_history_service.py pendiente CASUAL fix
 ---
+
+---
+DATE: 2026-04-22
+ARC: BUDGET / BUG
+DECISION: Fix ARC1-TRUNCATION — non-CRITICAL sections con tok > cap concatenaban contenido completo mientras descontaban solo cap del remaining
+CONTEXT: Detectado en auditoría jerarquización (commit d5616c68, rama audit/jerarquizacion-gap). orchestrator.py._fit() solo aplicaba hard-truncate a secciones CRITICAL (force=True). Non-CRITICAL con tok>cap y compressor=None devolvían content completo pero effective_tok=cap → prompt sobre-presupuesto 5-15% típico, 25% peor caso (recalling cap=400 con 500-1000 tokens reales).
+RATIONALE: Fix mínimo (Opción A, elif quirúrgico). elif tok > cap and not force: trunca a cap usando tokenizer.truncate() existente. CRITICAL path intacto. Parámetro allow_truncate_non_critical descartado — 1 único caller (context.py:585), sería dead code.
+CAMBIOS: core/dm/budget/orchestrator.py:106-117 (elif nuevo), import logging + emit_metric añadidos. Métrica budget_section_truncation_total pre-registrada en registry, ahora emitida.
+NEXT: Monitorizar budget_section_truncation_total en dashboard post-deploy para cuantificar frecuencia real de truncaciones.
+STATUS: FIXED — fix/arc1-truncation, PR #78
+---

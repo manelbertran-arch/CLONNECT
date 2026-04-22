@@ -9,11 +9,15 @@ Justification: greedy is near-optimal for ≤15 sections at <2ms latency.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import asdict
 from typing import Optional
 
 from core.dm.budget.section import AssembledContext, Priority, Section
 from core.dm.budget.tokenizer import TokenCounter
+from core.observability.metrics import emit_metric
+
+logger = logging.getLogger(__name__)
 
 
 class BudgetOrchestrator:
@@ -98,6 +102,19 @@ class BudgetOrchestrator:
             section = _replace(section, content=new_content)
             effective_tok = new_tok
             compressed.append((section, new_tok))
+
+        elif tok > section.cap_tokens and not force:
+            # Non-CRITICAL, no compressor: content exceeded cap — truncate to cap so
+            # the concatenated prompt matches the token budget accounting (ARC1-TRUNCATION fix).
+            truncated = self.tokenizer.truncate(section.content, section.cap_tokens)
+            section = _replace(section, content=truncated)
+            effective_tok = section.cap_tokens
+            compressed.append((section, effective_tok))
+            logger.debug(
+                "[BUDGET] truncated non-critical %s: %d→%d tokens (cap=%d, overflow=%d)",
+                section.name, tok, effective_tok, section.cap_tokens, tok - section.cap_tokens,
+            )
+            emit_metric("budget_section_truncation_total", section_name=section.name)
 
         if force and effective_tok > remaining:
             # CRITICAL does not fit even compressed — hard-truncate to remaining
