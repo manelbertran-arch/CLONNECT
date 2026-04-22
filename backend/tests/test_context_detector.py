@@ -238,10 +238,12 @@ class TestDetectInterestLevel:
         assert ctx.interest_level == "strong"
 
     def test_soft_via_detect_all(self):
-        """Via detect_all, soft interest message → soft interest."""
+        """Via detect_all, interest message → strong interest (canonical classifier)."""
         ctx = detect_all("Me interesa, cuéntame más")
-        # Intent classifier determines this — may be soft or none
-        assert ctx.interest_level in ("soft", "none")
+        # Post fix/intent-dual-reconciliation: "cuéntame más" is classified as
+        # INTEREST_STRONG by services.IntentClassifier (canonical), not interest_soft
+        # as classify_intent_simple did previously. "cuéntame más" is in INTEREST_STRONG_PATTERNS.
+        assert ctx.interest_level == "strong"
 
     def test_no_interest_greeting(self):
         ctx = detect_all("Hola, qué tal")

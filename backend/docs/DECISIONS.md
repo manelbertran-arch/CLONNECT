@@ -327,6 +327,18 @@ STATUS: SESSION 2/3 COMPLETED — pendiente sesión 3/3 para calcular σ_inter f
 
 ---
 DATE: 2026-04-22
+ARC: INTENT / ARQUITECTURA
+DECISION: Establecer services.IntentClassifier como clasificador canónico único — deprecar classify_intent_simple()
+CONTEXT: Dos clasificadores de intent corrían en paralelo sin coordinarse: classify_intent_simple() (7-string legacy) en core/context_detector/orchestration.py y services.IntentClassifier (32 valores) en dm/phases/context.py. Divergencia ~31% en muestra de 100 mensajes.
+RATIONALE: services.IntentClassifier tiene 32 valores granulares (8 sub-tipos objección), es la fuente que alimenta routing y estrategia real. classify_intent_simple() solo alimentaba DetectedContext.context_notes (informativo). Migración de orchestration.py a canonico es de bajo riesgo. dm_history_service.py bloqueado hasta fix CASUAL short-message bug (len<15 catch-all convierte "ayuda", "error", "no funciona" en CASUAL en vez de support).
+CAMBIOS: core/context_detector/intent_mapping.py (nuevo — Tabla A + Tabla B), orchestration.py migrado a canonical, classify_intent_simple() marcado deprecated (logging.warning una vez por proceso), bug documentado en docs/bugs/intent_classifier_casual_short_msg.md.
+BEHAVIOR CHANGES: (1) ESCALATION: ctx.intent era OTHER, ahora ESCALATION — solo afecta context_notes. (2) "cuéntame más": interest_level era soft, ahora strong (semánticamente correcto).
+NEXT: fix/intent-classifier-casual-short (fix bug len<15 CASUAL), luego fix/dm-history-service-canonical-intent (migrar dm_history_service.py + hacer classify_intent_simple delegate a canonical).
+STATUS: OPEN — dm_history_service.py pendiente CASUAL fix
+---
+
+---
+DATE: 2026-04-22
 ARC: BUDGET / BUG
 DECISION: Fix ARC1-TRUNCATION — non-CRITICAL sections con tok > cap concatenaban contenido completo mientras descontaban solo cap del remaining
 CONTEXT: Detectado en auditoría jerarquización (commit d5616c68, rama audit/jerarquizacion-gap). orchestrator.py._fit() solo aplicaba hard-truncate a secciones CRITICAL (force=True). Non-CRITICAL con tok>cap y compressor=None devolvían content completo pero effective_tok=cap → prompt sobre-presupuesto 5-15% típico, 25% peor caso (recalling cap=400 con 500-1000 tokens reales).
