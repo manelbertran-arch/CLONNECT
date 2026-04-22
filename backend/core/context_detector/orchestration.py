@@ -10,7 +10,8 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
-from core.intent_classifier import Intent, IntentClassifier, classify_intent_simple
+from core.intent_classifier import Intent, IntentClassifier
+from services.intent_service import IntentClassifier as CanonicalIntentClassifier
 
 from .detectors import (
     detect_b2b,
@@ -20,9 +21,15 @@ from .detectors import (
     detect_objection_type,
     extract_user_name,
 )
+from .intent_mapping import svc_to_core_intent
 from .models import DetectedContext
 
 logger = logging.getLogger(__name__)
+
+# Canonical classifier — single instance, reused across calls.
+# Canonical per fix/intent-dual-reconciliation. Tabla B mapping in intent_mapping.py.
+# dm_history_service.py migration pending CASUAL bug fix — see docs/bugs/intent_classifier_casual_short_msg.md
+_canonical_classifier = CanonicalIntentClassifier()
 
 
 def detect_all(
@@ -57,20 +64,14 @@ def detect_all(
     elif b2b.contact_name:
         ctx.user_name = b2b.contact_name
 
-    # 3. Classify intent (simple, non-LLM)
-    intent_str = classify_intent_simple(message)
-    intent_map = {
-        "interest_strong": Intent.INTEREST_STRONG,
-        "purchase": Intent.INTEREST_STRONG,
-        "interest_soft": Intent.INTEREST_SOFT,
-        "question_product": Intent.QUESTION_PRODUCT,
-        "objection": Intent.OBJECTION,
-        "greeting": Intent.GREETING,
-        "support": Intent.SUPPORT,
-        "other": Intent.OTHER,
-    }
-    ctx.intent = intent_map.get(intent_str, Intent.OTHER)
-    ctx.intent_sub = intent_str
+    # 3. Classify intent — canonical: services.IntentClassifier (fix/intent-dual-reconciliation)
+    svc_intent = _canonical_classifier.classify(message)
+    ctx.intent = svc_to_core_intent(svc_intent)        # Tabla B
+    ctx.intent_sub = svc_intent.value                  # granular svc value (e.g. "objection_price")
+    logger.debug(
+        "context-detector intent: svc=%s core=%s msg=%r",
+        svc_intent.value, ctx.intent.value, message[:80],
+    )
 
     # 4. Interest level (delegates to intent classifier)
     ctx.interest_level = detect_interest_level(message, ctx.intent)
@@ -81,8 +82,8 @@ def detect_all(
     # 6. Correction
     ctx.is_correction = detect_correction(message)
 
-    # 7. Objection type
-    if ctx.intent == Intent.OBJECTION or intent_str == "objection":
+    # 7. Objection type — ctx.intent == OBJECTION covers all svc sub-types via Tabla B
+    if ctx.intent == Intent.OBJECTION:
         ctx.objection_type = detect_objection_type(message)
 
     # 8. Sentiment (positive only — frustration handled externally)
