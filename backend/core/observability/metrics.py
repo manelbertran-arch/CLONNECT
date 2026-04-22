@@ -154,10 +154,47 @@ _METRIC_SPECS = [
      "Rule violation events",
      ["creator_id", "rule_name"], {}),
 
+    # ── Payment link injection (S6-T5.2 fix) ────────────────────────────────
+    ("payment_link_injected_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Payment links successfully injected into DM responses",
+     ["creator_id"], {}),
+
+    ("payment_link_skipped_present_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Payment link injection skipped — URL already present in response",
+     ["creator_id"], {}),
+
+    ("payment_link_body_trimmed_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Responses trimmed to make room for payment link (Instagram 1000-char limit)",
+     ["creator_id", "trim_method"], {}),
+
+    ("payment_link_body_trimmed_chars", Histogram if _PROMETHEUS_AVAILABLE else None,
+     "Characters trimmed from response body to accommodate payment link suffix",
+     ["creator_id"],
+     {"buckets": [5, 10, 25, 50, 100, 200, 500]}),
+
     # ── Active conversations ─────────────────────────────────────────────────
     ("active_conversations_gauge", Gauge if _PROMETHEUS_AVAILABLE else None,
      "Active conversations per creator",
      ["creator_id"], {}),
+
+    # ── SBS/PPA quality gate (S6-T5.1 fix) ──────────────────────────────────
+    ("sbs_path_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "SBS decisions by path (pass/retried/fail_retry_fallback)",
+     ["creator_id", "path"], {}),
+
+    ("sbs_score_initial", Histogram if _PROMETHEUS_AVAILABLE else None,
+     "SBS initial alignment score before any retry",
+     ["creator_id"],
+     {"buckets": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]}),
+
+    ("sbs_score_retry", Histogram if _PROMETHEUS_AVAILABLE else None,
+     "SBS alignment score of the retry response",
+     ["creator_id"],
+     {"buckets": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]}),
+
+    ("protections_reapplied_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Times content protections were re-applied after reasoning regeneration (T5.1 fix)",
+     ["creator_id", "reasoning_system"], {}),
 
     # ── Sales Intent Arbitration (S6 — two-layer resolver) ──────────────────
     ("sell_veto_triggered", Counter if _PROMETHEUS_AVAILABLE else None,

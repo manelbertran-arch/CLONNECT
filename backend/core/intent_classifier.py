@@ -11,6 +11,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Emitted once per process when classify_intent_simple() is first called.
+_classify_intent_simple_warned = False
+
 
 class Intent(Enum):
     """Tipos de intención detectables en mensajes"""
@@ -339,7 +342,22 @@ def classify_intent_simple(text: str) -> str:
     - "greeting": Saludo
     - "support": Necesita ayuda
     - "other": No clasificado
+
+    .. deprecated::
+        Use ``services.intent_service.IntentClassifier.classify()`` (canonical per
+        fix/intent-dual-reconciliation). Migration of this call site is blocked
+        until the CASUAL short-message bug is fixed in the canonical classifier.
+        See docs/bugs/intent_classifier_casual_short_msg.md and the pending PR
+        fix/dm-history-service-canonical-intent.
     """
+    global _classify_intent_simple_warned
+    if not _classify_intent_simple_warned:
+        _classify_intent_simple_warned = True
+        logger.warning(
+            "DEPRECATED: classify_intent_simple() — use services.intent_service.IntentClassifier"
+            " (canonical per fix/intent-dual-reconciliation)."
+            " Migration pending CASUAL bug fix: docs/bugs/intent_classifier_casual_short_msg.md"
+        )
     text_lower = text.lower().strip()
 
     # Interest strong / purchase signals

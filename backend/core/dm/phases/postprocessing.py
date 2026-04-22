@@ -6,12 +6,13 @@ import os
 import re
 import time
 import unicodedata
-from typing import Dict
+from typing import Any, Dict, NamedTuple, Tuple
 
 from core.agent_config import AGENT_THRESHOLDS
 from core.dm.models import ContextBundle, DetectionResult, DMResponse
 from core.dm.text_utils import _message_mentions_product
 from core.feature_flags import flags
+from core.observability.metrics import emit_metric
 from core.output_validator import validate_links
 from core.reflexion_engine import get_reflexion_engine
 from core.response_fixes import apply_all_response_fixes
@@ -21,6 +22,90 @@ from services.message_splitter import get_message_splitter
 from services.question_remover import process_questions
 
 logger = logging.getLogger(__name__)
+
+
+class TrimResult(NamedTuple):
+    """Metadata from _trim_body_for_payment_link, consumed by step 7d for metrics/logging."""
+    trim_applied: bool
+    trim_method: str | None  # "boundary" | "raw" | None
+    chars_trimmed: int
+
+
+def _trim_body_for_payment_link(
+    body: str,
+    suffix: str,
+    max_total_length: int = 1000,
+    boundary_window: int = 100,
+    boundary_markers: Tuple[str, ...] = (". ", "? ", "! ", ".\n", "?\n", "!\n"),
+) -> Tuple[str, TrimResult]:
+    """Combine body and suffix, trimming body if combined would exceed max_total_length.
+
+    S6-T5.2 fix: Instagram's 1000-char limit is enforced by format_message() before
+    the payment link suffix is known, so the link can push the total over the limit.
+    This function re-verifies after injection and trims the body (never the link).
+
+    Trim strategy:
+      1. No trim needed: return body + suffix as-is.
+      2. Boundary cut: search for the rightmost sentence-ending marker (. ? !) in
+         the last boundary_window chars before max_body. Cut there — sentence stays
+         complete. This prevents aggressive cuts (worst case: body shortened by at
+         most boundary_window chars).
+      3. Raw fallback: no boundary found in window → cut at max_body-3 + "...".
+         Preserves more body content than a distant boundary cut would.
+
+    The boundary_window parameter structurally prevents the "aggressive trim" scenario
+    (e.g. body=995 chars, nearest boundary at char 300): since the search is anchored
+    to the LAST window chars, a boundary at char 300 is never seen and the raw fallback
+    activates instead, keeping ~915 chars rather than cutting to 300.
+
+    Args:
+        body: Message body after format_message() — may already be up to 1000 chars.
+        suffix: Payment link suffix, e.g. "\\n\\nhttps://buy.stripe.com/abc".
+        max_total_length: Instagram's hard character limit.
+        boundary_window: How far back from max_body to search for a clean cut point.
+        boundary_markers: Sentence-ending markers to search for (same set as LC).
+
+    Returns:
+        (combined_text, TrimResult) — trim_applied=False when no trimming was needed.
+    """
+    combined = body + suffix
+    if len(combined) <= max_total_length:
+        return combined, TrimResult(trim_applied=False, trim_method=None, chars_trimmed=0)
+
+    max_body = max_total_length - len(suffix)
+
+    # Guard: suffix alone is at/near limit — can't trim to fit. Return combined as-is
+    # rather than silently drop the link. Unreachable with real payment links (<200 chars).
+    if max_body <= 3:
+        return combined, TrimResult(trim_applied=False, trim_method=None, chars_trimmed=0)
+
+    # Search for rightmost sentence boundary in the last boundary_window chars of body[:max_body]
+    search_start = max(0, max_body - boundary_window)
+    search_region = body[search_start:max_body]
+
+    best_idx = -1
+    for marker in boundary_markers:
+        idx = search_region.rfind(marker)
+        if idx != -1:
+            # +1: include the punctuation char itself (. ? !) but not the trailing space/\n
+            abs_idx = search_start + idx + 1
+            if abs_idx > best_idx:
+                best_idx = abs_idx
+
+    if best_idx > 0:
+        trimmed_body = body[:best_idx]
+        chars_trimmed = len(body) - best_idx
+        return trimmed_body + suffix, TrimResult(
+            trim_applied=True, trim_method="boundary", chars_trimmed=chars_trimmed,
+        )
+
+    # Fallback: raw cut — preserves more content than a distant boundary would
+    trimmed_body = body[:max_body - 3] + "..."
+    chars_trimmed = len(body) - (max_body - 3)
+    return trimmed_body + suffix, TrimResult(
+        trim_applied=True, trim_method="raw", chars_trimmed=chars_trimmed,
+    )
+
 
 # Cache for echo fallback pools
 _echo_pool_cache: dict = {}
@@ -60,6 +145,158 @@ def _load_echo_fallback_pool(creator_id: str) -> list:
 
     _echo_pool_cache[creator_id] = pool
     return pool
+
+
+def _apply_content_protections(
+    response_content: str,
+    message: str,
+    agent: Any,
+) -> str:
+    """Apply all deterministic content protections to a response.
+
+    Covers: A2b (intra-repetition), A2c (sentence dedup), A3 (echo detector),
+    7a (link validation), 7a2 (response fixes), 7a2b3 (blacklist replacement),
+    7a2c (question removal).
+
+    Idempotent: safe to call multiple times — second call is a no-op once
+    the first call applied all corrections.
+
+    Excluded by design:
+    - A2 (loop detection) — read-only/log-only, requires history context.
+    - 7a3 (reflexion) — only writes to cognitive_metadata, never modifies content.
+
+    Note: llm_response.content is NOT updated here. The prior sync in A2b/A2c
+    was confirmed dead code — llm_response.content is never read after
+    phase_postprocessing receives it (verified: agent.py only accesses
+    llm_response.metadata/model/tokens_used post-postprocessing).
+    """
+    # A2b: Detect intra-response repetition
+    try:
+        if flags.m3_disable_dedupe_repetitions:
+            pass
+        elif response_content and len(response_content) > 50:
+            _resp_lower = response_content.lower()
+            _match = re.search(r'(.{2,8})\1{4,}', _resp_lower)
+            if _match:
+                _pat = _match.group(1)
+                _count = _resp_lower.count(_pat)
+                _coverage = (_count * len(_pat)) / len(_resp_lower)
+                if _coverage > 0.5 and _count > 5:
+                    _prefix = response_content[:_match.start()]
+                    _pat_orig = response_content[_match.start():_match.start() + len(_pat)]
+                    response_content = _prefix + _pat_orig
+                    logger.warning(
+                        f"[A2b] Intra-response repetition: "
+                        f"'{_pat}' covers {_coverage:.0%} of response ({_count}x) — truncated"
+                    )
+    except Exception as e:
+        logger.debug(f"Intra-response repetition detection failed: {e}")
+
+    # A2c: Sentence-level deduplication
+    try:
+        if flags.m4_disable_dedupe_sentences:
+            pass
+        elif response_content and len(response_content) > 30:
+            _sents = re.split(r'(?<=[.!?\n])\s*|\s{2,}', response_content.strip())
+            _sents = [s.strip() for s in _sents if len(s.strip()) > 3]
+            if len(_sents) >= 3:
+                _norm = [s.lower().strip('¡¿ ') for s in _sents]
+                _max_count = max((_norm.count(n) for n in set(_norm)), default=0)
+                if _max_count >= 3:
+                    _seen: set = set()
+                    _kept = []
+                    for s, n in zip(_sents, _norm):
+                        if n not in _seen:
+                            _seen.add(n)
+                            _kept.append(s)
+                    _fixed = ' '.join(_kept).strip()
+                    if _fixed and _fixed != response_content:
+                        _removed = len(_sents) - len(_kept)
+                        logger.warning(
+                            f"[A2c] Sentence repetition: '{_norm[0][:30]}' x{_max_count}"
+                            f" — dedup {len(_sents)}→{len(_kept)} sentences"
+                        )
+                        response_content = _fixed
+    except Exception as e:
+        logger.debug(f"Sentence dedup failed: {e}")
+
+    # A3: Echo detector — bot copied lead's message (Jaccard >= 0.55)
+    _ECHO_THRESHOLD = float(os.environ.get("ECHO_JACCARD_THRESHOLD", "0.55"))
+    try:
+        if flags.m5_disable_echo_detector:
+            pass
+        elif response_content and message:
+            def _norm_words(text: str) -> set:
+                text = unicodedata.normalize('NFD', text.lower())
+                text = re.sub(r'[̀-ͯ]', '', text)
+                text = re.sub(r'[^\w\s]', '', text)
+                return set(text.split())
+            _lead_words = _norm_words(message)
+            _bot_words = _norm_words(response_content)
+            if len(_lead_words) >= 3 and _bot_words:
+                _union = _lead_words | _bot_words
+                _jaccard = len(_lead_words & _bot_words) / len(_union)
+                if _jaccard >= _ECHO_THRESHOLD:
+                    import random
+                    _echo_pool = _load_echo_fallback_pool(agent.creator_id)
+                    if _echo_pool:
+                        _fallback = random.choice(_echo_pool)
+                        logger.warning(
+                            "[A3] Echo detected (Jaccard=%.2f) — replacing '%s...' with '%s'",
+                            _jaccard, response_content[:40], _fallback,
+                        )
+                        response_content = _fallback
+                    else:
+                        logger.warning(
+                            "[A3] Echo detected (Jaccard=%.2f) but no short_response_pool for %s, skipping replacement",
+                            _jaccard, agent.creator_id,
+                        )
+    except Exception as e:
+        logger.debug(f"Echo detection failed: {e}")
+
+    # Step 7a: Output validation
+    if flags.output_validation:
+        try:
+            known_links = [p.get("url", "") for p in agent.products if p.get("url")]
+            link_issues, corrected = validate_links(response_content, known_links)
+            if link_issues:
+                logger.warning(f"Output validation: {len(link_issues)} link issues")
+                response_content = corrected
+        except Exception as e:
+            logger.debug(f"Output validation failed: {e}")
+
+    # Step 7a2: Apply response fixes
+    if flags.response_fixes:
+        try:
+            fixed_response = apply_all_response_fixes(
+                response_content, creator_id=agent.creator_id,
+            )
+            if fixed_response and fixed_response != response_content:
+                logger.debug("Response fixes applied")
+                response_content = fixed_response
+        except Exception as e:
+            logger.debug(f"Response fixes failed: {e}")
+
+    # Step 7a2b3: Blacklist word/emoji replacement from Doc D
+    if flags.blacklist_replacement:
+        try:
+            from services.calibration_loader import apply_blacklist_replacement
+            response_content, _bl_changed = apply_blacklist_replacement(
+                response_content, agent.creator_id
+            )
+        except Exception as e:
+            logger.debug(f"Blacklist replacement failed: {e}")
+
+    # Step 7a2c: Question removal
+    if flags.question_removal:
+        try:
+            response_content = process_questions(
+                response_content, message, creator_id=agent.creator_id,
+            )
+        except Exception as e:
+            logger.debug(f"Question removal failed: {e}")
+
+    return response_content
 
 
 async def phase_postprocessing(
@@ -104,155 +341,8 @@ async def phase_postprocessing(
     except Exception as e:
         logger.debug(f"Loop detection failed: {e}")
 
-    # A2b: Detect intra-response repetition anywhere in the string
-    # (e.g. "Que vagi be germana JAJAJAJAJAJAJAJA..." — loop starts mid-response)
-    # Only trigger on longer responses (> 50 chars) to avoid chopping natural
-    # short expressions like "jajajaja" (8 chars) or "dale dale" (9 chars).
-    try:
-        if flags.m3_disable_dedupe_repetitions:
-            pass  # ARC4: shadow testing — skip M3
-        elif response_content and len(response_content) > 50:
-            _resp_lower = response_content.lower()
-            _match = re.search(r'(.{2,8})\1{4,}', _resp_lower)
-            if _match:
-                _pat = _match.group(1)
-                _count = _resp_lower.count(_pat)
-                _coverage = (_count * len(_pat)) / len(_resp_lower)
-                if _coverage > 0.5 and _count > 5:
-                    # Keep prefix before the loop + one clean occurrence (not * 3,
-                    # which itself looks like a repetition loop to readers).
-                    _prefix = response_content[:_match.start()]
-                    _pat_orig = response_content[_match.start():_match.start() + len(_pat)]
-                    response_content = _prefix + _pat_orig
-                    logger.warning(
-                        f"[A2b] Intra-response repetition: "
-                        f"'{_pat}' covers {_coverage:.0%} of response ({_count}x) — truncated"
-                    )
-                    llm_response.content = response_content
-    except Exception as e:
-        logger.debug(f"Intra-response repetition detection failed: {e}")
-
-    # A2c: Sentence-level deduplication
-    # Handles longer repeated phrases (≥9 chars) that A2b's char-limited regex misses.
-    # Also handles space-separated repetitions that break A2b's adjacency requirement.
-    # Example: "On estas?  On estas?  On estas?" → "On estas?"
-    # Trigger: any sentence appears 3+ times in the response.
-    try:
-        if flags.m4_disable_dedupe_sentences:
-            pass  # ARC4: shadow testing — skip M4
-        elif response_content and len(response_content) > 30:
-            _sents = re.split(r'(?<=[.!?\n])\s*|\s{2,}', response_content.strip())
-            _sents = [s.strip() for s in _sents if len(s.strip()) > 3]
-            if len(_sents) >= 3:
-                _norm = [s.lower().strip('¡¿ ') for s in _sents]
-                _max_count = max((_norm.count(n) for n in set(_norm)), default=0)
-                if _max_count >= 3:
-                    _seen: set = set()
-                    _kept = []
-                    for s, n in zip(_sents, _norm):
-                        if n not in _seen:
-                            _seen.add(n)
-                            _kept.append(s)
-                    _fixed = ' '.join(_kept).strip()
-                    if _fixed and _fixed != response_content:
-                        _removed = len(_sents) - len(_kept)
-                        logger.warning(
-                            f"[A2c] Sentence repetition: '{_norm[0][:30]}' x{_max_count}"
-                            f" — dedup {len(_sents)}→{len(_kept)} sentences"
-                        )
-                        response_content = _fixed
-                        llm_response.content = response_content
-    except Exception as e:
-        logger.debug(f"Sentence dedup failed: {e}")
-
-    # A3: Echo detector — bot copied lead's message (Jaccard >= 0.55).
-    # Qwen3-14B repeats/paraphrases input when it doesn't know what to say.
-    # Threshold lowered from 0.70→0.55 because semantic echoes (rephrased
-    # with 2-3 extra words like "tio", "crack") scored Jaccard ~0.64 and
-    # slipped through.  Papers: semantic embeddings beat Jaccard (0.829 vs
-    # 0.711 balanced accuracy) but add latency.  0.55 catches paraphrases
-    # without false-flagging short agreements like "si, vale".
-    _ECHO_THRESHOLD = float(os.environ.get("ECHO_JACCARD_THRESHOLD", "0.55"))
-    try:
-        if flags.m5_disable_echo_detector:
-            pass  # ARC4: shadow testing — skip M5-alt echo detector
-        elif response_content and message:
-            def _norm_words(text: str) -> set:
-                # NFD decompose + strip combining diacritics (accents)
-                # so "entès"=="entes", "Sí"=="si" — critical for Catalan
-                text = unicodedata.normalize('NFD', text.lower())
-                text = re.sub(r'[\u0300-\u036f]', '', text)
-                text = re.sub(r'[^\w\s]', '', text)
-                return set(text.split())
-            _lead_words = _norm_words(message)
-            _bot_words = _norm_words(response_content)
-            if len(_lead_words) >= 3 and _bot_words:
-                _union = _lead_words | _bot_words
-                _jaccard = len(_lead_words & _bot_words) / len(_union)
-                if _jaccard >= _ECHO_THRESHOLD:
-                    import random
-                    # Load creator's short_response_pool from calibration
-                    _echo_pool = _load_echo_fallback_pool(agent.creator_id)
-                    if _echo_pool:
-                        _fallback = random.choice(_echo_pool)
-                        logger.warning(
-                            "[A3] Echo detected (Jaccard=%.2f) — replacing '%s...' with '%s'",
-                            _jaccard, response_content[:40], _fallback,
-                        )
-                        response_content = _fallback
-                    else:
-                        logger.warning(
-                            "[A3] Echo detected (Jaccard=%.2f) but no short_response_pool for %s, skipping replacement",
-                            _jaccard, agent.creator_id,
-                        )
-    except Exception as e:
-        logger.debug(f"Echo detection failed: {e}")
-
-    # Step 7a: Output validation (links only — price validation handled by guardrails)
-    if flags.output_validation:
-        try:
-            known_links = [p.get("url", "") for p in agent.products if p.get("url")]
-            link_issues, corrected = validate_links(response_content, known_links)
-            if link_issues:
-                logger.warning(f"Output validation: {len(link_issues)} link issues")
-                response_content = corrected  # Apply corrections
-        except Exception as e:
-            logger.debug(f"Output validation failed: {e}")
-
-    # Step 7a2: Apply response fixes (typos, formatting, patterns)
-    if flags.response_fixes:
-        try:
-            fixed_response = apply_all_response_fixes(
-                response_content, creator_id=agent.creator_id,
-            )
-            if fixed_response and fixed_response != response_content:
-                logger.debug("Response fixes applied")
-                response_content = fixed_response
-        except Exception as e:
-            logger.debug(f"Response fixes failed: {e}")
-
-    # Step 7a2b3: Blacklist word/emoji replacement from Doc D
-    # Replaces prohibited address terms ('compa'→'nena') and forbidden emojis (🥰→🩷).
-    # Reads creator's Doc D — no-op if no Doc D exists. Universal across creators.
-    if flags.blacklist_replacement:
-        try:
-            from services.calibration_loader import apply_blacklist_replacement
-
-            response_content, _bl_changed = apply_blacklist_replacement(
-                response_content, agent.creator_id
-            )
-        except Exception as e:
-            logger.debug(f"Blacklist replacement failed: {e}")
-
-    # Step 7a2c: Question removal
-    # Loads creator's question_rate from profile. Skips if no data available.
-    if flags.question_removal:
-        try:
-            response_content = process_questions(
-                response_content, message, creator_id=agent.creator_id,
-            )
-        except Exception as e:
-            logger.debug(f"Question removal failed: {e}")
+    # Fix S6-T5.1: A2b, A2c, A3, 7a, 7a2, 7a2b3, 7a2c extracted to helper
+    response_content = _apply_content_protections(response_content, message, agent)
 
     # Step 7a3: Reflexion analysis for response quality (legacy)
     if flags.reflexion:
@@ -280,6 +370,8 @@ async def phase_postprocessing(
     #                   picks max(initial, retry) — never outputs a worse retry
     #                   if user_prompt missing or retry fails, returns original
     # When SBS is disabled, PPA runs standalone as fallback (elif branch below).
+    _sbs_regenerated = False  # Fix S6-T5.1: track whether reasoning regenerated response
+    _ppa_regenerated = False
     if flags.score_before_speak and agent.calibration:
         try:
             from core.reasoning.ppa import score_before_speak
@@ -300,6 +392,8 @@ async def phase_postprocessing(
             )
             if sbs_result.path != "pass":
                 response_content = sbs_result.response
+                if sbs_result.path == "retried":
+                    _sbs_regenerated = True
                 logger.info(
                     "[SBS] path=%s score=%.2f calls=%d",
                     sbs_result.path, sbs_result.alignment_score, sbs_result.total_llm_calls,
@@ -324,9 +418,18 @@ async def phase_postprocessing(
             )
             if ppa_result.was_refined:
                 response_content = ppa_result.response
+                _ppa_regenerated = True
                 logger.info("[PPA] Response refined (score=%.2f)", ppa_result.alignment_score)
         except Exception as e:
             logger.debug(f"PPA failed: {e}")
+
+    # Step 7a5: Re-apply protections if reasoning regenerated response (Fix S6-T5.1)
+    if _sbs_regenerated:
+        response_content = _apply_content_protections(response_content, message, agent)
+        emit_metric("protections_reapplied_total", creator_id=agent.creator_id, reasoning_system="sbs")
+    elif _ppa_regenerated:
+        response_content = _apply_content_protections(response_content, message, agent)
+        emit_metric("protections_reapplied_total", creator_id=agent.creator_id, reasoning_system="ppa")
 
     # Step 7b: Apply guardrails validation
     if flags.guardrails and hasattr(agent, "guardrails"):
@@ -391,6 +494,9 @@ async def phase_postprocessing(
     formatted_content = agent.instagram_service.format_message(response_content)
 
     # Step 7d: Inject payment link for purchase_intent if missing
+    # Fix S6-T5.2: link was previously appended after format_message(), bypassing
+    # Instagram's 1000-char limit. Now re-verifies combined length and trims the
+    # body (never the link) if needed. Idempotent: skipped if link already present.
     if intent_value.lower() in ("purchase_intent", "want_to_buy") and agent.products:
         msg_lower = message.lower()
         resp_lower = formatted_content.lower()
@@ -402,10 +508,45 @@ async def phase_postprocessing(
                 _message_mentions_product(pname, msg_lower)
                 or _message_mentions_product(pname, resp_lower)
             )
-            if pname and mentioned and plink and plink not in resp_lower:
-                formatted_content = f"{formatted_content}\n\n{plink}"
-                cognitive_metadata["payment_link_injected"] = plink
-                logger.info(f"[Step 7d] Injected payment link for '{pname}': {plink}")
+            if pname and mentioned and plink:
+                if plink not in resp_lower:
+                    suffix = f"\n\n{plink}"
+                    combined, trim_result = _trim_body_for_payment_link(
+                        formatted_content, suffix,
+                    )
+                    formatted_content = combined
+                    cognitive_metadata["payment_link_injected"] = plink
+                    if trim_result.trim_applied:
+                        cognitive_metadata["payment_link_body_trimmed"] = trim_result.chars_trimmed
+                        logger.warning(
+                            "[Step 7d] Body trimmed %d chars (%s) to fit payment link for '%s'",
+                            trim_result.chars_trimmed, trim_result.trim_method, pname,
+                        )
+                    logger.info("[Step 7d] Injected payment link for '%s': %s", pname, plink)
+                    try:
+                        from core.observability.metrics import emit_metric
+                        emit_metric("payment_link_injected_total", creator_id=agent.creator_id)
+                        if trim_result.trim_applied:
+                            emit_metric(
+                                "payment_link_body_trimmed_total",
+                                creator_id=agent.creator_id,
+                                trim_method=trim_result.trim_method,
+                            )
+                            emit_metric(
+                                "payment_link_body_trimmed_chars",
+                                trim_result.chars_trimmed,
+                                creator_id=agent.creator_id,
+                            )
+                    except Exception:
+                        pass
+                else:
+                    # Idempotent: link already present — no injection
+                    logger.debug("[Step 7d] Payment link already in response for '%s', skipping", pname)
+                    try:
+                        from core.observability.metrics import emit_metric
+                        emit_metric("payment_link_skipped_present_total", creator_id=agent.creator_id)
+                    except Exception:
+                        pass
                 break
 
     _t4 = time.monotonic()

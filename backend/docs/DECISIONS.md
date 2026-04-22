@@ -307,3 +307,43 @@ RATIONALE: v5 DeepInfra = 65.7 vs v5 OpenRouter = 66.4 (delta -0.7 indistinguibl
 NEXT: Sesiones 2 (21-abr) y 3 (22-abr) DeepInfra mismo SHA + comando. Tras 3 sesiones: calcular σ_inter-sesión DeepInfra vs OpenRouter ±3-4 conocido. Si DeepInfra inter-sesión también estable → migrar protocolo A/B oficial a DeepInfra. Si similar a OpenRouter → varianza es del modelo Gemma mismo, considerar otras estrategias.
 STATUS: SESSION 1/3 COMPLETED — pendiente sesiones 2-3 Manel
 ---
+
+---
+DATE: 2026-04-21
+ARC: MEDICIÓN / VARIANCE
+DECISION: DeepInfra variance sesión 2/3 completada — σ_inter-sesión significativo (+3.0 puntos vs 1/3)
+CONTEXT: Sesión 2/3 ejecutada con mismo protocolo que 1/3 (DeepInfra Gemma4-31B, Qwen3 judge, 3 runs × 50 cases + MT). Pipeline idéntico (solo docs mergeados entre sesiones).
+RATIONALE:
+- v5 sesión 2/3 = 68.7 ± 0.94 (runs: 68.50, 70.69, 68.98)
+- v5 sesión 1/3 = 65.7 ± 0.42
+- Delta inter-sesión: +3.0 puntos
+- Gate intra-sesión PASS (σ<1 en ambas)
+- Incidentes: 1 DeepInfra timeout Run 2 recuperado, 1 case skipped Run 3
+- Warning: style context budget 43-45% (umbral 40%)
+CAVEATS: Con 2 sesiones NO se puede calcular σ_inter fiable. Hypothesis en pendiente hasta sesión 3/3.
+NEXT: Sesión 3/3 mañana 22-abr. Si converge a ~68 → nuevo baseline DeepInfra. Si vuelve a ~65 → σ_inter alto, sesión 2/3 outlier.
+STATUS: SESSION 2/3 COMPLETED — pendiente sesión 3/3 para calcular σ_inter final
+---
+
+---
+DATE: 2026-04-22
+ARC: INTENT / ARQUITECTURA
+DECISION: Establecer services.IntentClassifier como clasificador canónico único — deprecar classify_intent_simple()
+CONTEXT: Dos clasificadores de intent corrían en paralelo sin coordinarse: classify_intent_simple() (7-string legacy) en core/context_detector/orchestration.py y services.IntentClassifier (32 valores) en dm/phases/context.py. Divergencia ~31% en muestra de 100 mensajes.
+RATIONALE: services.IntentClassifier tiene 32 valores granulares (8 sub-tipos objección), es la fuente que alimenta routing y estrategia real. classify_intent_simple() solo alimentaba DetectedContext.context_notes (informativo). Migración de orchestration.py a canonico es de bajo riesgo. dm_history_service.py bloqueado hasta fix CASUAL short-message bug (len<15 catch-all convierte "ayuda", "error", "no funciona" en CASUAL en vez de support).
+CAMBIOS: core/context_detector/intent_mapping.py (nuevo — Tabla A + Tabla B), orchestration.py migrado a canonical, classify_intent_simple() marcado deprecated (logging.warning una vez por proceso), bug documentado en docs/bugs/intent_classifier_casual_short_msg.md.
+BEHAVIOR CHANGES: (1) ESCALATION: ctx.intent era OTHER, ahora ESCALATION — solo afecta context_notes. (2) "cuéntame más": interest_level era soft, ahora strong (semánticamente correcto).
+NEXT: fix/intent-classifier-casual-short (fix bug len<15 CASUAL), luego fix/dm-history-service-canonical-intent (migrar dm_history_service.py + hacer classify_intent_simple delegate a canonical).
+STATUS: OPEN — dm_history_service.py pendiente CASUAL fix
+---
+
+---
+DATE: 2026-04-22
+ARC: BUDGET / BUG
+DECISION: Fix ARC1-TRUNCATION — non-CRITICAL sections con tok > cap concatenaban contenido completo mientras descontaban solo cap del remaining
+CONTEXT: Detectado en auditoría jerarquización (commit d5616c68, rama audit/jerarquizacion-gap). orchestrator.py._fit() solo aplicaba hard-truncate a secciones CRITICAL (force=True). Non-CRITICAL con tok>cap y compressor=None devolvían content completo pero effective_tok=cap → prompt sobre-presupuesto 5-15% típico, 25% peor caso (recalling cap=400 con 500-1000 tokens reales).
+RATIONALE: Fix mínimo (Opción A, elif quirúrgico). elif tok > cap and not force: trunca a cap usando tokenizer.truncate() existente. CRITICAL path intacto. Parámetro allow_truncate_non_critical descartado — 1 único caller (context.py:585), sería dead code.
+CAMBIOS: core/dm/budget/orchestrator.py:106-117 (elif nuevo), import logging + emit_metric añadidos. Métrica budget_section_truncation_total pre-registrada en registry, ahora emitida.
+NEXT: Monitorizar budget_section_truncation_total en dashboard post-deploy para cuantificar frecuencia real de truncaciones.
+STATUS: FIXED — fix/arc1-truncation, PR #78
+---
