@@ -97,51 +97,33 @@ class TestScoreBeforeSpeak:
         assert result.alignment_score >= ALIGNMENT_THRESHOLD
 
     @pytest.mark.asyncio
-    async def test_bad_response_triggers_refinement(self):
-        """A misaligned response should trigger PPA refinement."""
-        # Mock apply_ppa to simulate successful refinement
-        refined_result = PPAResult(
-            response="Tranqui flor 😂",
-            alignment_score=0.85,
-            was_refined=True,
-            scores={"length": 1.0, "emoji": 1.0, "language": 1.0, "forbidden": 1.0, "formality": 1.0},
+    async def test_bad_response_without_user_prompt_returns_pass(self):
+        """A misaligned response with no user_prompt returns pass (no retry possible)."""
+        result = await score_before_speak(
+            response="Estimada cliente, estoy aquí para ayudarte con cualquier consulta que tengas sobre nuestros servicios.",
+            calibration=CALIBRATION,
+            system_prompt="",
+            user_prompt="",  # no user_prompt → no retry → pass with original
         )
-        with patch("core.reasoning.ppa.apply_ppa", new_callable=AsyncMock, return_value=refined_result):
+        assert result.path == "pass"
+        assert result.total_llm_calls == 0
+
+    @pytest.mark.asyncio
+    async def test_bad_response_with_user_prompt_retries(self):
+        """A misaligned response with user_prompt triggers retry; if retry fails → fail_retry_fallback."""
+        with patch(
+            "core.providers.gemini_provider.generate_dm_response",
+            new_callable=AsyncMock,
+            side_effect=Exception("LLM down"),
+        ):
             result = await score_before_speak(
                 response="Estimada cliente, estoy aquí para ayudarte con cualquier consulta que tengas sobre nuestros servicios.",
                 calibration=CALIBRATION,
-                system_prompt="",
-                user_prompt="",
+                system_prompt="sys",
+                user_prompt="user",  # user_prompt present → retry attempted → exception → fallback
             )
-        assert result.path == "refined"
-        assert result.total_llm_calls >= 1
-        assert result.response == "Tranqui flor 😂"
-
-    @pytest.mark.asyncio
-    async def test_failed_refinement_triggers_retry(self):
-        """If PPA refinement is still below threshold, retry generation."""
-        # Mock apply_ppa returning low score
-        bad_ppa = PPAResult(
-            response="Lo siento mucho, no puedo ayudarte",
-            alignment_score=0.4,
-            was_refined=True,
-            scores={"length": 0.5, "emoji": 0.4, "language": 0.6, "forbidden": 0.0, "formality": 1.0},
-        )
-        # Mock retry generation returning a better response
-        retry_llm_result = {"content": "Tranqui nena 😂😂"}
-
-        with patch("core.reasoning.ppa.apply_ppa", new_callable=AsyncMock, return_value=bad_ppa):
-            with patch("core.providers.gemini_provider.generate_dm_response", new_callable=AsyncMock, return_value=retry_llm_result):
-                result = await score_before_speak(
-                    response="Lo siento, no puedo ayudarte con eso. Estoy aquí para lo que necesites.",
-                    calibration=CALIBRATION,
-                    system_prompt="system",
-                    user_prompt="user",
-                )
-
-        assert result.path == "retried"
-        assert result.total_llm_calls >= 2
-        assert len(result.candidates) == 3  # initial + ppa + retry
+        assert result.path == "fail_retry_fallback"
+        assert result.total_llm_calls == 0
 
     @pytest.mark.asyncio
     async def test_no_calibration_passes_through(self):
