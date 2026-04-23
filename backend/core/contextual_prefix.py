@@ -180,12 +180,22 @@ def _build_prefix_from_db(creator_id: str) -> tuple[str, str]:
         if location:
             parts[-1] += f" en {location}"
 
-        dialect = data.tone_profile.dialect if data.tone_profile else "neutral"
-        if dialect and dialect != "neutral":
-            parts.append(f"Habla {_cfg.get_dialect_label(dialect)}")
+        # Language/dialect: prefer the creator-provided human-readable label
+        # (tone_profile.dialect_label) over the raw enum tag. If the creator
+        # has not populated the label, we fall back to the raw dialect literal —
+        # no hardcoded translation dict lives in code.
+        tp = data.tone_profile
+        dialect = tp.dialect if tp else "neutral"
+        dialect_label = (tp.dialect_label if tp else "") or ""
+        if dialect_label:
+            parts.append(f"Habla {dialect_label}")
+        elif dialect and dialect != "neutral":
+            parts.append(f"Habla {dialect}")
 
-        formality = data.tone_profile.formality if data.tone_profile else ""
-        formality_label = _cfg.get_formality_label(formality)
+        # Formality: same DB-first pattern. Raw formality tag is an internal
+        # enum ('informal'/'formal'/'mixed'/'casual') — only emit if the
+        # creator has provided a human-readable formality_label.
+        formality_label = (tp.formality_label if tp else "") or ""
         if formality_label:
             parts.append(formality_label)
 

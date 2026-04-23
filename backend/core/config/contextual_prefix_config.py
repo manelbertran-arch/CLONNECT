@@ -1,10 +1,15 @@
 """
 Configuration for core/contextual_prefix.py — Universal Contextual Prefix.
 
-All tunables previously hardcoded now live here, driven by env vars so they
-can be tuned per-environment without code changes. Also centralizes the
-dialect and formality label maps so adding a new language doesn't require
-touching contextual_prefix.py itself.
+All tunables previously hardcoded live here, driven by env vars so they can be
+tuned per-environment without code changes.
+
+IMPORTANT: this module contains ZERO hardcoded linguistic content. Dialect and
+formality human-readable labels are read from the creator's own
+tone_profile.profile_data fields (dialect_label, formality_label). If absent,
+the raw dialect/formality literal is emitted — the creator is responsible for
+populating these per their own language/variety. No translation dictionary
+lives in code.
 
 Env vars (all optional, all have production defaults):
   - ENABLE_CONTEXTUAL_PREFIX_EMBED   (bool, default true)
@@ -60,39 +65,12 @@ MAX_FAQS: int = _env_int("CONTEXTUAL_PREFIX_MAX_FAQS", 3, minimum=1, maximum=20)
 MIN_BIO_LEN: int = _env_int("CONTEXTUAL_PREFIX_MIN_BIO_LEN", 10, minimum=0, maximum=200)
 
 
-DIALECT_LABELS: Dict[str, str] = {
-    "rioplatense": "español rioplatense",
-    "mexican": "español mexicano",
-    "catalan": "castellano y catalán",
-    "catalan_mixed": "castellano y catalán mezclados",
-    "italian": "italiano",
-    "english": "inglés",
-    "formal_spanish": "español formal",
-}
-
-
-FORMALITY_LABELS: Dict[str, str] = {
-    "formal": "Estilo formal y profesional",
-    "casual": "Estilo muy informal y cercano",
-    "informal": "Estilo cercano e informal",
-    "mixed": "Estilo mixto formal e informal",
-}
-
-
 PREFIX_SOURCE_SPECIALTIES = "specialties"
 PREFIX_SOURCE_BIO = "bio"
 PREFIX_SOURCE_PRODUCTS = "products_fallback"
 PREFIX_SOURCE_FAQ = "faq_fallback"
 PREFIX_SOURCE_NAME_ONLY = "name_only"
 PREFIX_SOURCE_EMPTY = "empty"
-
-
-def get_dialect_label(dialect: str) -> str:
-    return DIALECT_LABELS.get(dialect, dialect)
-
-
-def get_formality_label(formality: str) -> str:
-    return FORMALITY_LABELS.get(formality, "")
 
 
 def snapshot() -> Dict[str, object]:
@@ -105,6 +83,5 @@ def snapshot() -> Dict[str, object]:
         "MAX_PRODUCTS": MAX_PRODUCTS,
         "MAX_FAQS": MAX_FAQS,
         "MIN_BIO_LEN": MIN_BIO_LEN,
-        "dialect_labels_count": len(DIALECT_LABELS),
-        "formality_labels_count": len(FORMALITY_LABELS),
+        "label_source": "tone_profile.dialect_label / tone_profile.formality_label (DB-driven, no hardcoded dict)",
     }

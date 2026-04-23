@@ -18,11 +18,18 @@ def _make_creator_data(
     clone_name="Iris",
     knowledge_about=None,
     dialect="catalan_mixed",
+    dialect_label="castellano y catalán mezclados",
     formality="informal",
+    formality_label="Estilo cercano e informal",
     products=None,
     faqs=None,
 ):
-    """Build a mock CreatorData for testing."""
+    """Build a mock CreatorData for testing.
+
+    dialect_label and formality_label default to realistic Iris values so
+    TestBuildContextualPrefix assertions about language remain valid. Tests
+    that want to exercise the "no label" fallback set them to "".
+    """
     from core.creator_data_loader import (
         CreatorData, CreatorProfile, ToneProfileInfo,
     )
@@ -44,7 +51,9 @@ def _make_creator_data(
         ),
         tone_profile=ToneProfileInfo(
             dialect=dialect,
+            dialect_label=dialect_label,
             formality=formality,
+            formality_label=formality_label,
         ),
         products=products or [],
         faqs=faqs or [],
@@ -135,9 +144,12 @@ class TestBuildContextualPrefix:
 
     @patch("core.creator_data_loader.get_creator_data")
     def test_formal_style_mentioned(self, mock_get):
-        """Formal creators should get a style hint in prefix."""
+        """Formal creators carrying formality_label get a style hint."""
         from core.contextual_prefix import build_contextual_prefix
-        data = _make_creator_data(formality="formal")
+        data = _make_creator_data(
+            formality="formal",
+            formality_label="Estilo formal y profesional",
+        )
         mock_get.return_value = data
 
         prefix = build_contextual_prefix("formal_creator")
@@ -145,12 +157,13 @@ class TestBuildContextualPrefix:
 
     @patch("core.creator_data_loader.get_creator_data")
     def test_italian_dialect(self, mock_get):
-        """Italian creators should get Italian language label."""
+        """Italian creator with their own dialect_label from tone_profile."""
         from core.contextual_prefix import build_contextual_prefix
         data = _make_creator_data(
             name="Stefano Bonanno",
             clone_name="Stefano",
             dialect="italian",
+            dialect_label="italiano",
             knowledge_about={
                 "specialties": ["business coach"],
                 "location": "Milano",
@@ -336,48 +349,76 @@ class TestInvalidateCache:
         assert removed >= 1
 
 
-class TestDialectFallbacks:
-    """Covers Bug 7 — dialects not in the label map."""
+class TestDialectFromDB:
+    """Dialect label is sourced from tone_profile.dialect_label (DB-driven)."""
 
     def setup_method(self):
         from core.contextual_prefix import _prefix_cache
         _prefix_cache.clear()
 
     @patch("core.creator_data_loader.get_creator_data")
-    def test_unmapped_dialect_uses_literal(self, mock_get):
-        """An unmapped dialect like 'portuguese' falls back to the raw literal."""
+    def test_dialect_label_from_tone_profile_used(self, mock_get):
+        """When tone_profile.dialect_label is set, it is emitted verbatim."""
         from core.contextual_prefix import build_contextual_prefix
-        data = _make_creator_data(dialect="portuguese")
+        data = _make_creator_data(
+            dialect="made_up_code",
+            dialect_label="galego castelanizado",
+        )
+        mock_get.return_value = data
+
+        prefix = build_contextual_prefix("gz_creator")
+        assert "galego castelanizado" in prefix
+
+    @patch("core.creator_data_loader.get_creator_data")
+    def test_empty_dialect_label_falls_back_to_raw_literal(self, mock_get):
+        """Creators without a populated dialect_label fall back to the raw tag."""
+        from core.contextual_prefix import build_contextual_prefix
+        data = _make_creator_data(dialect="portuguese", dialect_label="")
         mock_get.return_value = data
 
         prefix = build_contextual_prefix("pt_creator")
-        assert "portuguese" in prefix  # the raw literal leaks (known limitation, tracked Q2)
+        assert "portuguese" in prefix  # raw literal, not translated
+
+    @patch("core.creator_data_loader.get_creator_data")
+    def test_neutral_dialect_not_emitted(self, mock_get):
+        from core.contextual_prefix import build_contextual_prefix
+        data = _make_creator_data(dialect="neutral", dialect_label="")
+        mock_get.return_value = data
+
+        prefix = build_contextual_prefix("neutral_creator")
+        assert "Habla" not in prefix
 
 
-class TestFormalityLabels:
-    """Covers Bug 5 — formality 'informal' default was silent."""
+class TestFormalityFromDB:
+    """Formality label is sourced from tone_profile.formality_label (DB-driven)."""
 
     def setup_method(self):
         from core.contextual_prefix import _prefix_cache
         _prefix_cache.clear()
 
     @patch("core.creator_data_loader.get_creator_data")
-    def test_informal_now_emits_label(self, mock_get):
+    def test_formality_label_from_tone_profile_used(self, mock_get):
         from core.contextual_prefix import build_contextual_prefix
-        data = _make_creator_data(formality="informal")
+        data = _make_creator_data(
+            formality="anything",
+            formality_label="Tono técnico y preciso",
+        )
         mock_get.return_value = data
 
-        prefix = build_contextual_prefix("informal_creator")
-        assert "informal" in prefix.lower() or "cercano" in prefix.lower()
+        prefix = build_contextual_prefix("tech_creator")
+        assert "Tono técnico y preciso" in prefix
 
     @patch("core.creator_data_loader.get_creator_data")
-    def test_mixed_formality_emits(self, mock_get):
+    def test_empty_formality_label_skipped(self, mock_get):
+        """No hardcoded translation — empty label means no formality part."""
         from core.contextual_prefix import build_contextual_prefix
-        data = _make_creator_data(formality="mixed")
+        data = _make_creator_data(formality="informal", formality_label="")
         mock_get.return_value = data
 
-        prefix = build_contextual_prefix("mixed_creator")
-        assert "mixto" in prefix.lower()
+        prefix = build_contextual_prefix("untagged_creator")
+        # Raw formality tag ("informal") MUST NOT leak as a formality phrase.
+        assert "Estilo" not in prefix
+        assert "informal" not in prefix.lower() or "informal" in prefix.split("Habla")[0].lower()
 
 
 class TestCapWordBoundary:
@@ -464,10 +505,16 @@ class TestConfigSnapshot:
             "MAX_PRODUCTS",
             "MAX_FAQS",
             "MIN_BIO_LEN",
-            "dialect_labels_count",
-            "formality_labels_count",
+            "label_source",
         ]:
             assert key in snap
+
+    def test_snapshot_declares_db_driven_labels(self):
+        """Contract: snapshot must declare the DB-driven source for labels."""
+        from core.config import contextual_prefix_config
+        snap = contextual_prefix_config.snapshot()
+        assert "tone_profile" in snap["label_source"]
+        assert "hardcoded" not in snap["label_source"].lower() or "no hardcoded" in snap["label_source"].lower()
 
 
 class TestRagAddDocumentRefusesUnknown:

@@ -44,10 +44,17 @@ Total LOC netos añadidos: ~240 (código productivo + config) + ~210 (tests). Le
 
 - `_env_int(name, default, min, max)`: lee + valida rango + fallback. Loguea warning cuando el valor está fuera de rango en vez de crashear el boot del worker.
 - `_env_bool`: tolera variantes `"1"|"true"|"yes"|"on"`.
-- `get_dialect_label(dialect)`: reemplaza el dict inline L113-121. Mapa ahora editable sin tocar `contextual_prefix.py`.
-- `get_formality_label(formality)`: **nuevo**, mapa con 4 entradas (`formal`, `casual`, `informal`, `mixed`) — resuelve Bug 5 (rama muerta).
-- `snapshot()`: dict serializable para el endpoint admin `/admin/contextual-prefix/config`.
+- `snapshot()`: dict serializable para el endpoint admin `/admin/contextual-prefix/config`. Declara explícitamente `label_source: "tone_profile.dialect_label / tone_profile.formality_label (DB-driven, no hardcoded dict)"`.
 - Constantes de source tag: `PREFIX_SOURCE_SPECIALTIES`, `PREFIX_SOURCE_BIO`, `PREFIX_SOURCE_PRODUCTS`, `PREFIX_SOURCE_FAQ`, `PREFIX_SOURCE_NAME_ONLY`, `PREFIX_SOURCE_EMPTY` — labels para la métrica `contextual_prefix_builds_total`.
+
+**Zero hardcoding lingüístico**: este módulo NO contiene diccionario de traducciones. Los labels humanos (dialecto, formalidad) se leen de `tone_profile.profile_data.dialect_label` y `tone_profile.profile_data.formality_label` en la BD. Si el creator no ha poblado esos campos, el código emite el literal crudo (`dialect` raw) o skipea la parte (formalidad). Ver §3.6 y §3.8.
+
+**Esquema ampliado** (`core/creator_data_loader.py::ToneProfileInfo`):
+```python
+dialect_label: str = ""  # optional human-readable label (creator-provided)
+formality_label: str = ""  # optional human-readable label (creator-provided)
+```
+`from_json` lee ambos del JSON existente — creadores viejos con `profile_data` sin estos campos fallback a `""` sin romper.
 
 ### 2.3 Razón de vivir separado de `feature_flags.py`
 
@@ -107,20 +114,17 @@ El `source` tag reporta qué rama ganó (`specialties` / `bio` / `products_fallb
 
 Tipado robusto de `specialties`: si el JSONB guarda un scalar, se envuelve en lista (`[str(s)]`) — evita `str(specialties)` silencioso del código anterior.
 
-### 3.6 Formality: ahora todas las ramas emiten (Bug 5 resuelto)
+### 3.6 Formality: DB-driven, zero hardcoded translation (Bug 5 resuelto sin hardcoding lingüístico)
 
 ```python
-formality = data.tone_profile.formality if data.tone_profile else ""
-formality_label = _cfg.get_formality_label(formality)
+formality_label = (tp.formality_label if tp else "") or ""
 if formality_label:
     parts.append(formality_label)
 ```
 
-- `casual` → "Estilo muy informal y cercano" (branch antes muerta).
-- `informal` → "Estilo cercano e informal" (**nuevo** — antes era silencio).
-- `mixed` → "Estilo mixto formal e informal" (**nuevo**).
-- `formal` → "Estilo formal y profesional" (sin cambio).
-- Valor vacío → skipea.
+- Si `tone_profile.formality_label` poblado (string libre del creador, p.ej. "Estilo técnico y preciso", "Tono familiar", "Chill y directo") → se usa verbatim.
+- Si vacío → **no se emite ninguna parte de formalidad**. No hay diccionario de traducciones que "supla" al creator.
+- **Resolución de Bug 5** (la vieja rama muerta `formality=="casual"`): ya no es un problema de ramas; el campo `formality` crudo (`informal`/`formal`/`mixed`/`casual`) es un enum interno que no se emite al prefix. La emisión depende exclusivamente del `formality_label` que el creator (o el onboarding automático) haya poblado.
 
 ### 3.7 Cap con boundary de palabra (Bug 4 resuelto)
 
@@ -139,14 +143,23 @@ def _truncate_at_word_boundary(text: str, cap_chars: int) -> str:
 - Si el corte natural a 497 chars cae mid-word, retrocede hasta el último espacio **solo si** está en el último 40% del budget — evita cortes demasiado agresivos en prefijos muy compactos.
 - Métrica `contextual_prefix_truncations_total` cuenta cuántas veces se truncó. Si supera 0, alertar que `CAP_CHARS` o los `MAX_*` están mal calibrados.
 
-### 3.8 Dialect labels via config (Bug 7 resuelto)
+### 3.8 Dialect labels DB-driven (Bug 7 resuelto sin hardcoding lingüístico)
 
 ```python
-if dialect and dialect != "neutral":
-    parts.append(f"Habla {_cfg.get_dialect_label(dialect)}")
+tp = data.tone_profile
+dialect = tp.dialect if tp else "neutral"
+dialect_label = (tp.dialect_label if tp else "") or ""
+if dialect_label:
+    parts.append(f"Habla {dialect_label}")
+elif dialect and dialect != "neutral":
+    parts.append(f"Habla {dialect}")
 ```
 
-Tabla movida a `core/config/contextual_prefix_config.py`. Añadir un nuevo dialecto = edit del dict en el módulo de config; no toca `contextual_prefix.py`.
+- `tone_profile.dialect_label` (creator-provided, string libre) tiene prioridad.
+- Si vacío y `dialect` válido → emite el literal crudo (`"Habla rioplatense"`, `"Habla portuguese"`, etc.) — no se traduce.
+- Si `dialect == "neutral"` o `""` → skipea.
+
+**Cero diccionario de traducciones en código**. Añadir un idioma nuevo a Clonnect NO requiere tocar `contextual_prefix.py` ni `contextual_prefix_config.py`; basta con que el creator pople `dialect_label` en su `tone_profile.profile_data`.
 
 ### 3.9 Error logging con structured fields (Bug 10 resuelto)
 
