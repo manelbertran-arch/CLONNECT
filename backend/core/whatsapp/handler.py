@@ -378,8 +378,19 @@ class WhatsAppHandler:
         template_name: str,
         language_code: str = "es",
         components: List[dict] = None,
+        approved: bool = False,
     ) -> bool:
-        """Send a template message"""
+        """Send a template message — GUARDED by send_guard (BUG-07 fix)."""
+        from core.send_guard import SendBlocked, check_send_permission
+
+        try:
+            check_send_permission(
+                self.creator_id, approved=approved,
+                caller="wa_handler.send_template",
+            )
+        except SendBlocked:
+            return False
+
         if not self.connector:
             return False
 

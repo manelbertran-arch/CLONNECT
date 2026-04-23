@@ -168,12 +168,29 @@ async def send_manual_message(creator_id: str, request: SendMessageRequest):
                         logger.info(f"Manual message sent via Evolution [{evo_instance}] to {phone}")
                 else:
                     # Fall back to official WhatsApp Cloud API
+                    # BUG-05 fix: manual-send WA Cloud fallback was bypassing
+                    # `wa_handler.send_response` (C4) and hitting the connector
+                    # directly. Explicitly pass through the guard with
+                    # approved=True since this path is creator-initiated.
                     wa_handler = get_whatsapp_handler()
                     if wa_handler and wa_handler.connector:
-                        result = await wa_handler.connector.send_message(phone, message_text)
-                        sent = "error" not in result
-                        if sent:
-                            logger.info(f"Manual message sent to WhatsApp {phone}")
+                        from core.send_guard import SendBlocked, check_send_permission
+
+                        try:
+                            check_send_permission(
+                                creator_id, approved=True,
+                                caller="dm.manual_send.wa_cloud_fallback",
+                            )
+                        except SendBlocked as guard_err:
+                            logger.error(
+                                f"Manual WA Cloud send blocked by guard: {guard_err}"
+                            )
+                            sent = False
+                        else:
+                            result = await wa_handler.connector.send_message(phone, message_text)
+                            sent = "error" not in result
+                            if sent:
+                                logger.info(f"Manual message sent to WhatsApp {phone}")
             except Exception as e:
                 logger.error(f"Error sending WhatsApp message: {e}")
 
