@@ -7,39 +7,34 @@
 **Config:** 3 runs × 50 casos + 5 MT conv × 10 turns  
 **Model:** Gemma 4 31B Dense (DeepInfra) — `config/env_ccee_gemma4_31b_full.sh`  
 **JSON output:** `tests/ccee_results/iris_bertran/baseline_post_6_optimizations_20260423.json`  
-**Baseline ref:** `tests/ccee_results/iris_bertran/ccee_v52_31b_baseline_merged.json` (v5=62.9, v4-style=57.49)
+**Baseline ref:** `tests/ccee_results/iris_bertran/baseline_post_p4_live_v52_20260422.json` (v5=67.7, v4-style=68.0, σ=0.43)
 
 ---
 
 ## Comando ejecutado
 
 ```bash
-source config/env_ccee_gemma4_31b_full.sh && \
-railway run python3 scripts/run_ccee.py \
-  --creator iris_bertran \
-  --runs 3 \
-  --cases 50 \
-  --multi-turn \
-  --mt-conversations 5 \
-  --mt-turns 10 \
-  --v4-composite \
-  --v41-metrics \
-  --v5 \
-  --v52-fixes \
-  --compare tests/ccee_results/iris_bertran/ccee_v52_31b_baseline_merged.json \
-  --output-md docs/measurements/baseline_post_6_optimizations_20260423.md \
-  --save-as baseline_post_6_optimizations_20260423
+cd ~/Clonnect/backend && \
+source config/env_ccee_gemma4_31b_full.sh && set -a && source .env && set +a && \
+export CCEE_NO_FALLBACK=1 && \
+python3.11 -W ignore::FutureWarning -u scripts/run_ccee.py \
+  --creator iris_bertran --runs 3 --cases 50 \
+  --multi-turn --mt-conversations 5 --mt-turns 10 \
+  --v4-composite --v41-metrics --v5 --v52-fixes \
+  --compare tests/ccee_results/iris_bertran/baseline_post_p4_live_v52_20260422.json \
+  --save-as baseline_post_6_optimizations_20260423 \
+  2>&1 | tee /tmp/baseline_post_6_optimizations_20260423.log
 ```
 
 ---
 
 ## Resultados brutos
 
-| Protocolo | Este baseline | Baseline v5.2 ref | Δ |
-|-----------|:-------------:|:-----------------:|:---:|
-| v5        | **{{X}}**     | 62.9              | **{{X}}** |
-| v4-style  | **{{X}}**     | 57.49             | **{{X}}** |
-| v4.1      | **{{X}}**     | —                 | — |
+| Protocolo | Este baseline | Baseline v5.2 (22-abr) | Δ |
+|-----------|:-------------:|:----------------------:|:---:|
+| v5        | **{{X}}**     | 67.7                   | **{{X}}** |
+| v4-style  | **{{X}}**     | 68.0                   | **{{X}}** |
+| v4.1      | **{{X}}**     | 66.7                   | **{{X}}** |
 
 σ_intra (std 3 runs): **{{X}}**
 
@@ -53,18 +48,18 @@ railway run python3 scripts/run_ccee.py \
 
 ## Δ vs Baseline v5.2 (57.49 / 62.9)
 
-| Dim | Baseline v5.2 | Este baseline | Δ | p-value | Cliff's d | Effect |
-|-----|:-------------:|:-------------:|:-:|:-------:|:---------:|:------:|
-| S1 Style Fidelity | 66.7 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
-| S3 Strategic Alignment | 54.6 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
-| B2 Persona Consistency | 38.5 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
+| Dim | Baseline v5.2 (22-abr) | Este baseline | Δ | p-value | Cliff's d | Effect |
+|-----|:----------------------:|:-------------:|:-:|:-------:|:---------:|:------:|
+| S1 Style Fidelity | 64.1 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
+| S3 Strategic Alignment | 76.2 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
+| B2 Persona Consistency | 28.5 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
 | C3 Contextual Approp. | 21.0 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
-| J6 Q&A Consistency | 82.5 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
-| L1 Persona Tone | 80.5 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
-| K2 Style Retention | 97.94 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
-| H1 Turing Test | 80.0 | {{X}} | **{{X}}** | scalar | n/a | n/a |
-| v4-style composite | 57.49 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
-| v5 composite | 62.9 | {{X}} | **{{X}}** | scalar | n/a | n/a |
+| J6 Q&A Consistency | 35.0 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
+| L1 Persona Tone | 84.5 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
+| K2 Style Retention | 86.4 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
+| H1 Turing Test | 82.0 | {{X}} | **{{X}}** | scalar | n/a | n/a |
+| v4-style composite | 68.0 | {{X}} | **{{X}}** | {{X}} | {{X}} | {{X}} |
+| v5 composite | 67.7 | {{X}} | **{{X}}** | scalar | n/a | n/a |
 
 *Tabla generada automáticamente por `--compare --output-md`. Rellenar {{X}} con output del script.*
 
@@ -86,21 +81,21 @@ railway run python3 scripts/run_ccee.py \
 | A8 Formality | {{X}} | {{X}} | {{X}} | {{X}} | {{X}} |
 | A9 Catchphrases | {{X}} | {{X}} | {{X}} | {{X}} | {{X}} |
 
-**S1 mean**: {{X}} (Δ={{X}} vs ref 66.7)
+**S1 mean**: {{X}} (Δ={{X}} vs ref 64.1)
 
 ### B2 Persona Consistency
 
-Score: **{{X}}** (ref=38.5, Δ={{X}})  
+Score: **{{X}}** (ref=28.5, Δ={{X}})  
 Evaluador: Qwen3-30B-A3B, 50 casos
 
 ### L1 Persona Tone
 
-Score: **{{X}}** (ref=80.5, Δ={{X}})  
+Score: **{{X}}** (ref=84.5, Δ={{X}})  
 MT: 5 conv × 10 turns
 
 ### H1 Turing Test
 
-Score: **{{X}}%** (ref=80.0, Δ={{X}})  
+Score: **{{X}}%** (ref=82.0, Δ={{X}})  
 Método: {{X: MT DB-backed / ST Qwen3}}
 
 ---
@@ -109,13 +104,13 @@ Método: {{X: MT DB-backed / ST Qwen3}}
 
 ### S3 Strategic Alignment
 
-| run1 | run2 | run3 | mean | Δ vs ref (54.6) |
+| run1 | run2 | run3 | mean | Δ vs ref (76.2) |
 |:----:|:----:|:----:|:----:|:---------------:|
 | {{X}} | {{X}} | {{X}} | {{X}} | **{{X}}** |
 
 ### J6 Q&A Consistency
 
-Score: **{{X}}** (ref=82.5, Δ={{X}})  
+Score: **{{X}}** (ref=35.0, Δ={{X}})  
 MT: 5 conv × 10 turns
 
 ### C3 Contextual Appropriateness
@@ -125,7 +120,7 @@ Evaluador: Qwen3-30B-A3B, 50 casos
 
 ### K2 Style Retention
 
-Score: **{{X}}** (ref=97.94, Δ={{X}})  
+Score: **{{X}}** (ref=86.4, Δ={{X}})  
 MT: 5 conv × 10 turns
 
 ---

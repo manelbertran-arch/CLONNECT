@@ -1184,6 +1184,145 @@ def _compute_v5_composite(
     }
 
 
+def compare_with_baseline(
+    current: Dict[str, Any],
+    baseline: Dict[str, Any],
+    output_md: Optional[str] = None,
+) -> str:
+    """Per-dimension Δ + Wilcoxon + Cliff's delta vs baseline JSON.
+
+    Dimensions: B2, S1, L1, H1, S3, J6, C3, K2 + composite v5 / v4-style.
+    Returns formatted report string; also appends to output_md if given.
+    """
+    lines: List[str] = []
+    lines.append("\n=== compare_with_baseline ===\n")
+
+    def _extract_s_scores(data: Dict, dim: str) -> List[float]:
+        """Flatten per-run per-case scores for S1/S2/S3/S4."""
+        key_map = {"S1": "s1_score", "S2": "s2_score", "S3": "s3_score", "S4": "s4_score"}
+        field = key_map.get(dim)
+        if not field:
+            return []
+        out: List[float] = []
+        for run_cases in data.get("per_run_records", []):
+            for case in (run_cases if isinstance(run_cases, list) else []):
+                v = case.get(field)
+                if v is not None:
+                    out.append(float(v))
+        return out
+
+    def _extract_prometheus(data: Dict, key: str) -> List[float]:
+        ps = data.get("prometheus_scores", {})
+        entry = ps.get(key, {})
+        if isinstance(entry, dict):
+            per_case = entry.get("per_case", [])
+            return [float(x) for x in per_case if x is not None]
+        return []
+
+    def _extract_per_conv(data: Dict, field: str) -> List[float]:
+        vmt = data.get("v4_multi_turn", {})
+        convs = vmt.get("per_conversation", [])
+        return [float(c[field]) for c in convs if isinstance(c, dict) and c.get(field) is not None]
+
+    def _extract_scalar(data: Dict, path: str) -> Optional[float]:
+        """Dot-separated path into nested dicts, e.g. 'prometheus_scores.H1_turing_test_rate'."""
+        parts = path.split(".")
+        node = data
+        for p in parts:
+            if not isinstance(node, dict):
+                return None
+            node = node.get(p)
+        return float(node) if node is not None else None
+
+    DIM_EXTRACTORS: Dict[str, Any] = {
+        "S1":  lambda d: _extract_s_scores(d, "S1"),
+        "S3":  lambda d: _extract_s_scores(d, "S3"),
+        "B2":  lambda d: _extract_prometheus(d, "B2_persona_consistency"),
+        "C3":  lambda d: _extract_prometheus(d, "C3_contextual_appropriateness"),
+        "J6":  lambda d: _extract_per_conv(d, "J6"),
+        "L1":  lambda d: _extract_per_conv(d, "L1"),
+        "K2":  lambda d: _extract_per_conv(d, "K2"),
+    }
+    SCALAR_DIMS: Dict[str, str] = {
+        "H1": "prometheus_scores.H1_turing_test_rate",
+    }
+
+    header = f"{'Dim':<8} {'Baseline':>10} {'Current':>10} {'Δ':>8}  {'p-value':>9}  {'Cliff d':>8}  {'Effect':>10}"
+    lines.append(header)
+    lines.append("-" * len(header))
+
+    for dim, extractor in DIM_EXTRACTORS.items():
+        base_vals = extractor(baseline)
+        curr_vals = extractor(current)
+        base_mean = float(np.mean(base_vals)) if base_vals else None
+        curr_mean = float(np.mean(curr_vals)) if curr_vals else None
+        delta = (curr_mean - base_mean) if (base_mean is not None and curr_mean is not None) else None
+
+        if base_vals and curr_vals and len(base_vals) >= 5 and len(curr_vals) >= 5:
+            n = min(len(base_vals), len(curr_vals))
+            from core.evaluation.ccee_scorer import wilcoxon_signed_rank, cliffs_delta, cliff_magnitude
+            _, p = wilcoxon_signed_rank(curr_vals[:n], base_vals[:n])
+            d_val = cliffs_delta(curr_vals[:n], base_vals[:n])
+            effect = cliff_magnitude(d_val)
+            p_str = f"{p:.4f}"
+            d_str = f"{d_val:+.3f}"
+        else:
+            p_str = "n/a"
+            d_str = "n/a"
+            effect = "n/a"
+
+        bm = f"{base_mean:.1f}" if base_mean is not None else "n/a"
+        cm = f"{curr_mean:.1f}" if curr_mean is not None else "n/a"
+        dl = f"{delta:+.1f}" if delta is not None else "n/a"
+        lines.append(f"{dim:<8} {bm:>10} {cm:>10} {dl:>8}  {p_str:>9}  {d_str:>8}  {effect:>10}")
+
+    for dim, path in SCALAR_DIMS.items():
+        base_val = _extract_scalar(baseline, path)
+        curr_val = _extract_scalar(current, path)
+        delta = (curr_val - base_val) if (base_val is not None and curr_val is not None) else None
+        bm = f"{base_val:.1f}" if base_val is not None else "n/a"
+        cm = f"{curr_val:.1f}" if curr_val is not None else "n/a"
+        dl = f"{delta:+.1f}" if delta is not None else "n/a"
+        lines.append(f"{dim:<8} {bm:>10} {cm:>10} {dl:>8}  {'scalar':>9}  {'n/a':>8}  {'n/a':>10}")
+
+    # Composite-level comparison
+    lines.append("")
+    base_comps = baseline.get("composites", [])
+    curr_comps = current.get("composites", [])
+    if base_comps and curr_comps:
+        from core.evaluation.ccee_scorer import wilcoxon_signed_rank, cliffs_delta, cliff_magnitude
+        n = min(len(base_comps), len(curr_comps))
+        _, p = wilcoxon_signed_rank(curr_comps[:n], base_comps[:n])
+        d_val = cliffs_delta(curr_comps[:n], base_comps[:n])
+        effect = cliff_magnitude(d_val)
+        base_m = float(np.mean(base_comps))
+        curr_m = float(np.mean(curr_comps))
+        delta = curr_m - base_m
+        lines.append(f"{'v4-style':<8} {base_m:>10.1f} {curr_m:>10.1f} {delta:>+8.1f}  {p:>9.4f}  {d_val:>+8.3f}  {effect:>10}")
+    base_v5 = baseline.get("v5_composite", {})
+    curr_v5 = current.get("v5_composite", {})
+    bv5 = base_v5.get("score") if isinstance(base_v5, dict) else base_v5
+    cv5 = curr_v5.get("score") if isinstance(curr_v5, dict) else curr_v5
+    if bv5 is not None and cv5 is not None:
+        lines.append(f"{'v5':>8} {bv5:>10.1f} {cv5:>10.1f} {(cv5 - bv5):>+8.1f}  {'scalar':>9}  {'n/a':>8}  {'n/a':>10}")
+    base_sigma = float(np.std(base_comps)) if base_comps else None
+    curr_sigma = float(np.std(curr_comps)) if curr_comps else None
+    if base_sigma is not None and curr_sigma is not None:
+        lines.append(f"\n  σ_intra: baseline={base_sigma:.2f}  current={curr_sigma:.2f}  Δσ={curr_sigma - base_sigma:+.2f}")
+
+    lines.append("\n=== end compare ===\n")
+    report = "\n".join(lines)
+    print(report)
+
+    if output_md:
+        with open(output_md, "a", encoding="utf-8") as fh:
+            fh.write("\n\n## Δ vs Baseline (auto-generated)\n\n```\n")
+            fh.write(report)
+            fh.write("\n```\n")
+
+    return report
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run CCEE evaluation")
     parser.add_argument("--creator", required=False, default=None, help="Creator slug (required unless --score-prometheus)")
@@ -1271,6 +1410,10 @@ def main():
     parser.add_argument(
         "--v52-fixes", action="store_true",
         help="Enable v5.2 calibration fixes: multi-adversarial, Q&A probes, dynamic B2 rubric — requires --v5"
+    )
+    parser.add_argument(
+        "--output-md", default=None, metavar="MD_FILE",
+        help="Append per-dimension Δ table to this .md file after --compare (e.g. docs/measurements/baseline_X.md)"
     )
     args = parser.parse_args()
 
@@ -1869,21 +2012,12 @@ def main():
                 if v5_data.get("score") is not None:
                     print(f"  v5 COMPOSITE (with H1+B):     {v5_data['score']:.1f}")
 
-    # Compare to baseline
+    # Load baseline JSON early so compare_with_baseline can run after output is built
+    baseline_data: Optional[Dict[str, Any]] = None
     if args.compare:
         print(f"\n[4] Comparing to baseline: {args.compare}")
         with open(args.compare) as f:
             baseline_data = json.load(f)
-        baseline_scores = baseline_data.get("composites", [])
-        if baseline_scores:
-            comparison = scorer.compare_to_baseline(all_composites, baseline_scores)
-            if "verdict" not in comparison:
-                print(f"  Status: {comparison.get('status', 'unknown')} (current={len(all_composites)}, baseline={len(baseline_scores)} scores)")
-            else:
-                print(f"  Verdict: {comparison['verdict']}")
-                print(f"  p-value: {comparison['p_value']}")
-                print(f"  Cliff's delta: {comparison['cliffs_delta']} ({comparison['effect_size']})")
-                print(f"  Current: {comparison['current_mean']:.2f} vs Baseline: {comparison['baseline_mean']:.2f}")
 
     # Human eval cases
     print(f"\n[5] Cases for human evaluation:")
@@ -1993,6 +2127,9 @@ def main():
         )
         if normal_prometheus is not None:
             output["prometheus_scores"] = normal_prometheus
+    if baseline_data is not None:
+        compare_with_baseline(output, baseline_data, output_md=getattr(args, "output_md", None))
+
     # BUG-004 Fix C: try/except with sync fallback
     try:
         with open(out_path, "w", encoding="utf-8") as f:
