@@ -88,23 +88,15 @@ True
 
 **Impacto:**
 - Cualquier cambio requiere deploy.
-- No se puede per-creator (si un creador escribe en italiano primariamente, no hay override).
+- No se puede per-creator (si un creador escribe primariamente en IT, no hay override).
 - No se puede A/B vocab sin tocar código.
 
-**Fix propuesto (Phase 5):** extraer a `backend/data/affirmation_vocab.json`:
-```json
-{
-  "default": {
-    "es": ["si","sí","ok","vale","dale","claro", ...],
-    "ca": ["clar","perfecte","top", ...],
-    "it": ["sì","certo", ...],
-    "en": ["yes","sure","alright", ...],
-    "emoji": ["👍","👌","🙌", ...]
-  },
-  "iris_bertran": { "merge": "default", "extras": { "ca": ["siiii","ohh!"] } }
-}
-```
-Loader con cache en singleton. Mantiene compat (default si no hay file).
+**Fix aplicado (Phase 5 refactor):** zero hardcoding lingüístico.
+- **Eliminado** `AFFIRMATION_WORDS` hardcoded.
+- **Eliminado** JSON estático `data/vocab/affirmation_vocab.json` (la primera iteración del PR lo había introducido — también es hardcoding aunque esté fuera del .py).
+- **Añadido** consumo de `personality_docs.vocab_meta.affirmations` via `services.calibration_loader._load_creator_vocab(creator_id)` (reusa infra existente).
+- **Fallback universal** cuando vocab mined no está poblado: sólo emojis Unicode convencionales (9 glyphs cross-culture). Sin listas por idioma.
+- **Blocker operacional:** el worker de mining (fuera de este PR) debe poblar `vocab_meta.affirmations` per-creator. Sin eso, el analyzer degrada graciosamente a emoji-only.
 
 ---
 

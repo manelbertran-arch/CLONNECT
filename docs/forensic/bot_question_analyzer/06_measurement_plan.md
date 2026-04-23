@@ -83,10 +83,26 @@ Exclusiones heredadas del baseline:
 ### 6.1 Pre-condiciones (antes de medir)
 
 - [ ] PR `forensic/bot-question-analyzer-20260423` creado contra main. **NO mergeado.**
-- [ ] Tests 12/12 passing en CI local (`pytest tests/unit/test_dm_agent_bot_question.py`).
+- [ ] Tests 15/15 passing en CI local (`pytest tests/unit/test_dm_agent_bot_question.py`).
 - [ ] Verificar que el worktree está sincronizado con `main` actual (posible rebase si pasan días).
 - [ ] Confirmar que baseline 67.7 sigue representativo (re-correr arm A con 1 run de sanity; si Δ > 0.5 vs 67.7, recalibrar baseline).
 - [ ] Railway estado actual capturado (snapshot env vars).
+
+### 6.1.bis Blocker NUEVO — vocab_meta poblado per-creator
+
+**Razón:** este PR refactoriza el analyzer a zero-hardcoding. Sin `personality_docs.vocab_meta.affirmations` poblado, el analyzer degrada a fallback universal (solo emojis) y el arm B no puede detectar "si / vale / ok" en texto. La medición sería un falso negativo.
+
+**Checklist obligatorio antes de arm B:**
+
+- [ ] Iris Bertran: verificar `SELECT content::json->'affirmations' FROM personality_docs WHERE creator_id IN (SELECT id::text FROM creators WHERE name='iris_bertran') AND doc_type='vocab_meta' LIMIT 1` devuelve lista no-vacía.
+- [ ] Stefano: verificar lo mismo para `stefano` (o el slug correspondiente).
+- [ ] Si cualquiera retorna NULL / [] → ejecutar el worker de mining **antes** de proceder:
+  - Opción A: extender `scripts/bootstrap_vocab_metadata.py` para mining `affirmations`.
+  - Opción B: nuevo script `scripts/mine_affirmations.py` (worker out-of-scope de este PR).
+  - Opción C: manual seed temporal con tokens observados empíricamente en DMs recientes (solo para unblock medición; re-mined después).
+- [ ] Validación post-mining: `get_metrics()["vocab_source.mined"]` debería dominar en los test runs (≥80%), `vocab_source.empty` ≈ 0.
+
+**Si el mining worker no está listo para arm B:** la medición se aborta o se realiza con seed manual documentado. No activar `ENABLE_QUESTION_CONTEXT=true` en Railway en ningún caso hasta que Iris tenga al menos ~20 tokens afirmativos mined.
 
 ### 6.2 Ejecución arm A (control, flag OFF)
 
@@ -205,7 +221,8 @@ Tras la medición completa:
 - **Experimento:** A/B within-subject, 3 runs × 50 casos, única variable `ENABLE_QUESTION_CONTEXT`.
 - **Gate KEEP:** composite v5 Δ ≥ +1.0 y sin tripwires.
 - **Gate REVERT:** composite Δ ≤ −1.0 o S1 Δ ≤ −1.0 o cualquier dim Δ ≤ −2.0.
-- **Blocker explícito:** activar `ENABLE_QUESTION_CONTEXT=true` en el entorno de medición **antes** de correr arm B. En Railway sólo se activa **después** de gate KEEP y merge de PR.
+- **Blocker 1 (flag):** activar `ENABLE_QUESTION_CONTEXT=true` en el entorno de medición **antes** de correr arm B. En Railway sólo se activa **después** de gate KEEP y merge de PR.
+- **Blocker 2 (vocab_meta NUEVO):** `personality_docs.vocab_meta.affirmations` debe estar poblado para **Iris** y **Stefano** antes de arm B. Sin mining, el analyzer cae a fallback universal (solo emojis) y la medición subestima el impacto real.
 - **No modifica Railway ahora.** Todo se hace en entorno de evaluación local/CI.
 
 ---
