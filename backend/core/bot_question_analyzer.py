@@ -1,20 +1,47 @@
 """
-Bot Question Analyzer - Analiza el contexto de la última pregunta del bot.
+Bot Question Analyzer — contexto conversacional para turn-taking.
 
-Este módulo permite clasificar mejor los mensajes cortos del usuario
-("Si", "Vale", "Ok") basándose en qué tipo de pregunta hizo el bot.
+Resuelve el *affirmation collapse*: cuando el lead responde con un mensaje corto
+("Si", "Vale", "Ok", 👍, "clar") el LLM base sin contexto genera un ACK genérico
+en vez de avanzar sobre lo que el bot preguntó.
 
-Ejemplo:
-    Bot: "¿Te gustaría saber más sobre el curso?"
-    User: "Si"
-    → Sin contexto: ACKNOWLEDGMENT (genérico)
-    → Con contexto: INTEREST_SOFT (quiere saber más)
+Principio arquitectural (zero hardcoding):
+    Las afirmaciones son descubiertas per-creator del content mining
+    (vocab_meta DB). El módulo NUNCA contiene listas preasignadas por idioma.
+    Si vocab_meta está vacío o no hay creator_id, el fallback es mínimo y
+    universal: sólo emojis Unicode con semántica convencional cross-cultural.
+
+    Consistente con los demás sistemas data-derived:
+        - negation reducer          (vocab_meta.blacklist_phrases / negation)
+        - pool auto-extraction      (pools per creator)
+        - code-switching universal  (langdetect runtime)
+        - intent-stratified few-shot (mined per creator/intent)
+
+Entry points (stable API):
+    get_bot_question_analyzer() -> BotQuestionAnalyzer
+    is_short_affirmation(message: str, creator_id: str | None = None) -> bool
+    QuestionType  (Enum de 7 valores: INTEREST, PURCHASE, INFORMATION,
+                   CONFIRMATION, BOOKING, PAYMENT_METHOD, UNKNOWN)
+
+Callsites productivos (gated por ENABLE_QUESTION_CONTEXT env, default true):
+    core/dm/phases/context.py:803  — detection (escribe cognitive_metadata)
+    core/dm/phases/context.py:1396 — injection (adds note if conf ≥ 0.7)
+
+Dependencia (bloqueador para activación del flag en medición):
+    `personality_docs.vocab_meta` DEBE contener la key `"affirmations"` con
+    lista de tokens mined para el creator. El worker de onboarding
+    (scripts/bootstrap_vocab_metadata.py o un nuevo extractor) es responsable
+    de poblar esta key a partir de DMs + posts + comentarios del creator.
 """
+
+from __future__ import annotations
 
 import logging
 import re
-from typing import Tuple
+import threading
+from collections import Counter
 from enum import Enum
+from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +58,13 @@ class QuestionType(Enum):
 
 
 class BotQuestionAnalyzer:
-    """
-    Analiza el último mensaje del bot para entender qué tipo de
-    respuesta espera y clasificar mejor los mensajes cortos del usuario.
-    """
+    """Clasifica el último mensaje del bot en 7 tipos para anclar la
+    interpretación de respuestas cortas del lead.
 
-    # Patrones que indican pregunta de INTERÉS (quiere saber más)
+    Los patrones regex del bot son semánticos (no identity-dependent): no
+    dependen del vocab del creator sino de la gramática de ventas. Por tanto
+    NO se migran a vocab_meta — son patrones universales de la tarea."""
+
     INTEREST_PATTERNS = [
         r'te gustar[íi]a saber m[áa]s',
         r'quer[ée]s saber m[áa]s',
@@ -56,11 +84,10 @@ class BotQuestionAnalyzer:
         r'te cuento sobre',
         r'te hablo de',
         r'te comento',
-        r'pod[ée]s contarme m[áa]s',  # voseo
+        r'pod[ée]s contarme m[áa]s',
         r'quer[ée]s que te cuente',
     ]
 
-    # Patrones que indican pregunta de COMPRA
     PURCHASE_PATTERNS = [
         r'te paso el link',
         r'quieres comprarlo',
@@ -72,7 +99,7 @@ class BotQuestionAnalyzer:
         r'confirmamos',
         r'lo compramos',
         r'te apuntas',
-        r'te apunt[áa]s',  # voseo
+        r'te apunt[áa]s',
         r'te interesa comprarlo',
         r'quieres el link',
         r'te env[íi]o el link',
@@ -81,28 +108,26 @@ class BotQuestionAnalyzer:
         r'cerramos',
     ]
 
-    # Patrones que indican pregunta de INFORMACIÓN (abierta)
     INFORMATION_PATTERNS = [
         r'qu[ée] aspecto',
         r'qu[ée] te gustar[íi]a',
         r'cu[ée]ntame m[áa]s',
-        r'contame',  # voseo
+        r'contame',
         r'qu[ée] necesitas',
-        r'qu[ée] necesit[áa]s',  # voseo
+        r'qu[ée] necesit[áa]s',
         r'en qu[ée] puedo',
         r'qu[ée] buscas',
-        r'qu[ée] busc[áa]s',  # voseo
+        r'qu[ée] busc[áa]s',
         r'c[óo]mo puedo ayudarte',
         r'qu[ée] te interesa',
         r'qu[ée] te trae',
         r'd[íi]me m[áa]s',
-        r'decime',  # voseo
+        r'decime',
         r'qu[ée] problema',
         r'qu[ée] objetivo',
         r'qu[ée] meta',
     ]
 
-    # Patrones de CONFIRMACIÓN
     CONFIRMATION_PATTERNS = [
         r'te qued[óo] claro',
         r'entendiste',
@@ -114,36 +139,31 @@ class BotQuestionAnalyzer:
         r'comprend[ée]s',
     ]
 
-    # Patrones de BOOKING/AGENDAR
     BOOKING_PATTERNS = [
         r'quieres agendar',
-        r'quer[ée]s agendar',  # voseo
+        r'quer[ée]s agendar',
         r'agendamos',
         r'reservamos',
         r'programamos',
         r'te va bien',
         r'cu[áa]ndo puedes',
-        r'cu[áa]ndo pod[ée]s',  # voseo
+        r'cu[áa]ndo pod[ée]s',
         r'hacemos una llamada',
         r'una videollamada',
     ]
 
-    # Patrones de MÉTODO DE PAGO
     PAYMENT_PATTERNS = [
         r'c[óo]mo prefieres pagar',
-        r'c[óo]mo prefer[íi]s pagar',  # voseo
+        r'c[óo]mo prefer[íi]s pagar',
         r'qu[ée] m[ée]todo',
         r'tarjeta o',
         r'bizum o',
         r'transferencia o',
         r'cu[áa]l prefieres',
-        r'cu[áa]l prefer[íi]s',  # voseo
+        r'cu[áa]l prefer[íi]s',
     ]
 
-    # === FIX CONTINUIDAD: Statements que esperan respuesta (no tienen ?) ===
-    # Cuando el bot hace una oferta o explicación, "Ok" significa interés
     STATEMENT_EXPECTING_RESPONSE = [
-        # Ofertas / Descuentos
         r'te (?:hago|ofrezco|puedo hacer).*descuento',
         r'(?:tienes|ten[ée]s).*descuento',
         r'son solo \d+',
@@ -151,27 +171,23 @@ class BotQuestionAnalyzer:
         r'el precio es',
         r'vale \d+',
         r'\d+\s*[€$]',
-        # Explicaciones que esperan feedback
         r'el (?:programa|curso|taller) (?:incluye|tiene|consiste)',
         r'(?:incluye|tiene|consiste en)',
         r'funciona as[íi]',
         r'lo que hacemos es',
         r'b[áa]sicamente',
         r'en resumen',
-        # Propuestas
         r'(?:podemos|podr[íi]amos)',
         r'te parece si',
         r'qu[ée] tal si',
         r'si quieres',
-        r'si quer[ée]s',  # voseo
-        # Afirmaciones que esperan reacción
+        r'si quer[ée]s',
         r'es perfecto para',
         r'te va a (?:encantar|servir|ayudar)',
         r'vas a (?:aprender|lograr|conseguir)',
     ]
 
     def __init__(self):
-        # Compilar patrones para eficiencia
         self._compiled_patterns = {
             QuestionType.INTEREST: [re.compile(p, re.IGNORECASE) for p in self.INTEREST_PATTERNS],
             QuestionType.PURCHASE: [re.compile(p, re.IGNORECASE) for p in self.PURCHASE_PATTERNS],
@@ -180,27 +196,12 @@ class BotQuestionAnalyzer:
             QuestionType.BOOKING: [re.compile(p, re.IGNORECASE) for p in self.BOOKING_PATTERNS],
             QuestionType.PAYMENT_METHOD: [re.compile(p, re.IGNORECASE) for p in self.PAYMENT_PATTERNS],
         }
-        # Patrones de statements que esperan respuesta (→ INTEREST)
         self._statement_patterns = [re.compile(p, re.IGNORECASE) for p in self.STATEMENT_EXPECTING_RESPONSE]
 
     def analyze(self, bot_message: str) -> QuestionType:
-        """
-        Analiza el mensaje del bot y retorna el tipo de pregunta.
-
-        Args:
-            bot_message: El último mensaje enviado por el bot
-
-        Returns:
-            QuestionType indicando qué tipo de respuesta espera el bot
-        """
         if not bot_message:
             return QuestionType.UNKNOWN
-
-        # Verificar si el mensaje contiene una pregunta
         has_question = '?' in bot_message
-
-        # Buscar patrones en orden de prioridad
-        # PURCHASE tiene prioridad sobre INTEREST (si hay link = compra)
         for question_type in [
             QuestionType.PURCHASE,
             QuestionType.PAYMENT_METHOD,
@@ -209,38 +210,24 @@ class BotQuestionAnalyzer:
             QuestionType.INFORMATION,
             QuestionType.CONFIRMATION,
         ]:
-            patterns = self._compiled_patterns.get(question_type, [])
-            for pattern in patterns:
+            for pattern in self._compiled_patterns.get(question_type, []):
                 if pattern.search(bot_message):
-                    logger.debug(f"BotQuestionAnalyzer: '{bot_message[:50]}...' → {question_type.value}")
+                    _METRICS["analyze." + question_type.value] += 1
+                    logger.debug("[BQA] '%s...' → %s", bot_message[:50], question_type.value)
                     return question_type
-
-        # Si tiene signo de pregunta pero no matchea patrones, es pregunta genérica
         if has_question:
+            _METRICS["analyze.information_fallback"] += 1
             return QuestionType.INFORMATION
-
-        # === FIX CONTINUIDAD: Buscar statements que esperan respuesta ===
-        # Si no hay pregunta (?) pero hay statement que espera feedback → INTEREST
         for pattern in self._statement_patterns:
             if pattern.search(bot_message):
-                logger.debug("BotQuestionAnalyzer: Statement expecting response detected → INTEREST")
+                _METRICS["analyze.statement_interest"] += 1
+                logger.debug("[BQA] statement expecting response → INTEREST")
                 return QuestionType.INTEREST
-
+        _METRICS["analyze.unknown"] += 1
         return QuestionType.UNKNOWN
 
     def analyze_with_confidence(self, bot_message: str) -> Tuple[QuestionType, float]:
-        """
-        Analiza el mensaje y retorna tipo + confianza.
-
-        Args:
-            bot_message: El último mensaje enviado por el bot
-
-        Returns:
-            Tuple de (QuestionType, confidence)
-        """
         question_type = self.analyze(bot_message)
-
-        # Asignar confianza basada en el tipo
         confidence_map = {
             QuestionType.PURCHASE: 0.92,
             QuestionType.PAYMENT_METHOD: 0.90,
@@ -250,81 +237,182 @@ class BotQuestionAnalyzer:
             QuestionType.CONFIRMATION: 0.70,
             QuestionType.UNKNOWN: 0.50,
         }
-
         return question_type, confidence_map.get(question_type, 0.50)
 
 
-# Singleton para evitar recompilar patrones
-_analyzer_instance = None
+# ── Singleton thread-safe + métricas in-memory ────────────────────────────────
+
+_analyzer_instance: Optional[BotQuestionAnalyzer] = None
+_analyzer_lock = threading.Lock()
+_METRICS: Counter = Counter()
 
 
 def get_bot_question_analyzer() -> BotQuestionAnalyzer:
-    """Obtiene instancia singleton del analizador."""
+    """Singleton thread-safe. Compila los regex semánticos una única vez."""
     global _analyzer_instance
     if _analyzer_instance is None:
-        _analyzer_instance = BotQuestionAnalyzer()
+        with _analyzer_lock:
+            if _analyzer_instance is None:
+                _analyzer_instance = BotQuestionAnalyzer()
     return _analyzer_instance
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# UTILIDADES PARA AFIRMACIONES
-# ═══════════════════════════════════════════════════════════════════════════════
+def get_metrics() -> dict:
+    """Exporta el Counter in-memory. Keys relevantes Prometheus-style:
 
-# Palabras que son afirmaciones simples (multilingual: ES, CA, IT, EN)
-AFFIRMATION_WORDS = {
-    # Español
-    'si', 'sí', 'ok', 'okay', 'okey', 'vale', 'dale', 'claro',
-    'bueno', 'bien', 'perfecto', 'genial', 'venga', 'va',
-    'de acuerdo', 'por supuesto', 'obvio', 'seguro', 'ya',
-    'eso', 'exacto', 'correcto', 'así es', 'afirmativo',
-    'entendido', 'entiendo', 'comprendo', 'listo', 'hecho',
-    # Catalán
-    'clar', 'fet', 'entesos', 'perfecte', 'bé', 'molt bé', 'moltbé',
-    'sip', 'oka', 'okaaa', 'okaa', "d'acord", 'endavant', 'vinga',
-    'siii', 'siiii', 'top', 'va bé', 'entenc',
-    # Italiano
-    'sì', 'certo', 'perfetto', 'va bene', "d'accordo", 'capito',
-    'esatto', 'giusto', 'benissimo', 'fatto',
-    # English
-    'yes', 'sure', 'alright', 'right', 'yep', 'yup', 'cool', 'fine',
-    'got it', 'sounds good', 'perfect', 'done',
-    # Variantes con signos
-    'si!', 'sí!', 'ok!', 'vale!', 'dale!', 'claro!',
-    'si.', 'sí.', 'ok.', 'vale.', 'claro.', 'entendido.',
-    'clar!', 'perfecte!', 'top!', 'siii!', 'oka!',
-}
+        analyze.{purchase,payment,booking,interest,information,confirmation,
+                 unknown,information_fallback,statement_interest}
+        affirmation.{mined,fallback_emoji,empty,punct_only,too_long,whitespace,null}
+        vocab_source.{mined,fallback,empty}
 
-
-def is_short_affirmation(message: str) -> bool:
+    Scrape target: Prometheus label
+        bot_question_analyzer_vocab_source{source="mined"}   ← vocab_source.mined
+        bot_question_analyzer_vocab_source{source="fallback"} ← vocab_source.fallback
+        bot_question_analyzer_vocab_source{source="empty"}    ← vocab_source.empty
+            (no creator_id o vocab_meta.affirmations vacío)
     """
-    Verifica si un mensaje es una afirmación corta.
+    return dict(_METRICS)
+
+
+def reset_metrics() -> None:
+    """Helper para tests — reset del Counter global."""
+    _METRICS.clear()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AFIRMACIONES — vocab descubierto runtime desde vocab_meta DB por creator
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# FALLBACK UNIVERSAL — glifos Unicode con semántica convencional cross-cultural.
+# NO son "lista por idioma": son caracteres Unicode convencionalmente afirmativos
+# en la mayoría de culturas (thumbs-up, OK hand, check, applause, etc.). Se
+# mantiene como único backstop cuando (a) no hay creator_id o (b) vocab_meta
+# no contiene la key "affirmations". Observable via Prometheus source=fallback.
+_UNIVERSAL_AFFIRMATION_EMOJI: frozenset = frozenset({
+    "👍", "👌", "🙌", "✅", "💪", "💯", "👏", "🙏", "🤙",
+})
+
+_PUNCT_CHARS = "!.,?¡¿"
+_PUNCT_ONLY_RE = re.compile(r'^[\s!.,?¡¿]+$')
+_REPEAT_CHAR_RE = re.compile(r'(.)\1+')
+
+
+def _normalize_elongation(word: str) -> str:
+    """Colapsa repeticiones consecutivas del mismo carácter a 1 para tolerar
+    alargamientos expresivos cuando el vocab mined incluye la forma base.
+    Zero per-language: es una regla morfológica pura."""
+    return _REPEAT_CHAR_RE.sub(r'\1', word)
+
+
+def _load_affirmation_vocab(creator_id: Optional[str]) -> Optional[frozenset]:
+    """Carga afirmaciones descubiertas de vocab_meta DB por creator.
+
+    Devuelve:
+        frozenset(str) — si hay afirmaciones mined para el creator.
+        None           — si no hay creator_id, lookup falla, o key vacía.
+
+    Reusa `services.calibration_loader._load_creator_vocab` que ya implementa
+    DB → on-disk fallback con cache. El shape del vocab JSON es:
+        {"blacklist_words": [...], "approved_terms": [...], ...,
+         "affirmations": ["si","vale","ok","clar",...]}  ← esta PR introduce
+                                                           el consumo de esta key.
+
+    El worker de onboarding (scripts/bootstrap_vocab_metadata.py o el
+    extractor dedicado de afirmaciones) es responsable de poblar la key
+    "affirmations" mediante mining del corpus del creator (DMs + posts +
+    comentarios) extrayendo tokens ≤15 chars de alta frecuencia en contexto
+    post-pregunta. No es parte de este PR.
+    """
+    if not creator_id:
+        return None
+    try:
+        from services.calibration_loader import _load_creator_vocab
+    except ImportError as e:
+        logger.debug("[BQA] calibration_loader unavailable (%s)", e)
+        return None
+    try:
+        vocab = _load_creator_vocab(creator_id) or {}
+    except Exception as e:
+        logger.debug("[BQA] _load_creator_vocab(%s) failed: %s", creator_id, e)
+        return None
+    affirmations = vocab.get("affirmations")
+    if not affirmations or not isinstance(affirmations, list):
+        return None
+    normalized = frozenset(
+        str(a).lower().strip()
+        for a in affirmations
+        if a and isinstance(a, str)
+    )
+    return normalized or None
+
+
+def is_short_affirmation(message: str, creator_id: Optional[str] = None) -> bool:
+    """True si el mensaje es una afirmación corta del lead.
 
     Args:
-        message: El mensaje del usuario
+        message: texto del lead (puede ser None, "", "   ", emoji, etc.)
+        creator_id: slug del creator. Si se provee, se consulta vocab_meta
+                    para obtener las afirmaciones descubiertas. Si es None o
+                    el vocab no tiene afirmaciones, cae a fallback universal
+                    (solo emojis Unicode convencionales).
 
-    Returns:
-        True si es una afirmación corta como "Si", "Vale", "Ok"
+    Observabilidad:
+        Cada llamada incrementa `vocab_source.{mined,fallback,empty}` del
+        Counter global para monitoreo Prometheus.
+
+    Guards estructurales (independientes de idioma):
+        * None / "" / "   " → False
+        * Puntuación sola ("?", "..", "!!!") → False
+        * >30 chars normalizados → False
     """
     if not message:
+        _METRICS["affirmation.null"] += 1
         return False
 
-    # Normalizar
     msg = message.lower().strip()
-
-    # Muy largo no puede ser afirmación simple
+    if not msg:
+        _METRICS["affirmation.whitespace"] += 1
+        return False
+    if _PUNCT_ONLY_RE.match(msg):
+        _METRICS["affirmation.punct_only"] += 1
+        return False
     if len(msg) > 30:
+        _METRICS["affirmation.too_long"] += 1
         return False
 
-    # Verificar si es exactamente una afirmación
-    if msg in AFFIRMATION_WORDS:
-        return True
+    mined_vocab = _load_affirmation_vocab(creator_id)
 
-    # Verificar si son 1-3 palabras que son todas afirmaciones
-    words = msg.split()
-    if len(words) <= 3:
-        # Limpiar puntuación de cada palabra
-        cleaned_words = [w.rstrip('!.,?') for w in words]
-        if all(w in AFFIRMATION_WORDS or w == '' for w in cleaned_words):
+    if mined_vocab:
+        _METRICS["vocab_source.mined"] += 1
+        if _match_against(msg, mined_vocab):
+            _METRICS["affirmation.mined"] += 1
             return True
+        # Descubierto pero no matched: caer a fallback universal (emojis).
+        if msg in _UNIVERSAL_AFFIRMATION_EMOJI:
+            _METRICS["affirmation.fallback_emoji"] += 1
+            return True
+        return False
 
+    # No creator_id o vocab_meta sin "affirmations" → fallback universal.
+    _METRICS["vocab_source.fallback" if creator_id is None else "vocab_source.empty"] += 1
+    if msg in _UNIVERSAL_AFFIRMATION_EMOJI:
+        _METRICS["affirmation.fallback_emoji"] += 1
+        return True
+    return False
+
+
+def _match_against(msg: str, vocab: frozenset) -> bool:
+    """Match de `msg` contra un vocab dado. Aplica lookup directo,
+    normalización de elongación, y tolerancia multi-token (≤3 palabras
+    todas afirmaciones). Es agnóstico al idioma del vocab."""
+    if msg in vocab or _normalize_elongation(msg) in vocab:
+        return True
+    words = msg.split()
+    if 0 < len(words) <= 3:
+        cleaned = [w.strip(_PUNCT_CHARS) for w in words]
+        non_empty = [w for w in cleaned if w]
+        if not non_empty:
+            return False
+        if all((w in vocab) or (_normalize_elongation(w) in vocab) for w in non_empty):
+            return True
     return False

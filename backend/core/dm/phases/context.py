@@ -862,7 +862,10 @@ async def phase_memory_and_context(
     _t1a = time.monotonic()
 
     # Step 2b: Analyze bot's last question for short affirmation context
-    if ENABLE_QUESTION_CONTEXT and is_short_affirmation(message):
+    # creator_id se propaga para que is_short_affirmation consulte vocab_meta
+    # DB (afirmaciones mined per-creator). Si no hay mining, cae a fallback
+    # universal (emojis Unicode convencionales).
+    if ENABLE_QUESTION_CONTEXT and is_short_affirmation(message, agent.creator_id):
         try:
             hist = metadata.get("history", [])
             last_bot = next(
