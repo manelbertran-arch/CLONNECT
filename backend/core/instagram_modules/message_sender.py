@@ -84,19 +84,31 @@ class MessageSender:
             return False
 
     async def send_message_with_buttons(
-        self, recipient_id: str, text: str, buttons: List[Dict[str, str]]
+        self, recipient_id: str, text: str, buttons: List[Dict[str, str]],
+        approved: bool = False,
     ) -> bool:
         """
-        Send a message with quick reply buttons.
+        Send a message with quick reply buttons — GUARDED by send_guard (BUG-08 fix).
 
         Args:
             recipient_id: Instagram user ID (may have "ig_" prefix)
             text: Message text
             buttons: List of button configs with 'title' and 'payload'
+            approved: True if message was explicitly approved by creator
 
         Returns:
             True if sent successfully
         """
+        from core.send_guard import SendBlocked, check_send_permission
+
+        try:
+            check_send_permission(
+                self.creator_id, approved=approved,
+                caller="ig_handler.send_buttons",
+            )
+        except SendBlocked:
+            return False
+
         if not self.connector:
             logger.error("Instagram connector not initialized")
             return False

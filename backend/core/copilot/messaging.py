@@ -21,19 +21,22 @@ async def send_message_impl(
     """Send message via platform — GUARDED by send_guard."""
     from core.send_guard import SendBlocked, check_send_permission
 
+    approved = copilot_action in ("approved", "edited")
     try:
-        approved = copilot_action in ("approved", "edited")
         check_send_permission(creator.name, approved=approved, caller="copilot_service")
     except SendBlocked as e:
         return {"success": False, "error": str(e), "blocked": True}
 
+    # BUG-10 fix: propagate the real `approved` downstream instead of hardcoding
+    # True at the multiplex boundary. Downstream adapters re-evaluate the guard
+    # (defense in depth); hardcoding True turned their guard into a no-op.
     try:
         if lead.platform == "instagram":
-            return await _send_instagram_message(service, creator, lead, text)
+            return await _send_instagram_message(service, creator, lead, text, approved=approved)
         elif lead.platform == "telegram":
-            return await _send_telegram_message(service, creator, lead, text)
+            return await _send_telegram_message(service, creator, lead, text, approved=approved)
         elif lead.platform == "whatsapp":
-            return await _send_whatsapp_message(service, creator, lead, text)
+            return await _send_whatsapp_message(service, creator, lead, text, approved=approved)
         else:
             return {"success": False, "error": f"Unknown platform: {lead.platform}"}
     except Exception as e:
@@ -41,7 +44,7 @@ async def send_message_impl(
         return {"success": False, "error": str(e)}
 
 
-async def _send_instagram_message(service, creator, lead, text: str) -> Dict[str, Any]:
+async def _send_instagram_message(service, creator, lead, text: str, approved: bool = False) -> Dict[str, Any]:
     """Enviar mensaje via Instagram API"""
     import os
 
@@ -105,7 +108,7 @@ async def _send_instagram_message(service, creator, lead, text: str) -> Dict[str
         await connector.close()
 
 
-async def _send_telegram_message(service, creator, lead, text: str) -> Dict[str, Any]:
+async def _send_telegram_message(service, creator, lead, text: str, approved: bool = False) -> Dict[str, Any]:
     """Enviar mensaje via Telegram API"""
     import httpx
     from core.telegram_registry import get_telegram_registry
@@ -139,7 +142,7 @@ async def _send_telegram_message(service, creator, lead, text: str) -> Dict[str,
         }
 
 
-async def _send_whatsapp_message(service, creator, lead, text: str) -> Dict[str, Any]:
+async def _send_whatsapp_message(service, creator, lead, text: str, approved: bool = False) -> Dict[str, Any]:
     """Enviar mensaje via Evolution API (Baileys) or WhatsApp Cloud API fallback."""
     import os
 
@@ -164,7 +167,9 @@ async def _send_whatsapp_message(service, creator, lead, text: str) -> Dict[str,
 
         if evo_instance:
             logger.info(f"[Copilot] Sending WhatsApp via Evolution [{evo_instance}] to {recipient}")
-            result = await send_evolution_message(evo_instance, recipient, text, approved=True)
+            # BUG-10 fix: propagate real `approved` instead of hardcoding True.
+            # Evolution's guard (C5) re-validates; this restores defense-in-depth.
+            result = await send_evolution_message(evo_instance, recipient, text, approved=approved)
             msg_id = result.get("key", {}).get("id", "")
             logger.info(f"[Copilot] Evolution API response: {result}")
             return {"success": True, "message_id": msg_id}

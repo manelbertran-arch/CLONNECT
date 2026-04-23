@@ -191,6 +191,29 @@ async def whatsapp_webhook_receive(request: Request):
                     logger.info("[WA] AUTOPILOT MODE - sending auto-reply")
                     sent = False
 
+                    # BUG-01 fix: re-verify authorization before the ad-hoc send.
+                    # The upstream `_get_copilot_mode_cached` only checks
+                    # `copilot_mode` (and may be stale) — the guard re-reads
+                    # Creator flags and enforces R3 (autopilot_premium_enabled).
+                    from core.send_guard import SendBlocked, check_send_permission
+
+                    try:
+                        check_send_permission(
+                            creator_id, approved=False,
+                            caller="wa_webhook.autopilot",
+                        )
+                    except SendBlocked as guard_err:
+                        logger.critical(
+                            f"[WA] AUTOPILOT blocked by send_guard: {guard_err}"
+                        )
+                        results.append({
+                            "message_id": message.message_id,
+                            "sender_id": message.sender_id,
+                            "error": f"blocked: {guard_err}",
+                            "blocked": True,
+                        })
+                        continue
+
                     if bot_reply and wa_token and wa_phone_id:
                         try:
                             send_connector = WhatsAppConnector(

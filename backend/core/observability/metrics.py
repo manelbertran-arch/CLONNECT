@@ -238,6 +238,24 @@ _METRIC_SPECS = [
     ("contextual_prefix_truncations_total", Counter if _PROMETHEUS_AVAILABLE else None,
      "Times the generated prefix hit the CAP_CHARS limit and was truncated",
      ["creator_id"], {}),
+
+    # ── SendGuard (Phase 5 hardening, branch forensic/send-guard-20260423) ──
+    ("send_guard_decision_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "SendGuard decisions by rule/outcome",
+     ["adapter", "caller", "decision", "rule"], {}),
+
+    ("send_guard_bypass_detected_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Send attempts that historically bypassed the guard (now instrumented)",
+     ["source"], {}),
+
+    ("send_guard_shadow_blocked_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Shadow-mode (SEND_GUARD_AUDIT_ONLY) decisions that would have been blocked",
+     ["adapter", "caller", "reason"], {}),
+
+    ("send_guard_latency_seconds", Histogram if _PROMETHEUS_AVAILABLE else None,
+     "SendGuard evaluation latency (seconds)",
+     ["adapter"],
+     {"buckets": [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0]}),
 ]
 
 # _REGISTRY_META maps metric name → type string for dispatch (avoids isinstance on mocks in tests)

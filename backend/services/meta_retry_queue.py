@@ -181,7 +181,15 @@ class MetaRetryQueue:
             from core.instagram_handler import InstagramHandler
 
             handler = InstagramHandler(creator_id=item.creator_id)
-            return await handler.send_response(item.recipient_id, item.message, approved=True)
+            # BUG-09 fix: do NOT hardcode approved=True on retry. The original
+            # message may have been authorized via C2 (approved=True) OR via
+            # autopilot premium flags. If the creator has since revoked consent
+            # (TCPA 2025: 10 business days to honor revocation), the retry must
+            # re-validate against current flags. Passing approved=False forces
+            # the guard to evaluate R3/R4 — letting current flags decide.
+            return await handler.send_response(
+                item.recipient_id, item.message, approved=False
+            )
         except Exception as e:
             logger.error(f"[RetryQueue] Default send failed: {e}")
             raise
