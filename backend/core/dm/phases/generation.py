@@ -191,19 +191,74 @@ async def phase_llm_generation(
     sender_id = follower.follower_id if hasattr(follower, 'follower_id') else ""
 
     # Step 5b: Determine response strategy
-    strategy_hint = _determine_response_strategy(
-        message=message,
-        intent_value=intent_value,
-        relationship_type="",  # Relationship scorer: zero injection into strategy
-        is_first_message=(follower.total_messages <= 1 and not history),
-        is_friend=False,  # Product suppression only — never affects strategy text
-        follower_interests=follower.interests,
-        lead_stage=current_stage,
-        history_len=len(history),
-    )
+    # Flag: ENABLE_DM_STRATEGY_HINT (default true) — see core/feature_flags.py.
+    # Gating for P6 VENTA vs resolver NO_SELL is applied below, after computation,
+    # so that metadata and metrics still record the router's decision even when
+    # the hint is suppressed. See docs/forensic/dm_strategy/03_bugs.md BUG-003.
+    strategy_hint_full = ""
+    _strategy_branch = "DEFAULT"
+    if flags.dm_strategy_hint:
+        _creator_display_name = ""
+        try:
+            _creator_display_name = (agent.personality or {}).get("name", "") or ""
+        except Exception:
+            pass
+        strategy_hint_full = _determine_response_strategy(
+            message=message,
+            intent_value=intent_value,
+            relationship_type="",  # BUG-004: kept inert; portado to resolver in E2 (Q2 2026)
+            is_first_message=(follower.total_messages <= 1 and not history),
+            is_friend=False,       # BUG-004: kept inert; portado to resolver in E2 (Q2 2026)
+            lead_stage=current_stage,
+            history_len=len(history),
+            creator_id=agent.creator_id,
+            creator_display_name=_creator_display_name,
+        )
+        if strategy_hint_full:
+            _strategy_branch = (
+                strategy_hint_full.split(".")[0].replace("ESTRATEGIA:", "").strip() or "DEFAULT"
+            )
+    try:
+        from core.observability.metrics import emit_metric as _emit_metric
+        _emit_metric(
+            "dm_strategy_branch_total",
+            creator_id=agent.creator_id,
+            branch=_strategy_branch,
+        )
+    except Exception:
+        pass
+
+    # Gate VENTA against resolver S6 NO_SELL directive (BUG-003 casos A/B/D).
+    # When the resolver has already decided NO_SELL, suppress the VENTA hint
+    # so the LLM does not receive conflicting instructions.
+    strategy_hint = strategy_hint_full
+    _sell_directive = cognitive_metadata.get("sell_directive")
+    if strategy_hint and _strategy_branch == "VENTA" and _sell_directive == "NO_SELL":
+        strategy_hint = ""
+        try:
+            from core.observability.metrics import emit_metric as _emit_metric_gate
+            _emit_metric_gate(
+                "dm_strategy_gate_blocked_total",
+                creator_id=agent.creator_id,
+                reason="no_sell_overlap",
+            )
+        except Exception:
+            pass
+        cognitive_metadata["strategy_hint_gated"] = "no_sell_overlap"
+        logger.info(
+            "[STRATEGY] gated=no_sell_overlap branch=%s",
+            _strategy_branch,
+            extra={"branch": _strategy_branch, "creator_id": agent.creator_id, "sender_id": sender_id, "reason": "no_sell_overlap"},
+        )
+
     if strategy_hint:
-        cognitive_metadata["response_strategy"] = strategy_hint.split(".")[0]
-        logger.info(f"[STRATEGY] {strategy_hint.split('.')[0]}")
+        cognitive_metadata["response_strategy"] = f"ESTRATEGIA: {_strategy_branch}"
+        cognitive_metadata["strategy_hint_full"] = strategy_hint
+        logger.info(
+            "[STRATEGY] branch=%s",
+            _strategy_branch,
+            extra={"branch": _strategy_branch, "creator_id": agent.creator_id, "sender_id": sender_id},
+        )
 
     # Step 5c: Learning rules — removed from runtime injection (April 2026).
     # Per TextGrad (Nature'24) and RBR (NeurIPS'24), rules competed with Doc D
@@ -291,6 +346,15 @@ async def phase_llm_generation(
         prompt_parts.append(gold_examples_section)
     if strategy_hint:
         prompt_parts.append(strategy_hint)
+        try:
+            from core.observability.metrics import emit_metric as _emit_metric_inj
+            _emit_metric_inj(
+                "dm_strategy_hint_injected_total",
+                creator_id=agent.creator_id,
+                branch=_strategy_branch,
+            )
+        except Exception:
+            pass
 
     # Per-message question suppression hint (data-driven).
     # If the bot over-questions relative to creator baseline, probabilistically

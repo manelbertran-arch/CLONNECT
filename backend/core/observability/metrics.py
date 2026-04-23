@@ -256,6 +256,23 @@ _METRIC_SPECS = [
      "SendGuard evaluation latency (seconds)",
      ["adapter"],
      {"buckets": [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0]}),
+
+    # ── DM Strategy Router (forensic/dm-strategy-20260423) ──────────────────
+    ("dm_strategy_branch_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "DM strategy router: branches selected by _determine_response_strategy",
+     ["creator_id", "branch"], {}),
+
+    ("dm_strategy_hint_injected_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "DM strategy router: hints actually injected into LLM prompt (after gate)",
+     ["creator_id", "branch"], {}),
+
+    ("dm_strategy_vocab_source", Counter if _PROMETHEUS_AVAILABLE else None,
+     "DM strategy router: vocab lookup source (mined vs fallback) per vocab_type",
+     ["creator_id", "vocab_type", "source"], {}),
+
+    ("dm_strategy_gate_blocked_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "DM strategy router: hints gated/blocked after computation (resolver overlap)",
+     ["creator_id", "reason"], {}),
 ]
 
 # _REGISTRY_META maps metric name → type string for dispatch (avoids isinstance on mocks in tests)
