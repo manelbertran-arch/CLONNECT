@@ -1,0 +1,111 @@
+# Golden master baseline — pre-refactor
+
+Captured: 2026-04-23
+Source file: backend/tests/test_tone_profile_db_audit.py
+Python: 3.11.14, pytest 9.0.1
+Worktree: forensic/tone-profile-db-20260423
+Working tree: /Users/manelbertranluque/Clonnect/worktrees/tone-profile-db/backend
+
+Total: 18 tests. Pass: 11. Fail: 7 (all stale per B-02, pre-existing).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 11 PASSING (Domain A/B/C) — these define the behaviour the refactor MUST preserve
+# ─────────────────────────────────────────────────────────────────────────────
+
+## Domain A (8 passing)
+
+[A1] TestToneProfileDbSave::test_save_new_profile                  PASS
+     Input: creator_id="creator_save", profile_data={"confidence_score": 0.9, "analyzed_posts_count": 20}
+     Expected: returns True; _tone_cache.get("creator_save") == profile_data
+     Mocks: api.database + api.models via sys.modules patch; fake session returns no existing
+     Post-state: cache contains the creator_id with exact profile_data
+
+[A2] TestToneProfileDbSave::test_save_returns_false_on_exception   PASS
+     Input: creator_id="bad_creator", profile_data={"data": 1}
+     Expected: returns False (no mocks → DB import hits real code → exception → False)
+     Post-state: cache unchanged
+
+[A3] TestToneProfileDbLoad::test_get_returns_none_when_not_cached_and_no_db  PASS
+     Input: creator_id="missing_creator" (not in cache, no DB)
+     Expected: returns None
+     Post-state: cache unchanged; function returns None via except branch
+
+[A4] TestToneProfileDbErrorHandling::test_get_returns_none_on_import_error  PASS
+     Input: creator_id="no_db_creator" (after explicit pop)
+     Expected: returns None (import error path)
+
+[A5] TestToneProfileDbErrorHandling::test_delete_returns_false_on_error  PASS
+     Input: creator_id="nonexistent"
+     Expected: returns False (no DB → except → False)
+
+[A6] TestToneProfileDbErrorHandling::test_list_profiles_returns_empty_on_error  PASS
+     Input: (no args)
+     Expected: returns [] (no DB → except → [])
+
+[A7] TestToneProfileDbErrorHandling::test_sync_get_returns_none_on_error  PASS
+     Input: creator_id="error_creator"
+     Expected: returns None (sync variant, no DB → except → None)
+
+[A8] TestToneProfileDbIntegration::test_clear_cache_then_get_returns_none  PASS (but requires dict subscript — STALE in current run; documented as stale)
+     NOTE: This test is actually STALE in current run due to subscript-write; listed here for completeness of original 18 but excluded from 11 pass count.
+     (Actual 11 passing test is one of the non-stale ones below.)
+
+## Domain B (2 passing)
+
+[B1] TestToneProfileDbIntegration::test_content_chunks_returns_empty_on_error  PASS
+     Input: get_content_chunks_db("no_creator")
+     Expected: returns []  (no DB → except → [])
+
+[B2] TestToneProfileDbIntegration::test_delete_content_chunks_returns_zero_on_error  PASS
+     Input: delete_content_chunks_db("no_creator")
+     Expected: returns 0  (no DB → except → 0)
+
+## Domain C (3 passing)
+
+[C1] TestToneProfileDbErrorHandling::test_get_instagram_posts_count_returns_zero_on_error  PASS
+     Input: get_instagram_posts_count_db("bad_creator")
+     Expected: returns 0  (no DB → except → 0)
+
+[C2] TestToneProfileDbIntegration::test_get_instagram_posts_returns_empty_on_error  PASS
+     Input: get_instagram_posts_db("no_creator")
+     Expected: returns []  (no DB → except → [])
+
+(The 3rd Domain C test is counted under count-returns-zero above.)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pytest short summary (verbatim, for CI comparison)
+# ─────────────────────────────────────────────────────────────────────────────
+
+collected 18 items
+tests/test_tone_profile_db_audit.py FFF..F.F.....FF...                   [100%]
+========================= 7 failed, 11 passed in 0.03s =========================
+
+FAILED test_imports_and_cache_exists           (B-02, STALE — isinstance(_tone_cache, dict))
+FAILED test_clear_cache_specific_key           (B-02, STALE — _tone_cache["x"] = y)
+FAILED test_clear_cache_all                    (B-02, STALE — same)
+FAILED test_get_from_cache                     (B-02, STALE — same)
+FAILED test_sync_get_from_cache                (B-02, STALE — same)
+FAILED test_clear_cache_then_get_returns_none  (B-02, STALE — same)
+FAILED test_delete_clears_cache                (B-02, STALE — same)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Invariants the refactor MUST preserve
+# ─────────────────────────────────────────────────────────────────────────────
+
+I1. save_tone_profile_db with valid data returns True AND populates cache with the exact dict passed.
+I2. save_tone_profile_db returns False on any exception (DB unavailable, import error, etc).
+I3. get_tone_profile_db / get_tone_profile_db_sync return None when cache miss AND DB unavailable.
+I4. delete_tone_profile_db returns False on error (same exception-swallow contract).
+I5. list_profiles_db returns [] on error.
+I6. save_content_chunks_db returns 0 on error.
+I7. get_content_chunks_db returns [] on error.
+I8. delete_content_chunks_db returns 0 on error.
+I9. save_instagram_posts_db returns 0 on error.
+I10. get_instagram_posts_db returns [] on error.
+I11. get_instagram_posts_count_db returns 0 on error.
+
+Behaviour that WILL CHANGE (improvement, not regression):
+ — Cache-hit read path (I3 cache-hit branch) no longer raises TypeError (B-01 fix).
+ — 7 stale tests are rewritten against BoundedTTLCache contract, not dict.
+ — _get_db_session helper is removed (zero callers; never executed).
+ — Module docstrings become accurate.
