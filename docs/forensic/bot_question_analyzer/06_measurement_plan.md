@@ -90,19 +90,25 @@ Exclusiones heredadas del baseline:
 
 ### 6.1.bis Blocker NUEVO — vocab_meta poblado per-creator
 
-**Razón:** este PR refactoriza el analyzer a zero-hardcoding. Sin `personality_docs.vocab_meta.affirmations` poblado, el analyzer degrada a fallback universal (solo emojis) y el arm B no puede detectar "si / vale / ok" en texto. La medición sería un falso negativo.
+**⚠️ DEPENDENCY MARKER — Ver `07_vocab_mining_dependency.md` para especificación completa, script bootstrap y plan de ejecución dev→staging→prod.**
 
-**Checklist obligatorio antes de arm B:**
+**Razón:** este PR refactoriza el analyzer a zero-hardcoding. Sin `personality_docs.vocab_meta.content.affirmations` poblado, el analyzer degrada a fallback universal (solo emojis Unicode) y el arm B no puede detectar "si / vale / ok" en texto. La medición sería un falso negativo (composite Δ ≈ 0 por coverage artificialmente baja, no por ineficacia del sistema).
 
-- [ ] Iris Bertran: verificar `SELECT content::json->'affirmations' FROM personality_docs WHERE creator_id IN (SELECT id::text FROM creators WHERE name='iris_bertran') AND doc_type='vocab_meta' LIMIT 1` devuelve lista no-vacía.
-- [ ] Stefano: verificar lo mismo para `stefano` (o el slug correspondiente).
-- [ ] Si cualquiera retorna NULL / [] → ejecutar el worker de mining **antes** de proceder:
-  - Opción A: extender `scripts/bootstrap_vocab_metadata.py` para mining `affirmations`.
-  - Opción B: nuevo script `scripts/mine_affirmations.py` (worker out-of-scope de este PR).
-  - Opción C: manual seed temporal con tokens observados empíricamente en DMs recientes (solo para unblock medición; re-mined después).
-- [ ] Validación post-mining: `get_metrics()["vocab_source.mined"]` debería dominar en los test runs (≥80%), `vocab_source.empty` ≈ 0.
+**Checklist pre-arm-B (referencia cruzada a `07_vocab_mining_dependency.md` §4):**
 
-**Si el mining worker no está listo para arm B:** la medición se aborta o se realiza con seed manual documentado. No activar `ENABLE_QUESTION_CONTEXT=true` en Railway en ningún caso hasta que Iris tenga al menos ~20 tokens afirmativos mined.
+- [ ] **§4.1 Dev dry-run** completado — top-10 tokens visualmente coherentes, ≥5 afirmaciones obvias, 0 palabras claramente negativas/neutras.
+- [ ] **§4.2 Staging** ejecutado — smoke test 3/3 passes:
+  - [ ] `is_short_affirmation('sí', 'iris_bertran') is True` con `vocab_source.mined ≥ 1`, `vocab_source.fallback == 0`, `vocab_source.empty == 0`.
+  - [ ] `is_short_affirmation('sí', 'nonexistent') is False` y `is_short_affirmation('👍', 'nonexistent') is True`.
+  - [ ] `is_short_affirmation('hola', 'iris_bertran') is False`.
+- [ ] **§4.3 Prod Iris** — bootstrap ejecutado, `affirmations` count ≥20, sin errores en logs post-ejecución durante ≥1h.
+- [ ] **§4.4 Prod Stefano** — bootstrap ejecutado (o decisión documentada de limitar arm B a Iris si corpus < 500 mensajes en pares bot→lead).
+
+**Si el worker de mining no está listo para arm B:** la medición se aborta. **NO se aplica "seed manual"** — eso reintroduciría hardcoding lingüístico por la puerta de atrás. Alternativas aceptables:
+- Implementar el script del worker (spec y código completo en `07_vocab_mining_dependency.md` §3.2) como PR rápido.
+- Posponer la medición hasta que el worker nightly esté en producción.
+
+**Validación post-mining durante arm B:** logs Prometheus deben mostrar `vocab_source.mined` dominante (≥80% del tráfico), `vocab_source.empty` ≈ 0. Si `vocab_source.empty > 10%` → el mining no se ejecutó para algún creator activo → abortar run y re-bootstrap.
 
 ### 6.2 Ejecución arm A (control, flag OFF)
 
