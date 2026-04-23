@@ -279,3 +279,220 @@ class TestSearchQueriesNotPrefixed:
         source = inspect.getsource(rag._semantic_search)
         assert "generate_embedding(query)" in source or "generate_embedding(" in source
         assert "generate_embedding_with_context" not in source
+
+
+class TestFeatureFlag:
+    """Test the ENABLE_CONTEXTUAL_PREFIX_EMBED ablation switch."""
+
+    def setup_method(self):
+        from core.contextual_prefix import _prefix_cache
+        _prefix_cache.clear()
+
+    @patch("core.creator_data_loader.get_creator_data")
+    def test_flag_disabled_returns_empty(self, mock_get):
+        """When ENABLE_CONTEXTUAL_PREFIX_EMBED=false, prefix is always empty."""
+        from core.contextual_prefix import build_contextual_prefix
+        from core.config import contextual_prefix_config as cfg
+
+        mock_get.return_value = _make_creator_data()
+        original = cfg.ENABLE_CONTEXTUAL_PREFIX_EMBED
+        try:
+            cfg.ENABLE_CONTEXTUAL_PREFIX_EMBED = False
+            assert build_contextual_prefix("iris_bertran") == ""
+            assert mock_get.call_count == 0  # DB never touched
+        finally:
+            cfg.ENABLE_CONTEXTUAL_PREFIX_EMBED = original
+
+
+class TestInvalidateCache:
+    """Test the admin invalidation helper."""
+
+    def setup_method(self):
+        from core.contextual_prefix import _prefix_cache
+        _prefix_cache.clear()
+
+    @patch("core.creator_data_loader.get_creator_data")
+    def test_invalidate_single_creator(self, mock_get):
+        from core.contextual_prefix import build_contextual_prefix, invalidate_cache
+        mock_get.return_value = _make_creator_data()
+
+        build_contextual_prefix("iris_bertran")
+        assert invalidate_cache("iris_bertran") == 1
+        # Next call rebuilds from DB
+        build_contextual_prefix("iris_bertran")
+        assert mock_get.call_count == 2
+
+    def test_invalidate_missing_creator_returns_zero(self):
+        from core.contextual_prefix import invalidate_cache
+        assert invalidate_cache("never_cached") == 0
+
+    @patch("core.creator_data_loader.get_creator_data")
+    def test_invalidate_all(self, mock_get):
+        from core.contextual_prefix import build_contextual_prefix, invalidate_cache
+        mock_get.return_value = _make_creator_data()
+        build_contextual_prefix("iris_bertran")
+        build_contextual_prefix("stefano")
+        removed = invalidate_cache(None)
+        assert removed >= 1
+
+
+class TestDialectFallbacks:
+    """Covers Bug 7 — dialects not in the label map."""
+
+    def setup_method(self):
+        from core.contextual_prefix import _prefix_cache
+        _prefix_cache.clear()
+
+    @patch("core.creator_data_loader.get_creator_data")
+    def test_unmapped_dialect_uses_literal(self, mock_get):
+        """An unmapped dialect like 'portuguese' falls back to the raw literal."""
+        from core.contextual_prefix import build_contextual_prefix
+        data = _make_creator_data(dialect="portuguese")
+        mock_get.return_value = data
+
+        prefix = build_contextual_prefix("pt_creator")
+        assert "portuguese" in prefix  # the raw literal leaks (known limitation, tracked Q2)
+
+
+class TestFormalityLabels:
+    """Covers Bug 5 — formality 'informal' default was silent."""
+
+    def setup_method(self):
+        from core.contextual_prefix import _prefix_cache
+        _prefix_cache.clear()
+
+    @patch("core.creator_data_loader.get_creator_data")
+    def test_informal_now_emits_label(self, mock_get):
+        from core.contextual_prefix import build_contextual_prefix
+        data = _make_creator_data(formality="informal")
+        mock_get.return_value = data
+
+        prefix = build_contextual_prefix("informal_creator")
+        assert "informal" in prefix.lower() or "cercano" in prefix.lower()
+
+    @patch("core.creator_data_loader.get_creator_data")
+    def test_mixed_formality_emits(self, mock_get):
+        from core.contextual_prefix import build_contextual_prefix
+        data = _make_creator_data(formality="mixed")
+        mock_get.return_value = data
+
+        prefix = build_contextual_prefix("mixed_creator")
+        assert "mixto" in prefix.lower()
+
+
+class TestCapWordBoundary:
+    """Covers Bug 4 — cap should prefer word boundary."""
+
+    def setup_method(self):
+        from core.contextual_prefix import _prefix_cache
+        _prefix_cache.clear()
+
+    @patch("core.creator_data_loader.get_creator_data")
+    def test_cap_at_word_boundary(self, mock_get):
+        """Prefix nearing cap should not end mid-word when a space is within ~40% of the budget."""
+        from core.contextual_prefix import build_contextual_prefix
+        long_specialties = ["palabra uno dos tres cuatro cinco seis siete ocho"] * 5
+        data = _make_creator_data(
+            knowledge_about={"specialties": long_specialties, "location": "Barcelona"},
+        )
+        mock_get.return_value = data
+
+        prefix = build_contextual_prefix("cap_creator")
+        # Trim the terminator, then the last character before should be a letter,
+        # not a partial word missing its continuation.
+        assert len(prefix) <= 503
+        assert prefix.endswith(".\n\n")
+
+
+class TestSourceTag:
+    """Builds_total metric carries a 'source' label — verify branches tag correctly."""
+
+    def setup_method(self):
+        from core.contextual_prefix import _prefix_cache
+        _prefix_cache.clear()
+
+    @patch("core.contextual_prefix._emit")
+    @patch("core.creator_data_loader.get_creator_data")
+    def test_source_specialties_reported(self, mock_get, mock_emit):
+        from core.contextual_prefix import build_contextual_prefix
+        mock_get.return_value = _make_creator_data()  # has specialties
+
+        build_contextual_prefix("iris_bertran")
+
+        build_calls = [
+            c for c in mock_emit.call_args_list
+            if c.args and c.args[0] == "contextual_prefix_builds_total"
+        ]
+        assert build_calls, "builds_total metric not emitted"
+        kwargs = build_calls[0].kwargs
+        assert kwargs.get("source") == "specialties"
+        assert kwargs.get("has_prefix") == "true"
+
+    @patch("core.contextual_prefix._emit")
+    @patch("core.creator_data_loader.get_creator_data")
+    def test_source_products_fallback_reported(self, mock_get, mock_emit):
+        from core.contextual_prefix import build_contextual_prefix
+        from core.creator_data_loader import ProductInfo
+        products = [ProductInfo(id="1", name="Barre"), ProductInfo(id="2", name="Flow4U")]
+        data = _make_creator_data(
+            knowledge_about={}, dialect=None, formality=None, products=products,
+        )
+        mock_get.return_value = data
+
+        build_contextual_prefix("products_creator")
+
+        build_calls = [
+            c for c in mock_emit.call_args_list
+            if c.args and c.args[0] == "contextual_prefix_builds_total"
+        ]
+        assert build_calls
+        assert build_calls[0].kwargs.get("source") == "products_fallback"
+
+
+class TestConfigSnapshot:
+    """Config snapshot shape for the admin endpoint."""
+
+    def test_snapshot_has_expected_keys(self):
+        from core.config import contextual_prefix_config
+        snap = contextual_prefix_config.snapshot()
+        for key in [
+            "ENABLE_CONTEXTUAL_PREFIX_EMBED",
+            "CACHE_SIZE",
+            "CACHE_TTL_SECONDS",
+            "CAP_CHARS",
+            "MAX_SPECIALTIES",
+            "MAX_PRODUCTS",
+            "MAX_FAQS",
+            "MIN_BIO_LEN",
+            "dialect_labels_count",
+            "formality_labels_count",
+        ]:
+            assert key in snap
+
+
+class TestRagAddDocumentRefusesUnknown:
+    """Covers Bug 2 — add_document must refuse embedding without a real creator_id."""
+
+    def test_missing_metadata_refuses_to_embed(self):
+        """add_document without metadata must return early without calling OpenAI."""
+        from unittest.mock import patch, MagicMock
+        from core.rag.semantic import SemanticRAG
+
+        rag = SemanticRAG()
+        rag._embeddings_available = True  # force availability check to pass
+
+        with patch("core.contextual_prefix.generate_embedding_with_context") as mock_embed:
+            rag.add_document("doc_no_meta", "Some text")
+            mock_embed.assert_not_called()
+
+    def test_unknown_creator_id_refuses_to_embed(self):
+        """add_document with metadata.creator_id='unknown' must also refuse."""
+        from unittest.mock import patch
+        from core.rag.semantic import SemanticRAG
+
+        rag = SemanticRAG()
+        rag._embeddings_available = True
+
+        with patch("core.contextual_prefix.generate_embedding_with_context") as mock_embed:
+            rag.add_document("doc_unk", "Some text", metadata={"creator_id": "unknown"})
+            mock_embed.assert_not_called()

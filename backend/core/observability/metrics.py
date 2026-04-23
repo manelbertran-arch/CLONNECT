@@ -212,6 +212,32 @@ _METRIC_SPECS = [
     ("sell_adapter_fallback", Counter if _PROMETHEUS_AVAILABLE else None,
      "Sell arbiter adapter fell back to default for a missing/invalid upstream field",
      ["creator_id", "field"], {}),
+
+    # ── Contextual Prefix (RAG indexation cold path) ─────────────────────────
+    ("contextual_prefix_builds_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Contextual prefix builds by source and has_prefix flag",
+     ["creator_id", "source", "has_prefix"], {}),
+
+    ("contextual_prefix_cache_hits_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Contextual prefix cache hits",
+     ["creator_id"], {}),
+
+    ("contextual_prefix_cache_misses_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Contextual prefix cache misses",
+     ["creator_id"], {}),
+
+    ("contextual_prefix_errors_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Contextual prefix build failures by error class",
+     ["creator_id", "error_class"], {}),
+
+    ("contextual_prefix_length_chars", Histogram if _PROMETHEUS_AVAILABLE else None,
+     "Generated contextual prefix length in characters",
+     ["creator_id"],
+     {"buckets": [0, 50, 100, 150, 200, 300, 400, 500]}),
+
+    ("contextual_prefix_truncations_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Times the generated prefix hit the CAP_CHARS limit and was truncated",
+     ["creator_id"], {}),
 ]
 
 # _REGISTRY_META maps metric name → type string for dispatch (avoids isinstance on mocks in tests)
