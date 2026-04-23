@@ -27,6 +27,41 @@ See `rules/common/decisions.md` for the logging format and rules.
 
 ---
 
+## 2026-04-23 — Sprint Top-6 activations (hybrid forensic scope)
+
+**Chosen:** single PR `sprint/top-6-activations-20260423` consolidating activation of six previously-OFF systems with *hybrid forensic depth per system*, not uniform treatment.
+
+| System | Forensic depth | Verdict | Structural change |
+|---|---|---|---|
+| Question Hints       | **quick-decide** (flag + metric + 2 tests)      | KEEP-AS-IS | none |
+| Response Fixes       | **quick-decide** (flag + metric + 2 tests)      | KEEP-AS-IS | none |
+| Query Expansion      | **quick-decide** (flag + metric + 2 tests)      | KEEP-AS-IS | none |
+| Few-Shot Injection   | **forensic complete** (7 docs + 9 tests)        | KEEP-AS-IS algorithmically; registry cleanup only | registry migration only |
+| Commitment Tracker   | **forensic lite**  (state-of-the-art + 3 tests) | ADAPT-NOW Path A | zero-hardcoding migration → `vocab_meta.commitment_patterns` with cold-start fallback |
+| DNA Engine create    | **forensic complete** (7 docs + 9 tests)        | ADAPT-NOW | new `dna_auto_create_limiter.py` (4-layer cap: debounce 60s + token bucket 20/h + global semaphore 3 + circuit breaker 300s) |
+
+**Context:** baseline `baseline_post_6_optimizations_20260423.json` composite v5 = 69.1. Target composite ≥ 72 combined, ≥ 74 stretch. All six flags existed but 3 were inline `os.getenv` (pre-registry), 2 had duplicated definitions.
+
+**Alternatives considered:**
+- Uniform full-forensic all 6 systems: estimated 18–24h; rejected as disproportionate for flag-only activations with no structural bugs.
+- Uniform quick-decide all 6: rejected because DNA create had documented structural bug (cap/semaphore absent) and Commitment Tracker had hardcoded Spanish regex (zero-hardcoding policy violation).
+
+**Why hybrid:** forensic depth matches pre-existing evidence + structural risk per system. Systems with published CCEE ablation priors (Q-Hints, Response-Fixes) and no bugs → quick-decide. System with no CCEE prior but large surface → Few-Shot forensic complete (confirms no creator-specific hardcoding). System with bug → DNA forensic complete + fix. System with hardcoding → Commitment lite + zero-hardcoding migration.
+
+**State-of-the-art verdicts (verified, not invented):**
+- Few-Shot: RoleLLM ACL 2024 k=5 already implemented; DSPy MIPROv2 + dynamic-k DEFER-Q2.
+- DNA create: mem0 53.9k / letta 22.2k / langgraph 30.2k reviewed; 4-layer in-process cap recommended (no Redis).
+- Commitment: FnCTOD ACL 2024 Path A (vocab_meta) adopted; Path B (LLM fallback) DEFER-Q2.
+- Q-Hints / Response-Fixes / Query-Expansion: KEEP-AS-IS; respective superior alternatives (HyDE, logit biasing, learned editor) DEFER-Q2 for documented reasons.
+
+**Trade-offs:**
+- Pros: 28 tests passing; 2 HIGH + 2 MEDIUM bugs closed (DNA); zero-hardcoding achieved (Commitment); registry consolidated (3 flags migrated, duplicates removed); measurement plan ready.
+- Cons: 6 flags activated simultaneously in the same CCEE run — attribution per-system by CCEE alone is weaker than 6 sequential A/Bs (compensated by individual Prometheus counters + per-system KEEP/REVERT gates).
+
+**Revisit if:** (a) any system's REVERT gate fires post-CCEE; (b) combined Δ composite ≤ −2 (global regression); (c) post-fine-tuning — the deferred items (DSPy MIPROv2, FnCTOD LLM fallback, HyDE with learned rewriter) are re-evaluated against the FT model.
+
+---
+
 ## [Date] — Initial Stack Selection
 **Chosen:** [Fill in]
 **Alternatives:** [Fill in]

@@ -48,13 +48,17 @@ def _truncate_if_looping(text: str) -> tuple[bool, str]:
     return False, text
 
 
-# Feature flags for generation phase
+# Feature flags for generation phase.
+# ENABLE_QUESTION_HINTS kept as proxy to ``flags.question_hints`` so tests that
+# patch this module-level name keep working. See core/feature_flags.py.
+from core.feature_flags import flags
+
 ENABLE_PREFERENCE_PROFILE = os.getenv("ENABLE_PREFERENCE_PROFILE", "false").lower() == "true"
 ENABLE_GOLD_EXAMPLES = os.getenv("ENABLE_GOLD_EXAMPLES", "false").lower() == "true"
 ENABLE_BEST_OF_N = os.getenv("ENABLE_BEST_OF_N", "false").lower() == "true"
 ENABLE_SELF_CONSISTENCY = os.getenv("ENABLE_SELF_CONSISTENCY", "false").lower() == "true"
 ENABLE_LENGTH_HINTS = os.getenv("ENABLE_LENGTH_HINTS", "true").lower() == "true"
-ENABLE_QUESTION_HINTS = os.getenv("ENABLE_QUESTION_HINTS", "true").lower() == "true"
+ENABLE_QUESTION_HINTS = flags.question_hints
 
 # G6: Truncation recovery — retry count (operational param, not content heuristic)
 MAX_TRUNCATION_RETRIES = int(os.getenv("MAX_TRUNCATION_RETRIES", "2"))

@@ -273,6 +273,54 @@ _METRIC_SPECS = [
     ("dm_strategy_gate_blocked_total", Counter if _PROMETHEUS_AVAILABLE else None,
      "DM strategy router: hints gated/blocked after computation (resolver overlap)",
      ["creator_id", "reason"], {}),
+
+    # ── Sprint top-6 activations (quick-decide — 2026-04-23) ─────────────────
+    ("question_hint_injection_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Question-hint injection decisions (data-driven from baseline vs bot natural rate)",
+     ["creator_id", "decision"], {}),   # decision: injected | skipped | error | disabled
+
+    ("response_fixes_applied_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Response fixes post-LLM — by outcome",
+     ["creator_id", "outcome"], {}),   # outcome: changed | unchanged | error | disabled
+
+    ("query_expansion_applied_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Query expansion for RAG retrieval — by outcome",
+     ["creator_id", "outcome"], {}),   # outcome: expanded | single | error | disabled
+
+    # ── Sprint top-6 forensic-ligero (Few-Shot + Commitment Tracker) ─────────
+    ("few_shot_injection_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Few-shot example section outcomes (persona-conditioned k=5 hybrid)",
+     ["creator_id", "intent", "outcome"], {}),   # outcome: injected | empty | error | disabled
+
+    ("few_shot_examples_count", Histogram if _PROMETHEUS_AVAILABLE else None,
+     "Number of few-shot examples actually injected per turn",
+     ["creator_id"],
+     {"buckets": [0, 1, 2, 3, 4, 5, 6, 7, 8]}),
+
+    ("commitment_detected_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Commitment detections by type and pattern source",
+     ["creator_id", "commitment_type", "source"], {}),   # source: mined | hardcoded_fallback
+
+    ("commitment_tracker_patterns_source", Counter if _PROMETHEUS_AVAILABLE else None,
+     "Pattern source used for commitment detection per turn",
+     ["creator_id", "source"], {}),   # source: mined | hardcoded_fallback
+
+    # ── DNA Engine auto-create (4-layer rate-limited) ────────────────────────
+    ("dna_auto_create_triggered_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "DNA seed auto-creates that completed successfully",
+     ["creator_id", "relationship_type"], {}),
+
+    ("dna_auto_create_cap_hit_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "DNA auto-create attempts denied by the 4-layer limiter",
+     ["creator_id", "reason"], {}),   # reason: limiter_denied
+
+    ("dna_auto_create_skipped_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "DNA auto-create admitted by limiter but skipped after secondary check",
+     ["creator_id", "reason"], {}),   # reason: already_exists
+
+    ("dna_auto_create_circuit_tripped_total", Counter if _PROMETHEUS_AVAILABLE else None,
+     "DNA auto-create circuit breaker tripped after downstream failure",
+     ["creator_id"], {}),
 ]
 
 # _REGISTRY_META maps metric name → type string for dispatch (avoids isinstance on mocks in tests)

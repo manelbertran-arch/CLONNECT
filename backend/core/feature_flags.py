@@ -41,6 +41,8 @@ class FeatureFlags:
     response_fixes: bool = field(default_factory=lambda: _flag("ENABLE_RESPONSE_FIXES", True))
     question_context: bool = field(default_factory=lambda: _flag("ENABLE_QUESTION_CONTEXT", True))
     query_expansion: bool = field(default_factory=lambda: _flag("ENABLE_QUERY_EXPANSION", True))
+    few_shot: bool = field(default_factory=lambda: _flag("ENABLE_FEW_SHOT", True))
+    question_hints: bool = field(default_factory=lambda: _flag("ENABLE_QUESTION_HINTS", True))
     reflexion: bool = field(default_factory=lambda: _flag("ENABLE_REFLEXION", False))
     lead_categorizer: bool = field(default_factory=lambda: _flag("ENABLE_LEAD_CATEGORIZER", True))
     conversation_state: bool = field(default_factory=lambda: _flag("ENABLE_CONVERSATION_STATE", True))
