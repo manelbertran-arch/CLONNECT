@@ -267,6 +267,7 @@ def _apply_content_protections(
 
     # Step 7a2: Apply response fixes
     if flags.response_fixes:
+        _rf_outcome = "unchanged"
         try:
             fixed_response = apply_all_response_fixes(
                 response_content, creator_id=agent.creator_id,
@@ -274,8 +275,15 @@ def _apply_content_protections(
             if fixed_response and fixed_response != response_content:
                 logger.debug("Response fixes applied")
                 response_content = fixed_response
+                _rf_outcome = "changed"
         except Exception as e:
             logger.debug(f"Response fixes failed: {e}")
+            _rf_outcome = "error"
+        emit_metric("response_fixes_applied_total",
+                    creator_id=agent.creator_id, outcome=_rf_outcome)
+    else:
+        emit_metric("response_fixes_applied_total",
+                    creator_id=agent.creator_id, outcome="disabled")
 
     # Step 7a2b3: Blacklist word/emoji replacement from Doc D
     if flags.blacklist_replacement:

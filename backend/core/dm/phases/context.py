@@ -20,16 +20,21 @@ from core.dm.sell_arbitration import (
     render_directive_text,
     synthesize_aux_text,
 )
+from core.feature_flags import flags
+from core.observability.metrics import emit_metric
 from core.query_expansion import get_query_expander
 from core.rag.reranker import ENABLE_RERANKING
 
 logger = logging.getLogger(__name__)
 
-# Feature flags for context phase
+# Feature flags for context phase.
+# Note: these module-level names are kept as proxies to the central registry
+# so existing tests using ``patch("core.dm.phases.context.ENABLE_X", ...)``
+# continue to work. New code should read ``flags.X`` directly.
 ENABLE_QUESTION_CONTEXT = os.getenv("ENABLE_QUESTION_CONTEXT", "true").lower() == "true"
 ENABLE_CONVERSATION_STATE = os.getenv("ENABLE_CONVERSATION_STATE", "true").lower() == "true"
-ENABLE_DNA_AUTO_CREATE = os.getenv("ENABLE_DNA_AUTO_CREATE", "true").lower() == "true"
-ENABLE_QUERY_EXPANSION = os.getenv("ENABLE_QUERY_EXPANSION", "true").lower() == "true"
+ENABLE_DNA_AUTO_CREATE = flags.dna_auto_create
+ENABLE_QUERY_EXPANSION = flags.query_expansion
 ENABLE_RAG = os.getenv("ENABLE_RAG", "true").lower() == "true"
 ENABLE_RELATIONSHIP_DETECTION = (
     os.getenv("ENABLE_RELATIONSHIP_DETECTION", "true").lower() == "true"
@@ -38,9 +43,9 @@ ENABLE_ADVANCED_PROMPTS = os.getenv("ENABLE_ADVANCED_PROMPTS", "false").lower() 
 ENABLE_CITATIONS = os.getenv("ENABLE_CITATIONS", "true").lower() == "true"
 ENABLE_HIERARCHICAL_MEMORY = os.getenv("ENABLE_HIERARCHICAL_MEMORY", "false").lower() == "true"
 ENABLE_EPISODIC_MEMORY = os.getenv("ENABLE_EPISODIC_MEMORY", "false").lower() == "true"
-ENABLE_FEW_SHOT = os.getenv("ENABLE_FEW_SHOT", "true").lower() == "true"
+ENABLE_FEW_SHOT = flags.few_shot
 ENABLE_LENGTH_HINTS = os.getenv("ENABLE_LENGTH_HINTS", "true").lower() == "true"
-ENABLE_QUESTION_HINTS = os.getenv("ENABLE_QUESTION_HINTS", "true").lower() == "true"
+ENABLE_QUESTION_HINTS = flags.question_hints
 ENABLE_DNA_AUTO_ANALYZE = os.getenv("ENABLE_DNA_AUTO_ANALYZE", "true").lower() == "true"
 # Sprint 4 G5: cache boundary — CC pattern P1 (SYSTEM_PROMPT_DYNAMIC_BOUNDARY)
 ENABLE_PROMPT_CACHE_BOUNDARY = os.getenv("ENABLE_PROMPT_CACHE_BOUNDARY", "false").lower() == "true"
@@ -1008,7 +1013,7 @@ async def phase_memory_and_context(
 
     # ECHO Engine: Load pending commitments for this lead (Sprint 4)
     commitment_text = ""
-    if os.getenv("ENABLE_COMMITMENT_TRACKING", "true").lower() == "true":
+    if flags.commitment_tracking:
         try:
             from services.commitment_tracker import get_commitment_tracker
             tracker = get_commitment_tracker()
@@ -1025,53 +1030,71 @@ async def phase_memory_and_context(
     if raw_dna:
         metadata["dna_data"] = raw_dna  # Store for trigger check later
 
-    # Auto-create seed DNA if none exists and lead has some history
+    # Auto-create seed DNA if none exists and lead has some history.
+    # Rate-limited by DnaAutoCreateLimiter (4 layers — see services/dna_auto_create_limiter.py).
     if ENABLE_DNA_AUTO_CREATE and not dna_context and follower.total_messages >= 2:
         try:
             hist = metadata.get("history", [])
             if len(hist) >= 2:
-                det_result = RelationshipTypeDetector().detect(hist)
-                detected_type = det_result.get("type", "DESCONOCIDO")
-                det_confidence = det_result.get("confidence", 0)
+                from services.dna_auto_create_limiter import get_dna_auto_create_limiter
+                _limiter = get_dna_auto_create_limiter()
+                _admitted = await _limiter.acquire(agent.creator_id, sender_id)
+                if not _admitted:
+                    emit_metric("dna_auto_create_cap_hit_total",
+                                creator_id=agent.creator_id, reason="limiter_denied")
+                else:
+                    det_result = RelationshipTypeDetector().detect(hist)
+                    detected_type = det_result.get("type", "DESCONOCIDO")
+                    det_confidence = det_result.get("confidence", 0)
 
-                # Base trust per type (aligned with RelationshipAnalyzer._calculate_trust_score)
-                _SEED_TRUST = {
-                    "FAMILIA": 0.85, "INTIMA": 0.80,
-                    "AMISTAD_CERCANA": 0.60, "AMISTAD_CASUAL": 0.40,
-                    "COLABORADOR": 0.50, "CLIENTE": 0.25,
-                    "DESCONOCIDO": 0.10,
-                }
+                    # Base trust per type (aligned with RelationshipAnalyzer._calculate_trust_score)
+                    _SEED_TRUST = {
+                        "FAMILIA": 0.85, "INTIMA": 0.80,
+                        "AMISTAD_CERCANA": 0.60, "AMISTAD_CASUAL": 0.40,
+                        "COLABORADOR": 0.50, "CLIENTE": 0.25,
+                        "DESCONOCIDO": 0.10,
+                    }
 
-                async def _create_seed_dna():
-                    try:
-                        from services.relationship_dna_repository import (
-                            create_relationship_dna,
-                            get_relationship_dna as _get_dna,
-                        )
-                        existing = await asyncio.to_thread(
-                            _get_dna, agent.creator_id, sender_id
-                        )
-                        if existing:
-                            return  # Already exists, race condition
-                        _seed_trust = _SEED_TRUST.get(detected_type, 0.10)
-                        await asyncio.to_thread(
-                            create_relationship_dna,
-                            creator_id=agent.creator_id,
-                            follower_id=sender_id,
-                            relationship_type=detected_type,
-                            trust_score=round(_seed_trust, 2),
-                            depth_level=0,
-                        )
-                        logger.info(
-                            f"[DNA-SEED] Created seed DNA for {sender_id}: "
-                            f"type={detected_type} confidence={det_confidence}"
-                        )
-                    except Exception as e:
-                        logger.debug(f"Seed DNA creation failed: {e}")
+                    async def _create_seed_dna():
+                        try:
+                            from services.relationship_dna_repository import (
+                                create_relationship_dna,
+                                get_relationship_dna as _get_dna,
+                            )
+                            existing = await asyncio.to_thread(
+                                _get_dna, agent.creator_id, sender_id
+                            )
+                            if existing:
+                                emit_metric("dna_auto_create_skipped_total",
+                                            creator_id=agent.creator_id, reason="already_exists")
+                                return  # Already exists, race condition
+                            _seed_trust = _SEED_TRUST.get(detected_type, 0.10)
+                            await asyncio.to_thread(
+                                create_relationship_dna,
+                                creator_id=agent.creator_id,
+                                follower_id=sender_id,
+                                relationship_type=detected_type,
+                                trust_score=round(_seed_trust, 2),
+                                depth_level=0,
+                            )
+                            emit_metric("dna_auto_create_triggered_total",
+                                        creator_id=agent.creator_id,
+                                        relationship_type=detected_type)
+                            logger.info(
+                                f"[DNA-SEED] Created seed DNA for {sender_id}: "
+                                f"type={detected_type} confidence={det_confidence}"
+                            )
+                        except Exception as e:
+                            logger.debug(f"Seed DNA creation failed: {e}")
+                            _limiter.trip_circuit(agent.creator_id)
+                            emit_metric("dna_auto_create_circuit_tripped_total",
+                                        creator_id=agent.creator_id)
+                        finally:
+                            _limiter.release()
 
-                asyncio.create_task(_create_seed_dna())
-                cognitive_metadata["relationship_type"] = detected_type
-                cognitive_metadata["dna_seed_created"] = True
+                    asyncio.create_task(_create_seed_dna())
+                    cognitive_metadata["relationship_type"] = detected_type
+                    cognitive_metadata["dna_seed_created"] = True
         except Exception as e:
             logger.debug(f"DNA auto-create check failed: {e}")
 
@@ -1164,13 +1187,21 @@ async def phase_memory_and_context(
         pass
     else:
         if ENABLE_QUERY_EXPANSION:
+            _qx_outcome = "single"
             try:
                 expanded = get_query_expander().expand(message, max_expansions=2)
                 if len(expanded) > 1:
                     rag_query = " ".join(expanded)
                     cognitive_metadata["query_expanded"] = True
+                    _qx_outcome = "expanded"
             except Exception as e:
                 logger.debug(f"Query expansion failed: {e}")
+                _qx_outcome = "error"
+            emit_metric("query_expansion_applied_total",
+                        creator_id=agent.creator_id, outcome=_qx_outcome)
+        else:
+            emit_metric("query_expansion_applied_total",
+                        creator_id=agent.creator_id, outcome="disabled")
         # BUG-RAG-03 fix: RAG search includes blocking OpenAI API call +
         # pgvector DB query + CPU-bound reranking. Wrap in to_thread.
         rag_results = await asyncio.to_thread(
@@ -1335,6 +1366,8 @@ async def phase_memory_and_context(
     # Load few-shot examples from calibration (intent-stratified + semantic hybrid)
     few_shot_section = ""
     if ENABLE_FEW_SHOT and agent.calibration:
+        _fs_examples_found = 0
+        _fs_outcome = "empty"
         try:
             from services.calibration_loader import detect_message_language, get_few_shot_section
 
@@ -1348,8 +1381,26 @@ async def phase_memory_and_context(
             )
             if detected_lang:
                 cognitive_metadata["detected_language"] = detected_lang
+            if few_shot_section:
+                # Each example is a bullet prefixed with "\n- " after the header.
+                _fs_examples_found = few_shot_section.count("\n- ") or 1
+                _fs_outcome = "injected"
         except Exception as e:
             logger.debug(f"Few-shot loading failed: {e}")
+            _fs_outcome = "error"
+        emit_metric("few_shot_injection_total",
+                    creator_id=agent.creator_id,
+                    intent=str(intent_value) if intent_value else "unknown",
+                    outcome=_fs_outcome)
+        if _fs_examples_found:
+            emit_metric("few_shot_examples_count",
+                        _fs_examples_found,
+                        creator_id=agent.creator_id)
+    elif agent.calibration:
+        emit_metric("few_shot_injection_total",
+                    creator_id=agent.creator_id,
+                    intent=str(intent_value) if intent_value else "unknown",
+                    outcome="disabled")
 
     # Build audio context if message comes from audio intelligence
     audio_context = ""
@@ -1471,6 +1522,7 @@ async def phase_memory_and_context(
 
     # Question hint — data-driven from baseline_metrics question_rate_pct
     if ENABLE_QUESTION_HINTS:
+        _qh_decision = "skipped"
         try:
             from core.dm.text_utils import get_data_driven_question_hint
             _question_hint = get_data_driven_question_hint(agent.creator_id)
@@ -1480,8 +1532,15 @@ async def phase_memory_and_context(
                     if _context_notes_str else _question_hint
                 )
                 cognitive_metadata["question_hint_injected"] = _question_hint
+                _qh_decision = "injected"
         except Exception as e:
             logger.debug("Question hint failed: %s", e)
+            _qh_decision = "error"
+        emit_metric("question_hint_injection_total",
+                    creator_id=agent.creator_id, decision=_qh_decision)
+    else:
+        emit_metric("question_hint_injection_total",
+                    creator_id=agent.creator_id, decision="disabled")
 
     # ECHO Engine: Generate relational context (Sprint 4)
     relational_block = ""
