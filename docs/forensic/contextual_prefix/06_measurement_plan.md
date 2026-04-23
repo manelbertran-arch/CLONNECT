@@ -340,6 +340,39 @@ Esperado: 0 en estado estable. Cualquier aparición → config miscalibrada.
 
 ---
 
+## 8.7 Dependencia pre-merge: `scripts/bootstrap_tone_labels.py`
+
+Tras el refactor DB-driven de labels (commit `5ed16c99`), el prefix ya no contiene diccionario de traducciones. Los creators existentes (Iris, Stefano) **no tienen** `dialect_label` / `formality_label` poblados en `tone_profile.profile_data`. Sin un bootstrap, el prefix post-merge emite el literal crudo del enum `dialect` (p.ej. `"Habla catalan_mixed"`), lo cual es funcionalmente correcto (degradación grácil) pero pobre en calidad humana.
+
+**Script**: `backend/scripts/bootstrap_tone_labels.py` (incluido en este PR).
+
+**Ejecución post-merge** (orden sugerido):
+```bash
+railway run python3 scripts/bootstrap_tone_labels.py --dry-run   # preview
+railway run python3 scripts/bootstrap_tone_labels.py              # apply to all
+railway run python3 scripts/bootstrap_tone_labels.py --creator iris_bertran   # single
+```
+
+**Idempotencia**: si `dialect_label` ya está poblado y no vacío, el script skipea. `--force` permite sobrescribir (para corrección manual).
+
+**Mapping inicial** (editable en el script):
+```python
+"iris_bertran": {
+    "dialect_label": "en catalán y castellano coloquial",
+    "formality_label": "con tono cercano y desenfadado",
+},
+"stefano_bonanno": {
+    "dialect_label": "in italiano colloquiale",
+    "formality_label": "con tono professionale e diretto",
+},
+```
+
+**Efecto**: tras correr el script y llamar `POST /admin/contextual-prefix/invalidate/{creator_id}`, los próximos builds de prefix usan las etiquetas humanas. Los vectores ya indexados siguen con el prefix viejo hasta que se invoque `POST /admin/ingestion/refresh-content/{creator_id}`.
+
+**Si el script NO se ejecuta**: el sistema funciona (degradación grácil) pero Iris y Stefano reciben prefijos de calidad reducida. No afecta el eval Q2 (el eval compara con-prefix vs sin-prefix, ambos con la misma calidad del label).
+
+---
+
 ## 9. Preparación del PR — lo que sí deja este ciclo
 
 El PR actual (forensic/contextual-prefix-20260423) es **condición necesaria** para la medición Q2:

@@ -4,6 +4,57 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-23 — Contextual Prefix forensic (PR #83): Q2 debt registry
+
+Forensic audit of `core/contextual_prefix.py` landed in PR `forensic/contextual-prefix-20260423` (branch, not merged). Refactor removed hardcoding (8 env vars), extracted `_DIALECT_LABELS` / `_FORMALITY_LABELS` to DB-driven `tone_profile.dialect_label` + `tone_profile.formality_label` (zero hardcoded linguistic content in code). 8 of 10 bugs fixed; 2 deferred:
+
+### Debt item 1 — Bug 8: Spanish connectives hardcoded in prefix template (Q2 2026)
+
+- **Strings affected** (in `_build_prefix_from_db`):
+  - `"ofrece"` (L~158 after refactor, dominio join for specialties)
+  - `"en"` (L~170, location prefix)
+  - `"Habla"` (L~185, dialect prefix)
+  - `"Temas frecuentes:"` (L~210, FAQ fallback)
+- **Impact**: For creators whose dominant language is not Spanish (e.g. Stefano IT), the prefix structure says `"Stefano ofrece business coach en Milano. Habla italiano. con tono professionale e diretto."` — ES scaffolding + IT payload. Weakens retrieval per the Anthropic paper's recall benefit (multilingual mismatch debilitates embedding).
+- **Why deferred**: fixing this cleanly requires a template-per-language mechanism. Two valid approaches:
+  1. **Creator-provided template** — add `prefix_template` field to `tone_profile.profile_data` (fully DB-driven, same principle as `dialect_label`). E.g. `"{name} offers {specialties} in {location}. Speaks {dialect_label}. {formality_label}."`.
+  2. **Connectives mined from creator corpus** — extract common conjunctions from the creator's posts via vocab_meta analyzer; substitute. More complex, higher fidelity.
+- **Principle to apply** (Q2): no hardcoded ES connectives in code. Either (1) creator-provided template or (2) mined from corpus. Chose (1) for lower engineering cost at Q2.
+- **Tracked in**: `docs/forensic/contextual_prefix/03_bugs.md#bug-8`, `docs/forensic/contextual_prefix/05_optimization.md#8`, `docs/forensic/contextual_prefix/06_measurement_plan.md#10`.
+
+### Debt item 2 — Bug 9: BoundedTTLCache thread-safety (separate ticket)
+
+- **File**: `core/cache.py:193-253` — `BoundedTTLCache.get/set/pop/_evict` has no lock.
+- **Impact today**: zero — uvicorn single-worker + GIL + single event loop. Activating `--workers N` or adding a cleanup thread would expose the race.
+- **Scope**: out of `contextual_prefix` audit. Fix belongs to `core/cache.py` and affects every user of `BoundedTTLCache` (`_prefix_cache`, `_rag_cache`, `creator_data_loader` cache, etc.).
+- **Action**: open separate ticket when/if workers > 1 is considered. Not blocking.
+- **Tracked in**: `docs/forensic/contextual_prefix/03_bugs.md#bug-9`.
+
+### Debt item 3 — Bug 6 partial: automatic reindex on `knowledge_about` edit (Q2 2026)
+
+- **Current state post-PR #83**: `POST /admin/contextual-prefix/invalidate/{creator_id}` endpoint clears the in-process cache; admin must then manually invoke `POST /admin/ingestion/refresh-content/{creator_id}` to re-embed existing chunks with the fresh prefix.
+- **Risk**: vectors in `content_embeddings` remain hornados with stale prefix until refresh. Silent drift if admin forgets.
+- **Action Q2**:
+  1. Hook in `PUT /admin/creators/{id}/knowledge_about` that enqueues `refresh_creator_content`.
+  2. Column `prefix_version: int` in `content_embeddings` (requires alembic migration 040+) to track which prefix version a vector was embedded with.
+  3. Prometheus alert `% of vectors with outdated prefix_version > 5%`.
+- **Tracked in**: `docs/forensic/contextual_prefix/03_bugs.md#bug-6`, `docs/forensic/contextual_prefix/06_measurement_plan.md#8.3`.
+
+### Measurement: golden dataset RAG eval (Q2 2026, CEO-confirmed)
+
+- **Blocker for KEEP/REVERT gate decision on contextual_prefix**: no golden dataset exists for Iris or Stefano.
+- **CEO decision 2026-04-23**: do NOT build the golden dataset in this cycle. PR #83 leaves the system observable + ablatable (flag `ENABLE_CONTEXTUAL_PREFIX_EMBED`, 6 Prometheus metrics, structured logs) so Q2 can execute the eval without code change.
+- **Timeline estimated Q2**: ~6 weeks elapsed (2 weeks golden dataset per creator + 2 weeks harness + 2 weeks eval + writeup).
+- **Tracker state**: `contextual_prefix` remains in "no-optimizado-ON with refactor correctness fixes + fail-open observable". Does NOT move to "optimizado-ON" until post-eval KEEP gate passes.
+
+### Bootstrap required before PR #83 takes full effect
+
+- Script `scripts/bootstrap_tone_labels.py` populates `dialect_label` + `formality_label` for Iris + Stefano in `tone_profiles.profile_data`.
+- Without this script running post-merge, the prefix falls back to raw dialect literal (e.g., `"Habla catalan_mixed"` instead of `"Habla en catalán y castellano coloquial"`) — graceful degradation but loses human-readable signal quality.
+- Idempotent. Dry-run supported. Per-creator filter supported.
+
+---
+
 ## Sprint 5 Snapshot — 19-abr-2026
 
 Sprint completo al ~95%. Referencia rápida del estado EOD.
