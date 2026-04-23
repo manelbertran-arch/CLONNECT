@@ -5,6 +5,27 @@ See `rules/common/decisions.md` for the logging format and rules.
 
 ---
 
+## 2026-04-23 — Fix Few-Shot k=1 metric & Commitment Tracker creator_id forwarding
+**Chosen:** Two minimal-diff fixes in a single PR (`fix/fewshot-k5-commitment-creator-lookup` → main, no merge):
+  1. `backend/core/dm/phases/context.py:1386` — replace `few_shot_section.count("\n- ") or 1` with a counter that matches the actual formatter output (`count("Follower: ")`). Pure observability fix; no change to prompt content.
+  2. `backend/services/commitment_tracker.py:265` — add `creator_id=creator_id` to `detect_commitments_regex(...)` call inside `CommitmentTrackerService.detect_and_store`. Real behavioural fix: production was always falling back to hardcoded patterns instead of vocab_meta-mined ones.
+**Context:** CCEE composite v5 dropped −2.5 pts after sprint top-6 activation (commit 4c21d5a9). Prometheus showed `few_shot_examples_count avg=1.0` (expected k=5) and `commitment_tracker_patterns_source{creator_id="unknown",source="hardcoded_fallback"}=44`.
+  - BUG #1 root cause: counter pattern (`"\n- "`) drifted from `get_few_shot_section` output (which uses `"Follower: " / "Tu: "` lines, no bullets); existing test `test_few_shot_flag_on_with_section_emits_injected` mocked the section text so the drift was never caught. Actual injection of 5 examples works (`_select_stratified` is correct); only the counter is wrong. CCEE drop is likely NOT from few-shot k=1 — that was a measurement artifact.
+  - BUG #2 root cause: `detect_and_store` receives `creator_id` and forwards everything else but omits it on the regex call; `_load_creator_patterns(None)` short-circuits to fallback. This IS a real behavioural defect that changes which patterns detect commitments.
+**Alternatives considered:**
+  - Bundle a fix for `_select_stratified` "just in case" — rejected; selector is correct, no defect found.
+  - Add structural counting helper inside `get_few_shot_section` and return (text, count) — rejected; widens public interface, two callers would need update; minimal-diff principle (CLAUDE.md) prefers in-place counter fix.
+  - Resolve `creator_id` inside `detect_commitments_regex` from a thread-local context — rejected; adds hidden state; explicit param-passing matches the rest of the codebase.
+**Why:** Both fixes are 1-line, preserve public interface, restore intended behaviour, and unblock honest measurement of the next CCEE run. Bundling them in one PR is justified — same activation commit (4c21d5a9), same forensic file (`docs/sprint_top6/forensic_ligero_commitment_tracker.md`), same regression window.
+**Trade-offs:**
+  - Pros: Restores correct vocab_meta pattern usage for iris_bertran (11 commitment + 7 temporal patterns); makes the few-shot histogram trustworthy; preserves the existing test surface (only adds new tests, fixes the misleading mock-based one).
+  - Cons: BUG #1 fix has zero behavioural impact, so the CCEE drop must be re-investigated (likely root cause = commitment-tracker fallback or one of the other 4 sprint-top-6 systems).
+**Follow-up after merge:**
+  - Re-run CCEE composite v5 on iris_bertran and compare against the 4c21d5a9 baseline.
+  - If composite still down >1pt, investigate the other 4 sprint-top-6 activations (DNA auto-create limiter, quick-decide trio).
+
+---
+
 ## 2026-04-23 — CI provisional unblock (C3+ variant)
 **Chosen:** `git rm -r backend/backend/` (orphan duplicate dir) + `backend/pytest.ini: testpaths = backend/tests → tests` + remove 10 stale test files with module-level ImportError/AssertionError + `continue-on-error: true` on jobs `test-backend` (ci.yml), `backend-test` (test.yml), `lint` (ci.yml), **and `contract-tests` (test.yml) — follow-up hotfix**: conftest.py imports `fastapi` which is not in the contract-tests minimal install; testpaths change exposed it; same root cause, same treatment until CI redesign.
 **Context:** Last 10+ commits on main fail CI. Root cause: pytest ran only the orphan `backend/backend/tests/` dir (~16 tests with stale imports). Fixing `testpaths` exposes **5278 tests** discoverable (0 collection errors after 10 stale files removed) that have not run in CI for months and require infrastructure absent from CI (PostgreSQL with seed data, real API keys, fixtures, Cloudinary, Redis). Running them now would cascade into tens/hundreds of runtime failures blocking the 6-PR forensic consolidation for days.

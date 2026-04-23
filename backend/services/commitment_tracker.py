@@ -262,7 +262,9 @@ class CommitmentTrackerService:
         if not ENABLE_COMMITMENT_TRACKING:
             return []
 
-        detected = detect_commitments_regex(response_text, sender="assistant")
+        detected = detect_commitments_regex(
+            response_text, sender="assistant", creator_id=creator_id
+        )
         if not detected:
             return []
 
