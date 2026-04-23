@@ -399,3 +399,35 @@ async def get_content_refresh_status(admin: str = Depends(require_admin)):
         "max_posts_per_creator": int(os.getenv("CONTENT_REFRESH_MAX_POSTS", "20")),
         "initial_delay_seconds": int(os.getenv("CONTENT_REFRESH_INITIAL_DELAY", "120")),
     }
+
+
+@router.post("/contextual-prefix/invalidate/{creator_id}")
+async def invalidate_contextual_prefix_cache(
+    creator_id: str,
+    admin: str = Depends(require_admin),
+):
+    """
+    Invalidate the in-process contextual prefix cache for a creator.
+
+    Use after editing creators.knowledge_about so the next build sees fresh
+    data (default TTL is 300s). Does NOT reindex already-stored vectors in
+    content_embeddings — run POST /admin/ingestion/refresh-content for that.
+    """
+    from core.contextual_prefix import invalidate_cache
+
+    removed = invalidate_cache(creator_id)
+    return {
+        "status": "ok",
+        "creator_id": creator_id,
+        "entries_removed": removed,
+        "note": "Vectors already stored in content_embeddings are unchanged. "
+                "Use /admin/ingestion/refresh-content to rebuild embeddings.",
+    }
+
+
+@router.get("/contextual-prefix/config")
+async def get_contextual_prefix_config(admin: str = Depends(require_admin)):
+    """Return the current contextual_prefix configuration snapshot."""
+    from core.config import contextual_prefix_config
+
+    return contextual_prefix_config.snapshot()

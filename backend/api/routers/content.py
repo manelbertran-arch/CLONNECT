@@ -418,6 +418,7 @@ async def generate_embeddings_for_existing(creator_id: str, batch_size: int = 10
             # Process in batches
             generated = 0
             failed = 0
+            skipped_mismatch = 0
 
             for i in range(0, len(chunks_without_embeddings), batch_size):
                 batch = chunks_without_embeddings[i : i + batch_size]
@@ -426,8 +427,17 @@ async def generate_embeddings_for_existing(creator_id: str, batch_size: int = 10
                 # Generate embeddings in batch (with contextual prefix per Anthropic paper)
                 embeddings = generate_embeddings_batch_with_context(texts, creator_id)
 
-                # Store each embedding
+                # Store each embedding — Bug 1 fix: ensure row.creator_id matches the
+                # creator_id used to build the prefix. Prevents cross-creator vector
+                # contamination if the SQL filter is ever loosened in the future.
                 for j, (row, embedding) in enumerate(zip(batch, embeddings)):
+                    if row.creator_id != creator_id:
+                        logger.error(
+                            "[EMBED] creator_id mismatch chunk_id=%s row=%s request=%s — skipping",
+                            row.chunk_id, row.creator_id, creator_id,
+                        )
+                        skipped_mismatch += 1
+                        continue
                     if embedding:
                         if store_embedding(row.chunk_id, row.creator_id, row.content, embedding):
                             generated += 1
@@ -436,12 +446,16 @@ async def generate_embeddings_for_existing(creator_id: str, batch_size: int = 10
                     else:
                         failed += 1
 
-            logger.info(f"Generated {generated} embeddings for {creator_id} ({failed} failed)")
+            logger.info(
+                "Generated %d embeddings for %s (%d failed, %d skipped mismatch)",
+                generated, creator_id, failed, skipped_mismatch,
+            )
 
             return {
                 "status": "ok",
                 "generated": generated,
                 "failed": failed,
+                "skipped_mismatch": skipped_mismatch,
                 "total_processed": len(chunks_without_embeddings),
                 "creator_id": creator_id,
             }

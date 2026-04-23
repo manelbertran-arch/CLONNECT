@@ -1,160 +1,233 @@
 """
 Universal Contextual Prefix for RAG Chunk Embedding.
 
-Implements the Anthropic "Contextual Retrieval" pattern (+49% retrieval quality):
-Prepend a short creator-context summary to each chunk BEFORE embedding so the
-vector captures "who + domain + location + language" alongside the content.
+Implements the Anthropic "Contextual Retrieval" pattern (reported +35-49% recall@20
+on Anthropic's internal corpora): prepend a short creator-context summary to each
+chunk BEFORE embedding so the vector captures "who + domain + location + language"
+alongside the content. The prefix is auto-generated from the creator's DB profile.
 
-The prefix is auto-generated from the creator's DB profile, NOT hardcoded.
+Asymmetry — IMPORTANT:
+    The prefix is prepended to DOCUMENT embeddings only. Search QUERIES must NOT
+    be prefixed, or the query space gets biased toward the creator context and
+    cosine similarity becomes distorted. SemanticRAG._semantic_search obeys this
+    invariant (verified by tests/test_contextual_prefix.py).
+
+Configuration (env vars, see core/config/contextual_prefix_config.py):
+    ENABLE_CONTEXTUAL_PREFIX_EMBED=true    master switch (ablation requires reindex)
+    CONTEXTUAL_PREFIX_CACHE_SIZE=50
+    CONTEXTUAL_PREFIX_CACHE_TTL=300
+    CONTEXTUAL_PREFIX_CAP_CHARS=500
+    CONTEXTUAL_PREFIX_MAX_SPECIALTIES=3
+    CONTEXTUAL_PREFIX_MAX_PRODUCTS=5
+    CONTEXTUAL_PREFIX_MAX_FAQS=3
+    CONTEXTUAL_PREFIX_MIN_BIO_LEN=10
+
+Observability (Prometheus, via core.observability.metrics.emit_metric):
+    contextual_prefix_builds_total{creator_id, source, has_prefix}
+    contextual_prefix_cache_hits_total{creator_id}
+    contextual_prefix_cache_misses_total{creator_id}
+    contextual_prefix_errors_total{creator_id, error_class}
+    contextual_prefix_length_chars{creator_id} (histogram)
+    contextual_prefix_truncations_total{creator_id}
 
 Usage:
     from core.contextual_prefix import build_contextual_prefix, generate_embedding_with_context
 
-    # Build prefix for any creator
     prefix = build_contextual_prefix("iris_bertran")
-    # → "Iris Bertran es instructora de fitness en Barcelona. Habla castellano/catalán.\n\n"
+    # -> "Iris (@iraais5) ofrece ... en Barcelona. Habla castellano y catalán.\n\n"
 
-    # Embed with context (for document embeddings only, NOT search queries)
     embedding = generate_embedding_with_context("Barre costs 5€", "iris_bertran")
 """
+
+from __future__ import annotations
 
 import logging
 from typing import List, Optional
 
+from core.cache import BoundedTTLCache
+from core.config import contextual_prefix_config as _cfg
+
 logger = logging.getLogger(__name__)
 
-# Cache prefix strings per creator to avoid repeated DB lookups + string building.
-# Relies on get_creator_data()'s own 5-min cache underneath.
-from core.cache import BoundedTTLCache
 
-_prefix_cache: BoundedTTLCache = BoundedTTLCache(max_size=50, ttl_seconds=300)
+_prefix_cache: BoundedTTLCache = BoundedTTLCache(
+    max_size=_cfg.CACHE_SIZE,
+    ttl_seconds=_cfg.CACHE_TTL_SECONDS,
+)
+
+
+def _emit(metric: str, value: float = 1, **labels) -> None:
+    """Fire-and-forget metric emission. Never raises — observability must not break indexing."""
+    try:
+        from core.observability.metrics import emit_metric
+        emit_metric(metric, value, **labels)
+    except Exception:  # pragma: no cover
+        pass
+
+
+def _truncate_at_word_boundary(text: str, cap_chars: int) -> str:
+    """Truncate to <= cap_chars, preferring last space to avoid mid-word cuts.
+
+    Always appends ".\n\n". Leaves room (3 chars) for the terminator.
+    """
+    budget = cap_chars - 3
+    if len(text) <= budget:
+        return text + ".\n\n"
+    truncated = text[:budget]
+    last_space = truncated.rfind(" ")
+    if last_space >= int(budget * 0.6):
+        truncated = truncated[:last_space]
+    return truncated + ".\n\n"
 
 
 def build_contextual_prefix(creator_id: str) -> str:
     """Auto-generate a contextual prefix for RAG chunk embedding.
 
-    Loads creator profile from DB and composes a 1-3 sentence summary of:
-    - Creator name and handle
-    - Domain/specialties
-    - Location
-    - Language/dialect
+    Loads creator profile from DB and composes 1-3 sentences about:
+    name + handle, domain/specialties, location, language/dialect, formality.
 
-    Returns "" if creator not found or data insufficient.
+    Returns "" if disabled by flag, creator not found, or any build error.
     """
+    if not _cfg.ENABLE_CONTEXTUAL_PREFIX_EMBED:
+        return ""
+
     cached = _prefix_cache.get(creator_id)
     if cached is not None:
+        _emit("contextual_prefix_cache_hits_total", creator_id=creator_id)
         return cached
 
-    prefix = _build_prefix_from_db(creator_id)
+    _emit("contextual_prefix_cache_misses_total", creator_id=creator_id)
+    prefix, source = _build_prefix_from_db(creator_id)
     _prefix_cache.set(creator_id, prefix)
+
+    _emit(
+        "contextual_prefix_builds_total",
+        creator_id=creator_id,
+        source=source,
+        has_prefix=str(bool(prefix)).lower(),
+    )
+    if prefix:
+        _emit("contextual_prefix_length_chars", value=len(prefix), creator_id=creator_id)
     return prefix
 
 
-def _build_prefix_from_db(creator_id: str) -> str:
-    """Build prefix from DB data. Returns "" on any failure.
+def invalidate_cache(creator_id: Optional[str] = None) -> int:
+    """Invalidate prefix cache for a single creator or all.
 
-    Uses multiple fallback sources when knowledge_about is sparse:
-    1. knowledge_about.specialties (best source)
-    2. knowledge_about.bio first sentence
-    3. Product names → inferred domain (universal fallback)
+    Returns number of entries removed. Safe to call from admin endpoints after
+    editing `knowledge_about` so the next build picks up fresh data within the
+    next TTL window (does NOT reindex existing vectors — that requires a
+    separate content_refresh job).
     """
+    if creator_id is None:
+        size = len(_prefix_cache)
+        _prefix_cache.clear()
+        return size
+    if creator_id in _prefix_cache:
+        _prefix_cache.pop(creator_id)
+        return 1
+    return 0
+
+
+def _build_prefix_from_db(creator_id: str) -> tuple[str, str]:
+    """Build prefix + winning source tag. Returns ("", PREFIX_SOURCE_EMPTY) on failure."""
     try:
         from core.creator_data_loader import get_creator_data as _get_creator_data
 
         data = _get_creator_data(creator_id, use_cache=True)
-        if not data or not data.profile or not data.profile.name:
-            return ""
+        if not data or not data.profile.name:
+            return "", _cfg.PREFIX_SOURCE_EMPTY
 
-        parts = []
+        parts: List[str] = []
+        source = _cfg.PREFIX_SOURCE_NAME_ONLY
 
-        # Part 1: Name + specialties
         name = data.profile.clone_name or data.profile.name
         ka = data.profile.knowledge_about or {}
 
-        # Try to get specialties/domain from knowledge_about
-        specialties = ka.get("specialties", [])
-        bio = ka.get("bio", "")
-        ig_handle = ka.get("instagram_username", "")
+        specialties = ka.get("specialties") or []
+        if not isinstance(specialties, list):
+            specialties = [str(specialties)]
+        bio = ka.get("bio") or ""
+        ig_handle = ka.get("instagram_username") or ""
 
-        # Fallback: derive specialties from product names when knowledge_about is sparse
+        # Fallback: derive domain from product names when knowledge_about is sparse
+        used_products_fallback = False
         if not specialties and not bio and data.products:
-            product_names = [p.name for p in data.products[:5] if p.name]
+            product_names = [p.name for p in data.products[: _cfg.MAX_PRODUCTS] if p.name]
             if product_names:
                 specialties = product_names
+                used_products_fallback = True
 
         name_part = name
         if ig_handle:
             name_part = f"{name} (@{ig_handle.lstrip('@')})"
 
         if specialties:
-            if isinstance(specialties, list):
-                spec_str = ", ".join(specialties[:3])
-            else:
-                spec_str = str(specialties)
+            spec_str = ", ".join(str(s) for s in specialties[: _cfg.MAX_SPECIALTIES])
             parts.append(f"{name_part} ofrece {spec_str}")
+            source = _cfg.PREFIX_SOURCE_PRODUCTS if used_products_fallback else _cfg.PREFIX_SOURCE_SPECIALTIES
         elif bio:
-            # Use first sentence of bio as fallback
             first_sentence = bio.split(".")[0].strip()
-            if first_sentence and len(first_sentence) > 10:
+            if first_sentence and len(first_sentence) > _cfg.MIN_BIO_LEN:
                 parts.append(f"{name_part}: {first_sentence}")
+                source = _cfg.PREFIX_SOURCE_BIO
             else:
                 parts.append(name_part)
         else:
             parts.append(name_part)
 
-        # Part 2: Location
-        location = ka.get("location", "")
+        location = ka.get("location") or ""
         if location:
             parts[-1] += f" en {location}"
 
-        # Part 3: Language/dialect
-        dialect = data.tone_profile.dialect if data.tone_profile else "neutral"
-        if dialect and dialect != "neutral":
-            _DIALECT_LABELS = {
-                "rioplatense": "español rioplatense",
-                "mexican": "español mexicano",
-                "catalan": "castellano y catalán",
-                "catalan_mixed": "castellano y catalán mezclados",
-                "italian": "italiano",
-                "english": "inglés",
-                "formal_spanish": "español formal",
-            }
-            lang_label = _DIALECT_LABELS.get(dialect, dialect)
-            parts.append(f"Habla {lang_label}")
+        # Language/dialect: prefer the creator-provided human-readable label
+        # (tone_profile.dialect_label) over the raw enum tag. If the creator
+        # has not populated the label, we fall back to the raw dialect literal —
+        # no hardcoded translation dict lives in code.
+        tp = data.tone_profile
+        dialect = tp.dialect if tp else "neutral"
+        dialect_label = (tp.dialect_label if tp else "") or ""
+        if dialect_label:
+            parts.append(f"Habla {dialect_label}")
+        elif dialect and dialect != "neutral":
+            parts.append(f"Habla {dialect}")
 
-        # Part 4: Formality/style hint
-        formality = data.tone_profile.formality if data.tone_profile else "informal"
-        if formality == "formal":
-            parts.append("Estilo formal y profesional")
-        elif formality == "casual":
-            parts.append("Estilo muy informal y cercano")
+        # Formality: same DB-first pattern. Raw formality tag is an internal
+        # enum ('informal'/'formal'/'mixed'/'casual') — only emit if the
+        # creator has provided a human-readable formality_label.
+        formality_label = (tp.formality_label if tp else "") or ""
+        if formality_label:
+            parts.append(formality_label)
 
-        # Part 5: FAQ domain hint (when no specialties/bio available)
-        if len(parts) == 1 and data.faqs:
-            # Only name so far — add FAQ topic hint
-            faq_sample = [f.question for f in data.faqs[:3] if f.question]
+        if source == _cfg.PREFIX_SOURCE_NAME_ONLY and data.faqs:
+            faq_sample = [f.question for f in data.faqs[: _cfg.MAX_FAQS] if f.question]
             if faq_sample:
                 topics = "; ".join(faq_sample)
                 parts.append(f"Temas frecuentes: {topics}")
+                source = _cfg.PREFIX_SOURCE_FAQ
 
         if not parts:
-            return ""
+            return "", _cfg.PREFIX_SOURCE_EMPTY
 
-        prefix = ". ".join(parts) + ".\n\n"
-
-        # Cap at 500 chars to avoid eating too much embedding capacity
-        if len(prefix) > 500:
-            prefix = prefix[:497] + ".\n\n"
+        raw = ". ".join(parts)
+        prefix = _truncate_at_word_boundary(raw, _cfg.CAP_CHARS)
+        if len(raw) + 3 > _cfg.CAP_CHARS:
+            _emit("contextual_prefix_truncations_total", creator_id=creator_id)
 
         logger.info(
-            "[CONTEXTUAL-PREFIX] Built prefix for %s: %d chars",
-            creator_id, len(prefix),
+            "[CONTEXTUAL-PREFIX] built creator=%s source=%s len=%d",
+            creator_id, source, len(prefix),
         )
-        return prefix
+        return prefix, source
 
     except Exception as e:
-        logger.warning("[CONTEXTUAL-PREFIX] Failed to build for %s: %s", creator_id, e)
-        return ""
+        err_class = type(e).__name__
+        logger.warning(
+            "[CONTEXTUAL-PREFIX] failed creator=%s error_class=%s msg=%s",
+            creator_id, err_class, e,
+        )
+        _emit("contextual_prefix_errors_total", creator_id=creator_id, error_class=err_class)
+        return "", _cfg.PREFIX_SOURCE_EMPTY
 
 
 def generate_embedding_with_context(
@@ -168,7 +241,7 @@ def generate_embedding_with_context(
     from core.embeddings import generate_embedding
 
     prefix = build_contextual_prefix(creator_id)
-    return generate_embedding(prefix + text)
+    return generate_embedding(prefix + text if prefix else text)
 
 
 def generate_embeddings_batch_with_context(
@@ -178,5 +251,8 @@ def generate_embeddings_batch_with_context(
     from core.embeddings import generate_embeddings_batch
 
     prefix = build_contextual_prefix(creator_id)
-    prefixed_texts = [prefix + t for t in texts]
-    return generate_embeddings_batch(prefixed_texts)
+    if prefix:
+        prefixed = [prefix + t for t in texts]
+    else:
+        prefixed = list(texts)
+    return generate_embeddings_batch(prefixed)

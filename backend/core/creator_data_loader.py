@@ -189,7 +189,9 @@ class ToneProfileInfo:
     """Creator's tone/personality profile for LLM context."""
 
     dialect: str = "neutral"  # neutral, rioplatense, mexican, etc.
+    dialect_label: str = ""  # optional human-readable label (creator-provided)
     formality: str = "informal"  # formal, informal, mixed
+    formality_label: str = ""  # optional human-readable label (creator-provided)
     energy: str = "medium"  # low, medium, high
     humor: bool = False
     emojis: str = "moderate"  # none, minimal, moderate, heavy
@@ -208,7 +210,9 @@ class ToneProfileInfo:
 
         return cls(
             dialect=data.get("dialect", "neutral"),
+            dialect_label=data.get("dialect_label", "") or "",
             formality=data.get("formality", "informal"),
+            formality_label=data.get("formality_label", "") or "",
             energy=data.get("energy", "medium"),
             humor=bool(data.get("humor", False)),
             emojis=data.get("emojis", "moderate"),

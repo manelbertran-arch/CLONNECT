@@ -95,13 +95,22 @@ class SemanticRAG:
             self._doc_list.append(doc_id)
 
         # Generate and store embedding if OpenAI available
-        # Uses contextual prefix (Anthropic Contextual Retrieval: +49% quality)
+        # Uses contextual prefix (Anthropic Contextual Retrieval).
+        # Bug 2 fix: refuse to index a document without a real creator_id —
+        # previously fell back to creator_id="unknown" and created orphan
+        # rows in content_embeddings that nobody could ever retrieve.
         if self._check_embeddings_available():
+            creator_id = metadata.get("creator_id") if metadata else None
+            if not creator_id or creator_id == "unknown":
+                logger.error(
+                    "[RAG] add_document called without creator_id, refusing to embed doc_id=%s",
+                    doc_id,
+                )
+                return
             try:
                 from core.contextual_prefix import generate_embedding_with_context
                 from core.embeddings import store_embedding
 
-                creator_id = metadata.get("creator_id", "unknown") if metadata else "unknown"
                 embedding = generate_embedding_with_context(text, creator_id)
                 if embedding:
                     store_embedding(doc_id, creator_id, text, embedding)
