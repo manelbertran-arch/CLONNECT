@@ -53,6 +53,7 @@ class FeatureFlags:
     message_splitting: bool = field(default_factory=lambda: _flag("ENABLE_MESSAGE_SPLITTING", True))
     question_removal: bool = field(default_factory=lambda: _flag("ENABLE_QUESTION_REMOVAL", True))
     vocabulary_extraction: bool = field(default_factory=lambda: _flag("ENABLE_VOCABULARY_EXTRACTION", True))
+    dm_strategy_hint: bool = field(default_factory=lambda: _flag("ENABLE_DM_STRATEGY_HINT", True))
 
     # === ARC4 — Per-mutation kill switches (default: False = mutation ACTIVE) ===
     # Set to True to disable a specific post-generation mutation for shadow testing.
