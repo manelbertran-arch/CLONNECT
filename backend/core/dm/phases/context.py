@@ -64,6 +64,17 @@ _SELL_RESOLVER = SalesIntentResolver()
 _NO_PRODUCT_DIRECTIVES = frozenset({SellDirective.NO_SELL, SellDirective.REDIRECT})
 
 
+def _count_few_shot_examples(section: str) -> int:
+    """Count examples rendered by ``calibration_loader.get_few_shot_section``.
+
+    The formatter emits one ``Follower: `` line per example. An earlier
+    counter searched for ``"\\n- "`` bullets — a format the loader has never
+    produced — so the histogram always observed 1. Keep production and tests
+    routed through this helper to prevent the drift from recurring.
+    """
+    return section.count("Follower: ")
+
+
 def _build_recalling_block(
     username: str,
     relational: str,
@@ -1382,8 +1393,7 @@ async def phase_memory_and_context(
             if detected_lang:
                 cognitive_metadata["detected_language"] = detected_lang
             if few_shot_section:
-                # Each example is a bullet prefixed with "\n- " after the header.
-                _fs_examples_found = few_shot_section.count("\n- ") or 1
+                _fs_examples_found = _count_few_shot_examples(few_shot_section)
                 _fs_outcome = "injected"
         except Exception as e:
             logger.debug(f"Few-shot loading failed: {e}")
