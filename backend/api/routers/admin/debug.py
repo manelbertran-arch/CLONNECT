@@ -81,8 +81,8 @@ async def debug_memory(admin: str = Depends(require_admin)):
         caches["index_cache"] = str(e)
 
     try:
-        from core.tone_profile_db import _tone_cache
-        caches["tone_cache"] = _tone_cache.stats()
+        from core.data.tone_profile_repo import get_tone_cache_stats
+        caches["tone_cache"] = get_tone_cache_stats()
     except Exception as e:
         caches["tone_cache"] = str(e)
 
