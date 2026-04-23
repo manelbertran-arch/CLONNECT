@@ -244,3 +244,51 @@ def test_no_detect_truncation_heuristic():
     import core.dm.phases.generation as gen_module
     assert not hasattr(gen_module, "_detect_truncation"), \
         "_detect_truncation should have been removed (content heuristic violates zero hardcoding)"
+
+
+# ── Prometheus metrics ────────────────────────────────────────────────────────
+
+def test_prometheus_counter_increments_on_valid_analytics():
+    """context_tokens_total counter increments when analytics returns tokens."""
+    import core.dm.context_analytics as mod
+    from importlib import reload
+    reload(mod)
+
+    if not mod._PROMETHEUS_AVAILABLE:
+        pytest.skip("prometheus_client not available")
+
+    before = mod._CONTEXT_TOKENS_TOTAL._value.get()
+    mod.analyze_token_distribution(
+        section_sizes={"style": 400, "rag": 800},
+        system_prompt="x" * 1200,
+        history_messages=[{"role": "user", "content": "hi"}],
+        model_context_window=32768,
+    )
+    after = mod._CONTEXT_TOKENS_TOTAL._value.get()
+    assert after > before, "context_tokens_total should have incremented"
+
+
+def test_prometheus_warning_counter_increments():
+    """context_health_warnings_total{level=warning} increments on a warning event."""
+    import core.dm.context_analytics as mod
+    from importlib import reload
+    reload(mod)
+
+    if not mod._PROMETHEUS_AVAILABLE:
+        pytest.skip("prometheus_client not available")
+
+    before = mod._CONTEXT_HEALTH_WARNINGS_TOTAL.labels(level="warning")._value.get()
+    analytics = {
+        "total_tokens": 27000,
+        "context_window": 32768,
+        "usage_ratio": 0.83,
+        "largest_section": "rag",
+        "largest_section_pct": 30.0,
+        "over_section_threshold": False,
+        "sections": {},
+        "history_tokens": 5000,
+        "history_pct_of_total": 18.0,
+    }
+    mod.check_context_health(analytics)
+    after = mod._CONTEXT_HEALTH_WARNINGS_TOTAL.labels(level="warning")._value.get()
+    assert after > before, "context_health_warnings_total{level=warning} should have incremented"

@@ -355,7 +355,7 @@ async def phase_llm_generation(
             else:
                 logger.info("[ContextHealth] INFO: %s", _w["message"])
     except Exception as _analytics_err:
-        logger.debug("[TokenAnalytics] Skipped: %s", _analytics_err)
+        logger.warning("[TokenAnalytics] Skipped: %s", _analytics_err)
 
     # G5: Cache boundary prefix metrics (Sprint 4)
     _cache_prefix = cognitive_metadata.get("cache_prefix_chars", 0)

@@ -23,7 +23,31 @@ SECTION_WARNING_THRESHOLD = float(os.getenv("SECTION_WARNING_THRESHOLD", "0.40")
 DEFAULT_MODEL_CONTEXT_WINDOW = int(os.getenv("MODEL_CONTEXT_WINDOW", "32768"))
 
 # chars → tokens rough estimate (same formula used elsewhere in the pipeline)
-_CHARS_PER_TOKEN = 4
+_CHARS_PER_TOKEN = int(os.getenv("CONTEXT_CHARS_PER_TOKEN", "4"))
+
+# ── Prometheus metrics (optional — graceful no-op if prometheus_client absent) ─
+try:
+    from prometheus_client import Counter, REGISTRY as _REGISTRY
+
+    def _get_or_create_counter(name: str, doc: str, labelnames: list | None = None) -> Counter:
+        # Registry stores collectors by base name (strips _total suffix for Counters)
+        base = name[:-6] if name.endswith("_total") else name
+        if base in _REGISTRY._names_to_collectors:
+            return _REGISTRY._names_to_collectors[base]
+        return Counter(name, doc, labelnames or [], registry=_REGISTRY)
+
+    _CONTEXT_TOKENS_TOTAL = _get_or_create_counter(
+        "context_tokens_total",
+        "Cumulative estimated tokens measured by context_analytics",
+    )
+    _CONTEXT_HEALTH_WARNINGS_TOTAL = _get_or_create_counter(
+        "context_health_warnings_total",
+        "Number of context health warnings emitted",
+        ["level"],
+    )
+    _PROMETHEUS_AVAILABLE = True
+except Exception:
+    _PROMETHEUS_AVAILABLE = False
 
 
 def _chars_to_tokens(chars: int) -> int:
@@ -135,10 +159,13 @@ def analyze_token_distribution(
             largest_pct,
         )
 
+        if _PROMETHEUS_AVAILABLE and total_tokens > 0:
+            _CONTEXT_TOKENS_TOTAL.inc(total_tokens)
+
         return analytics
 
     except Exception as exc:
-        logger.debug("[TokenAnalytics] analyze_token_distribution failed: %s", exc)
+        logger.warning("[TokenAnalytics] analyze_token_distribution failed: %s", exc)
         return {}
 
 
@@ -208,5 +235,9 @@ def check_context_health(analytics: dict) -> list:
                 "section": over[0].split("(")[0] if over else None,
                 "tokens_involved": int(total * SECTION_WARNING_THRESHOLD),
             })
+
+    if _PROMETHEUS_AVAILABLE:
+        for w in warnings:
+            _CONTEXT_HEALTH_WARNINGS_TOTAL.labels(level=w["level"]).inc()
 
     return warnings
