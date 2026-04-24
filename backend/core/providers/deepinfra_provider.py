@@ -46,7 +46,7 @@ def strip_thinking_artifacts(text: str) -> str:
     return text.strip()
 
 
-DEEPINFRA_BASE_URL = "https://api.deepinfra.com/v1/openai"
+DEEPINFRA_BASE_URL = os.getenv("DEEPINFRA_BASE_URL", "https://api.deepinfra.com/v1/openai")
 DEEPINFRA_MODEL = os.getenv("DEEPINFRA_MODEL", "Qwen/Qwen3-32B")
 
 # Circuit breaker — same pattern as Gemini
