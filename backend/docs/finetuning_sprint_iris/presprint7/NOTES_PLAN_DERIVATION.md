@@ -302,4 +302,22 @@ Cosine similarity > 0.85 con MiniLM produce 33% false positives en texto corto C
 
 ---
 
+## Verificación Post-Opus (2026-04-25)
+
+Sesión Sonnet verificó 5 divergencias entre plan y memoria usuario.
+
+| # | Divergencia | Veredicto | Comando evidencia |
+|---|---|---|---|
+| D1 | Distribución adversarial | Plan correcto | grep TYPE 03_adversarial_examples.md |
+| D2 | CCEE Full cases | **Plan incorrecto** | grep --cases 03_ccee_measurement.sh |
+| D3 | Modal hardware | Plan correcto | sed -n '40,50p' train_modal.py |
+| D4 | Gaps J6/J5/B2 | Plan correcto | sed -n '130,145p' INTEGRATION_LOG.md |
+| D5 | Pattern count | Plan correcto | grep "### Patrón" INTEGRATION_LOG.md |
+
+**Acción aplicada:** Patch v1.1 corrige D2. Otras 4 sin cambios.
+
+**Lección metodológica:** Worker Opus generó "95+ cases, $4-5" sin cita verificable. Future workers must cite source line, not infer.
+
+---
+
 _Fin de NOTES_PLAN_DERIVATION.md_
