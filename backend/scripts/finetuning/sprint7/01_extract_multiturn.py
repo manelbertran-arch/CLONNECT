@@ -42,6 +42,7 @@ def fetch_messages(engine):
           AND m.deleted_at IS NULL
           AND m.content IS NOT NULL
           AND m.content != ''
+          AND m.status IN ('sent', 'resolved_externally')
         ORDER BY m.lead_id, m.created_at
     """)
     with engine.connect() as conn:
