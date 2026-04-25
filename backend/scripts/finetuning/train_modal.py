@@ -122,13 +122,27 @@ def train(smoke: bool = False):
 
     dataset = standardize_data_formats(dataset)
 
+    # Opción C (Session 6): prepend CHANNEL_PREFIX to each assistant turn so it appears
+    # in training text. With enable_thinking=False the template only adds the prefix in
+    # inference (add_generation_prompt=True), NOT in training. Without this, every
+    # label is -100 because train_on_responses_only can't find response_part.
+    CHANNEL_PREFIX = "<|channel>thought\n<channel|>"
+
     def formatting_prompts_func(examples):
         convos = examples["conversations"] if "conversations" in examples else examples["messages"]
+        aligned_convos = []
+        for convo in convos:
+            aligned = []
+            for turn in convo:
+                if turn.get("role") in ("assistant", "model"):
+                    turn = {**turn, "content": CHANNEL_PREFIX + turn["content"]}
+                aligned.append(turn)
+            aligned_convos.append(aligned)
         texts = [
             tokenizer.apply_chat_template(
                 convo, tokenize=False, add_generation_prompt=False, enable_thinking=False
             ).removeprefix("<bos>")
-            for convo in convos
+            for convo in aligned_convos
         ]
         return {"text": texts}
 
