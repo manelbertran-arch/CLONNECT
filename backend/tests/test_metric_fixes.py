@@ -353,3 +353,83 @@ class TestC3StyleNote:
         # Prompt should reference "creator" style, not just generic context
         prompt_lower = captured["prompt"].lower()
         assert "creator" in prompt_lower or "style" in prompt_lower
+
+
+# ---------------------------------------------------------------------------
+# Fix A2: J6 logging — per_pair and per_probe must include response texts
+# ---------------------------------------------------------------------------
+
+class TestJ6LoggingFix:
+    """J6 per_pair (within-conv) and per_probe (cross-session) must include
+    probe question text and bot response texts so CCEE JSON is self-diagnostic.
+    """
+
+    def _make_probe_history(self):
+        """Two probe turns with the same probe_id at turn 0 and turn 4."""
+        return [
+            {"role": "user",      "content": "What is your favourite food?",
+             "is_qa_probe": True, "probe_id": "p1"},
+            {"role": "assistant", "content": "I love sushi!"},
+            {"role": "user",      "content": "Tell me about your day."},
+            {"role": "assistant", "content": "It was great."},
+            {"role": "user",      "content": "What is your favourite food?",
+             "is_qa_probe": True, "probe_id": "p1"},
+            {"role": "assistant", "content": "Sushi is definitely my favourite."},
+        ]
+
+    def test_per_pair_includes_probe_question_text(self):
+        import core.evaluation.multi_turn_scorer as scorer
+        conv = {"history": self._make_probe_history()}
+        mock_raw = "Feedback: consistent [RESULT] 5"
+        with patch.object(scorer, "_load_compressed_doc_d", return_value="doc d"), \
+             patch.object(scorer, "_call_judge", return_value=mock_raw), \
+             patch.object(scorer, "_parse_result_score", return_value=5):
+            result = scorer.score_j6_qa_consistency(conv, "test_creator")
+        assert result["mode"] == "probe_based"
+        assert len(result["per_pair"]) == 1
+        pair = result["per_pair"][0]
+        assert pair["probe_question_text"] == "What is your favourite food?"
+
+    def test_per_pair_includes_early_response_text(self):
+        import core.evaluation.multi_turn_scorer as scorer
+        conv = {"history": self._make_probe_history()}
+        mock_raw = "Feedback: consistent [RESULT] 5"
+        with patch.object(scorer, "_load_compressed_doc_d", return_value="doc d"), \
+             patch.object(scorer, "_call_judge", return_value=mock_raw), \
+             patch.object(scorer, "_parse_result_score", return_value=5):
+            result = scorer.score_j6_qa_consistency(conv, "test_creator")
+        pair = result["per_pair"][0]
+        assert pair["early_turn_response_text"] == "I love sushi!"
+
+    def test_per_pair_includes_late_response_text(self):
+        import core.evaluation.multi_turn_scorer as scorer
+        conv = {"history": self._make_probe_history()}
+        mock_raw = "Feedback: consistent [RESULT] 5"
+        with patch.object(scorer, "_load_compressed_doc_d", return_value="doc d"), \
+             patch.object(scorer, "_call_judge", return_value=mock_raw), \
+             patch.object(scorer, "_parse_result_score", return_value=5):
+            result = scorer.score_j6_qa_consistency(conv, "test_creator")
+        pair = result["per_pair"][0]
+        assert pair["late_turn_response_text"] == "Sushi is definitely my favourite."
+
+    def test_cross_session_per_probe_includes_texts(self):
+        import core.evaluation.multi_turn_scorer as scorer
+        conv1 = {"history": self._make_probe_history()}
+        hist2 = [
+            {"role": "user",      "content": "What is your favourite food?",
+             "is_qa_probe": True, "probe_id": "p1"},
+            {"role": "assistant", "content": "Without a doubt, sushi."},
+        ]
+        conv2 = {"history": hist2}
+        mock_raw = "Feedback: consistent [RESULT] 5"
+        with patch.object(scorer, "_load_compressed_doc_d", return_value="doc d"), \
+             patch.object(scorer, "_call_judge", return_value=mock_raw), \
+             patch.object(scorer, "_parse_result_score", return_value=5):
+            result = scorer._score_j6_cross_session([conv1, conv2], "test_creator")
+        assert result["score"] is not None
+        probe = result["per_probe"][0]
+        assert probe["probe_question_text"] == "What is your favourite food?"
+        assert len(probe["cross_session_responses"]) == 2
+        answers = {r["conv_idx"]: r["bot_answer"] for r in probe["cross_session_responses"]}
+        assert answers[0] == "I love sushi!"
+        assert answers[1] == "Without a doubt, sushi."
