@@ -30,8 +30,8 @@ image = (
     )
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"})
     .add_local_file(
-        "data/dpo/trl/sft_combined_audited.jsonl",
-        remote_path="/data/sft_combined_audited.jsonl",
+        "data/dpo/trl/sft_sprint7.jsonl",
+        remote_path="/data/sft_sprint7.jsonl",
     )
 )
 
@@ -81,7 +81,7 @@ def train():
     tokenizer = get_chat_template(tokenizer, chat_template="gemma-4-thinking")
 
     print("📂 Loading dataset...")
-    dataset = load_dataset("json", data_files="/data/sft_combined_audited.jsonl", split="train")
+    dataset = load_dataset("json", data_files="/data/sft_sprint7.jsonl", split="train")
     print(f"Dataset: {len(dataset)} examples")
 
     dataset = standardize_data_formats(dataset)
