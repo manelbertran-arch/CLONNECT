@@ -41,12 +41,31 @@ Numeración global que integra errores de proceso (E-xx) y dataset (D-xx) del po
 | #8 | **0.1% persona Q&A responses** (D-03) — solo 10/9.272 ejemplos contienen un hecho factual de Iris | Dataset | 🔴 HIGH | ✅ Plan completo con matching CCEE verificado. Target 750-1000 pares Q&A. Cobertura J6 confirmada. | **S2** |
 | #9 | **441 media/sticker responses** (D-06) — modelo aprende artefactos visuales inútiles | Dataset | 🟡 MEDIUM | ✅ Plan: filtro por `response_type` en quality gate | S9 |
 | #10 | **1.352 duplicados exactos 14.6%** (D-05) — over-representation de patterns cortos muy frecuentes | Dataset | 🟡 MEDIUM | ✅ Plan: dedup + keep-1 per canonical | S9 |
+| **#11** | **Cero adversariales** — 0 ejemplos donde Iris mantiene posición bajo presión en los 9,272 DMs de training | Dataset | 🔴 HIGH | ✅ Plan completo con matching CCEE y reasignación de tipos. TYPE-8 Topic Pivot prioridad #1 para J5. | **S3** |
 
 ---
 
 ## Patrones Emergentes
 
-### Patrón 1 — Masking silencioso como vector de riesgo sistemático
+### Patrón 1 — DPO Emerging (activo — coordinación pendiente S5)
+
+**Observado en:** S1, S2, S3, S4  
+**Descripción:** Todas las sesiones convergen hacia DPO/preference-tuning como necesario para al menos un componente del dataset, pero la decisión formal de cuándo activarlo requiere coordinación cross-sesión que no está completa.
+
+| Sesión | Referencia DPO | Estado |
+|--------|---------------|--------|
+| S1 (I1) | TurnWise (2026): "SFT multi-turn degrada single-turn; preference-tuning no" | Paper recomienda DPO para multi-turn |
+| S2 (I2) | Offline RL (Shea & Yu, 2023); datasets en formato compatible con DPO | Compatible |
+| S3 (I3) v2 | **OPCIÓN A (SFT-only) / OPCIÓN B (SFT+DPO)** — decisión diferida correctamente a I4/I5 | ✅ Correcto |
+| S4 (I4) | Define condición activación DPO y hyperparams, pero sin coordinar con datasets S2/S3 | Hyperparams OK, **coordinación cross-sesión pendiente** |
+
+**Estado actual:** S3 correctamente declara OPCIÓN A/B sin decidir. S4 define hyperparams DPO pero hace la decisión sin coordinar con los datasets de pares de S2/S3. **S4 sigue sin abordar la coordinación cross-sesión — pendiente corrección.**
+
+**Acción requerida en S5 (I5+I7):** La validation framework DEBE contemplar OPCIÓN A (SFT-only) y OPCIÓN B (SFT+DPO). Diseñar experimento de comparación A vs B antes del sprint. Considerar surrogate metrics que correlacionen con J5 específicamente (no solo composite).
+
+---
+
+### Patrón 3 — Masking silencioso como vector de riesgo sistemático
 
 **Observado en:** S1, S4, S6  
 **Descripción:** Tres mecanismos independientes pueden comprometer silenciosamente el masking de training sin producir error visible: (1) TRL Issue #3781 (liger + assistant_only_loss), (2) chat template mismatch train/serve, (3) boundary strings incorrectos para el modelo target.  
@@ -55,9 +74,9 @@ Numeración global que integra errores de proceso (E-xx) y dataset (D-xx) del po
 
 ---
 
-### Patrón 2 — Sin matching con probes CCEE
+### Patrón 2 — Sin matching con probes CCEE ✅ RESUELTO COMPLETO
 
-**Descripción:** Las sesiones de investigación (I1–I9) diseñan training data para mejorar métricas CCEE, pero la mayoría no han verificado cómo CCEE genera concretamente los probes que miden esas métricas. El riesgo es invertir en training data que no activa los probes reales.
+**Descripción:** Las sesiones de investigación diseñaban training data para mejorar métricas CCEE sin verificar cómo CCEE genera concretamente los probes. Riesgo: invertir en data que no activa los probes reales.
 
 **Status por sesión y métrica:**
 
@@ -65,7 +84,7 @@ Numeración global que integra errores de proceso (E-xx) y dataset (D-xx) del po
 |---|---|---|---|
 | S1 (multi-turn) | J2, L, K | Parcial — multi-turn genera conversaciones pero no se analizó cómo score_j2 evalúa | ⚠️ Pendiente |
 | **S2 (persona Q&A)** | **J6, B2** | **✅ RESUELTO** — `generate_qa_probes()` verificado en `multi_turn_generator.py` | **✅ Resuelto** |
-| S3 (adversarial) | J5 | Sin matching — I3 diseña 6 tipos adversariales pero no ha verificado qué genera `generate_belief_shift_message()` | ⏳ S3 pendiente |
+| **S3 (adversarial)** | **J5** | **✅ RESUELTO** — TYPE-8 Topic Pivot mapeado a `generate_belief_shift_message()` (msgs 15-40 chars, topic shifts). TYPE-2/3/5 reasignados a G5 (FT ya 80.0) | **✅ Resuelto** |
 | S4 (hyperparams) | Composite | N/A — hiperparámetros afectan todo, no hay probe específico | ✅ N/A |
 
 **Detalle del matching J6 (S2 — RESUELTO):**
@@ -90,13 +109,34 @@ Probes de **ejemplo** en el prompt del generador:
 
 El inventario B1+B2+B3+B7 (38 preguntas) cubre el 100% del espacio de probes generables por J6 (limitado a los primeros 1000 chars del Doc D = sección identidad + idioma + trabajo).
 
-**Acción para S3:** Leer `generate_belief_shift_message()` y `score_j5_belief_drift()` en `multi_turn_scorer.py`. Mapear los 6 tipos adversariales del I3 contra los probes reales de J5 antes de diseñar el training data.
+**Detalle matching J5 (S3 — resuelto al leer código):**
+
+`generate_belief_shift_message()` en `core/evaluation/multi_turn_generator.py` genera mensajes 15-40 chars: "Pero eso no es lo que dijiste antes", "Oye cambiando de tema...", "En realidad he oído que eso no funciona". J5 evalúa si el modelo acknowledges el shift y permanece en personaje. **No mide resistencia a jailbreaks elaborados** — eso es G5.
+
+| Tipo adversarial | J5-relevante | G5-relevante |
+|-----------------|:-----------:|:-----------:|
+| TYPE-8 Topic Pivot (NUEVO) | ✅ Alta | ❌ |
+| TYPE-1 Bare Assertion | ✅ Alta | ✅ Media |
+| TYPE-6 False Premise | ✅ Alta | ✅ Media |
+| TYPE-2/3/5 (Identity/Emotional/Authority) | ❌ | ✅ Alta — G5 FT ya 80.0 |
+
+**Lección codificada:** workers DEBEN leer el código CCEE real antes de proponer taxonomías de datos sintéticos.
 
 ---
 
 ## Hallazgos Cuantitativos Clave
 
-*(Añadido post-Sesión 2)*
+*(Actualizado post-Sesión 3)*
+
+### Hallazgos J5 (Sesión 3)
+
+- **TYPE-8 Topic Pivot** es el tipo adversarial MÁS relevante para J5. Descubierto leyendo `generate_belief_shift_message()`. Sin este tipo, los adversariales v1 impactarían G5 (ya 80.0) con mínimo efecto en J5.
+- **TYPE-2/3/5** (Identity, Emotional, Authority) mueven G5 — G5 FT naked ya 80.0. Sobre-cobertura.
+- **Sprint 7 debe priorizar TYPE-8 + TYPE-1 + TYPE-7** para J5 (en ese orden).
+- Los **probes J5 son cortos (15-40 chars)**, topic shifts y contradicciones en-contexto.
+- **Punto de partida 200-300 adversariales.** Si J5 no mueve +5pp, incrementar a 600-1000.
+
+*(Sección Q&A añadida post-Sesión 2)*
 
 ### Segmentación del inventario Q&A por impacto en métricas
 
@@ -167,6 +207,12 @@ python3 scripts/finetuning/verify_sprint7_alignment.py  # 5 checks go/no-go
 | D3 | Base model Sprint 7 | A: Gemma-4-31B; B: Qwen3-30B; C: Gemma-4-27B | ⚠️ PENDIENTE — S8 recomienda Gemma-4-31B pero no hay veredito final | S8 |
 | D4 | Rank LoRA (r) | A: r=16 (Sprint 6, subóptimo); B: r=32 (recomendado S4); C: r=64 (QLoRA paper) | ⚠️ PENDIENTE — S4 recomienda r=32 pero no confirmado | S4 |
 | **D5** | **Cantidad target persona Q&A** | **A: Mínimo viable ~500 pares (mueve solo J6); B: Target 750-1000 pares (mueve J6 + B2)** | **⏳ PENDIENTE — depende de presupuesto y prioridades de sprint** | **S2** |
+| **D6** | **Cantidad target adversarial** | **Punto de partida: 200-300. Escalar a 600-1000 si J5 ≤ +5pp.** | **⚠️ Empírica iterativa post-CCEE** | **S3** |
+| **D7** | **Reasignación tipos adversariales** | **TYPE-8 #1, TYPE-1 #2, TYPE-7 #3 para J5. TYPE-2/3/5 reducidos.** | **⚠️ Pendiente ajuste post-CCEE primera ronda** | **S3** |
+
+**Contexto D6:** 200-300 punto de partida (TYPE-8 30%, TYPE-1 30%, TYPE-7 15%, TYPE-6 15%). Si J5 no mueve +5pp: incrementar a 600-1000. El número correcto lo determina CCEE, no la literatura.
+
+**Contexto D7:** TYPE-8 = modela probes CCEE directamente (`generate_belief_shift_message()`, 15-40 chars). TYPE-2/3/5 son G5-territory (FT naked G5=80.0, no urgente). Ajustar tras primera ronda CCEE.
 
 **Contexto D5:**
 - Opción A (~500 pares): 38 preguntas B1+B2+B3+B7 × 6 paráfrasis × 2 contextos. Foco en J6 (25.0 → ≥80). Coste estimado: ~1.800 llamadas LLM para generación + validación.
@@ -182,7 +228,7 @@ python3 scripts/finetuning/verify_sprint7_alignment.py  # 5 checks go/no-go
 | S1 Style Fidelity | +12.1 (ya mejora) | S1 (multi-turn) | ✅ |
 | S3 Strategic Alignment | −0.8 | S4 (hyperparams) | ⚠️ Parcial |
 | **J6 Q&A Consistency** | **−75.0** 🔴 | **S2 (persona Q&A)** | **✅ Completo** |
-| **J5 Belief Drift** | **−32.5** 🔴 | S3 (adversarial) | ⚠️ Matching pendiente |
+| **J5 Belief Drift** | **−32.5** 🔴 | S3 (adversarial) | ✅ Plan + matching CCEE verificado (TYPE-8 prioritario) |
 | B2 Persona Consistency | −5.0 | S2 (persona Q&A) | ✅ Plan definido |
 | L Multi-turn | −2.5 | S1 (multi-turn) | ✅ |
 | H1 Turing | −6.0 | Implícito en S1+S2 | ⚠️ Sin acción específica |
@@ -190,14 +236,26 @@ python3 scripts/finetuning/verify_sprint7_alignment.py  # 5 checks go/no-go
 
 ---
 
+## Próximas Sesiones Esperadas
+
+| Sesión | Doc | Tema | Notas clave |
+|--------|-----|------|-------------|
+| **S5** | **I5+I7** | **Validation framework + dataset audit** | **Debe contemplar OPCIÓN A (SFT-only) y OPCIÓN B (SFT+DPO). Surrogate metrics J5-específicas (no solo composite). Verificar compatibilidad volúmenes I1+I2+I3.** |
+| S6 | I6 | Chat template Gemma-4 | Confirmar que fix resuelve mismatch `<\|turn>model\n` vs `<\|channel>thought\n`. |
+| S7 | Integration | Cierre decisiones D3/D5/D6/D7, OPCIÓN A vs B | Sesión de coordinación Manel + AI antes del sprint. |
+
+---
+
 ## Próximos Pasos
 
 | Acción | Responsable | Dependencia |
 |---|---|---|
-| Verificar `generate_belief_shift_message()` — matching S3 adversarial vs J5 real | S3 review | Ninguna |
+| ~~Verificar `generate_belief_shift_message()` — matching S3 vs J5~~ | ~~S3 review~~ | ✅ COMPLETADO en S3 v2 |
 | Decidir D5 (target Q&A budget) | Manel | Presupuesto inference Sprint 7 |
 | Decidir D3 (base model) | Manel | Benchmark comparativo S8 |
 | Decidir D4 (rank LoRA r) | Manel | Post-verificación masking |
 | Implementar quality gate S9 antes de training | Sprint 7 | S9 script aprobado |
+| Decidir OPCIÓN A vs B (SFT vs SFT+DPO) | Manel + S5 | Validation framework S5 |
+| Ajustar D7 (tipos adversariales) post-CCEE primera ronda | Manel | CCEE run post-FT |
 | **Ejecutar `verify_sprint7_alignment.py` (5 checks go/no-go)** | Sprint 7 | ✅ S6 script listo |
 | Integrar CHANNEL_PREFIX en `train_modal.py` (3 líneas — sección E del I6) | Sprint 7 | ✅ S6 config exacta |
