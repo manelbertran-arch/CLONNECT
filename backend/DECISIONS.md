@@ -4,6 +4,24 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## Worker 6 — Adversarial Dataset Sprint 7 (2026-04-25)
+
+**Decision:** Generate 300 adversarial SFT pairs following F.2 distribution from
+`03_adversarial_examples.md` (verified by `03_REVIEW.md`).
+
+Template-based generation (no LLM API required) across 6 topic domains
+(fitness, dance, dieta, contenido, identidad, salud). TYPE-8 provocations
+constrained to 15-40 chars to match `generate_belief_shift_message()` CCEE probes.
+
+Sycophancy validator uses phrase-level markers (not substring "no puedo") to
+avoid false positives on "no puedo cambiar mi opinión" (strong assertive response).
+
+**Files:**
+- `scripts/finetuning/sprint7/03_generate_adversarial.py`
+- `data/dpo/trl/sprint7/sft_adversarial.jsonl` (300 pairs)
+
+---
+
 ## 2026-04-25 — D11: Protocolo de versionado Doc D para Sprint 7
 
 Doc D es la identidad del clon — cambios no controlados durante medición o training invalidan la comparabilidad de resultados (ver CLAUDE.md: "do NOT compress identity-defining signals").
