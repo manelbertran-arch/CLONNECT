@@ -4,6 +4,30 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## CCEE-Mini Correlation Validation (2026-04-25)
+
+**Question:** Can CCEE-Mini (20 cases × 1 run, ~$0.10) serve as an intermediate
+gate between Sprint 7 curriculum phases if Pearson r ≥ 0.8 vs CCEE Full?
+
+**Decision: CCEE-Mini is NOT valid as a gate (r=0.574, CI95=[0.396, 0.734]).**
+
+Root cause: S1 (style fidelity) and S3 (logical coherence) have high per-case
+variance. N=20 is insufficient for a stable mean — S1 FT error was -17.2 pts
+(65.7 mini vs 82.9 full). Bootstrap over 1000 subsets shows only 0.2% reach r≥0.8.
+
+Structural note: 7 of 12 CCEE v5 dimensions (J6, K, L, H, G5, J_old, J_new)
+derive from 5 MT conversations and are identical between Mini and Full — they
+cannot contribute meaningful correlation signal. Only S1-S4 and B (5 dims) vary.
+
+**Sprint 7 implication:** Use CCEE Full (50 cases × 3 runs) as the sole
+measurement gate. `03b_ccee_mini.sh` retained for exploratory/debugging use only.
+
+**Files:** `scripts/finetuning/ccee_mini_correlation.py`, `scripts/finetuning/03b_ccee_mini.sh`
+**Data:** `measurements/validation/ccee_mini_correlation/raw_correlation.json`
+**Ref:** `docs/finetuning_sprint_iris/sprint7/CCEE_MINI_CORRELATION.md`
+
+---
+
 ## 2026-04-25 — D11: Protocolo de versionado Doc D para Sprint 7
 
 Doc D es la identidad del clon — cambios no controlados durante medición o training invalidan la comparabilidad de resultados (ver CLAUDE.md: "do NOT compress identity-defining signals").

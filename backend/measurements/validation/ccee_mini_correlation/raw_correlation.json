@@ -1,0 +1,148 @@
+{
+  "verdict": "NOT_VALID",
+  "primary": {
+    "r": 0.9585,
+    "p_value": 0.0,
+    "n_points": 26,
+    "r_variable_dims_only": 0.5735,
+    "p_variable": 0.083019,
+    "per_dim": {
+      "S1": {
+        "BL_mini": 56.6,
+        "BL_full": 60.5,
+        "FT_mini": 65.7,
+        "FT_full": 82.9,
+        "delta_BL": -3.9,
+        "delta_FT": -17.2,
+        "fixed": false
+      },
+      "S2": {
+        "BL_mini": 63.71,
+        "BL_full": 65.2,
+        "FT_mini": 66.3,
+        "FT_full": 65.9,
+        "delta_BL": -1.49,
+        "delta_FT": 0.4,
+        "fixed": false
+      },
+      "S3": {
+        "BL_mini": 64.75,
+        "BL_full": 72.3,
+        "FT_mini": 50.38,
+        "FT_full": 62.0,
+        "delta_BL": -7.55,
+        "delta_FT": -11.62,
+        "fixed": false
+      },
+      "S4": {
+        "BL_mini": 62.33,
+        "BL_full": 63.5,
+        "FT_mini": 65.17,
+        "FT_full": 62.4,
+        "delta_BL": -1.17,
+        "delta_FT": 2.77,
+        "fixed": false
+      },
+      "J_old": {
+        "BL_mini": 52.5,
+        "BL_full": 52.5,
+        "FT_mini": 55.5,
+        "FT_full": 55.5,
+        "delta_BL": 0.0,
+        "delta_FT": 0.0,
+        "fixed": true
+      },
+      "J_new": {
+        "BL_mini": 65.6,
+        "BL_full": 65.6,
+        "FT_mini": 61.1,
+        "FT_full": 61.1,
+        "delta_BL": 0.0,
+        "delta_FT": 0.0,
+        "fixed": true
+      },
+      "J6": {
+        "BL_mini": 45.0,
+        "BL_full": 45.0,
+        "FT_mini": 25.0,
+        "FT_full": 25.0,
+        "delta_BL": 0.0,
+        "delta_FT": 0.0,
+        "fixed": true
+      },
+      "K": {
+        "BL_mini": 77.7,
+        "BL_full": 77.7,
+        "FT_mini": 60.6,
+        "FT_full": 60.6,
+        "delta_BL": 0.0,
+        "delta_FT": 0.0,
+        "fixed": true
+      },
+      "G5": {
+        "BL_mini": 100.0,
+        "BL_full": 100.0,
+        "FT_mini": 100.0,
+        "FT_full": 100.0,
+        "delta_BL": 0.0,
+        "delta_FT": 0.0,
+        "fixed": true
+      },
+      "L": {
+        "BL_mini": 61.9,
+        "BL_full": 61.9,
+        "FT_mini": 63.6,
+        "FT_full": 63.6,
+        "delta_BL": 0.0,
+        "delta_FT": 0.0,
+        "fixed": true
+      },
+      "H": {
+        "BL_mini": 82.0,
+        "BL_full": 82.0,
+        "FT_mini": 68.0,
+        "FT_full": 68.0,
+        "delta_BL": 0.0,
+        "delta_FT": 0.0,
+        "fixed": true
+      },
+      "B": {
+        "BL_mini": 60.83,
+        "BL_full": 63.0,
+        "FT_mini": 56.25,
+        "FT_full": 53.3,
+        "delta_BL": -2.17,
+        "delta_FT": 2.95,
+        "fixed": false
+      },
+      "Composite": {
+        "BL_mini": 65.51,
+        "BL_full": 67.7,
+        "FT_mini": 62.24,
+        "FT_full": 66.4,
+        "delta_BL": -2.19,
+        "delta_FT": -4.16,
+        "fixed": false
+      }
+    },
+    "bl_mini_composite": 65.51,
+    "ft_mini_composite": 62.24
+  },
+  "bootstrap_ci": {
+    "n_bootstrap": 1000,
+    "mean_r": 0.5706,
+    "median_r": 0.5798,
+    "ci_95_low": 0.3958,
+    "ci_95_high": 0.7336,
+    "pct_above_08": 0.2,
+    "pct_above_06": 39.4
+  },
+  "meta": {
+    "method": "retrospective_bootstrap",
+    "bl_file": "bl_pipeline_doc_d_c0bcbd73_20260425_1729.json",
+    "ft_file": "ft_sft_20260425_0130.json",
+    "mini_n_cases": 20,
+    "mini_seed": 3407,
+    "fixed_dims_note": "J_old, J_new, J6, K, G5, L, H are identical between Mini and Full because they derive from 5 MT conversations (independent of --cases N)"
+  }
+}
