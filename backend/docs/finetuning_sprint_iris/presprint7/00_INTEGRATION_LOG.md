@@ -128,6 +128,18 @@ Cambiar de modelo no es solo benchmark delta — implica eliminar o crear bug su
 
 ---
 
+## Pre-flight Checks — Status Scripts Ejecutables
+
+| Script | Path | Estado | Notas |
+|---|---|---|---|
+| `09_dataset_quality_gate.py` | `scripts/finetuning/` | ✅ Ejecutable | Bug Gate 6 (`pii_whitelist_set` NameError) corregido 2026-04-25. 6 blockers detectados sin --eval-set. |
+| `verify_sprint6_masking.py` | `scripts/finetuning/` | ✅ Ejecutable | Materializado 2026-04-25. Requiere unsloth+GPU. Diagnóstica mismatch training/serving Sprint 6. |
+| `verify_sprint7_alignment.py` | `scripts/finetuning/` | ✅ Ejecutable | Materializado 2026-04-25. Requiere unsloth+GPU. 5 checks G1-G5 pre-training. |
+
+> Scripts de GPU (`verify_sprint6_masking`, `verify_sprint7_alignment`) verificados sintácticamente y con import graceful — ejecutar en entorno Modal/GPU antes del training.
+
+---
+
 ## Próximos Pasos
 
 | Acción | Responsable | Dependencia |

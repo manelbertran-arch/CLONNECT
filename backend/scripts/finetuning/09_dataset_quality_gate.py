@@ -300,7 +300,7 @@ class GateResult:
         return str(self.threshold)
 
 
-def run_gate(input_path: Path, eval_set_path: Optional[Path] = None, verbose: bool = True) -> tuple[list[GateResult], dict]:
+def run_gate(input_path: Path, eval_set_path: Optional[Path] = None, verbose: bool = True, pii_whitelist: set | None = None) -> tuple[list[GateResult], dict]:
     results: list[GateResult] = []
 
     # ── Load records ──────────────────────────────────────────────────────────
@@ -521,7 +521,7 @@ def run_gate(input_path: Path, eval_set_path: Optional[Path] = None, verbose: bo
         print("\nGATE 6 — Sin contaminación")
 
     # PII
-    n_pii = sum(1 for r in valid_records if has_pii(get_assistant_content(r["messages"]), handle_whitelist=pii_whitelist_set))
+    n_pii = sum(1 for r in valid_records if has_pii(get_assistant_content(r["messages"]), handle_whitelist=pii_whitelist))
     results.append(GateResult("G6.2", "PII en assistant = 0", "BLOCKER", n_pii, 0, n_pii == 0))
 
     if verbose:
@@ -684,7 +684,8 @@ def main():
         print(f"❌ ERROR: Input file not found: {args.input}", file=sys.stderr)
         sys.exit(1)
 
-    results, stats = run_gate(args.input, eval_set_path=args.eval_set, verbose=True)
+    pii_whitelist_set = set(h.lower() for h in args.pii_whitelist) if args.pii_whitelist else set()
+    results, stats = run_gate(args.input, eval_set_path=args.eval_set, verbose=True, pii_whitelist=pii_whitelist_set)
     verdict = decide(results)
 
     blockers_failed = [r for r in results if r.severity == "BLOCKER" and not r.passed]
