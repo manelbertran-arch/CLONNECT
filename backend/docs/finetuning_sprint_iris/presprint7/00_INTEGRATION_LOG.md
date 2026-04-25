@@ -2,7 +2,7 @@
 
 **Maintainer:** Manel Bertran  
 **Branch activo:** `review/presprint7-veredicts`  
-**Última actualización:** 2026-04-25 (post-S7+S8 corrections)
+**Última actualización:** 2026-04-25 (post-S9 re-validación)
 
 > Este documento integra los hallazgos cross-sesión del Presprint 7 (I1–I9).  
 > Registra el status de errores de Sprint 6, patrones emergentes entre sesiones,  
@@ -22,6 +22,7 @@
 | S6 | `06_chat_template_gemma4.md` | Chat template Gemma-4 | ✅ | Gemma-4-thinking NO tiene boundary strings estándar → riesgo masking silencioso. |
 | **S7/S8** | `08_base_model_evaluation.md` | Gemma-4 vs Qwen3-32B | ✅ + review | 16 modelos evaluados. Qwen3-32B default por TRL auto-patch + catalán explícito. Gate invertido: Gemma4 solo si >+2.0 pp. |
 | **S9** | `09_dataset_quality_gate.md` | Dataset Quality Gate | ✅ + S8 corrections | 8 gates. G1.2/G1.3 reconciliados con S2+S3 (absoluto OR ratio). Thresholds marcados como heurística. G5 naive+Prometheus. PII handles + whitelist en script. |
+| **A1** | `A1_dataset_semantic_audit.md` | Auditoría semántica dataset | ✅ + re-validación | ~~61.5% CCEE contaminado~~ → **Coverage analysis 33%: NO contaminación.** 0/16 verified cases comparten conversation turn. 14.3% duplicados, 22 error strings, 818 non-text confirmados. |
 
 ---
 
@@ -54,6 +55,11 @@ Tres mecanismos independientes comprometen masking sin error visible. **Update S
 
 S1-S4 diseñan training data sin verificar probes CCEE. S2 resuelto (J6 matching verificado). S3 pendiente (J5).
 
+### Patrón 8 — Threshold 0.85 con MiniLM detecta patrones, no instancias (post-A1)
+
+**Observado en:** A1  
+Cosine similarity > 0.85 con `paraphrase-multilingual-MiniLM-L12-v2` produce 33% falsos positivos en texto corto CA/ES coloquial. "Tot bé?" ↔ "Va bien?" = 0.954 pero son contenidos distintos. Para detección de contaminación real: usar **≥ 0.92 + response-side verification** (verificar que la respuesta esperada también coincide, no solo el input). Sin response-side check, se confunde "misma frase, conversación distinta" con "mismo datapoint duplicado".
+
 ### Patrón 5 — Decisión arquitectónica con coste estructural asimétrico (post-S7)
 
 **Observado en:** S6, S7/S8  
@@ -83,6 +89,14 @@ Cambiar de modelo no es solo benchmark delta — implica eliminar o crear bug su
 | B1+B2+B3+B7 | 38/100 | ~500 pares | 500 pares |
 | B4+B5+B6+B8+B9 | 62/100 | — | 250-500 pares |
 | **Total** | 100 | **~500** | **750–1.000** |
+
+### Sprint 6 CCEE metrics VALIDADAS (post-A1 re-validación)
+
+- ~~CCEE Contaminado 61.5%~~ → **Coverage analysis 33% — NO contaminación**
+- Re-validación: 0/16 verified cases comparten conversation turn (user msg coincide, response completamente distinta)
+- Categorización: 8 input-overlap/diferente-conversación (A), 8 patrón-genérico (B), 5 placeholder/trivial (C), 3 near-overlap/diferente-turn (A-near)
+- Coverage 33% es esperado: CCEE (`auto_generate_test_set` → DB messages) y training (WhatsApp/IG exports) muestrean las mismas conversaciones reales de Iris por paths distintos
+- **Impacto en scores: ≤ 1 punto** (weighted delta clean vs all = +0.95)
 
 ### Bug surface Qwen3 vs Gemma4 (S7)
 
@@ -151,3 +165,5 @@ Cambiar de modelo no es solo benchmark delta — implica eliminar o crear bug su
 | Decidir D4 (rank LoRA r) | Manel | Post-verificación masking |
 | Implementar quality gate S9 | Sprint 7 | ✅ Script en prod (corrections S8 applied) |
 | **D3: Ejecutar CCEE paralelo Gemma4 vs Qwen3** | **Sprint 7** | **Pre-flight OK** |
+| Threshold ≥ 0.90 + response-side verification para futuras auditorías similarity | Sprint 7 | Patrón 8 (A1) |
+| Response-side matching en metric G6.1 dataset quality gate | Sprint 7 | Patrón 8 (A1) |
