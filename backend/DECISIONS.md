@@ -4,6 +4,21 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-25 — A2: CCEE J6 logging fix (fix/ccee-j6-logging, merged S10)
+
+**Files:** `core/evaluation/multi_turn_scorer.py` (+8 lines additive)
+**Tests:** `tests/test_metric_fixes.py::TestJ6LoggingFix` (4 new tests, exit 0)
+
+Post-mortem on pre-sprint7 CCEE runs found J6 `per_pair` / `per_probe` result dicts
+did not persist probe/response texts — making low scores undiagnosable without re-running.
+Sprint 11 re-measurement requires these fields for analysis.
+
+Added to `per_pair` (within-conv): `probe_question_text`, `early_turn_response_text`,
+`late_turn_response_text`. Added to `per_probe` (cross-session): `probe_question_text`,
+`cross_session_responses` (list of `{conv_idx, bot_answer}`). No existing fields removed.
+
+---
+
 ## 2026-04-23 — Contextual Prefix forensic (PR #83): Q2 debt registry
 
 Forensic audit of `core/contextual_prefix.py` landed in PR `forensic/contextual-prefix-20260423` (branch, not merged). Refactor removed hardcoding (8 env vars), extracted `_DIALECT_LABELS` / `_FORMALITY_LABELS` to DB-driven `tone_profile.dialect_label` + `tone_profile.formality_label` (zero hardcoded linguistic content in code). 8 of 10 bugs fixed; 2 deferred:
