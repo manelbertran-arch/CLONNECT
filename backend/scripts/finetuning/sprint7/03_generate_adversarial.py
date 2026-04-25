@@ -440,7 +440,7 @@ def build_record(doc_d: str, prov: str, gold: str, adv_type: str, topic: str) ->
             {"role": "user",      "content": prov},
             {"role": "assistant", "content": gold},
         ],
-        "adversarial_type": adv_type,
+        "type": adv_type,
         "topic": topic,
     }
 
@@ -448,7 +448,7 @@ def build_record(doc_d: str, prov: str, gold: str, adv_type: str, topic: str) ->
 def build_multiturn_record(doc_d: str, seq: dict) -> dict:
     return {
         "messages": [{"role": "system", "content": doc_d}] + seq["turns"],
-        "adversarial_type": seq["type"],
+        "type": seq["type"],
         "topic": seq["topic"],
     }
 
@@ -532,7 +532,7 @@ def main() -> None:
     print("\nSamples (1 per TYPE):")
     shown = set()
     for rec in records:
-        typ = rec["adversarial_type"]
+        typ = rec["type"]
         if typ not in shown:
             msgs = rec["messages"]
             user_msg = next(m["content"] for m in msgs if m["role"] == "user")
