@@ -114,7 +114,7 @@ trainer = SFTTrainer(
         gradient_accumulation_steps=4,   # Effective batch = 8
 
         # Schedule
-        warmup_ratio=0.03,
+        warmup_ratio=0.05,
         num_train_epochs=1,              # 1 epoch — NO más (risk overfit)
         # max_steps=-1,                  # Usar num_train_epochs=1 en vez de max_steps
         learning_rate=2e-4,              # Unsloth default para Gemma 4

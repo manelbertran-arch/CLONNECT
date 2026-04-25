@@ -105,7 +105,7 @@ def train():
             dataset_text_field="text",
             per_device_train_batch_size=2,
             gradient_accumulation_steps=4,
-            warmup_ratio=0.03,
+            warmup_ratio=0.05,
             num_train_epochs=1,
             learning_rate=2e-4,
             lr_scheduler_type="cosine",
