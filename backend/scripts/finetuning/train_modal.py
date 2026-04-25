@@ -1,5 +1,9 @@
 """
 Modal script — SFT Gemma4-31B Dense sobre Iris (IG + WhatsApp)
+
+Modes:
+  modal run scripts/finetuning/train_modal.py              # full training
+  modal run scripts/finetuning/train_modal.py --smoke      # 100-step smoke test
 """
 import modal
 
@@ -30,12 +34,44 @@ image = (
     )
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"})
     .add_local_file(
-        "data/dpo/trl/sft_sprint7.jsonl",
+        "data/dpo/trl/sprint7/sft_sprint7.jsonl",
         remote_path="/data/sft_sprint7.jsonl",
     )
 )
 
 volume = modal.Volume.from_name("clonnect-models", create_if_missing=True)
+
+
+# ─── Loss alert thresholds (S5 + S6 research) ─────────────────────────────────
+LOSS_ALERTS = {
+    #  step: (ok_low, ok_high, alert_threshold, abort_threshold)
+    1:    (1.0,  3.0,  None, 12.0),
+    10:   (1.5,  2.5,  4.0,  None),
+    50:   (1.0,  2.0,  5.0,  None),
+    100:  (0.8,  1.8,  None, 8.0),
+}
+
+
+def make_loss_callback():
+    from transformers import TrainerCallback
+
+    class LossAlertCallback(TrainerCallback):
+        def on_log(self, args, state, control, logs=None, **kwargs):
+            if not logs or "loss" not in logs:
+                return
+            step = state.global_step
+            loss = float(logs["loss"])
+            if step in LOSS_ALERTS:
+                ok_low, ok_high, alert, abort = LOSS_ALERTS[step]
+                status = "OK" if ok_low <= loss <= ok_high else "WARN"
+                if abort is not None and loss > abort:
+                    print(f"🚨 ABORT triggered at step {step}: loss={loss:.4f} > abort={abort}")
+                    control.should_training_stop = True
+                elif alert is not None and loss > alert:
+                    print(f"⚠️  ALERT at step {step}: loss={loss:.4f} > alert={alert}")
+                print(f"📊 Step {step}: loss={loss:.4f} [{status}]  ok=[{ok_low},{ok_high}]")
+
+    return LossAlertCallback()
 
 
 @app.function(
@@ -44,7 +80,7 @@ volume = modal.Volume.from_name("clonnect-models", create_if_missing=True)
     volumes={"/models": volume},
     timeout=60 * 60 * 6,
 )
-def train():
+def train(smoke: bool = False):
     import torch
     from unsloth import FastModel
     from unsloth.chat_templates import get_chat_template, standardize_data_formats, train_on_responses_only
@@ -54,7 +90,7 @@ def train():
     MODEL_NAME = "unsloth/gemma-4-31B-it"
     MAX_SEQ_LENGTH = 2048
 
-    print(f"🚀 Loading {MODEL_NAME}...")
+    print(f"🚀 Loading {MODEL_NAME}... (smoke={smoke})")
     model, tokenizer = FastModel.from_pretrained(
         model_name=MODEL_NAME,
         max_seq_length=MAX_SEQ_LENGTH,
@@ -89,7 +125,9 @@ def train():
     def formatting_prompts_func(examples):
         convos = examples["conversations"] if "conversations" in examples else examples["messages"]
         texts = [
-            tokenizer.apply_chat_template(convo, tokenize=False, add_generation_prompt=False, enable_thinking=False).removeprefix("<bos>")
+            tokenizer.apply_chat_template(
+                convo, tokenize=False, add_generation_prompt=False, enable_thinking=False
+            ).removeprefix("<bos>")
             for convo in convos
         ]
         return {"text": texts}
@@ -104,17 +142,31 @@ def train():
     test_dataset = temp["test"]
     print(f"Split: {len(train_dataset)} train / {len(val_dataset)} val / {len(test_dataset)} test")
 
+    # ── Smoke params vs full params ────────────────────────────────────────────
+    if smoke:
+        max_steps       = 100
+        num_epochs      = None        # overridden by max_steps
+        save_steps      = 50
+        output_dir      = "/models/gemma31b-iris-sft-smoke"
+        print(f"🔬 SMOKE MODE: max_steps={max_steps}, save_steps={save_steps}")
+    else:
+        max_steps       = -1          # full epoch
+        num_epochs      = 1
+        save_steps      = 200
+        output_dir      = "/models/gemma31b-iris-sft-checkpoints"
+
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
         train_dataset=train_dataset,
-        eval_dataset=val_dataset,  # 5% split, ver dataset prep
+        eval_dataset=val_dataset,
         args=SFTConfig(
             dataset_text_field="text",
             per_device_train_batch_size=2,
             gradient_accumulation_steps=4,
             warmup_ratio=0.05,
-            num_train_epochs=1,
+            num_train_epochs=num_epochs if num_epochs else 1,
+            max_steps=max_steps,
             learning_rate=2e-4,
             lr_scheduler_type="cosine",
             optim="adamw_8bit",
@@ -124,14 +176,15 @@ def train():
             eval_strategy="steps",
             eval_steps=100,
             save_strategy="steps",
-            save_steps=200,
+            save_steps=save_steps,
             save_total_limit=3,
             fp16=not torch.cuda.is_bf16_supported(),
             bf16=torch.cuda.is_bf16_supported(),
             seed=3407,
-            output_dir="/models/gemma31b-iris-sft-checkpoints",
+            output_dir=output_dir,
             report_to="none",
         ),
+        callbacks=[make_loss_callback()],
     )
 
     trainer = train_on_responses_only(
@@ -140,25 +193,53 @@ def train():
         response_part="<|turn>model\n<|channel>thought\n<channel|>",
     )
 
-    print("🔥 Starting SFT training...")
+    # ── Masking verification (PASO 5) ──────────────────────────────────────────
+    print("\n🔍 Masking verification (pre-training)...")
+    sample = trainer.train_dataset[0]
+    if "labels" in sample:
+        labels = sample["labels"]
+        unmasked = sum(1 for l in labels if l != -100)
+        total = len(labels)
+        pct = unmasked / total * 100 if total > 0 else 0
+        status = "✅" if 5 <= pct <= 60 else "⚠️ "
+        print(f"  {status} Labels: {unmasked}/{total} unmasked ({pct:.1f}%)")
+        print(f"     Expected: 5–60% unmasked (assistant tokens only)")
+        # Decode to verify only assistant visible
+        decoded_preview = tokenizer.decode(
+            [tokenizer.pad_token_id if x == -100 else x for x in labels[:200]],
+            skip_special_tokens=False,
+        ).replace(tokenizer.pad_token or "<pad>", "·")
+        print(f"  Labels preview (first 200 tokens): {decoded_preview[:300]!r}")
+    else:
+        print("  ⚠️  No 'labels' key found in dataset — masking check skipped")
+
+    print(f"\n🔥 Starting {'SMOKE' if smoke else 'FULL'} training...")
     stats = trainer.train()
     print(f"\n✅ Done. Runtime: {stats.metrics['train_runtime']:.1f}s, Loss: {stats.metrics['train_loss']:.4f}")
 
-    print("💾 Saving LoRA adapter...")
-    model.save_pretrained("/models/gemma31b-iris-sft-lora")
-    tokenizer.save_pretrained("/models/gemma31b-iris-sft-lora")
+    if smoke:
+        print("\n📋 Smoke test summary:")
+        for k, v in stats.metrics.items():
+            print(f"  {k}: {v}")
+        print("💾 Saving smoke checkpoint...")
+        model.save_pretrained(output_dir + "-lora")
+        tokenizer.save_pretrained(output_dir + "-lora")
+    else:
+        print("💾 Saving LoRA adapter...")
+        model.save_pretrained("/models/gemma31b-iris-sft-lora")
+        tokenizer.save_pretrained("/models/gemma31b-iris-sft-lora")
 
-    print("💾 Merging + saving 16bit...")
-    model.save_pretrained_merged(
-        "/models/gemma31b-iris-sft-merged",
-        tokenizer,
-        save_method="merged_16bit",
-    )
+        print("💾 Merging + saving 16bit...")
+        model.save_pretrained_merged(
+            "/models/gemma31b-iris-sft-merged",
+            tokenizer,
+            save_method="merged_16bit",
+        )
 
     volume.commit()
-    print("✅ Saved to Modal Volume 'clonnect-models'")
+    print(f"✅ Saved to Modal Volume 'clonnect-models' ({'smoke' if smoke else 'full'})")
 
 
 @app.local_entrypoint()
-def main():
-    train.remote()
+def main(smoke: bool = False):
+    train.remote(smoke=smoke)
