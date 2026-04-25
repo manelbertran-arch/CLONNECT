@@ -4,6 +4,32 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## 2026-04-25 — D11: Protocolo de versionado Doc D para Sprint 7
+
+Doc D es la identidad del clon — cambios no controlados durante medición o training invalidan la comparabilidad de resultados (ver CLAUDE.md: "do NOT compress identity-defining signals").
+
+### Antes de medición CCEE
+
+1. Snapshot `version_id` de `personality_docs` para el creator.
+2. Loguear `version_id` en metadata de la medición CCEE (campo en JSON output).
+3. Si `version_id` cambió entre mediciones a comparar → **ABORT comparison** — resultados no comparables.
+4. Considerar shadow Doc D mode para medición sin alterar prod (read-only snapshot).
+
+### Antes de Sprint 7 training
+
+1. Congelar Doc D del momento de construcción del dataset.
+2. Loguear `version_id` en hyperparameters del training run.
+3. Documentar en `SPRINT7_DOC_D_VERSION.md` (hash, timestamp, diff vs anterior).
+4. Cualquier cambio Doc D durante Sprint 7 = nueva versión explícita, **NO sobreescribir**.
+
+### Operacional
+
+1. Pausar `ENABLE_NIGHTLY_EXTRACT_DEEP` durante ventanas de medición/training.
+2. Pausar bootstrap scripts (`bootstrap_tone_labels.py`, etc.) durante medición/training.
+3. Re-activar después con snapshot pre/post documentado.
+
+---
+
 ## 2026-04-25 — A2: CCEE J6 logging fix (fix/ccee-j6-logging, merged S10)
 
 **Files:** `core/evaluation/multi_turn_scorer.py` (+8 lines additive)
