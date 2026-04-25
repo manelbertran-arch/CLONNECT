@@ -117,16 +117,7 @@ def train(smoke: bool = False):
     tokenizer = get_chat_template(tokenizer, chat_template="gemma-4-thinking")
 
     print("📂 Loading dataset...")
-    # Manual load: normalize columns (adversarial records have extra 'type'/'topic' fields
-    # that cause DatasetGenerationCastError with load_dataset — keep only 'messages')
-    import json as _json
-    raw_records = []
-    with open("/data/sft_sprint7.jsonl") as _f:
-        for _line in _f:
-            _r = _json.loads(_line)
-            raw_records.append({"messages": _r["messages"]})
-    from datasets import Dataset as _Dataset
-    dataset = _Dataset.from_list(raw_records)
+    dataset = load_dataset("json", data_files="/data/sft_sprint7.jsonl", split="train")
     print(f"Dataset: {len(dataset)} examples")
 
     dataset = standardize_data_formats(dataset)
