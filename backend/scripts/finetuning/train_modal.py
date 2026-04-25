@@ -120,29 +120,36 @@ def train(smoke: bool = False):
     dataset = load_dataset("json", data_files="/data/sft_sprint7.jsonl", split="train")
     print(f"Dataset: {len(dataset)} examples")
 
-    dataset = standardize_data_formats(dataset)
-
-    # Opción C (Session 6): prepend CHANNEL_PREFIX to each assistant turn so it appears
-    # in training text. With enable_thinking=False the template only adds the prefix in
-    # inference (add_generation_prompt=True), NOT in training. Without this, every
-    # label is -100 because train_on_responses_only can't find response_part.
+    # Opción C (Session 6) — Parte 2:
+    # MUST prepend CHANNEL_PREFIX to assistant turns BEFORE standardize_data_formats.
+    # After standardize, format is {"from":"gpt","value":...} not {"role":"assistant",...}
+    # so role-based check would miss all turns.
     CHANNEL_PREFIX = "<|channel>thought\n<channel|>"
+
+    def add_channel_prefix(examples):
+        """Prepend CHANNEL_PREFIX to every assistant/model turn (role/content format)."""
+        result = []
+        for msg_list in examples["messages"]:
+            aligned = []
+            for m in msg_list:
+                if m.get("role") in ("assistant", "model"):
+                    m = {**m, "content": CHANNEL_PREFIX + m["content"]}
+                aligned.append(m)
+            result.append(aligned)
+        return {"messages": result}
+
+    dataset = dataset.map(add_channel_prefix, batched=True)
+    print(f"  CHANNEL_PREFIX prepended to assistant turns (Opción C)")
+
+    dataset = standardize_data_formats(dataset)
 
     def formatting_prompts_func(examples):
         convos = examples["conversations"] if "conversations" in examples else examples["messages"]
-        aligned_convos = []
-        for convo in convos:
-            aligned = []
-            for turn in convo:
-                if turn.get("role") in ("assistant", "model"):
-                    turn = {**turn, "content": CHANNEL_PREFIX + turn["content"]}
-                aligned.append(turn)
-            aligned_convos.append(aligned)
         texts = [
             tokenizer.apply_chat_template(
                 convo, tokenize=False, add_generation_prompt=False, enable_thinking=False
             ).removeprefix("<bos>")
-            for convo in aligned_convos
+            for convo in convos
         ]
         return {"text": texts}
 
