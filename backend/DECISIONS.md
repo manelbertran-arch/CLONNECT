@@ -4,6 +4,25 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## Sprint7-W4 — Multi-turn extraction from DB messages (2026-04-25)
+
+**Context:** Sprint 7 dataset construction. Worker 4 builds multi-turn SFT examples from real Iris–lead conversations stored in the `messages` table (57,832 messages, 1,738 leads).
+
+**Decision: extract via gap-split + burst-merge, filter 4-12 turns, wrap in ChatML with full Doc D system prompt.**
+
+Extraction logic:
+- Gap threshold 60 min: a silence >60 min between consecutive messages of the same lead starts a new conversation segment.
+- Burst merge <5 min: consecutive messages from the same role within 5 min are merged into one turn (mirrors how people send multiple short messages).
+- Filter 4–12 turns: excludes trivial 1–2-turn exchanges and avoids OOM during training from very long contexts.
+- System prompt = Doc D 100% (never compressed). Doc D integrity enforced by `verify_doc_d_unchanged.py` + `.sprint7_frozen_hash` pre- and post-extraction.
+
+Result: 1,731 conversations (avg 5.9 turns, median 5), within the 1,600–2,400 target range. No threshold adjustment needed.
+
+**Files added:** `scripts/finetuning/sprint7/01_extract_multiturn.py`, `scripts/finetuning/verify_doc_d_unchanged.py`, `scripts/finetuning/.sprint7_frozen_hash`
+**Output:** `data/dpo/trl/sprint7/sft_mt.jsonl` (1,731 records, ~4.5M tokens)
+
+---
+
 ## 2026-04-25 — D11: Protocolo de versionado Doc D para Sprint 7
 
 Doc D es la identidad del clon — cambios no controlados durante medición o training invalidan la comparabilidad de resultados (ver CLAUDE.md: "do NOT compress identity-defining signals").
