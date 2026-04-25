@@ -167,3 +167,36 @@ Cambiar de modelo no es solo benchmark delta — implica eliminar o crear bug su
 | **D3: Ejecutar CCEE paralelo Gemma4 vs Qwen3** | **Sprint 7** | **Pre-flight OK** |
 | Threshold ≥ 0.90 + response-side verification para futuras auditorías similarity | Sprint 7 | Patrón 8 (A1) |
 | Response-side matching en metric G6.1 dataset quality gate | Sprint 7 | Patrón 8 (A1) |
+
+---
+
+## Sprint 7 Execution Plan — Reference
+
+**Documento:** `SPRINT7_EXECUTION_PLAN.md` (este directorio)  
+**Notas derivación:** `NOTES_PLAN_DERIVATION.md` (este directorio)  
+**Generado:** 2026-04-25  
+**Branch:** `planning/sprint7-execution`
+
+### Decisiones Resueltas por el Plan
+
+| ID | Resolución | Fuente |
+|---|---|---|
+| D3 | Gemma-4-31B-it CONFIRMADO (user override, no Qwen3) | User 2026-04-25 |
+| D4 | r=16 default + sweep {8, 16, 32} | S4, 04_REVIEW |
+| D5 | 750–1000 pares Q&A (CONFIRMADO) | S2, 02_REVIEW |
+| D11 | Doc D Versioning Protocol URGENT — freeze antes de medición | S11 |
+
+### Inconsistencias Detectadas
+
+| # | Inconsistencia | Resolución |
+|---|---|---|
+| I1 | Scripts `response_part` tiene Sprint 6 value | BLOCKER: actualizar antes de training |
+| I2 | Scripts `warmup_ratio=0.03` vs S4 review 0.05 | Review prevails → 0.05 |
+| I5 | Scripts `eval_dataset=None` | BLOCKER: añadir 90/5/5 split |
+| I6 | INTEGRATION_LOG 90/10 vs S5 90/5/5 | S5 prevails → 90/5/5 |
+
+### Sprint 7 Target
+
+- **Baseline:** BL_pipeline c0bcbd73 = 67.7
+- **Target:** composite ≥ 74 (Δ > +5)
+- **Coste estimado:** ~$13.40
