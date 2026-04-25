@@ -23,7 +23,7 @@
 | S5+S7 | `05_07_validation_methodology.md` | Metodología validación + métricas sustituto | ✅ | Definición de surrogate metrics para detección temprana. |
 | **S6** | `06_chat_template_gemma4.md` | Chat template Gemma-4 | ✅ **DECISIÓN CERRADA** | Bug central Sprint 6 resuelto. Opción C validada por Google AI Docs. 3 líneas cambian. Loss esperada Sprint 7: 1.5–2.5. Pre-flight: `verify_sprint7_alignment.py`. |
 | S8 | `08_base_model_evaluation.md` | Gemma-4 vs Qwen3-30B | ✅ | Gemma-4-31B preferred por bilingüismo CAT/ES y razonamiento. |
-| S9 | `09_dataset_quality_gate.md` | Dataset Quality Gate | ✅ | 8 gates definidos con thresholds y script ejecutable. |
+| **S9** | `09_dataset_quality_gate.md` | Dataset Quality Gate | ✅ **post double-check: thresholds reconciliados** | 8 gates/26 criterios. G1.2: 750 pares OR 7.5% (no 10%). G1.3: WARNING v1 (no BLOCKER). Coherencia heurística documentada. Empírica: detecta 7 blockers Sprint 6. |
 
 ---
 
@@ -64,6 +64,7 @@ Numeración global que integra errores de proceso (E-xx) y dataset (D-xx) del po
 | Dataset adversarial | 200–300 ejemplos (TYPE-8 priority para J5) | Sesión 3 (I3) | ✅ TARGET |
 | DPO | **Diferido a Sprint 8** | Sesión 4 (I4) | ✅ DIFERIDO |
 | Pre-flight check | `verify_sprint7_alignment.py` (5 checks go/no-go — bloqueante) | I6 + I4 | ✅ OBLIGATORIO |
+| **Pre-flight dataset** | **`09_dataset_quality_gate.py` (26 criterios PASS/FAIL — bloqueante si cualquier BLOCKER falla)** | **I9** | **✅ OBLIGATORIO — ANTES de `verify_sprint7_alignment.py`** |
 | Sweep | 3 configs proactivo × 50% steps sobre validation set antes del full training | Sesión 4 (I4) | ✅ PROTOCOLO |
 
 ---
@@ -112,6 +113,16 @@ Numeración global que integra errores de proceso (E-xx) y dataset (D-xx) del po
 6. Epochs fijo en 1 sin justificación → corregido: rango 1–3 con tabla por escenario de dataset
 
 **Lección:** Workers deben leer el integration log ANTES de generar su documento. Aplicar a sesiones 5–11: incluir en el prompt de cada sesión la lectura de este log como primer paso.
+
+---
+
+### Patrón 5 — Thresholds presentados como derivados de papers cuando son heurísticas
+
+**Observado en:** S9 (post double-check)  
+**Descripción:** I9 presentó thresholds de Distinct-1 (0.20), Distinct-2 (0.40), Self-BLEU-4 (0.65), coherencia (85%), N≥2,000 como "justificados por papers" cuando los papers solo definen las **métricas**, no los thresholds. Los thresholds son heurísticas empíricas calibradas sobre el dataset de Sprint 6.  
+**Corrección aplicada:** I9 v2 añade explícitamente "heurística empírica, no derivada literalmente del paper" a cada threshold de Gate 3 y Gate 8.  
+**Lección:** Distinguir siempre: (a) papers que definen métricas vs (b) papers que justifican valores específicos. Solo (b) son citas legítimas de threshold. En ausencia de (b), marcar como heurística calibrada.  
+**Patrón anterior (S4, S5):** Números sin fuente trazable. Pattern now extends to "fuente correcta, valor no derivado de ella".
 
 ---
 
@@ -268,6 +279,7 @@ python3 scripts/finetuning/verify_sprint7_alignment.py  # 5 checks go/no-go
 | **D8** | **Curriculum learning persona Q&A** | **NUEVA: Epoch 1 todos + Epoch 2 selectivo Q&A si B2 no converge** | **✅ ACEPTADA, pendiente confirmación S2** | S4 |
 | **D6** | **Cantidad target adversarial** | **Punto de partida: 200-300. Escalar a 600-1000 si J5 ≤ +5pp.** | **⚠️ Empírica iterativa post-CCEE** | **S3** |
 | **D7** | **Reasignación tipos adversariales** | **TYPE-8 #1, TYPE-1 #2, TYPE-7 #3 para J5. TYPE-2/3/5 reducidos.** | **⚠️ Pendiente ajuste post-CCEE primera ronda** | **S3** |
+| **D10** | **Thresholds GATE reconciliados con I2/I3** | G1.2: 750 OR 7.5% (no 10%); G1.3: 200 OR 2% WARNING v1 (no 5% BLOCKER). Coherente con I2 (target absoluto 750 pares) e I3 (200-300 punto de partida). | ✅ RESUELTO — post double-check S9 | S9 |
 
 **Contexto D6:** 200-300 punto de partida (TYPE-8 30%, TYPE-1 30%, TYPE-7 15%, TYPE-6 15%). Si J5 no mueve +5pp: incrementar a 600-1000. El número correcto lo determina CCEE, no la literatura.
 
@@ -302,6 +314,40 @@ python3 scripts/finetuning/verify_sprint7_alignment.py  # 5 checks go/no-go
 | **S5** | **I5+I7** | **Validation framework + dataset audit** | **Debe contemplar OPCIÓN A (SFT-only) y OPCIÓN B (SFT+DPO). Surrogate metrics J5-específicas (no solo composite). Verificar compatibilidad volúmenes I1+I2+I3.** |
 | S6 | I6 | Chat template Gemma-4 | Confirmar que fix resuelve mismatch `<\|turn>model\n` vs `<\|channel>thought\n`. |
 | S7 | Integration | Cierre decisiones D3/D5/D6/D7, OPCIÓN A vs B | Sesión de coordinación Manel + AI antes del sprint. |
+
+---
+
+## Hallazgos Cuantitativos Clave — Sesión 9 (Dataset Quality Gate)
+
+*(Añadido post double-check I9)*
+
+**Validación empírica del gate contra Sprint 6 dataset (`sft_combined_audited.jsonl`, N=9,272):**
+
+| Gate | Criterio | Sprint 6 resultado | Veredicto |
+|---|---|---|---|
+| G1.1 | multi-turn ≥15% | 0.0% | ❌ BLOCKER |
+| G1.2 | persona Q&A ≥750 OR ≥7.5% | 0.9% (83 pares) | ❌ BLOCKER |
+| G1.3 | adversarial ≥200 OR ≥2% (WARNING v1) | 0.0% | ⚠️ WARN |
+| G2.1 | error strings = 0 | 22 | ❌ BLOCKER |
+| G2.2 | solo-artifact = 0 | 27 | ❌ BLOCKER |
+| G2.3 | artifacts <2% | 4.3% | ❌ BLOCKER |
+| G6.2 | PII = 0 | 19 | ❌ BLOCKER |
+| **Total** | | | **❌ FAIL (6 blockers)** |
+
+**Implicación:** Si este gate hubiera existido antes de Sprint 6, el training **no habría arrancado**. El gate es condición necesaria, no suficiente — no garantiza que el dataset sea bueno, pero garantiza que los errores de Sprint 6 no se repitan.
+
+**Pre-flight Sprint 7 — Secuencia obligatoria:**
+```bash
+# Step 1: Dataset quality gate (antes de cualquier otra cosa)
+python3 scripts/finetuning/09_dataset_quality_gate.py \
+    --input data/dpo/trl/sft_sprint7.jsonl \
+    --eval-set data/eval/ccee_questions.jsonl \
+    --report-out docs/finetuning_sprint_iris/presprint7/gate_report_pre_training.md
+# Si exit 1 → NO proceder. Iterar dataset.
+
+# Step 2: Alineación config (post gate PASS)
+python3 scripts/finetuning/verify_sprint7_alignment.py
+```
 
 ---
 
