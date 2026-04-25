@@ -301,11 +301,15 @@ def main() -> None:
             seen.add(h); unique.append(rec)
     print(f"[7] Dedup:          {len(unique):5d}  (removed={dups})")
 
-    # ── Write ─────────────────────────────────────────────────────────────
+    # ── Write — canonical schema only (source + messages) ─────────────────
+    # Strip any extra fields (e.g. 'type', 'topic' from adversarial source)
+    # so load_dataset("json") sees a uniform schema across all records.
+    CANONICAL_FIELDS = ("source", "messages")
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     with OUTPUT.open("w", encoding="utf-8") as f:
         for rec in unique:
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            canonical = {k: rec[k] for k in CANONICAL_FIELDS if k in rec}
+            f.write(json.dumps(canonical, ensure_ascii=False) + "\n")
 
     final_src = Counter(r["source"] for r in unique)
     bad_sys = sum(
