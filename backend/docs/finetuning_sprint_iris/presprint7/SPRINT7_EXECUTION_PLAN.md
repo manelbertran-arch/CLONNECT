@@ -449,7 +449,7 @@ SFTConfig(
 | **T1** | L1 (avg response length) + chrF++ | $0 | Cada checkpoint | Post-training script |
 | **T2** | BERTScore (P, R, F1) | $0 | Cada eval_steps=100 | `bert_score` library |
 | **T3** | CCEE-Mini (20 cases random) | ~$0.15 | Post-sweep, pre-full | Subset de `03_ccee_measurement.sh` |
-| **T4** | CCEE Full (95+ cases) | ~$4-5 | Solo config ganadora | `03_ccee_measurement.sh` |
+| **T4** | CCEE Full (50 cases × 3 runs) | ~$1.50 | Solo config ganadora | `03_ccee_measurement.sh` |
 
 ### CCEE-Mini Correlation Requirement [S5, 05_REVIEW]
 
@@ -478,7 +478,7 @@ SFTConfig(
 4. **Winner** → CCEE Full (Tier 4). [S5]
 5. **Curriculum learning** [D8]: Si B2 (Persona Consistency) no converge en config A → apply Phase 2 selective Q&A training.
 
-**Coste total sweep:** ~$7.50 training + ~$0.60 CCEE-Mini (4 runs) + ~$5 CCEE Full = **~$13 total**
+**Coste total sweep:** ~$7.50 training + ~$0.60 CCEE-Mini (4 runs) + ~$1.50 CCEE Full = **~$9.60 total**
 
 ### Curriculum Learning [D8, S4]
 
@@ -511,7 +511,7 @@ bash scripts/finetuning/03_ccee_measurement.sh --cases 1
 # CCEE-Mini (20 cases) — ~$0.15
 bash scripts/finetuning/03_ccee_measurement.sh --cases 20
 
-# CCEE Full (95+ cases) — ~$4-5
+# CCEE Full (50 cases × 3 runs) — ~$1.50
 bash scripts/finetuning/03_ccee_measurement.sh
 ```
 
@@ -642,9 +642,9 @@ bash scripts/finetuning/03_ccee_measurement.sh
 |---|---|
 | GPU training (3 configs) | ~$7.50 |
 | CCEE-Mini (4 runs) | ~$0.60 |
-| CCEE Full (1 run) | ~$5.00 |
+| CCEE Full (1 run) | ~$1.50 |
 | CCEE-Mini correlation | ~$0.30 |
-| **Total** | **~$13.40** |
+| **Total** | **~$9.90** |
 
 ---
 
@@ -709,3 +709,7 @@ bash scripts/finetuning/03_ccee_measurement.sh
 ---
 
 _Generado a partir de NOTES_PLAN_DERIVATION.md. Cada dato tiene citación interna._
+
+---
+
+**Patch v1.1 (2026-04-25):** Verificación post-Opus detectó D2 incorrecto. CCEE Full corregido a 50 cases × 3 runs ($1.50) basado en evidencia `03_ccee_measurement.sh:85` (--cases 50) y `:22` (NUM_RUNS default 3). Costes total recalculados de $13.40 → $9.90. Otras 4 divergencias verificadas confirmaron plan original correcto. Ver NOTES_PLAN_DERIVATION.md sección Verificación.
