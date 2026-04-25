@@ -2,7 +2,7 @@
 
 **Maintainer:** Manel Bertran  
 **Branch activo:** `review/presprint7-veredicts`  
-**Última actualización:** 2026-04-25 (post-Sesión 2)
+**Última actualización:** 2026-04-25 (post-Sesión 6 correcciones)
 
 > Este documento integra los hallazgos cross-sesión del Presprint 7 (I1–I9).  
 > Registra el status de errores de Sprint 6, patrones emergentes entre sesiones,  
@@ -16,10 +16,10 @@
 |---|---|---|---|---|
 | S1 | `01_multi_turn_construction.md` | Dataset multi-turn | ✅ Completado + correcciones | Gemma-4 NO tiene {% generation %} — warning crítico. TurnWise +12.8 pp pero degrada single-turn. |
 | **S2** | `02_persona_qa_synthesis.md` | Persona Q&A synthesis | ✅ Completado + 5 correcciones | J6 probes dinámicos vía LLM (n=3, Doc D[:1000]). Target absoluto 750-1000 pares. Alignment tax documentado. |
-| S3 | `03_adversarial_examples.md` | Adversarial belief drift | ⚠️ Completado — matching J5 pendiente | FT naked −22.5 J5 por sesgo aprobación en DMs fan→creator. 6 tipos adversariales. |
-| S4 | `04_hyperparameters_qlora.md` | Hiperparámetros QLoRA | ✅ Completado + 6 correcciones | Masking roto potencialmente el mayor error Sprint 6. r=32 recomendado, no r=16. |
+| **S3** | `03_adversarial_examples.md` | Adversarial belief drift | ✅ Completado + 7 correcciones | TYPE-8 Topic Pivot identificado como J5-crítico. TYPE-2/3/5 reasignados a G5. Matching CCEE verificado. |
+| **S4** | `04_hyperparameters_qlora.md` | Hiperparámetros QLoRA | ✅ Completado + 6 correcciones | DOS fallos Sprint 6 (dataset + masking). DPO diferido Sprint 8. r=16 + sweep validation proactivo. |
 | S5+S7 | `05_07_validation_methodology.md` | Metodología validación + métricas sustituto | ✅ | Definición de surrogate metrics para detección temprana. |
-| S6 | `06_chat_template_gemma4.md` | Chat template Gemma-4 | ✅ | Gemma-4-thinking NO tiene boundary strings estándar → riesgo masking silencioso. |
+| **S6** | `06_chat_template_gemma4.md` | Chat template Gemma-4 | ✅ **DECISIÓN CERRADA** | Bug central Sprint 6 resuelto. Opción C validada por Google AI Docs. 3 líneas cambian. Loss esperada Sprint 7: 1.5–2.5. Pre-flight: `verify_sprint7_alignment.py`. |
 | S8 | `08_base_model_evaluation.md` | Gemma-4 vs Qwen3-30B | ✅ | Gemma-4-31B preferred por bilingüismo CAT/ES y razonamiento. |
 | S9 | `09_dataset_quality_gate.md` | Dataset Quality Gate | ✅ | 8 gates definidos con thresholds y script ejecutable. |
 
@@ -124,11 +124,45 @@ El ratio no es el parámetro de diseño — el número absoluto de pares lo es. 
 
 ---
 
+### Sesión 6 (I6 — Chat Template Alignment) — ✅ DECISIÓN CERRADA
+
+**Bug central Sprint 6 resuelto.** Diagnóstico confirmado por HuggingFace tokenizer, Google AI Docs, Unsloth.
+
+| Elemento | Valor |
+|---|---|
+| Bug diagnosticado | Training sin CHANNEL_PREFIX; serving lo inyecta → C3 leakage, J6 pipe −8.2 |
+| Loss inicial Sprint 6 | 10.64 = 2.4×10⁻⁵ prob/token (cuasi-entropía uniforme vocab 256k) |
+| Loss explicada por | Template mismatch — modelo veía `<\|channel>thought\n<channel\|>` nunca visto en training |
+| Fix (Opción C) | CHANNEL_PREFIX en assistant turns antes de apply_chat_template |
+| Validación Google | *"add the empty channel to your training prompts"* — Google AI Docs oficial |
+| Código cambia | 3 líneas (formatting_prompts_func + response_part) |
+| Serving | Sin cambios — template permissivo actual correcto |
+| Loss esperada Sprint 7 | 1.5–2.5 step 1 → 0.8–1.5 final |
+
+**Tabla de alertas go/no-go Sprint 7** (supersede alertas de Sesión 5):
+
+| Step | Umbral | Acción |
+|---|---|---|
+| Step 1 | > 12.0 | 🔴 ABORT |
+| Step 10 | > 4.0 | 🟠 REVISAR dataset prep |
+| Step 50 | > 5.0 | 🔴 ALERTA masking |
+| Step 100 | > 8.0 | 🔴 ABORT |
+| Final | 0.8–1.5 | ✅ Saludable |
+
+**Pre-flight obligatorio Sprint 7:**
+```bash
+python3 scripts/finetuning/verify_sprint7_alignment.py  # 5 checks go/no-go
+```
+
+**Corrección Sesión 5:** "loss inicial 12.4–12.6" era incorrecto (= entropía uniforme). Correcto: 1.5–2.5 con masking bien configurado.
+
+---
+
 ## Decisiones Arquitectónicas Pendientes
 
 | ID | Decisión | Opciones | Estado | Sesión(es) relevante(s) |
 |---|---|---|---|---|
-| D1 | Chat template Sprint 7 | A: gemma4-thinking con boundary adaptados; B: tokenizer.apply_chat_template sin custom boundaries | ⚠️ PENDIENTE — S6 documenta riesgo pero no decide | S6 |
+| D1 | Chat template Sprint 7 | C: Opción C — CHANNEL_PREFIX en training labels + response_part actualizado; serving sin cambios | ✅ DECIDIDO — Opción C (Google AI Docs: "add empty channel to training prompts"). | S6 |
 | D2 | Multi-turn extraction threshold | A: 60 min (recomendado S1); B: 90 min; C: conversation-level split | ✅ DECIDIDO — 60 min por Chua 2024 + Pleus 2024 | S1 |
 | D3 | Base model Sprint 7 | A: Gemma-4-31B; B: Qwen3-30B; C: Gemma-4-27B | ⚠️ PENDIENTE — S8 recomienda Gemma-4-31B pero no hay veredito final | S8 |
 | D4 | Rank LoRA (r) | A: r=16 (Sprint 6, subóptimo); B: r=32 (recomendado S4); C: r=64 (QLoRA paper) | ⚠️ PENDIENTE — S4 recomienda r=32 pero no confirmado | S4 |
@@ -165,3 +199,5 @@ El ratio no es el parámetro de diseño — el número absoluto de pares lo es. 
 | Decidir D3 (base model) | Manel | Benchmark comparativo S8 |
 | Decidir D4 (rank LoRA r) | Manel | Post-verificación masking |
 | Implementar quality gate S9 antes de training | Sprint 7 | S9 script aprobado |
+| **Ejecutar `verify_sprint7_alignment.py` (5 checks go/no-go)** | Sprint 7 | ✅ S6 script listo |
+| Integrar CHANNEL_PREFIX en `train_modal.py` (3 líneas — sección E del I6) | Sprint 7 | ✅ S6 config exacta |
