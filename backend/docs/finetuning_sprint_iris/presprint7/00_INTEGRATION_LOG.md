@@ -2,11 +2,13 @@
 
 **Maintainer:** Manel Bertran  
 **Branch activo:** `review/presprint7-veredicts`  
-**Última actualización:** 2026-04-25 (post-Sesión 6 correcciones)
+**Última actualización:** 2026-04-25 (post-Sesión 4+6 correcciones)
 
 > Este documento integra los hallazgos cross-sesión del Presprint 7 (I1–I9).  
 > Registra el status de errores de Sprint 6, patrones emergentes entre sesiones,  
 > decisiones arquitectónicas pendientes y cobertura de la investigación vs. CCEE.
+>
+> **Regla para workers:** Leer este log ANTES de generar cualquier documento de sesión. Aplicar a sesiones 5–11.
 
 ---
 
@@ -45,9 +47,30 @@ Numeración global que integra errores de proceso (E-xx) y dataset (D-xx) del po
 
 ---
 
+## Sprint 7 Architecture Consolidada (estado post-Sesiones 1–4)
+
+| Componente | Decisión | Origen | Estado |
+|---|---|---|---|
+| Modelo base | Gemma4-31B dense (sujeto a revisión I8) | Sprint 6 | ⏳ Pendiente I8 |
+| Arquitectura de training | **SFT-only** | Sesión 4 (I4) | ✅ DECIDIDO |
+| Masking | CHANNEL_PREFIX en training labels (Opción C per I6) | Sesión 1 (I1) + I6 | ✅ DECIDIDO |
+| LoRA rank | r=16, con sweep validation proactivo pre-full training | Sesión 4 (I4) | ✅ DEFAULT |
+| LoRA alpha | α=32 (heurística Lightning AI/Unsloth — NO QLoRA canon) | Sesión 4 (I4) | ✅ DEFAULT |
+| Learning rate | 2e-4, cosine scheduler, warmup_ratio=0.05 | Sesión 4 (I4) | ✅ DECIDIDO |
+| Epochs | 1–3 según dataset; curriculum Q&A: epoch 1 todos, +1 selectivo Q&A si B2 no converge | Sesión 4 (I4) | ✅ DEFAULT |
+| Forbidden flags | `use_liger_kernel`, `packing=True`, `IterableDataset` | Sesión 1 (I1) | ✅ BLOQUEADO |
+| Dataset multi-turn | 1,600–2,400 conversaciones reales | Sesión 1 (I1) | ✅ TARGET |
+| Dataset persona Q&A | 750–1,000 pares (38 preguntas core + 62 extras; 6 paráfrasis c/u) | Sesión 2 (I2) | ✅ TARGET |
+| Dataset adversarial | 200–300 ejemplos (TYPE-8 priority para J5) | Sesión 3 (I3) | ✅ TARGET |
+| DPO | **Diferido a Sprint 8** | Sesión 4 (I4) | ✅ DIFERIDO |
+| Pre-flight check | `verify_sprint7_alignment.py` (5 checks go/no-go — bloqueante) | I6 + I4 | ✅ OBLIGATORIO |
+| Sweep | 3 configs proactivo × 50% steps sobre validation set antes del full training | Sesión 4 (I4) | ✅ PROTOCOLO |
+
+---
+
 ## Patrones Emergentes
 
-### Patrón 1 — DPO Emerging (activo — coordinación pendiente S5)
+### Patrón 1 — DPO architecture decision — ✅ RESUELTO (Sesión 4)
 
 **Observado en:** S1, S2, S3, S4  
 **Descripción:** Todas las sesiones convergen hacia DPO/preference-tuning como necesario para al menos un componente del dataset, pero la decisión formal de cuándo activarlo requiere coordinación cross-sesión que no está completa.
@@ -62,10 +85,12 @@ Numeración global que integra errores de proceso (E-xx) y dataset (D-xx) del po
 **Estado actual:** S3 correctamente declara OPCIÓN A/B sin decidir. S4 define hyperparams DPO pero hace la decisión sin coordinar con los datasets de pares de S2/S3. **S4 sigue sin abordar la coordinación cross-sesión — pendiente corrección.**
 
 **Acción requerida en S5 (I5+I7):** La validation framework DEBE contemplar OPCIÓN A (SFT-only) y OPCIÓN B (SFT+DPO). Diseñar experimento de comparación A vs B antes del sprint. Considerar surrogate metrics que correlacionen con J5 específicamente (no solo composite).
+**✅ RESOLUCIÓN (Sesión 4 corregida):** DPO explícitamente diferido a Sprint 8. Sprint 7 = SFT-only. Sprint 8 = SFT+DPO una vez composite naked ≥ 74 validado. Dataset I2/I3 (pares chosen/rejected) como prerequisito. Hiperparámetros DPO: LR=5e-6, β=0.1, epochs 1-2.
+
 
 ---
 
-### Patrón 3 — Masking silencioso como vector de riesgo sistemático
+### Patrón 2 — Masking silencioso como vector de riesgo sistemático
 
 **Observado en:** S1, S4, S6  
 **Descripción:** Tres mecanismos independientes pueden comprometer silenciosamente el masking de training sin producir error visible: (1) TRL Issue #3781 (liger + assistant_only_loss), (2) chat template mismatch train/serve, (3) boundary strings incorrectos para el modelo target.  
@@ -74,7 +99,23 @@ Numeración global que integra errores de proceso (E-xx) y dataset (D-xx) del po
 
 ---
 
-### Patrón 2 — Sin matching con probes CCEE ✅ RESUELTO COMPLETO
+### Patrón 3 — Sesiones sin cross-checking — ✅ RESUELTO (Sesión 4)
+
+**Observación:** Las versiones iniciales de los documentos de sesión (I4 en particular) contenían inconsistencias con Sesión 1 (ignorando el masking roto) y atribuciones incorrectas (QLoRA alpha=2r presentado como canon cuando QLoRA usa alpha=16 constante).
+
+**Resolución:** Correcciones post-review al final de Sesión 4 han alineado los documentos. Inconsistencias identificadas y corregidas:
+1. Atribución alpha=2r al QLoRA paper → corregido: heurística Lightning AI/Unsloth posterior
+2. Fallo de masking omitido del contexto de hiperparámetros → corregido: sección "DOS Fallos" añadida
+3. Ausencia de sección DPO → corregido: §F con decisión explícita y condición de activación Sprint 8
+4. Sweep reactivo ("si composite <69") → corregido: §H sweep proactivo pre-full training
+5. Cita r=16 para style sin marca de interpretación → corregido: ⚠️ marcado como interpretación
+6. Epochs fijo en 1 sin justificación → corregido: rango 1–3 con tabla por escenario de dataset
+
+**Lección:** Workers deben leer el integration log ANTES de generar su documento. Aplicar a sesiones 5–11: incluir en el prompt de cada sesión la lectura de este log como primer paso.
+
+---
+
+### Patrón 4 — Sin matching con probes CCEE ✅ RESUELTO COMPLETO
 
 **Descripción:** Las sesiones de investigación diseñaban training data para mejorar métricas CCEE sin verificar cómo CCEE genera concretamente los probes. Riesgo: invertir en data que no activa los probes reales.
 
@@ -196,17 +237,35 @@ python3 scripts/finetuning/verify_sprint7_alignment.py  # 5 checks go/no-go
 
 **Corrección Sesión 5:** "loss inicial 12.4–12.6" era incorrecto (= entropía uniforme). Correcto: 1.5–2.5 con masking bien configurado.
 
+
+### Sesión 4 (I4 — Hyperparameters)
+
+- **Sprint 7 architecture: SFT-only** (DPO diferido Sprint 8)
+- Hiperparámetros: r=16, α=32, LR=2e-4, 1–3 epochs, cosine, warmup=0.05
+- Único cambio vs Sprint 6: warmup_ratio 0.03→0.05
+- Pre-flight bloqueante: verificar masking + `verify_sprint7_alignment.py`
+- Curriculum: Q&A 1 epoch; +1 epoch selectivo Q&A si B2 no converge
+- **DOS fallos simultáneos Sprint 6:** dataset ruidoso + masking roto → gap 12–19 pts no atribuible a ninguna causa singular
+- alpha=2r es heurística Lightning AI/Unsloth, NO del QLoRA canónico (que usa alpha=16 constante)
+
 ---
 
 ## Decisiones Arquitectónicas Pendientes
 
 | ID | Decisión | Opciones | Estado | Sesión(es) relevante(s) |
 |---|---|---|---|---|
+| **D1 (SFT/DPO)** | **SFT vs DPO — Sprint 7 SFT-only, Sprint 8 SFT+DPO** | **✅ RESUELTA (Sesión 4)** | **S4** |
+| **D2 (r y α)** | **Rank r=16/α=32 default + sweep proactivo 3 configs** | **✅ PARCIALMENTE (Sesión 4)** | **S4** |
+| D3 | Modelo base — Gemma-4-31B | ⏳ Pendiente Sesión 8 (I8) | S8 |
+| D4 | Cantidad target dataset | ⚠️ Refinada por S1+S2+S3 | S1-S3 |
 | D1 | Chat template Sprint 7 | C: Opción C — CHANNEL_PREFIX en training labels + response_part actualizado; serving sin cambios | ✅ DECIDIDO — Opción C (Google AI Docs: "add empty channel to training prompts"). | S6 |
 | D2 | Multi-turn extraction threshold | A: 60 min (recomendado S1); B: 90 min; C: conversation-level split | ✅ DECIDIDO — 60 min por Chua 2024 + Pleus 2024 | S1 |
 | D3 | Base model Sprint 7 | A: Gemma-4-31B; B: Qwen3-30B; C: Gemma-4-27B | ⚠️ PENDIENTE — S8 recomienda Gemma-4-31B pero no hay veredito final | S8 |
 | D4 | Rank LoRA (r) | A: r=16 (Sprint 6, subóptimo); B: r=32 (recomendado S4); C: r=64 (QLoRA paper) | ⚠️ PENDIENTE — S4 recomienda r=32 pero no confirmado | S4 |
-| **D5** | **Cantidad target persona Q&A** | **A: Mínimo viable ~500 pares (mueve solo J6); B: Target 750-1000 pares (mueve J6 + B2)** | **⏳ PENDIENTE — depende de presupuesto y prioridades de sprint** | **S2** |
+| D5 | Q&A target | 750-1,000 pares (38 preguntas core + 62 extras) | ✅ RESUELTA (Sesión 2) | S2 |
+| D6 | Adversarial target | 200-300 ejemplos | ✅ RESUELTA (Sesión 3) | S3 |
+| D7 | Reasignación tipos adversariales | TYPE-8 priority para J5 | ✅ RESUELTA (Sesión 3) | S3 |
+| **D8** | **Curriculum learning persona Q&A** | **NUEVA: Epoch 1 todos + Epoch 2 selectivo Q&A si B2 no converge** | **✅ ACEPTADA, pendiente confirmación S2** | S4 |
 | **D6** | **Cantidad target adversarial** | **Punto de partida: 200-300. Escalar a 600-1000 si J5 ≤ +5pp.** | **⚠️ Empírica iterativa post-CCEE** | **S3** |
 | **D7** | **Reasignación tipos adversariales** | **TYPE-8 #1, TYPE-1 #2, TYPE-7 #3 para J5. TYPE-2/3/5 reducidos.** | **⚠️ Pendiente ajuste post-CCEE primera ronda** | **S3** |
 
