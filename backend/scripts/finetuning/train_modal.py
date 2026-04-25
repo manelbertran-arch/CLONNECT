@@ -88,7 +88,7 @@ def train(smoke: bool = False):
     from trl import SFTTrainer, SFTConfig
 
     MODEL_NAME = "unsloth/gemma-4-31B-it"
-    MAX_SEQ_LENGTH = 2048
+    MAX_SEQ_LENGTH = 4096  # Doc D ~2000 tokens + turns → needs >2048 to avoid full truncation
 
     print(f"🚀 Loading {MODEL_NAME}... (smoke={smoke})")
     model, tokenizer = FastModel.from_pretrained(

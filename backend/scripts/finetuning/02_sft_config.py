@@ -18,7 +18,7 @@ import torch
 
 # ============ MODEL ============
 MODEL_NAME = "unsloth/gemma-4-31B-it"   # Instruct version — o "unsloth/gemma-4-31B" si prefieres base
-MAX_SEQ_LENGTH = 2048                    # Mensajes Iris son cortos, 2048 suficiente
+MAX_SEQ_LENGTH = 4096  # Doc D ~2000 tokens; 2048 truncates responses (G8.3 WARN was real)
 LOAD_IN_4BIT = True                      # QLoRA — 22GB VRAM en A100
 LOAD_IN_16BIT = False                    # True si tienes >40GB VRAM (mejor calidad)
 
