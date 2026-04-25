@@ -2,7 +2,7 @@
 
 **Fecha freeze:** 2026-04-25T17:45:00+02:00  
 **Branch:** `setup/sprint7-d11`  
-**Estado:** ✅ Snapshot creado | ⏳ Scheduler pausa — requiere acción manual Railway
+**Estado:** ✅ Snapshot creado | ✅ Scheduler pausado (2026-04-25)
 
 ---
 
@@ -70,7 +70,7 @@ railway logs --tail 200 | grep "PERSONA_COMPILER\|PATTERN_ANALYZER\|weekly_compi
 # Esperado: ninguna línea con "weekly_compilation" durante 12h
 ```
 
-**Estado actual:** ⏳ NO PAUSADO — pendiente ejecución manual
+**Estado actual:** ✅ PAUSADO — 2026-04-25, verificado via `railway variables`
 
 ---
 
