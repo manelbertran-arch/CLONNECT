@@ -262,6 +262,41 @@ tokenizer.apply_chat_template(
 
 **CRITICAL:** Sprint 6 scripts (`02_sft_config.py:153`, `train_modal.py:130`) todavía tienen `response_part="<|turn>model\n"`. MUST UPDATE antes de Sprint 7 training. [NOTES Tabla 9, I1]
 
+### ⚠️ Opción C — Parte 2 (descubierta en Smoke Training Sprint 7)
+
+**Post-mortem Smoke v2-v4 (2026-04-26):** B1 implementó el `response_part` correcto pero omitió una segunda parte de Opción C: **prepend manual de `CHANNEL_PREFIX` a cada turno assistant en `formatting_prompts_func`**.
+
+**Causa raíz:** con `enable_thinking=False` + `add_generation_prompt=False`, el template Gemma 4 NO añade `<|channel>thought\n<channel|>` a los turnos assistant en el texto de training (solo lo añade en inference con `add_generation_prompt=True`). Sin el prepend, `train_on_responses_only` no encuentra el boundary → 100% labels = -100 → todos los samples eliminados.
+
+**Fix completo (commit `021f7fdc`, `training/sprint7-smoke`):**
+
+```python
+# En formatting_prompts_func — OBLIGATORIO para Opción C
+CHANNEL_PREFIX = "<|channel>thought\n<channel|>"
+
+def formatting_prompts_func(examples):
+    convos = examples["conversations"] if "conversations" in examples else examples["messages"]
+    aligned_convos = []
+    for convo in convos:
+        aligned = []
+        for turn in convo:
+            if turn.get("role") in ("assistant", "model"):
+                turn = {**turn, "content": CHANNEL_PREFIX + turn["content"]}
+            aligned.append(turn)
+        aligned_convos.append(aligned)
+    texts = [
+        tokenizer.apply_chat_template(
+            convo, tokenize=False, add_generation_prompt=False, enable_thinking=False
+        ).removeprefix("<bos>")
+        for convo in aligned_convos
+    ]
+    return {"text": texts}
+```
+
+**También:** `MAX_SEQ_LENGTH` debe ser 4096 (no 2048) porque Doc D ≈ 2044 tokens solo ya supera 2048 con cualquier turno adicional. [G8.3 WARN era el síntoma.]
+
+**Referencia:** `verify_sprint7_alignment.py` líneas 47-52 mostraba este prepend en el check G1 — la verificación estaba documentada pero no implementada en `train_modal.py`.
+
 ---
 
 ## 6. Hiperparámetros QLoRA
@@ -713,3 +748,5 @@ _Generado a partir de NOTES_PLAN_DERIVATION.md. Cada dato tiene citación intern
 ---
 
 **Patch v1.1 (2026-04-25):** Verificación post-Opus detectó D2 incorrecto. CCEE Full corregido a 50 cases × 3 runs ($1.50) basado en evidencia `03_ccee_measurement.sh:85` (--cases 50) y `:22` (NUM_RUNS default 3). Costes total recalculados de $13.40 → $9.90. Otras 4 divergencias verificadas confirmaron plan original correcto. Ver NOTES_PLAN_DERIVATION.md sección Verificación.
+
+**Patch v1.2 (2026-04-26):** Smoke training descubrió que B1 (Opción C §5) era incompleto. El `response_part` era correcto pero faltaba el prepend manual de `CHANNEL_PREFIX` en `formatting_prompts_func`. Fix completo en commit `021f7fdc` branch `training/sprint7-smoke`. También: `MAX_SEQ_LENGTH` 2048 → 4096 (Doc D ≈ 2044 tokens excede 2048 con cualquier turno). Ver nota "Opción C — Parte 2" en §5.
