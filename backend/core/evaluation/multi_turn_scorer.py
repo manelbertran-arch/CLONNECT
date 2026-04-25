@@ -1251,6 +1251,9 @@ Both answers clearly express the same position, preference, or fact — unmistak
                             "early_turn": early_ans["turn_num"],
                             "late_turn": late_ans["turn_num"],
                             "score_1_5": score,
+                            "probe_question_text": early_ans["probe_question"],
+                            "early_turn_response_text": early_ans["bot_answer"],
+                            "late_turn_response_text": late_ans["bot_answer"],
                         })
                         logger.debug(f"J6 probe '{probe_id}': score={score}")
                         break
@@ -1472,6 +1475,11 @@ All answers clearly express the same position, preference, or fact across conver
                         "n_conversations": len(conv_answers),
                         "score_1_5": score,
                         "feedback": raw[:300],
+                        "probe_question_text": conv_answers[0]["probe_question"],
+                        "cross_session_responses": [
+                            {"conv_idx": a["conv_idx"], "bot_answer": a["bot_answer"]}
+                            for a in conv_answers
+                        ],
                     })
                     logger.debug(f"J6 cross-session '{probe_id}': score={score}")
                     break
