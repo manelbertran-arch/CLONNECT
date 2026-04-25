@@ -120,40 +120,34 @@ def train(smoke: bool = False):
     dataset = load_dataset("json", data_files="/data/sft_sprint7.jsonl", split="train")
     print(f"Dataset: {len(dataset)} examples")
 
-    # Opción C (Session 6) — Parte 2:
-    # MUST prepend CHANNEL_PREFIX to assistant turns BEFORE standardize_data_formats.
-    # After standardize, format is {"from":"gpt","value":...} not {"role":"assistant",...}
-    # so role-based check would miss all turns.
-    CHANNEL_PREFIX = "<|channel>thought\n<channel|>"
-
-    def add_channel_prefix(examples):
-        """Prepend CHANNEL_PREFIX to every assistant/model turn (role/content format)."""
-        result = []
-        for msg_list in examples["messages"]:
-            aligned = []
-            for m in msg_list:
-                if m.get("role") in ("assistant", "model"):
-                    m = {**m, "content": CHANNEL_PREFIX + m["content"]}
-                aligned.append(m)
-            result.append(aligned)
-        return {"messages": result}
-
-    dataset = dataset.map(add_channel_prefix, batched=True)
-    print(f"  CHANNEL_PREFIX prepended to assistant turns (Opción C)")
-
     dataset = standardize_data_formats(dataset)
+
+    # Opción C Workaround A.4 (06_chat_template_gemma4.md §A.4):
+    # gemma-4-thinking template has strip_thinking macro that REMOVES
+    # <|channel>thought\n<channel|> from historical assistant turns during
+    # apply_chat_template. Any pre-template prepend gets stripped → all labels=-100.
+    #
+    # Correct fix: insert CHANNEL_PREFIX AFTER apply_chat_template, by replacing
+    # the model turn boundary in the formatted text string.
+    # This avoids strip_thinking entirely.
+    CHANNEL_PREFIX = "<|channel>thought\n<channel|>"
 
     def formatting_prompts_func(examples):
         convos = examples["conversations"] if "conversations" in examples else examples["messages"]
-        texts = [
-            tokenizer.apply_chat_template(
-                convo, tokenize=False, add_generation_prompt=False, enable_thinking=False
-            ).removeprefix("<bos>")
-            for convo in convos
-        ]
+        texts = []
+        for convo in convos:
+            text = (
+                tokenizer.apply_chat_template(
+                    convo, tokenize=False, add_generation_prompt=False, enable_thinking=False
+                ).removeprefix("<bos>")
+            )
+            # Workaround A.4: insert CHANNEL_PREFIX at model turn boundary post-template
+            text = text.replace("<|turn>model\n", "<|turn>model\n" + CHANNEL_PREFIX)
+            texts.append(text)
         return {"text": texts}
 
     dataset = dataset.map(formatting_prompts_func, batched=True)
+    print(f"  Workaround A.4: CHANNEL_PREFIX inserted post-template at <|turn>model\\n boundary")
 
     # 90/5/5 train/val/test split
     splits = dataset.train_test_split(test_size=0.10, seed=3407)
