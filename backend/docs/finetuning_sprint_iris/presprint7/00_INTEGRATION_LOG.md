@@ -2,7 +2,7 @@
 
 **Maintainer:** Manel Bertran  
 **Branch activo:** `review/presprint7-veredicts`  
-**Última actualización:** 2026-04-25 (post-Sesión 7 review)
+**Última actualización:** 2026-04-25 (post-S7+S8 corrections)
 
 > Este documento integra los hallazgos cross-sesión del Presprint 7 (I1–I9).  
 > Registra el status de errores de Sprint 6, patrones emergentes entre sesiones,  
@@ -16,12 +16,12 @@
 |---|---|---|---|---|
 | S1 | `01_multi_turn_construction.md` | Dataset multi-turn | ✅ Completado + correcciones | Gemma-4 NO tiene {% generation %} — warning crítico. TurnWise +12.8 pp pero degrada single-turn. |
 | **S2** | `02_persona_qa_synthesis.md` | Persona Q&A synthesis | ✅ Completado + 5 correcciones | J6 probes dinámicos vía LLM (n=3, Doc D[:1000]). Target absoluto 750-1000 pares. Alignment tax documentado. |
-| S3 | `03_adversarial_examples.md` | Adversarial belief drift | ⚠️ Completado — matching J5 pendiente | FT naked −22.5 J5 por sesgo aprobación en DMs fan→creator. 6 tipos adversariales. |
-| S4 | `04_hyperparameters_qlora.md` | Hiperparámetros QLoRA | ✅ Completado + 6 correcciones | Masking roto potencialmente el mayor error Sprint 6. r=32 recomendado, no r=16. |
+| **S3** | `03_adversarial_examples.md` | Adversarial belief drift | ✅ Completado + 7 correcciones | TYPE-8 Topic Pivot = J5-crítico. TYPE-2/3/5 reasignados a G5. Matching CCEE J5 verificado. 200-300 ejemplos target. |
+| **S4** | `04_hyperparameters_qlora.md` | Hiperparámetros QLoRA | ✅ Completado + 6 correcciones | DOS fallos Sprint 6. DPO diferido Sprint 8. r=16 default + sweep proactivo 3 configs. alpha=2r es heurística, no QLoRA canon. |
 | **S5** | `05_validation_methodology.md` | Validation + surrogate metrics | ✅ Completado + 5 correcciones | Loss inicial correcta 1–3 (masking OK). Sprint 6 (10.64) = masking roto. Alertas: >5.0 step 50, ABORT >8.0 step 100. |
 | S6 | `06_chat_template_gemma4.md` | Chat template Gemma-4 | ✅ | Gemma-4-thinking NO tiene boundary strings estándar → riesgo masking silencioso. |
 | **S7/S8** | `08_base_model_evaluation.md` | Gemma-4 vs Qwen3-32B | ✅ + review | 16 modelos evaluados. Qwen3-32B default por TRL auto-patch + catalán explícito. Gate invertido: Gemma4 solo si >+2.0 pp. |
-| S9 | `09_dataset_quality_gate.md` | Dataset Quality Gate | ✅ | 8 gates definidos con thresholds y script ejecutable. |
+| **S9** | `09_dataset_quality_gate.md` | Dataset Quality Gate | ✅ + S8 corrections | 8 gates. G1.2/G1.3 reconciliados con S2+S3 (absoluto OR ratio). Thresholds marcados como heurística. G5 naive+Prometheus. PII handles + whitelist en script. |
 
 ---
 
@@ -39,6 +39,7 @@
 | #8 | **0.1% persona Q&A** | 🔴 HIGH | ✅ Target 750-1000 pares Q&A | S2 |
 | #9 | **441 media/sticker** | 🟡 MEDIUM | ✅ Filtro response_type | S9 |
 | #10 | **1.352 duplicados 14.6%** | 🟡 MEDIUM | ✅ Dedup + keep-1 | S9 |
+| #11 | **0 ejemplos adversariales** — sin señal de resistencia a presión | 🔴 HIGH | ✅ Plan: 200-300 adversarial TYPE-8+TYPE-1+TYPE-6 (S3) | S3 |
 
 ---
 
@@ -99,7 +100,10 @@ Cambiar de modelo no es solo benchmark delta — implica eliminar o crear bug su
 | D2 | Multi-turn threshold | ✅ DECIDIDO — 60 min | S1 |
 | **D3** | **Base model Sprint 7** | **⚠️ PENDIENTE — evaluación paralela Gemma4 vs Qwen3. Gate invertido: Qwen3 default a menos que Gemma4 > +2.0 pp.** | **S7/S8** |
 | D4 | Rank LoRA (r) | ⚠️ PENDIENTE — r=32 recomendado | S4 |
-| D5 | Target persona Q&A | ⏳ PENDIENTE — 500 (J6) vs 750-1000 (J6+B2) | S2 |
+| D5 | Target persona Q&A | ✅ RESUELTA — 750-1000 pares (S2 decision) | S2 |
+| D6 | Target adversarial | ✅ RESUELTA — 200-300 ejemplos (S3, TYPE-8 priority) | S3 |
+| D7 | Tipos adversariales | ✅ RESUELTA — TYPE-8 J5-crítico, TYPE-2/3/5 G5-territory | S3 |
+| **D8** | **Curriculum learning Q&A** | **✅ ACEPTADA — epoch 1 todos, +1 selectivo Q&A si B2 no converge** | S4 |
 
 **Contexto D3 (post-S7 review):**
 - 16 modelos evaluados, 29 fuentes citadas
@@ -116,7 +120,7 @@ Cambiar de modelo no es solo benchmark delta — implica eliminar o crear bug su
 | S1 Style Fidelity | +12.1 | S1 | ✅ |
 | S3 Strategic Alignment | −0.8 | S4 | ⚠️ Parcial |
 | **J6 Q&A Consistency** | **−75.0** 🔴 | **S2** | **✅** |
-| **J5 Belief Drift** | **−32.5** 🔴 | S3 | ⚠️ Matching pendiente |
+| **J5 Belief Drift** | **−32.5** 🔴 | S3 + DPO Sprint 8 | ✅ Plan completo |
 | B2 Persona Consistency | −5.0 | S2 | ✅ |
 | L Multi-turn | −2.5 | S1 | ✅ |
 | H1 Turing | −6.0 | S1+S2 | ⚠️ Sin acción |
@@ -133,4 +137,5 @@ Cambiar de modelo no es solo benchmark delta — implica eliminar o crear bug su
 | **D3: Evaluación paralela Gemma4 vs Qwen3** | **Sprint 7 FASE 1/1B** | **Pre-flight OK** |
 | Decidir D5 (target Q&A budget) | Manel | Presupuesto inference |
 | Decidir D4 (rank LoRA r) | Manel | Post-verificación masking |
-| Implementar quality gate S9 | Sprint 7 | Script aprobado |
+| Implementar quality gate S9 | Sprint 7 | ✅ Script en prod (corrections S8 applied) |
+| **D3: Ejecutar CCEE paralelo Gemma4 vs Qwen3** | **Sprint 7** | **Pre-flight OK** |
