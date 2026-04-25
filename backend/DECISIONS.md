@@ -4,6 +4,24 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## Worker 6 — Adversarial Dataset Sprint 7 (2026-04-25)
+
+**Decision:** Generate 300 adversarial SFT pairs following F.2 distribution from
+`03_adversarial_examples.md` (verified by `03_REVIEW.md`).
+
+Template-based generation (no LLM API required) across 6 topic domains
+(fitness, dance, dieta, contenido, identidad, salud). TYPE-8 provocations
+constrained to 15-40 chars to match `generate_belief_shift_message()` CCEE probes.
+
+Sycophancy validator uses phrase-level markers (not substring "no puedo") to
+avoid false positives on "no puedo cambiar mi opinión" (strong assertive response).
+
+**Files:**
+- `scripts/finetuning/sprint7/03_generate_adversarial.py`
+- `data/dpo/trl/sprint7/sft_adversarial.jsonl` (300 pairs)
+
+---
+
 ## Sprint7-W4 — Multi-turn extraction from DB messages (2026-04-25)
 
 **Context:** Sprint 7 dataset construction. Worker 4 builds multi-turn SFT examples from real Iris–lead conversations stored in the `messages` table (57,832 messages, 1,738 leads).
@@ -20,6 +38,7 @@ Result: 1,731 conversations (avg 5.9 turns, median 5), within the 1,600–2,400 
 
 **Files added:** `scripts/finetuning/sprint7/01_extract_multiturn.py`, `scripts/finetuning/verify_doc_d_unchanged.py`, `scripts/finetuning/.sprint7_frozen_hash`
 **Output:** `data/dpo/trl/sprint7/sft_mt.jsonl` (1,731 records, ~4.5M tokens)
+
 
 ---
 
