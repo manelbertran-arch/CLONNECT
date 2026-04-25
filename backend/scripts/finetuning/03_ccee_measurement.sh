@@ -46,7 +46,7 @@ fi
 
 # Verificar endpoint accesible
 echo "🔍 Testing endpoint..."
-if ! curl -s -m 10 -o /dev/null -w "%{http_code}" "$ENDPOINT" | grep -qE "^(200|404|405)"; then
+if ! curl -sL -m 10 -o /dev/null -w "%{http_code}" "${ENDPOINT}/models" | grep -qE "^(200|404|405)"; then
     echo "❌ ERROR: Endpoint not reachable: $ENDPOINT"
     exit 1
 fi
@@ -68,6 +68,8 @@ export DEEPINFRA_BASE_URL="$ENDPOINT"
 export DEEPINFRA_MODEL="gemma31b-iris-${FASE}"
 export LLM_MODEL="gemma31b-iris-${FASE}"
 export CCEE_NO_FALLBACK=1          # Fallar si LLM judge no disponible (no mock)
+export DEEPINFRA_TIMEOUT=180       # 3 min — cold start del container FT puede tardar ~2 min
+export CCEE_INTER_CASE_DELAY=1     # 1s entre casos para evitar rate limit Modal
 
 # Load .env
 set -a && source .env && set +a

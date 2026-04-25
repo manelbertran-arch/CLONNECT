@@ -159,6 +159,55 @@ def auto_generate_test_set(
 
 
 # ---------------------------------------------------------------------------
+# Naked pipeline runner (direct LLM call, no production system prompt)
+# ---------------------------------------------------------------------------
+
+def run_naked_pipeline(test_cases: List[Dict]) -> List[str]:
+    """Call the LLM endpoint directly with bare user messages — no system prompt, no Doc D, no RAG.
+
+    Uses DEEPINFRA_BASE_URL + DEEPINFRA_MODEL from env (same as 03_ccee_measurement.sh exports).
+    Preserves inter-case delay (CCEE_INTER_CASE_DELAY) to match production pacing.
+    """
+    import asyncio
+    import httpx
+
+    endpoint = os.environ.get("DEEPINFRA_BASE_URL", "https://api.deepinfra.com/v1/openai")
+    model = os.environ.get("DEEPINFRA_MODEL", os.environ.get("LLM_MODEL", "gemma31b-iris-sft"))
+    api_key = os.environ.get("DEEPINFRA_API_KEY", "")
+    timeout = float(os.environ.get("DEEPINFRA_TIMEOUT", "180"))
+    inter_case_delay = float(os.environ.get("CCEE_INTER_CASE_DELAY", "0"))
+
+    async def _run_all() -> List[str]:
+        responses: List[str] = []
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            for i, tc in enumerate(test_cases):
+                try:
+                    resp = await client.post(
+                        f"{endpoint}/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "model": model,
+                            "messages": [{"role": "user", "content": tc["user_input"]}],
+                            "max_tokens": 100,
+                            "temperature": 0.7,
+                        },
+                    )
+                    resp.raise_for_status()
+                    content = resp.json()["choices"][0]["message"]["content"]
+                    responses.append(content)
+                except Exception as e:
+                    responses.append(f"[ERROR: {e}]")
+                if inter_case_delay > 0 and i < len(test_cases) - 1:
+                    await asyncio.sleep(inter_case_delay)
+        return responses
+
+    return asyncio.run(_run_all())
+
+
+# ---------------------------------------------------------------------------
 # Bot pipeline runner
 # ---------------------------------------------------------------------------
 
@@ -851,7 +900,9 @@ def _build_metadata(args) -> Dict[str, Any]:
             "v4_composite": getattr(args, "v4_composite", False),
             "v41_metrics": getattr(args, "v41_metrics", False),
             "v5": getattr(args, "v5", False),
+            "naked_mode": getattr(args, "naked_mode", False),
         },
+        "pipeline_version": "naked" if getattr(args, "naked_mode", False) else "production",
         "doc_d_version_id": getattr(args, "doc_d_version_id", None),
         "doc_d_snapshot_at": getattr(args, "doc_d_snapshot_at", None),
         "doc_d_char_length": getattr(args, "doc_d_char_length", None),
@@ -1208,6 +1259,11 @@ def main():
         help="Skip bot pipeline, use ground truth as bot response (for testing scorer)"
     )
     parser.add_argument(
+        "--naked-mode", action="store_true",
+        help="Naked mode: call LLM directly with bare user message (no system prompt, no Doc D, no RAG). "
+             "Isolates model capability from pipeline. Sets naked_mode=true in output metadata.",
+    )
+    parser.add_argument(
         "--save-as", default=None,
         help="Custom name for results file (e.g. baseline_0, ablation_temp07)"
     )
@@ -1403,6 +1459,13 @@ def main():
         print(f"  [DOC_D] Could not resolve version ID: {_e}")
     print(f"  [DOC_D] version_id={args.doc_d_version_id} chars={args.doc_d_char_length}")
 
+    # Naked mode pre-flight: fail fast before spending any inference budget
+    if getattr(args, "naked_mode", False) and not os.environ.get("DEEPINFRA_API_KEY"):
+        raise RuntimeError(
+            "[NAKED MODE] DEEPINFRA_API_KEY not set — all requests would 401. "
+            "Export DEEPINFRA_API_KEY before running --naked-mode."
+        )
+
     # Run evaluation
     scorer = CCEEScorer(style_profile, strategy_map, adaptation_profile, weights)
     all_run_results = []
@@ -1423,6 +1486,13 @@ def main():
         if args.skip_pipeline:
             bot_responses = [tc["ground_truth"] for tc in test_cases]
             print("  (using ground truth as bot response — testing scorer only)")
+        elif args.naked_mode:
+            t0 = time.time()
+            print(f"  [NAKED] Calling endpoint directly — no system prompt, no Doc D, no RAG")
+            bot_responses = run_naked_pipeline(test_cases)
+            t1 = time.time()
+            n_errors = sum(1 for r in bot_responses if r.startswith("[ERROR"))
+            print(f"  Naked pipeline: {t1-t0:.1f}s | errors={n_errors}/{len(test_cases)}")
         else:
             t0 = time.time()
             bot_responses = run_bot_pipeline(creator, test_cases, overrides or None)
@@ -1630,6 +1700,7 @@ def main():
                 n_conversations=args.mt_conversations,
                 include_belief_shift=True,
                 include_adversarial=True,
+                naked_mode=getattr(args, "naked_mode", False),
             )
             if getattr(args, "v52_fixes", False):
                 mt_gen_kwargs["inject_qa_probes"] = True
@@ -1793,6 +1864,7 @@ def main():
             n_conversations=args.mt_conversations,
             include_belief_shift=True,
             include_adversarial=True,
+            naked_mode=getattr(args, "naked_mode", False),
         )
         if getattr(args, "v52_fixes", False):
             mt_gen_kwargs2["inject_qa_probes"] = True

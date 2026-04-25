@@ -637,11 +637,14 @@ def generate_conversation(
     multi_adversarial: bool = False,
     inject_qa_probes: bool = False,
     qa_probes: Optional[List[Dict[str, Any]]] = None,
+    # naked mode: bypass production pipeline
+    naked_mode: bool = False,
 ) -> Dict[str, Any]:
     """Generate a multi-turn conversation using the REAL DM pipeline.
 
     Each turn = 1 user message + 1 bot response.
     Uses the actual production pipeline (DMResponderAgentV2.process_dm).
+    When naked_mode=True: calls the LLM directly with conversation history, no system prompt.
 
     Args:
         creator_id: Creator slug (e.g. "iris_bertran")
@@ -654,16 +657,18 @@ def generate_conversation(
         inject_qa_probes: [v5.2 J6] If True, inject Q&A probes at ~30% and ~80% of conversation
         qa_probes: [v5.2 J6] Pre-generated probes from generate_qa_probes(). If None and
                    inject_qa_probes=True, probes must have been cached via generate_qa_probes().
+        naked_mode: If True, call endpoint directly with conversation history (no system prompt).
 
     Returns:
         Dict with conversation history, timing, and metadata
     """
-    from core.dm.agent import get_dm_agent
+    if not naked_mode:
+        from core.dm.agent import get_dm_agent
 
     if n_turns <= 0:
         n_turns = DEFAULT_N_TURNS
 
-    agent = get_dm_agent(creator_id)
+    agent = None if naked_mode else get_dm_agent(creator_id)
     sender_id = test_case.get("lead_uuid") or test_case.get("username") or "test_lead_multiturn"
 
     # L3 fix: load product hint once per conversation for lead simulator
@@ -785,21 +790,45 @@ def generate_conversation(
             user_entry.update(extra_meta)
         history.append(user_entry)
 
-        # Generate bot response via REAL pipeline
-        try:
-            dm_response = asyncio.run(agent.process_dm(
-                message=user_msg,
-                sender_id=sender_id,
-                metadata={"platform": "instagram"},
-            ))
-            bot_msg = (
-                dm_response.content
-                if hasattr(dm_response, "content")
-                else str(dm_response)
-            )
-        except Exception as e:
-            logger.error(f"Pipeline error at turn {turn_i}: {e}")
-            bot_msg = ""  # empty so scorer can filter/retry instead of scoring [ERROR:...]
+        # Generate bot response via REAL pipeline or naked direct call
+        if naked_mode:
+            try:
+                import httpx, os as _os
+                _endpoint = _os.environ.get("DEEPINFRA_BASE_URL", "https://api.deepinfra.com/v1/openai")
+                _model = _os.environ.get("DEEPINFRA_MODEL", _os.environ.get("LLM_MODEL", "gemma31b-iris-sft"))
+                _api_key = _os.environ.get("DEEPINFRA_API_KEY", "")
+                _timeout = float(_os.environ.get("DEEPINFRA_TIMEOUT", "180"))
+                _messages = [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in history
+                    if m.get("role") in ("user", "assistant") and m.get("content")
+                ]
+                with httpx.Client(timeout=_timeout) as _client:
+                    _resp = _client.post(
+                        f"{_endpoint}/chat/completions",
+                        headers={"Authorization": f"Bearer {_api_key}", "Content-Type": "application/json"},
+                        json={"model": _model, "messages": _messages, "max_tokens": 100, "temperature": 0.7},
+                    )
+                    _resp.raise_for_status()
+                    bot_msg = _resp.json()["choices"][0]["message"]["content"]
+            except Exception as e:
+                logger.error(f"Naked pipeline error at turn {turn_i}: {e}")
+                bot_msg = ""
+        else:
+            try:
+                dm_response = asyncio.run(agent.process_dm(
+                    message=user_msg,
+                    sender_id=sender_id,
+                    metadata={"platform": "instagram"},
+                ))
+                bot_msg = (
+                    dm_response.content
+                    if hasattr(dm_response, "content")
+                    else str(dm_response)
+                )
+            except Exception as e:
+                logger.error(f"Pipeline error at turn {turn_i}: {e}")
+                bot_msg = ""  # empty so scorer can filter/retry instead of scoring [ERROR:...]
 
         history.append({"role": "assistant", "content": bot_msg})
 
@@ -859,6 +888,8 @@ def generate_multi_turn_batch(
     multi_adversarial: bool = False,
     inject_qa_probes: bool = False,
     doc_d_text: str = "",
+    # naked mode
+    naked_mode: bool = False,
 ) -> List[Dict[str, Any]]:
     """Generate a batch of multi-turn conversations.
 
@@ -872,6 +903,7 @@ def generate_multi_turn_batch(
         multi_adversarial: [v5.2 G5] Insert 3 adversarial prompts at 30%/60%/90%
         inject_qa_probes: [v5.2 J6] Inject Q&A probes at ~30% and ~80%
         doc_d_text: [v5.2 J6] Creator's Doc D text for probe generation
+        naked_mode: If True, each turn calls LLM directly with conversation history (no system prompt).
 
     Returns:
         List of conversation dicts from generate_conversation()
@@ -923,6 +955,7 @@ def generate_multi_turn_batch(
             multi_adversarial=multi_adversarial,
             inject_qa_probes=inject_qa_probes,
             qa_probes=qa_probes,
+            naked_mode=naked_mode,
         )
         conversations.append(conv)
 

@@ -1,0 +1,35 @@
+{{ bos_token }}{%- macro strip_thinking(text) -%}
+    {%- set ns = namespace(result='') -%}
+    {%- for part in text.split('<channel|>') -%}
+        {%- if '<|channel>' in part -%}
+            {%- set ns.result = ns.result + part.split('<|channel>')[0] -%}
+        {%- else -%}
+            {%- set ns.result = ns.result + part -%}
+        {%- endif -%}
+    {%- endfor -%}
+    {{- ns.result | trim -}}
+{%- endmacro -%}
+{%- set loop_messages = messages -%}
+{%- if messages[0]['role'] in ['system', 'developer'] -%}
+{{ '<|turn>system
+' }}{{ messages[0]['content'] | trim }}{{ '<turn|>
+' }}{%- set loop_messages = messages[1:] -%}
+{%- endif -%}
+{%- for message in loop_messages -%}
+{%- if (message['role'] == 'assistant') -%}
+{%- set role = "model" -%}
+{%- else -%}
+{%- set role = message['role'] -%}
+{%- endif -%}
+{{ '<|turn>' + role + '
+' }}{%- if message['content'] is string -%}
+{%- if role == "model" -%}
+{{ strip_thinking(message['content']) }}{%- else -%}
+{{ message['content'] | trim }}{%- endif -%}
+{%- endif -%}
+{{ '<turn|>
+' }}{%- endfor -%}
+{%- if add_generation_prompt -%}
+{{ '<|turn>model
+' }}{{ '<|channel>thought
+<channel|>' }}{%- endif -%}
