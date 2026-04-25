@@ -96,11 +96,19 @@ def train():
 
     dataset = dataset.map(formatting_prompts_func, batched=True)
 
+    # 90/5/5 train/val/test split
+    splits = dataset.train_test_split(test_size=0.10, seed=3407)
+    train_dataset = splits["train"]
+    temp = splits["test"].train_test_split(test_size=0.50, seed=3407)
+    val_dataset = temp["train"]
+    test_dataset = temp["test"]
+    print(f"Split: {len(train_dataset)} train / {len(val_dataset)} val / {len(test_dataset)} test")
+
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
-        train_dataset=dataset,
-        eval_dataset=None,
+        train_dataset=train_dataset,
+        eval_dataset=val_dataset,  # 5% split, ver dataset prep
         args=SFTConfig(
             dataset_text_field="text",
             per_device_train_batch_size=2,
@@ -113,6 +121,8 @@ def train():
             weight_decay=0.01,
             max_grad_norm=0.3,
             logging_steps=10,
+            eval_strategy="steps",
+            eval_steps=100,
             save_strategy="steps",
             save_steps=200,
             save_total_limit=3,

@@ -97,6 +97,14 @@ def formatting_prompts_func(examples):
 dataset = dataset.map(formatting_prompts_func, batched=True)
 print(f"\nFormatted sample text:\n{dataset[0]['text'][:500]}")
 
+# 90/5/5 train/val/test split
+splits = dataset.train_test_split(test_size=0.10, seed=3407)
+train_dataset = splits["train"]
+temp = splits["test"].train_test_split(test_size=0.50, seed=3407)
+val_dataset = temp["train"]
+test_dataset = temp["test"]
+print(f"Split: {len(train_dataset)} train / {len(val_dataset)} val / {len(test_dataset)} test")
+
 # CELDA 4: Training config
 # =========================
 
@@ -105,8 +113,8 @@ from trl import SFTTrainer, SFTConfig
 trainer = SFTTrainer(
     model=model,
     tokenizer=tokenizer,
-    train_dataset=dataset,
-    eval_dataset=None,
+    train_dataset=train_dataset,
+    eval_dataset=val_dataset,  # 5% split, ver dataset prep
     args=SFTConfig(
         # Batch
         dataset_text_field="text",
@@ -127,6 +135,8 @@ trainer = SFTTrainer(
 
         # Logging
         logging_steps=10,
+        eval_strategy="steps",
+        eval_steps=100,
         save_strategy="steps",
         save_steps=500,
         save_total_limit=3,
