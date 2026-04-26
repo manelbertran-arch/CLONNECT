@@ -158,10 +158,12 @@ def train(smoke: bool = False):
     print(f"Split: {len(train_dataset)} train / {len(val_dataset)} val / {len(test_dataset)} test")
 
     # ── Smoke params vs full params ────────────────────────────────────────────
+    # Note: packing=False MANDATORY — TRL issue #3728: packing=True corrupts
+    # completion mask causing cross-sample contamination (SPRINT7_EXECUTION_PLAN §7)
     if smoke:
-        max_steps       = 100
+        max_steps       = 300         # v9: 300 steps for real LR convergence signal
         num_epochs      = None        # overridden by max_steps
-        save_steps      = 50
+        save_steps      = 100
         output_dir      = "/models/gemma31b-iris-sft-smoke"
         print(f"🔬 SMOKE MODE: max_steps={max_steps}, save_steps={save_steps}")
     else:
