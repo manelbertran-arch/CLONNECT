@@ -137,6 +137,45 @@ def load_dataset_smart(override: str | None):
 # ---------------------------------------------------------------------------
 
 def train(dataset_override: str | None, dry_run: bool = False) -> None:
+    # --- Dry-run: validate config + dataset access without GPU/unsloth ---
+    if dry_run:
+        import json
+        logger.info("=== DRY RUN MODE (no GPU required) ===")
+        logger.info("Config: BASE_MODEL=%s  SFT_ADAPTER=%s  MAX_SEQ_LEN=%d  HF_REPO=%s",
+                    BASE_MODEL, SFT_ADAPTER, MAX_SEQ_LEN, HF_REPO)
+        logger.info("DPO algo: %s", DPO_ALGO)
+        logger.info("Hyperparams: %s", TRAINING)
+
+        # Validate dataset file accessible (raw json, no datasets lib needed)
+        found = None
+        for p in [dataset_override, DATASET_LOCAL, DATASET_FALLBACK]:
+            if p and Path(p).exists():
+                found = p
+                break
+        if found:
+            with open(found) as f:
+                records = [json.loads(l) for l in f if l.strip()]
+            none_count = sum(1 for r in records if r.get("prompt") is None)
+            sample = records[0]
+            logger.info("Dataset: %s — %d pairs, %d None prompts (expect 0)", found, len(records), none_count)
+            logger.info("Sample keys: %s", list(sample.keys()))
+            logger.info("  prompt[:100]:   %s", str(sample.get("prompt", ""))[:100])
+            logger.info("  chosen[:100]:   %s", str(sample.get("chosen", ""))[:100])
+            logger.info("  rejected[:100]: %s", str(sample.get("rejected", ""))[:100])
+            if none_count > 0:
+                logger.error("BUG-4: dataset has %d None prompts — use dpo_iris_v3_clean.jsonl", none_count)
+                sys.exit(1)
+        elif os.environ.get("HF_TOKEN"):
+            logger.info("Local dataset not found — HF token present, will download on Vast.ai")
+            logger.info("HF_DATASET_DPO: %s", HF_DATASET_DPO)
+        else:
+            logger.error("No local dataset and no HF_TOKEN — training will fail on Vast.ai")
+            sys.exit(1)
+
+        logger.info("DRY RUN complete. All checks passed.")
+        return
+
+    # --- Full training path (requires GPU + unsloth) ---
     import torch
 
     logger.info("Loading base model: %s", BASE_MODEL)
@@ -190,15 +229,6 @@ def train(dataset_override: str | None, dry_run: bool = False) -> None:
             dataset.column_names,
         )
         sys.exit(1)
-
-    if dry_run:
-        logger.info("DRY RUN — showing first pair:")
-        example = dataset[0]
-        logger.info("  prompt:   %s", str(example["prompt"])[:200])
-        logger.info("  chosen:   %s", str(example["chosen"])[:200])
-        logger.info("  rejected: %s", str(example["rejected"])[:200])
-        logger.info("DRY RUN complete. Exiting.")
-        return
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 

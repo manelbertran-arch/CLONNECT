@@ -29,6 +29,17 @@ echo "============================================================"
 echo "  Sprint 10 — Vast.ai H200 Setup (max_seq_len=8192)"
 echo "  $(date)"
 echo "============================================================"
+echo ""
+echo "=== Cost Estimate ==="
+echo "  H200 80GB @ ~\$3.5/h (Vast.ai spot, May 2026)"
+echo "  SFT phase:    36-48h → ~\$126-168"
+echo "  DPO phase:     8-12h → ~\$28-42"
+echo "  TOTAL:        44-60h → ~\$154-210"
+echo "  A100 80GB @ ~\$2.5/h (cheaper, ~20% slower):"
+echo "    SFT: ~42-54h → ~\$105-135 | DPO: ~10-14h → ~\$25-35"
+echo ""
+echo "  SFT output:  manelbertranluque/clonnect-iris-sft-sprint10-qwen3-32b"
+echo "  DPO output:  manelbertranluque/clonnect-iris-dpo-sprint10-qwen3-32b"
 
 # ---------------------------------------------------------------------------
 # Pre-flight checks
@@ -49,8 +60,12 @@ echo "GPU VRAM: ${gpu_mem}MB — OK"
 echo ""
 echo "=== Disk Check ==="
 df -h /workspace 2>/dev/null || df -h /
-free_disk=$(df / | tail -1 | awk '{print $4}')
-echo "Free disk: ${free_disk} KB"
+free_disk_gb=$(df / | tail -1 | awk '{printf "%d", $4/1024/1024}')
+echo "Free disk: ~${free_disk_gb} GB"
+if [ "$free_disk_gb" -lt 100 ]; then
+    echo "ERROR: Only ${free_disk_gb}GB free disk — 100GB required (model weights ~65GB + datasets + checkpoints)"
+    exit 1
+fi
 
 echo ""
 echo "=== RAM Check ==="

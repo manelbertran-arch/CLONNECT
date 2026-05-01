@@ -142,6 +142,40 @@ def load_dataset_smart(override: str | None):
 # ---------------------------------------------------------------------------
 
 def train(dataset_override: str | None, dry_run: bool = False) -> None:
+    # --- Dry-run: validate config + dataset access without GPU/unsloth ---
+    if dry_run:
+        import json
+        logger.info("=== DRY RUN MODE (no GPU required) ===")
+        logger.info("Config: BASE_MODEL=%s  MAX_SEQ_LEN=%d  LORA_RANK=%d  HF_REPO=%s",
+                    BASE_MODEL, MAX_SEQ_LEN, LORA_RANK, HF_REPO)
+        logger.info("Hyperparams: %s", TRAINING)
+
+        # Validate dataset file accessible (local path check, no datasets lib needed)
+        found = None
+        for p in [dataset_override, DATASET_LOCAL_FILTERED, DATASET_LOCAL_RAW, DATASET_FALLBACK]:
+            if p and Path(p).exists():
+                found = p
+                break
+        if found:
+            with open(found) as f:
+                records = [json.loads(l) for l in f if l.strip()]
+            sample = records[0]
+            mt = sum(1 for r in records if r.get("turn_type") == "multi")
+            logger.info("Dataset: %s — %d records, %.1f%% multi-turn", found, len(records), mt/len(records)*100)
+            logger.info("Sample keys: %s", list(sample.keys()))
+            if "messages" in sample:
+                logger.info("Sample messages[0]: %s", str(sample["messages"][0])[:200])
+        elif os.environ.get("HF_TOKEN"):
+            logger.info("Local dataset not found — HF token present, will download on Vast.ai")
+            logger.info("HF_DATASET_SFT: %s", HF_DATASET_SFT)
+        else:
+            logger.error("No local dataset and no HF_TOKEN — training will fail on Vast.ai")
+            sys.exit(1)
+
+        logger.info("DRY RUN complete. All checks passed.")
+        return
+
+    # --- Full training path (requires GPU + unsloth) ---
     import torch
 
     logger.info("Loading base model: %s", BASE_MODEL)
@@ -192,12 +226,6 @@ def train(dataset_override: str | None, dry_run: bool = False) -> None:
         }
 
     dataset = dataset.map(format_chatml, batched=False, desc="Applying chat template")
-
-    if dry_run:
-        logger.info("DRY RUN — showing first example:")
-        logger.info(dataset[0]["text"][:500])
-        logger.info("DRY RUN complete. Exiting.")
-        return
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 

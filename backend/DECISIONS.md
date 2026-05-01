@@ -4,6 +4,28 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## Sprint10-W3 — Training pipeline final: SFT + DPO con todos los bug fixes (2026-05-01)
+
+**Decisión: Fase B (re-SFT + re-DPO)** confirmada tras Phase 0 eval: v5=67.6 con FT buggy vs 70.01 baseline. Δ=+4.7 sobre Sprint 9 con Doc D restaurado.
+
+**Bug fixes aplicados**:
+- BUG-2: `train_on_responses_only=True` activado (faltaba → loss en prompt tokens → echo alto)
+- BUG-3: hyperparams DPO completos migrados de Gemma config: `rpo_alpha=0.5`, `label_smoothing=0.1`, `cosine` scheduler, `weight_decay=0.01`
+- BUG-4: dataset DPO v3 clean (1128 pairs, 0 None prompts, vs v2 46.5% None)
+- BUG-7: fresh LoRA adapter para DPO (no reusar SFT weights directamente)
+- BUG-14: `max_seq_len=8192` (vs 1024 en Sprint 9 → truncaba Doc D)
+- BUG-15: skip CPT (139K tokens < 10M mínimo DAPT; sobrefitting garantizado en Sprint 9)
+
+**Datasets subidos a HF (privados)**:
+- SFT: `manelbertranluque/clonnect-iris-sft-v4-multiturn` (9983 records, 31.2% multi-turn)
+- DPO: `manelbertranluque/clonnect-iris-dpo-v3-clean` (1128 pairs, 0 None prompts)
+
+**Hardware**: H200 80GB o A100 80GB. ETA SFT ~36-48h + DPO ~8-12h. Coste estimado ~$150-210.
+
+**Scripts**: `sprint10/01_train_sft.py` + `sprint10/02_train_dpo.py` + `sprint10/setup_sprint10_h200.sh`
+
+---
+
 ## Sprint2-WorkerB — OpenAI removal: prod secondary services (2026-05-01)
 
 **Sites #3, #4, #5** del OPENAI_DECISION_MATRIX.md.
