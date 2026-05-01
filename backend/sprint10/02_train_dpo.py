@@ -50,8 +50,8 @@ SFT_ADAPTER = "manelbertranluque/clonnect-iris-sft-sprint10-qwen3-32b"
 OUTPUT_DIR = "output/sprint10/dpo"
 HF_REPO = "manelbertranluque/clonnect-iris-dpo-sprint10-qwen3-32b"
 
-MAX_SEQ_LEN = 4096
-MAX_PROMPT_LEN = 1024
+MAX_SEQ_LEN = 8192   # Opción A: match SFT max_seq_len
+MAX_PROMPT_LEN = 4096  # Half of MAX_SEQ_LEN — leaves room for chosen/rejected
 
 DATASET_PRIMARY = "data/dpo/trl/dpo_iris_v3_clean.jsonl"   # W1 output
 DATASET_FALLBACK = "data/dpo/trl/dpo_iris_v2.jsonl"        # 2499 pairs fallback

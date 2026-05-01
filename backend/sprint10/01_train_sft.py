@@ -21,7 +21,9 @@ Dataset priority:
   2. data/dpo/trl/sft_v3_clean.jsonl       [fallback if W2 not ready]
 
 Hardware: H200 80GB (minimum — 32B + bf16 needs ~70GB VRAM)
-Estimate: ~6-8h on H200 for 2 epochs over ~9K examples
+Estimate: ~36-48h on H200 for 2 epochs over ~10K examples at max_seq_len=8192
+  (vs ~24h at 4096 — doubled context doubles memory and compute per step)
+  GPU: H200 80GB required. 4090 (24GB) NOT viable at 8192.
 
 Usage:
   HF_TOKEN=<token> python sprint10/01_train_sft.py [--dataset <path>] [--dry-run]
@@ -46,7 +48,7 @@ logger = logging.getLogger("sprint10.sft")
 
 BASE_MODEL = "Qwen/Qwen3-32B"
 OUTPUT_DIR = "output/sprint10/sft"
-MAX_SEQ_LEN = 4096
+MAX_SEQ_LEN = 8192   # Opción A: supports V1 system prompt (~7.5K tokens) + conversation
 HF_REPO = "manelbertranluque/clonnect-iris-sft-sprint10-qwen3-32b"
 
 DATASET_PRIMARY = "data/dpo/trl/sft_v4_multiturn.jsonl"   # W2 output
