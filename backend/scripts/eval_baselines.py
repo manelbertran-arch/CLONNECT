@@ -40,6 +40,12 @@ PROVIDERS = {
         'model': 'accounts/fireworks/models/qwen3-8b',
         'extra': {'thinking': {'type': 'disabled'}}
     },
+    'qwen3-32b-deepinfra': {
+        'base_url': 'https://api.deepinfra.com/v1/openai',
+        'api_key': os.environ.get('DEEPINFRA_API_KEY', ''),
+        'model': 'Qwen/Qwen3-32B',
+        'extra': {}
+    },
 }
 
 # Si no hay DASHSCOPE_API_KEY, skip esos providers

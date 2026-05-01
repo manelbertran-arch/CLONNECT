@@ -109,7 +109,7 @@ def check_rag_health():
                 else:
                     errors.append("RAG search returned 0 results for 'cuánto cuesta barre'")
             else:
-                errors.append("generate_embedding returned None (check OPENAI_API_KEY)")
+                errors.append("generate_embedding returned None (check GOOGLE_API_KEY)")
         except Exception as e:
             errors.append(f"RAG search error: {e}")
 

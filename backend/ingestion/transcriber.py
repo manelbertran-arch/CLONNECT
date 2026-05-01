@@ -1,16 +1,15 @@
 """
-Transcriber - 3-Tier Cascade: Groq → Gemini → OpenAI Whisper.
+Transcriber - 2-Tier Cascade: Groq → Gemini.
 
 Tier 0 (FREE):    Groq Whisper v3 Turbo (2000 req/day, 8h audio/day)
 Tier 1 ($0.0006): Gemini 2.0 Flash audio native (httpx REST)
-Tier 2 ($0.006):  OpenAI Whisper-1 (existing fallback)
 
 Supports:
 - Local audio/video files (mp3, wav, m4a, ogg, webm, mp4)
 - URLs (auto-download + cascade)
 
 Dependencies:
-- openai (Whisper API + Groq via OpenAI-compatible client)
+- openai (Groq via OpenAI-compatible client)
 - httpx (Gemini REST + URL downloads)
 """
 
@@ -70,7 +69,7 @@ class Transcript:
     language: str = "auto"
     duration_seconds: float = 0.0
     transcribed_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    model_used: str = "whisper-1"
+    model_used: str = "unknown"
 
     def to_dict(self) -> Dict:
         return {
@@ -93,11 +92,10 @@ class Transcript:
 
 class Transcriber:
     """
-    3-Tier cascade transcription service.
+    2-Tier cascade transcription service.
 
     Tier 0: Groq Whisper v3 Turbo (free, 2000 req/day)
     Tier 1: Gemini 2.0 Flash audio native (~$0.0006/min)
-    Tier 2: OpenAI Whisper-1 ($0.006/min)
 
     Usage:
         transcriber = Transcriber()
@@ -118,11 +116,7 @@ class Transcriber:
         "avi": "video/x-msvideo",
     }
 
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if not self.api_key:
-            logger.warning("No OpenAI API key provided. Tier 2 fallback will fail.")
-
+    def __init__(self):
         self.groq_api_key = os.getenv("GROQ_API_KEY")
         self.google_api_key = os.getenv("GOOGLE_API_KEY")
 
@@ -190,7 +184,7 @@ class Transcriber:
     async def _transcribe_cascade(
         self, audio_bytes: bytes, mime_type: str, language: Optional[str]
     ) -> Tuple[str, str, Optional[str]]:
-        """Try Tier 0 → Tier 1 → Tier 2. Returns (text, model_name, detected_lang).
+        """Try Tier 0 → Tier 1. Returns (text, model_name, detected_lang).
 
         language=None means auto-detect (multilingual). Pass an ISO code like
         "es" or "ca" only to force a specific language.
@@ -223,18 +217,12 @@ class Transcriber:
                 )
                 return text, "gemini-2.0-flash-audio", language
             except Exception as e:
-                logger.warning(f"[AUDIO_CASCADE] TIER 1 Gemini failed ({e}) → escalating")
+                logger.warning(f"[AUDIO_CASCADE] TIER 1 Gemini failed ({e}) → giving up")
         else:
             logger.debug("[AUDIO_CASCADE] TIER 1 Gemini skipped (no GOOGLE_API_KEY)")
 
-        # TIER 2: OpenAI Whisper-1 (always available)
-        t0 = time.monotonic()
-        text, detected = await self._transcribe_openai(audio_bytes, mime_type, language)
-        elapsed = time.monotonic() - t0
-        logger.info(
-            f"[AUDIO_CASCADE] TIER 2 OpenAI Whisper OK ({len(text)} chars, {elapsed:.1f}s)"
-        )
-        return text, "whisper-1", detected
+        logger.error("[AUDIO_CASCADE] All tiers failed, returning empty transcript")
+        return "", "none", language
 
     # ── Tier 0: Groq ─────────────────────────────────────────────────
 
@@ -324,90 +312,6 @@ class Transcriber:
             raise ValueError("Gemini returned no parts")
 
         return parts[0].get("text", "").strip()
-
-    # ── Tier 2: OpenAI Whisper-1 ──────────────────────────────────────
-
-    async def _transcribe_openai(
-        self, audio_bytes: bytes, mime_type: str, language: Optional[str]
-    ) -> Tuple[str, Optional[str]]:
-        """OpenAI Whisper-1 — last resort, always has API key.
-
-        When language=None, omits language param for auto-detection.
-        Returns (text, detected_language).
-        """
-        from openai import AsyncOpenAI
-
-        client = AsyncOpenAI(api_key=self.api_key)
-
-        kwargs: Dict = {
-            "model": "whisper-1",
-            "file": ("audio.ogg", audio_bytes, mime_type),
-            "response_format": "verbose_json",
-            # Bilingual prompt helps Whisper handle Spanish-Catalan code-switching
-            "prompt": "Hola, ¿cómo estàs? Bueno, t'ho explico. Vaig estar a l'event i em va semblar genial. T'envio un petó.",
-        }
-        if language:
-            kwargs["language"] = language
-
-        response = await client.audio.transcriptions.create(**kwargs)
-
-        text = response.text if hasattr(response, "text") else str(response)
-        detected = getattr(response, "language", None) or language
-        return text.strip(), detected
-
-    # ── Legacy method (kept for backward compat) ──────────────────────
-
-    async def _call_whisper_api(
-        self, file_path: str, language: str, include_timestamps: bool
-    ) -> Transcript:
-        """Legacy Whisper API call. Kept for backward compatibility."""
-        try:
-            from openai import AsyncOpenAI
-
-            client = AsyncOpenAI(api_key=self.api_key)
-
-            with open(file_path, "rb") as audio_file:
-                response_format = "verbose_json" if include_timestamps else "text"
-
-                response = await client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=audio_file,
-                    language=language,
-                    response_format=response_format,
-                    prompt="Hola, ¿cómo estás? Bueno, te cuento que estuve en el evento. Me pareció genial, la verdad. Te mando un beso.",
-                )
-
-            if include_timestamps and hasattr(response, "segments"):
-                segments = [
-                    TranscriptSegment(
-                        text=getattr(seg, "text", "").strip(),
-                        start_time=getattr(seg, "start", 0),
-                        end_time=getattr(seg, "end", 0),
-                        confidence=getattr(seg, "confidence", 1.0),
-                    )
-                    for seg in response.segments
-                ]
-                full_text = response.text
-                duration = response.duration if hasattr(response, "duration") else 0
-            else:
-                full_text = response if isinstance(response, str) else response.text
-                segments = []
-                duration = 0
-
-            return Transcript(
-                source_file=file_path,
-                full_text=full_text.strip(),
-                segments=segments,
-                language=language,
-                duration_seconds=duration,
-                model_used="whisper-1",
-            )
-
-        except ImportError:
-            raise ImportError("openai package required. Install with: pip install openai")
-        except Exception as e:
-            logger.error(f"Error en transcripcion: {e}")
-            raise
 
     # ── Helpers ────────────────────────────────────────────────────────
 

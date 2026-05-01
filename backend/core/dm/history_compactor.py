@@ -421,22 +421,4 @@ def _call_summary_llm(prompt: str) -> str:
         except Exception as e:
             logger.debug("[HistoryCompactor] Gemini summary failed: %s", e)
 
-    if not model or "openai" in model.lower() or "gpt" in model.lower():
-        try:
-            import openai
-            _api_key = os.getenv("OPENAI_API_KEY")
-            if _api_key:
-                client = openai.OpenAI(api_key=_api_key)
-                _model_name = model if model else "gpt-4o-mini"
-                response = client.chat.completions.create(
-                    model=_model_name,
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=300,
-                    temperature=0.3,
-                )
-                if response.choices:
-                    return response.choices[0].message.content.strip()
-        except Exception as e:
-            logger.debug("[HistoryCompactor] OpenAI summary failed: %s", e)
-
     raise RuntimeError("No LLM provider available for summary generation")

@@ -1,22 +1,31 @@
 """
-OpenAI Embeddings Service for Semantic Search
+Gemini Embeddings Service for Semantic Search
 
-Uses text-embedding-3-small (1536 dimensions) with pgvector for storage.
+Uses gemini-embedding-001 (1536 dimensions via outputDimensionality) with pgvector for storage.
+Migrated from OpenAI text-embedding-3-small in Sprint 2bis (OpenAI removal).
 Embeddings persist in PostgreSQL - no regeneration on deploy.
 """
 
 import logging
 import os
-import time
 from typing import List, Optional
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
-# OpenAI embedding model config
-EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_DIMENSIONS = 1536
+# Gemini embedding model config
+# gemini-embedding-001: native 3072 dims, supports MRL truncation to 1536
+# (text-embedding-004 has native 768 dims — cannot upscale to 1536)
+EMBEDDING_MODEL = "models/gemini-embedding-001"
+EMBEDDING_DIMENSIONS = 1536  # matches pgvector schema — no reindex needed
 
-# Embedding cache: avoid repeated OpenAI API calls for same query
+_GEMINI_EMBED_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/"
+    "models/gemini-embedding-001:embedContent"
+)
+
+# Embedding cache: avoid repeated Gemini API calls for same query
 # Bounded to prevent memory leaks (each embedding = 1536 floats ≈ 12KB)
 from core.cache import BoundedTTLCache
 _embedding_cache = BoundedTTLCache(max_size=200, ttl_seconds=600)
@@ -30,94 +39,85 @@ EMBEDDING_CACHE_TTL = 600  # 10 minutes
 DEFAULT_MIN_SIMILARITY = float(os.getenv("RAG_MIN_SIMILARITY", "0.35"))
 
 
-def get_openai_client():
-    """Get OpenAI client lazily."""
-    try:
-        from openai import OpenAI
-
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            logger.warning("OPENAI_API_KEY not set, embeddings disabled")
-            return None
-        return OpenAI(api_key=api_key)
-    except ImportError:
-        logger.warning("openai package not installed")
-        return None
+def _get_gemini_api_key() -> Optional[str]:
+    return os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 
 
-def generate_embedding(text: str) -> Optional[List[float]]:
+def generate_embedding(
+    text: str,
+    task_type: str = "RETRIEVAL_DOCUMENT",
+) -> Optional[List[float]]:
     """
-    Generate embedding for a single text using OpenAI API.
+    Generate embedding for a single text using Gemini gemini-embedding-001.
     Results are cached in-memory with TTL to avoid repeated API calls.
 
     Args:
-        text: Text to embed (max ~8000 tokens for text-embedding-3-small)
+        text: Text to embed
+        task_type: Gemini task type — RETRIEVAL_DOCUMENT (default, for stored docs),
+                   RETRIEVAL_QUERY (for search queries), SEMANTIC_SIMILARITY, etc.
 
     Returns:
         List of 1536 floats, or None if failed
     """
-    # Check cache first
-    cache_key = text.strip().lower()
+    if not text or not text.strip():
+        return None
+
+    # Include task_type in cache key to avoid cross-task pollution
+    cache_key = f"{task_type}:{text.strip().lower()}"
     cached = _embedding_cache.get(cache_key)
     if cached is not None:
         logger.info(f"[EMBEDDING] Cache hit: '{text[:50]}'")
         return cached
 
-    client = get_openai_client()
-    if not client:
+    api_key = _get_gemini_api_key()
+    if not api_key:
+        logger.warning("GOOGLE_API_KEY/GEMINI_API_KEY not set, embeddings disabled")
         return None
 
     try:
-        # Truncate if too long (rough estimate: 1 token ≈ 4 chars)
-        max_chars = 30000  # ~7500 tokens, safe limit
+        max_chars = 30000
         if len(text) > max_chars:
             text = text[:max_chars]
 
-        response = client.embeddings.create(model=EMBEDDING_MODEL, input=text)
+        payload = {
+            "content": {"parts": [{"text": text}]},
+            "outputDimensionality": EMBEDDING_DIMENSIONS,
+            "taskType": task_type,
+        }
 
-        embedding = response.data[0].embedding
+        resp = httpx.post(
+            _GEMINI_EMBED_URL,
+            params={"key": api_key},
+            json=payload,
+            timeout=30.0,
+        )
+        resp.raise_for_status()
+
+        embedding: List[float] = resp.json()["embedding"]["values"]
         _embedding_cache.set(cache_key, embedding)
-        logger.info(f"[EMBEDDING] Cache miss, stored: '{text[:50]}'")
+        logger.info(f"[EMBEDDING] Generated (Gemini): '{text[:50]}'")
         return embedding
 
     except Exception as e:
-        logger.error(f"Error generating embedding: {e}")
+        logger.error(f"Error generating embedding (Gemini): {e}")
         return None
 
 
-def generate_embeddings_batch(texts: List[str]) -> List[Optional[List[float]]]:
+def generate_embeddings_batch(
+    texts: List[str],
+    task_type: str = "RETRIEVAL_DOCUMENT",
+) -> List[Optional[List[float]]]:
     """
-    Generate embeddings for multiple texts in a single API call.
-    More efficient than calling generate_embedding() in a loop.
+    Generate embeddings for multiple texts (sequential calls with caching).
 
     Args:
         texts: List of texts to embed
+        task_type: Gemini task type (same for all items in the batch)
 
     Returns:
         List of embeddings (or None for failed items)
     """
-    client = get_openai_client()
-    if not client:
-        return [None] * len(texts)
-
-    try:
-        # Truncate each text
-        max_chars = 30000
-        truncated = [t[:max_chars] if len(t) > max_chars else t for t in texts]
-
-        response = client.embeddings.create(model=EMBEDDING_MODEL, input=truncated)
-
-        # Map results by index
-        embeddings = [None] * len(texts)
-        for item in response.data:
-            embeddings[item.index] = item.embedding
-
-        logger.info(f"Generated {len([e for e in embeddings if e])} embeddings in batch")
-        return embeddings
-
-    except Exception as e:
-        logger.error(f"Error generating batch embeddings: {e}")
-        return [None] * len(texts)
+    return [generate_embedding(text, task_type=task_type) for text in texts]
 
 
 def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
@@ -239,7 +239,7 @@ def search_similar(
         query_embedding: Query vector (1536 floats)
         creator_id: Filter by creator
         top_k: Maximum results
-        min_similarity: Minimum similarity threshold (0-1). Default: RAG_MIN_SIMILARITY env var or 0.5
+        min_similarity: Minimum similarity threshold (0-1). Default: RAG_MIN_SIMILARITY env var or 0.35
 
     Returns:
         List of {chunk_id, content, similarity} dicts

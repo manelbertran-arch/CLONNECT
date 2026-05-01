@@ -71,14 +71,14 @@ Responde SOLO en JSON valido (sin comentarios):
 # LLM Judge callers
 # ---------------------------------------------------------------------------
 
-async def call_judge_openai(prompt: str) -> dict:
-    """Call GPT-4o-mini as judge."""
-    import openai
+async def call_judge_deepinfra(prompt: str) -> dict:
+    """Call Qwen3-30B-A3B via DeepInfra as judge."""
+    from scripts._shared.deepinfra_client import get_deepinfra_async_client, JUDGE_MODEL
 
-    client = openai.AsyncOpenAI()
+    client = get_deepinfra_async_client()
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=JUDGE_MODEL,
             messages=[
                 {"role": "system", "content": "You are an expert evaluator. Always respond with valid JSON only."},
                 {"role": "user", "content": prompt},
@@ -90,7 +90,7 @@ async def call_judge_openai(prompt: str) -> dict:
         content = response.choices[0].message.content
         return json.loads(content)
     except Exception as e:
-        logger.warning(f"OpenAI judge error: {e}")
+        logger.warning(f"DeepInfra judge error: {e}")
         return {"error": str(e)}
 
 
@@ -202,9 +202,9 @@ async def run_blind_evaluation(
 
     async def eval_one(pair):
         async with semaphore:
-            return await evaluate_pair(pair, call_judge_openai, "gpt-4o-mini")
+            return await evaluate_pair(pair, call_judge_deepinfra, "Qwen3-30B-A3B")
 
-    print(f"\n  Running GPT-4o-mini judge on {len(pairs)} pairs...")
+    print(f"\n  Running Qwen3-30B-A3B judge on {len(pairs)} pairs...")
     tasks = [eval_one(p) for p in pairs]
     results = await asyncio.gather(*tasks)
 
@@ -215,7 +215,7 @@ async def run_blind_evaluation(
         "evaluations": results,
         "metrics": metrics,
         "config": {
-            "judge": "gpt-4o-mini",
+            "judge": "Qwen3-30B-A3B",
             "total_pairs": len(pairs),
             "sample_size": sample_size,
         },
@@ -223,10 +223,10 @@ async def run_blind_evaluation(
 
 
 def compute_metrics(results: list[dict]) -> dict:
-    """Compute aggregate metrics from GPT-4o-mini judge evaluations."""
+    """Compute aggregate metrics from Qwen3-30B-A3B judge evaluations."""
     valid = [r for r in results if "error" not in r]
     if not valid:
-        return {"gpt-4o-mini": {"total_evaluated": 0, "errors": len(results)}}
+        return {"Qwen3-30B-A3B": {"total_evaluated": 0, "errors": len(results)}}
 
     # Indistinguishability: % where judge got it WRONG
     correct_guesses = sum(1 for r in valid if r.get("judge_guessed_correctly"))
@@ -278,7 +278,7 @@ def compute_metrics(results: list[dict]) -> dict:
     conf_dist = Counter(r.get("judge_confidence", "") for r in valid)
 
     return {
-        "gpt-4o-mini": {
+        "Qwen3-30B-A3B": {
             "total_evaluated": len(valid),
             "errors": len(results) - len(valid),
             "indistinguishable_pct": round(indistinguishable, 1),
@@ -296,10 +296,10 @@ def compute_metrics(results: list[dict]) -> dict:
 def print_judge_report(metrics: dict):
     """Print the blind judge evaluation report."""
     print(f"\n{'='*60}")
-    print(f"  Blind A/B Judge Report (GPT-4o-mini)")
+    print(f"  Blind A/B Judge Report (Qwen3-30B-A3B)")
     print(f"{'='*60}")
 
-    m = metrics.get("gpt-4o-mini", {})
+    m = metrics.get("Qwen3-30B-A3B", {})
     if not m:
         print("  No results.")
         return

@@ -64,7 +64,6 @@ class LLMService:
     # Default models per provider
     DEFAULT_MODELS = {
         LLMProvider.GROQ: "llama-3.3-70b-versatile",
-        LLMProvider.OPENAI: "gpt-4o-mini",
         LLMProvider.ANTHROPIC: "claude-3-haiku-20240307",
         LLMProvider.GEMINI: GEMINI_PRIMARY_MODEL,
     }
@@ -76,12 +75,6 @@ class LLMService:
             "llama-3.1-70b-versatile",
             "llama-3.1-8b-instant",
             "mixtral-8x7b-32768",
-        ],
-        LLMProvider.OPENAI: [
-            "gpt-4o",
-            "gpt-4o-mini",
-            "gpt-4-turbo",
-            "gpt-3.5-turbo",
         ],
         LLMProvider.ANTHROPIC: [
             "claude-3-opus-20240229",
@@ -97,7 +90,7 @@ class LLMService:
 
     def __init__(
         self,
-        provider: LLMProvider = LLMProvider.OPENAI,
+        provider: LLMProvider = LLMProvider.GEMINI,
         model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 1024,
@@ -129,7 +122,6 @@ class LLMService:
         """Get API key from environment variables."""
         key_map = {
             LLMProvider.GROQ: "GROQ_API_KEY",
-            LLMProvider.OPENAI: "OPENAI_API_KEY",
             LLMProvider.ANTHROPIC: "ANTHROPIC_API_KEY",
             LLMProvider.GEMINI: "GOOGLE_API_KEY",
         }
@@ -145,9 +137,6 @@ class LLMService:
             if self.provider == LLMProvider.GROQ:
                 from groq import AsyncGroq
                 self._client = AsyncGroq(api_key=self._api_key)
-            elif self.provider == LLMProvider.OPENAI:
-                from openai import AsyncOpenAI
-                self._client = AsyncOpenAI(api_key=self._api_key)
             elif self.provider == LLMProvider.ANTHROPIC:
                 from anthropic import AsyncAnthropic
                 self._client = AsyncAnthropic(api_key=self._api_key)
@@ -305,15 +294,6 @@ class LLMService:
                 )
                 return self._parse_groq_response(response)
 
-            elif self.provider == LLMProvider.OPENAI:
-                response = await client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                )
-                return self._parse_openai_response(response)
-
             elif self.provider == LLMProvider.ANTHROPIC:
                 # Extract system prompt for Anthropic's format
                 system = None
@@ -386,7 +366,7 @@ class LLMService:
         original_client = self._client
 
         # Provider priority order for failover
-        failover_order = [LLMProvider.OPENAI, LLMProvider.GROQ, LLMProvider.ANTHROPIC, LLMProvider.GEMINI]
+        failover_order = [LLMProvider.GEMINI, LLMProvider.GROQ, LLMProvider.ANTHROPIC]
 
         for provider in failover_order:
             if provider == original_provider:
@@ -395,7 +375,6 @@ class LLMService:
             # Check if this provider has an API key configured
             key_map = {
                 LLMProvider.GROQ: "GROQ_API_KEY",
-                LLMProvider.OPENAI: "OPENAI_API_KEY",
                 LLMProvider.ANTHROPIC: "ANTHROPIC_API_KEY",
                 LLMProvider.GEMINI: "GOOGLE_API_KEY",
             }
@@ -425,14 +404,6 @@ class LLMService:
                         max_tokens=max_tokens,
                     )
                     result = self._parse_groq_response(response)
-                elif provider == LLMProvider.OPENAI:
-                    response = await client.chat.completions.create(
-                        model=self.model,
-                        messages=messages,
-                        temperature=temperature,
-                        max_tokens=max_tokens,
-                    )
-                    result = self._parse_openai_response(response)
                 elif provider == LLMProvider.ANTHROPIC:
                     system = None
                     user_messages = []
@@ -494,20 +465,6 @@ class LLMService:
             metadata={
                 "finish_reason": response.choices[0].finish_reason,
                 "provider": "groq",
-            },
-        )
-
-    def _parse_openai_response(self, response: Any) -> LLMResponse:
-        """Parse OpenAI API response."""
-        content = response.choices[0].message.content
-        tokens = response.usage.total_tokens if response.usage else 0
-        return LLMResponse(
-            content=content or "",
-            model=response.model,
-            tokens_used=tokens,
-            metadata={
-                "finish_reason": response.choices[0].finish_reason,
-                "provider": "openai",
             },
         )
 

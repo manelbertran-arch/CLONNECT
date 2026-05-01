@@ -350,7 +350,7 @@ async def generate_simple(
 ) -> Optional[str]:
     """Simple text generation for non-DM uses (audio processing, tools).
 
-    Returns raw text string or None. Gemini primary → GPT-4o-mini fallback.
+    Returns raw text string or None. Gemini primary → None if unavailable.
     """
     messages = []
     if system_prompt:
@@ -400,100 +400,10 @@ async def generate_simple(
                 logger.warning("generate_simple: Gemini failed: %s, falling back", e)
                 _gemini_record_failure()
 
-    # 2. Fallback: GPT-4o-mini — same prompt, no extra guard
-    logger.warning("[LLM-FALLBACK] Gemini failed (generate_simple), using OpenAI GPT-4o-mini")
-    try:
-        result = await _call_openai_mini(messages, max_tokens, temperature)
-        if result and result.get("content"):
-            asyncio.create_task(_async_log_usage(result, "background"))
-            return result["content"]
-    except Exception as e:
-        logger.error("generate_simple: OpenAI fallback failed: %s", e)
-
-    logger.critical("[LLM-ALL-DOWN] No LLM provider available (generate_simple)")
+    logger.critical("[LLM-ALL-DOWN] Gemini failed (generate_simple), no fallback available")
     return None
 
 
-# =============================================================================
-# GPT-4o-mini fallback (used only when Gemini fails)
-# =============================================================================
-
-async def _call_openai_mini(
-    messages: list[dict],
-    max_tokens: int = 60,
-    temperature: float = 0.7,
-) -> Optional[str]:
-    """Call GPT-4o-mini via OpenAI as fallback."""
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        logger.error("OPENAI_API_KEY not set, GPT-4o-mini fallback unavailable")
-        return None
-
-    model = os.getenv("LLM_FALLBACK_MODEL", "gpt-4o-mini")
-    timeout = float(os.getenv("LLM_FALLBACK_TIMEOUT", "10"))
-    start = time.monotonic()
-
-    try:
-        from openai import AsyncOpenAI
-
-        client = AsyncOpenAI(api_key=api_key)
-        response = await asyncio.wait_for(
-            client.chat.completions.create(
-                model=model,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-            ),
-            timeout=timeout,
-        )
-        content = (response.choices[0].message.content or "").strip()
-        finish_reason = (response.choices[0].finish_reason or "").lower()
-        latency_ms = int((time.monotonic() - start) * 1000)
-        usage = response.usage
-        tokens_in = usage.prompt_tokens if usage else 0
-        tokens_out = usage.completion_tokens if usage else 0
-        logger.info(
-            "OpenAI fallback OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d finish_reason=%s",
-            model, latency_ms, tokens_in, tokens_out, len(content), finish_reason,
-        )
-        if not content:
-            return None
-        return {
-            "content": content,
-            "model": model,
-            "provider": "openai",
-            "latency_ms": latency_ms,
-            "tokens_in": tokens_in,
-            "tokens_out": tokens_out,
-            "finish_reason": finish_reason,
-        }
-    except asyncio.TimeoutError:
-        logger.error("OpenAI fallback timeout after %.0fs", timeout)
-        return None
-    except Exception as e:
-        logger.error("OpenAI fallback error: %s", e)
-        return None
-
-
-_FALLBACK_GUARD = (
-    "\n\nIMPORTANTE: No inventes información. Si no tienes contexto suficiente, "
-    "responde brevemente con una reacción genérica amable."
-)
-
-
-def _add_fallback_guard(messages: list[dict]) -> list[dict]:
-    """Append anti-hallucination instruction to system prompt for GPT-4o-mini fallback."""
-    guarded = []
-    system_found = False
-    for msg in messages:
-        if msg["role"] == "system" and not system_found:
-            guarded.append({**msg, "content": msg["content"] + _FALLBACK_GUARD})
-            system_found = True
-        else:
-            guarded.append(msg)
-    if not system_found:
-        guarded.insert(0, {"role": "system", "content": _FALLBACK_GUARD.strip()})
-    return guarded
 
 
 # =============================================================================
@@ -613,7 +523,7 @@ async def _try_openrouter(
 
 
 # =============================================================================
-# Production DM response: [Together/DeepInfra →] Gemini → GPT-4o-mini → None
+# Production DM response: [Together/DeepInfra/OpenRouter →] Gemini → None
 # =============================================================================
 
 async def generate_dm_response(
@@ -621,12 +531,12 @@ async def generate_dm_response(
     max_tokens: int = 60,
     temperature: float = 0.7,
 ) -> Optional[dict]:
-    """Generate DM response with two-provider cascade + circuit breaker.
+    """Generate DM response with provider cascade + circuit breaker.
 
     Pipeline:
-      1. Gemini Flash-Lite (primary) — skipped if circuit breaker is open
-      2. GPT-4o-mini (fallback) — timeout via LLM_FALLBACK_TIMEOUT env (default 10s)
-      3. None if both fail
+      1. Active model config provider (DeepInfra/Together/OpenRouter/GoogleAI) if set
+      2. Gemini Flash-Lite (primary/fallback) — skipped if circuit breaker is open
+      3. None if all fail (no OpenAI fallback)
 
     Returns:
         dict with {content, model, provider, latency_ms} or None if all fail.
@@ -636,7 +546,7 @@ async def generate_dm_response(
     # 0. LLM_MODEL_NAME dispatch (preferred path).
     # When set, the active model config picks the provider; the legacy
     # LLM_PRIMARY_PROVIDER cascade is bypassed for the primary attempt.
-    # Falls through to Gemini→GPT-4o-mini fallback if the active provider fails.
+    # Falls through to Gemini fallback if the active provider fails.
     from core.config.llm_models import get_active_model_config
     _active_cfg = get_active_model_config()
     if _active_cfg:
@@ -685,25 +595,14 @@ async def generate_dm_response(
                 return None
         else:
             logger.warning("[LLM CONFIG] Unknown provider '%s' in active config — falling through to legacy cascade", _prov_name)
-        # Active provider failed → fall through to GPT-4o-mini fallback below
-        # (skip the legacy LLM_PRIMARY_PROVIDER cascade and the bare Gemini retry)
+        # Active provider failed → fall through to Gemini retry below
         if os.environ.get("DISABLE_FALLBACK") == "true":
             logger.error("[DISABLE_FALLBACK] Active model %s failed and DISABLE_FALLBACK=true, raising", _model_id)
             return None
         if os.getenv("CCEE_NO_FALLBACK"):
             logger.info("[CCEE] Fallback disabled — active model %s failed, returning None", _model_id)
             return None
-        logger.warning("[LLM-FALLBACK] Active model %s failed, using OpenAI GPT-4o-mini", _model_id)
-        try:
-            result = await _call_openai_mini(messages, max_tokens, temperature)
-            if result:
-                if isinstance(result, dict):
-                    result["provider"] = "openai-fallback"
-                asyncio.create_task(_async_log_usage(result, "dm_response"))
-                return result
-        except Exception as e:
-            logger.error("GPT-4o-mini fallback failed: %s", e)
-        logger.critical("[LLM-ALL-DOWN] No LLM provider available — active model and GPT-4o-mini both failed")
+        logger.critical("[LLM-ALL-DOWN] Active model %s failed, no fallback available", _model_id)
         return None
 
     # 1. PRIMARY: route based on LLM_PRIMARY_PROVIDER
@@ -762,25 +661,8 @@ async def generate_dm_response(
             logger.warning("Flash-Lite failed: %s, falling back", e)
             _gemini_record_failure()
 
-    # 3. FALLBACK: GPT-4o-mini — same prompt, no extra anti-hallucination guard.
-    # The system prompt already contains all identity/style rules for every provider.
-    # Adding an extra "don't hallucinate" instruction was causing GPT-4o-mini to
-    # generate overly cautious, generic responses (conv_015: "perrito" hallucination).
     if os.environ.get("DISABLE_FALLBACK") == "true":
         logger.error("[DISABLE_FALLBACK] All primary providers failed and DISABLE_FALLBACK=true, returning None")
         return None
-    logger.warning("[LLM-FALLBACK] Primary providers failed, using OpenAI GPT-4o-mini")
-    try:
-        result = await _call_openai_mini(messages, max_tokens, temperature)
-        if result:
-            if isinstance(result, dict):
-                result["provider"] = "openai-fallback"
-            asyncio.create_task(_async_log_usage(result, "dm_response"))
-            return result
-        logger.error("GPT-4o-mini returned empty")
-    except Exception as e:
-        logger.error("GPT-4o-mini fallback failed: %s", e)
-
-    # 3. Both failed
-    logger.critical("[LLM-ALL-DOWN] No LLM provider available — Gemini and GPT-4o-mini both failed")
+    logger.critical("[LLM-ALL-DOWN] All primary providers failed, no fallback available")
     return None

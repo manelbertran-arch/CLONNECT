@@ -227,29 +227,11 @@ def call_gemini(model: str, system_prompt: str, message: str, api_key: str) -> s
     return "[empty response]"
 
 
-def call_openai(model: str, system_prompt: str, message: str, api_key: str) -> str:
-    """Call OpenAI API (for GPT models)."""
-    from openai import OpenAI
-
-    client = OpenAI(api_key=api_key)
-    resp = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": message},
-        ],
-        temperature=0.7,
-        max_tokens=150,
-    )
-    return resp.choices[0].message.content.strip()
-
-
 PROVIDER_FNS = {
     "together": call_together,
     "fireworks": call_fireworks,
     "deepinfra": call_deepinfra,
     "gemini": call_gemini,
-    "openai": call_openai,
 }
 
 API_KEY_ENVS = {
@@ -257,7 +239,6 @@ API_KEY_ENVS = {
     "fireworks": "FIREWORKS_API_KEY",
     "deepinfra": "DEEPINFRA_API_KEY",
     "gemini": "GEMINI_API_KEY",
-    "openai": "OPENAI_API_KEY",
 }
 
 
@@ -335,7 +316,7 @@ Examples:
         """,
     )
     parser.add_argument("--providers", required=True,
-                        help="Comma-separated providers: together,fireworks,deepinfra,gemini,openai")
+                        help="Comma-separated providers: together,fireworks,deepinfra,gemini")
     parser.add_argument("--models", required=True,
                         help="Comma-separated model IDs (one per provider)")
     parser.add_argument("--labels", default=None,

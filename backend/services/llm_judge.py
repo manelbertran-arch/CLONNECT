@@ -1,8 +1,8 @@
 """
 LLM Judge — Reusable LLM-as-judge component for quality evaluation.
 
-Uses GPT-4o-mini as judge model (not Flash-Lite) to avoid self-bias concern
-(Flash-Lite generating responses AND judging them).
+Uses Qwen3-30B-A3B via DeepInfra as judge model (avoids self-bias,
+different provider from DM generation; 2x cheaper than GPT-4o-mini).
 
 Features:
   - JSON-structured rubric evaluation
@@ -22,9 +22,9 @@ from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-# Use GPT-4o-mini for judging to avoid self-bias
-JUDGE_MODEL = os.getenv("CLONE_SCORE_JUDGE_MODEL", "gpt-4o-mini")
+JUDGE_MODEL = os.getenv("CLONE_SCORE_JUDGE_MODEL", "Qwen/Qwen3-30B-A3B")
 JUDGE_TIMEOUT = float(os.getenv("CLONE_SCORE_JUDGE_TIMEOUT", "15"))
+_DEEPINFRA_URL = "https://api.deepinfra.com/v1/openai/chat/completions"
 
 _ANTI_BIAS_INSTRUCTIONS = """INSTRUCCIONES IMPORTANTES PARA EL EVALUADOR:
 - NO tengas sesgo hacia respuestas mas largas. Una respuesta corta puede ser perfecta.
@@ -133,16 +133,12 @@ class LLMJudge:
         system_prompt: str,
         user_prompt: str,
     ) -> Optional[str]:
-        """Call the judge LLM (GPT-4o-mini via OpenAI).
-
-        Uses direct OpenAI call instead of generate_simple to ensure
-        we always use GPT-4o-mini (not Flash-Lite).
-        """
+        """Call the judge LLM (Qwen3-30B-A3B via DeepInfra OpenAI-compatible API)."""
         import httpx
 
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("DEEPINFRA_API_KEY")
         if not api_key:
-            logger.error("[LLM_JUDGE] OPENAI_API_KEY not set")
+            logger.warning("[LLM_JUDGE] DEEPINFRA_API_KEY missing, skip judge")
             return None
 
         payload = {
@@ -159,7 +155,7 @@ class LLMJudge:
         try:
             async with httpx.AsyncClient(timeout=JUDGE_TIMEOUT) as client:
                 resp = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
+                    _DEEPINFRA_URL,
                     json=payload,
                     headers={
                         "Authorization": f"Bearer {api_key}",
@@ -172,7 +168,7 @@ class LLMJudge:
                 return content
 
         except httpx.TimeoutException:
-            raise asyncio.TimeoutError("OpenAI judge timeout")
+            raise asyncio.TimeoutError("DeepInfra judge timeout")
         except httpx.HTTPStatusError as e:
             logger.error(f"[LLM_JUDGE] HTTP error: {e.response.status_code}")
             return None
