@@ -8,7 +8,6 @@ class TestAuditEmbeddings:
         from core.embeddings import (  # noqa: F811
             generate_embedding,
             generate_embeddings_batch,
-            get_openai_client,
         )
 
         assert generate_embedding is not None

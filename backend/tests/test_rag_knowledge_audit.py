@@ -231,12 +231,11 @@ class TestEmbeddingCache:
         assert isinstance(_embedding_cache, BoundedTTLCache)
 
     def test_generate_embedding_without_api_key(self):
-        """Should return None gracefully when OPENAI_API_KEY is not set."""
+        """Should return None gracefully when no Gemini API key is set."""
         from core.embeddings import generate_embedding
-        with patch.dict("os.environ", {"OPENAI_API_KEY": ""}):
-            with patch("core.embeddings.get_openai_client", return_value=None):
-                result = generate_embedding("test text")
-                assert result is None
+        with patch("core.embeddings._get_gemini_api_key", return_value=None):
+            result = generate_embedding("test text")
+            assert result is None
 
 
 # ═══════════════════════════════════════════════════════════════════
