@@ -38,7 +38,7 @@ load_dotenv()
 
 BATCH_SIZE = 20
 MAX_BATCHES = 10
-MODEL = "gpt-4o-mini"
+MODEL = "Qwen/Qwen3-32B"
 
 BFI_SYSTEM = """You are a psycholinguistic researcher analyzing communication patterns.
 Given real messages from a person, estimate their Big Five Inventory (BFI) scores.
@@ -171,8 +171,8 @@ def main():
     parser.add_argument("--output", default=None, help="Output directory")
     args = parser.parse_args()
 
-    from openai import OpenAI
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    from scripts._shared.deepinfra_client import get_deepinfra_client
+    client = get_deepinfra_client()
 
     print(f"Fetching messages for {args.creator}...")
     messages = get_creator_messages(args.creator, args.limit)

@@ -3,10 +3,10 @@ Model comparison using 20 test conversations from test_set_v1.json.
 
 Tests 3 models with the same prompt (Doc D distilled + few-shot + conversation history):
 1. gemini-2.5-flash-lite (production primary)
-2. gpt-4o-mini (production fallback)
+2. Qwen/Qwen3-32B via DeepInfra (comparison)
 3. gemini-2.5-flash (expensive, for comparison only)
 
-Usage: DATABASE_URL=... GOOGLE_API_KEY=... OPENAI_API_KEY=... python3 scripts/model_comparison_v1.py
+Usage: DATABASE_URL=... GOOGLE_API_KEY=... DEEPINFRA_API_KEY=... python3 scripts/model_comparison_v1.py
 """
 
 import asyncio
@@ -24,7 +24,7 @@ import httpx
 # ── Config ──────────────────────────────────────────────────────────
 MODELS = [
     {"id": "gemini-2.5-flash-lite", "provider": "gemini"},
-    {"id": "gpt-4o-mini", "provider": "openai"},
+    {"id": "Qwen/Qwen3-32B", "provider": "deepinfra"},
     {"id": "gemini-2.5-flash", "provider": "gemini"},
 ]
 
@@ -66,10 +66,10 @@ async def call_gemini(model: str, system_prompt: str, user_message: str) -> dict
         }
 
 
-async def call_openai(model: str, system_prompt: str, user_message: str) -> dict:
+async def call_deepinfra(model: str, system_prompt: str, user_message: str) -> dict:
     from openai import AsyncOpenAI
-    api_key = os.environ["OPENAI_API_KEY"]
-    client = AsyncOpenAI(api_key=api_key)
+    api_key = os.environ["DEEPINFRA_API_KEY"]
+    client = AsyncOpenAI(api_key=api_key, base_url="https://api.deepinfra.com/v1/openai")
     start = time.monotonic()
     response = await asyncio.wait_for(
         client.chat.completions.create(
@@ -98,8 +98,10 @@ async def call_model(model_id: str, provider: str, system_prompt: str, user_msg:
     try:
         if provider == "gemini":
             return await call_gemini(model_id, system_prompt, user_msg)
+        elif provider == "deepinfra":
+            return await call_deepinfra(model_id, system_prompt, user_msg)
         else:
-            return await call_openai(model_id, system_prompt, user_msg)
+            return {"content": f"[ERROR: unknown provider {provider}]", "latency_ms": 0, "tokens_in": 0, "tokens_out": 0}
     except Exception as e:
         return {"content": f"[ERROR: {e}]", "latency_ms": 0, "tokens_in": 0, "tokens_out": 0}
 

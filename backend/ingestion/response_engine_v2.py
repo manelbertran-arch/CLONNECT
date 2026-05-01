@@ -147,7 +147,7 @@ class ResponseEngineV2:
     def __init__(
         self,
         llm_client: Any = None,
-        default_model: str = "gpt-4o-mini",
+        default_model: str = "llama-3.3-70b-versatile",
         temperature: float = 0.7
     ):
         """

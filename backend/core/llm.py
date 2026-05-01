@@ -1,6 +1,6 @@
 """
 Cliente LLM simplificado para Clonnect Creators
-Soporta Groq (default), OpenAI y Anthropic
+Soporta Groq (default) y Anthropic
 """
 
 import os
@@ -10,9 +10,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Default provider - OpenAI gpt-4o-mini
-DEFAULT_PROVIDER = "openai"
-DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+DEFAULT_PROVIDER = "groq"
 DEFAULT_GROQ_MODEL = "llama-3.1-70b-versatile"
 
 
@@ -26,34 +24,6 @@ class LLMClient(ABC):
     @abstractmethod
     async def chat(self, messages: List[Dict[str, str]], **kwargs) -> str:
         pass
-
-
-class OpenAIClient(LLMClient):
-    """Cliente OpenAI"""
-
-    def __init__(self, api_key: str = None, model: str = "gpt-4o-mini"):
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        self.model = model
-        self._client = None
-
-    def _get_client(self):
-        if self._client is None:
-            from openai import AsyncOpenAI
-            self._client = AsyncOpenAI(api_key=self.api_key)
-        return self._client
-
-    async def generate(self, prompt: str, **kwargs) -> str:
-        return await self.chat([{"role": "user", "content": prompt}], **kwargs)
-
-    async def chat(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        client = self._get_client()
-        response = await client.chat.completions.create(
-            model=kwargs.get("model", self.model),
-            messages=messages,
-            max_tokens=kwargs.get("max_tokens", 1000),
-            temperature=kwargs.get("temperature", 0.7)
-        )
-        return response.choices[0].message.content
 
 
 class AnthropicClient(LLMClient):
@@ -138,8 +108,6 @@ def get_llm_client(provider: str = None) -> LLMClient:
 
     if provider == "groq":
         return GroqClient()
-    elif provider == "openai":
-        return OpenAIClient()
     elif provider == "anthropic":
         return AnthropicClient()
     else:

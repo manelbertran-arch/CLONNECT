@@ -127,7 +127,7 @@ def create_faq_chunks(conn, creator_id, faq_entries, dry_run=False):
 
 
 def generate_embeddings(conn, creator_id):
-    """Generate OpenAI embeddings for FAQ chunks that don't have them."""
+    """Generate embeddings for FAQ chunks. TODO(Worker-C): migrate to Gemini embeddings."""
     cur = conn.cursor()
     cur.execute("""
         SELECT cc.chunk_id, cc.content FROM content_chunks cc

@@ -329,11 +329,12 @@ PROVIDERS = {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def judge_response(prompt: str, response: str, judge_client) -> float:
-    """Score a single response using GPT-4o-mini as judge. Returns 0-10."""
+    """Score a single response using Qwen3-30B-A3B as judge. Returns 0-10."""
+    from scripts._shared.deepinfra_client import JUDGE_MODEL
     try:
         user_prompt = JUDGE_USER.format(prompt=prompt[:200], response=response[:300])
         result = judge_client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=JUDGE_MODEL,
             messages=[
                 {"role": "system", "content": JUDGE_SYSTEM},
                 {"role": "user", "content": user_prompt},
@@ -503,8 +504,8 @@ Cost estimate (300 prompts × 4 variations):
         logger.error("Set %s environment variable", api_key_env[args.provider])
         sys.exit(1)
 
-    from openai import OpenAI
-    judge_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
+    from scripts._shared.deepinfra_client import get_deepinfra_client
+    judge_client = get_deepinfra_client()
 
     # 3. Generate and judge
     pairs = []
