@@ -36,6 +36,9 @@ TARGET_TOTAL = 10_000
 SINGLE_TURN_RATIO = 0.60
 MAX_ASST_CHARS = 200
 RANDOM_SEED = 42
+MAX_SEQ_LEN = 8192          # Training context window (Opción A decision)
+CHARS_PER_TOKEN = 3.5       # Conservative estimate for ES/CA mixed text
+MAX_TOTAL_CHARS = int(MAX_SEQ_LEN * CHARS_PER_TOKEN * 0.95)  # 5% safety margin
 
 _MEDIA_PATTERN = re.compile(
     r"^\s*\[(audio|video|image|foto|sticker|gif|document)\]\s*$", re.IGNORECASE
@@ -107,8 +110,8 @@ def load_system_variants(eng) -> list:
     if row:
         sp = _extract_system_block(row[0])
         if sp and len(sp) > 500:
-            # Cap at 30K chars for training practicality (still full identity content)
-            variants.append(sp[:30000])
+            # Cap at 26K chars: 26000 / 3.5 ≈ 7,429 tokens + ~50 conv → fits in 8192
+            variants.append(sp[:26000])
 
     print(f"Loaded {len(variants)} system prompt variants:")
     for i, v in enumerate(variants):
@@ -324,9 +327,21 @@ def build_dataset(
 
     rng.shuffle(records)
 
+    # ── Token budget filter (Opción A: max_seq_len=8192) ────────────────────
+    # Estimate tokens via chars / CHARS_PER_TOKEN. Remove records that would
+    # exceed MAX_SEQ_LEN, preventing truncation silently killing long records.
+    pre_filter = len(records)
+    records = [
+        r for r in records
+        if sum(len(m["content"]) for m in r["messages"]) <= MAX_TOTAL_CHARS
+    ]
+    filtered_count = pre_filter - len(records)
+    if filtered_count:
+        print(f"\nToken filter: removed {filtered_count} records (>{MAX_SEQ_LEN} est. tokens)")
+
     total = len(records)
     st_count = sum(1 for r in records if r["turn_type"] == "single")
-    mt_count = actual_mt
+    mt_count = sum(1 for r in records if r["turn_type"] == "multi")
 
     print(f"\n=== SFT v4 dataset ===")
     print(f"Total records: {total}")
