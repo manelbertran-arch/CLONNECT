@@ -21,8 +21,10 @@ Dataset priority:
   1. data/dpo/trl/dpo_iris_v3_clean.jsonl  [W1 output — preferred]
   2. data/dpo/trl/dpo_iris_v2.jsonl         [fallback — 2499 pairs]
 
-Hardware: H200 80GB
-Estimate: ~4-6h on H200 for 2 epochs
+Hardware requirements (max_seq_len=8192):
+  4090 24GB:  NOT viable
+  A100 80GB:  viable — ~8-12h DPO
+  H200 80GB:  viable — ~6-9h DPO
 
 Usage:
   HF_TOKEN=<token> python sprint10/02_train_dpo.py [--dataset <path>] [--dry-run]
@@ -50,11 +52,14 @@ SFT_ADAPTER = "manelbertranluque/clonnect-iris-sft-sprint10-qwen3-32b"
 OUTPUT_DIR = "output/sprint10/dpo"
 HF_REPO = "manelbertranluque/clonnect-iris-dpo-sprint10-qwen3-32b"
 
-MAX_SEQ_LEN = 8192   # Opción A: match SFT max_seq_len
+MAX_SEQ_LEN = 8192   # BUG-14 fix: match SFT context window (Doc D v1 = ~8.5K tokens)
 MAX_PROMPT_LEN = 4096  # Half of MAX_SEQ_LEN — leaves room for chosen/rejected
 
-DATASET_PRIMARY = "data/dpo/trl/dpo_iris_v3_clean.jsonl"   # W1 output
-DATASET_FALLBACK = "data/dpo/trl/dpo_iris_v2.jsonl"        # 2499 pairs fallback
+# HF dataset (private, pre-uploaded via W1 pipeline)
+HF_DATASET_DPO = "manelbertranluque/clonnect-iris-dpo-v3-clean"
+# Local fallback paths
+DATASET_LOCAL = "data/dpo/trl/dpo_iris_v3_clean.jsonl"
+DATASET_FALLBACK = "data/dpo/trl/dpo_iris_v2.jsonl"
 
 # DPO LoRA (smaller rank for refinement phase)
 LORA_RANK = 16
@@ -93,37 +98,45 @@ TRAINING = dict(
 # Dataset resolution
 # ---------------------------------------------------------------------------
 
-def resolve_dataset(override: str | None) -> str:
+def load_dataset_smart(override: str | None):
+    """Load DPO dataset from HF (preferred) or local fallback."""
+    from datasets import load_dataset as hf_load_dataset
+
     if override:
-        path = Path(override)
-        if not path.exists():
-            logger.error("Dataset not found: %s", override)
-            sys.exit(1)
-        return str(path)
+        if Path(override).exists():
+            return hf_load_dataset("json", data_files=override, split="train")
+        else:
+            hf_token = os.environ.get("HF_TOKEN")
+            return hf_load_dataset(override, split="train", token=hf_token)
 
-    primary = Path(DATASET_PRIMARY)
-    fallback = Path(DATASET_FALLBACK)
+    hf_token = os.environ.get("HF_TOKEN")
 
-    if primary.exists():
-        logger.info("Dataset: %s (W1 clean — preferred)", primary)
-        return str(primary)
-    elif fallback.exists():
-        logger.warning(
-            "W1 clean dataset not found (%s). Using fallback: %s",
-            primary, fallback,
-        )
-        logger.warning("Run W1 (01_prepare_dpo_clean.py) first for best results.")
-        return str(fallback)
-    else:
-        logger.error("No DPO dataset found. Run W1 first.")
-        sys.exit(1)
+    if hf_token:
+        try:
+            logger.info("Loading DPO dataset from HF: %s", HF_DATASET_DPO)
+            ds = hf_load_dataset(HF_DATASET_DPO, split="train", token=hf_token)
+            logger.info("HF dataset loaded: %d pairs", len(ds))
+            return ds
+        except Exception as e:
+            logger.warning("HF dataset load failed (%s) — falling back to local", e)
+
+    for local_path, label in [
+        (DATASET_LOCAL, "W1 clean"),
+        (DATASET_FALLBACK, "v2 fallback"),
+    ]:
+        if Path(local_path).exists():
+            logger.info("Dataset: %s (%s)", local_path, label)
+            return hf_load_dataset("json", data_files=local_path, split="train")
+
+    logger.error("No DPO dataset found. Set HF_TOKEN or run W1 locally.")
+    sys.exit(1)
 
 
 # ---------------------------------------------------------------------------
 # Training
 # ---------------------------------------------------------------------------
 
-def train(dataset_path: str, dry_run: bool = False) -> None:
+def train(dataset_override: str | None, dry_run: bool = False) -> None:
     import torch
 
     logger.info("Loading base model: %s", BASE_MODEL)
@@ -136,7 +149,6 @@ def train(dataset_path: str, dry_run: bool = False) -> None:
         sys.exit(1)
 
     from peft import PeftModel
-    from datasets import load_dataset
     from trl import DPOTrainer, DPOConfig
 
     # Load base model
@@ -166,8 +178,7 @@ def train(dataset_path: str, dry_run: bool = False) -> None:
     )
 
     # Load dataset (BUG-4 fix: clean v3 with deduplication + length filter)
-    logger.info("Loading DPO dataset: %s", dataset_path)
-    dataset = load_dataset("json", data_files=dataset_path, split="train")
+    dataset = load_dataset_smart(dataset_override)
     logger.info("Dataset size: %d pairs", len(dataset))
 
     # Validate dataset format
@@ -245,8 +256,7 @@ def main():
                         help="Validate dataset and show first pair, do not train")
     args = parser.parse_args()
 
-    dataset_path = resolve_dataset(args.dataset)
-    train(dataset_path, dry_run=args.dry_run)
+    train(args.dataset, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

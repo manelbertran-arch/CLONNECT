@@ -20,10 +20,11 @@ Dataset priority:
   1. data/dpo/trl/sft_v4_multiturn.jsonl  [W2 output — preferred]
   2. data/dpo/trl/sft_v3_clean.jsonl       [fallback if W2 not ready]
 
-Hardware: H200 80GB (minimum — 32B + bf16 needs ~70GB VRAM)
-Estimate: ~36-48h on H200 for 2 epochs over ~10K examples at max_seq_len=8192
-  (vs ~24h at 4096 — doubled context doubles memory and compute per step)
-  GPU: H200 80GB required. 4090 (24GB) NOT viable at 8192.
+Hardware requirements (max_seq_len=8192):
+  4090 24GB:  NOT viable (KV-cache alone exceeds VRAM at 8192)
+  A100 80GB:  viable — ~36-48h SFT, ~$120-160 Vast.ai
+  H200 80GB:  viable — ~24-36h SFT, ~$120-160 Vast.ai (faster memory bandwidth)
+  Note: doubled context vs 4096 adds ~50% compute and ~8GB KV-cache
 
 Usage:
   HF_TOKEN=<token> python sprint10/01_train_sft.py [--dataset <path>] [--dry-run]
@@ -48,11 +49,15 @@ logger = logging.getLogger("sprint10.sft")
 
 BASE_MODEL = "Qwen/Qwen3-32B"
 OUTPUT_DIR = "output/sprint10/sft"
-MAX_SEQ_LEN = 8192   # Opción A: supports V1 system prompt (~7.5K tokens) + conversation
+MAX_SEQ_LEN = 8192   # BUG-14 fix needs Doc D v1 íntegro 30K chars = ~8.5K tokens
 HF_REPO = "manelbertranluque/clonnect-iris-sft-sprint10-qwen3-32b"
 
-DATASET_PRIMARY = "data/dpo/trl/sft_v4_multiturn.jsonl"   # W2 output
-DATASET_FALLBACK = "data/dpo/trl/sft_v3_clean.jsonl"      # W1 fallback
+# HF dataset (private, pre-uploaded via sprint10/sanitize_sft_v4.py)
+HF_DATASET_SFT = "manelbertranluque/clonnect-iris-sft-v4-multiturn"
+# Local fallback paths (for development only — not available on Vast.ai)
+DATASET_LOCAL_FILTERED = "data/dpo/trl/sft_v4_multiturn_filtered.jsonl"
+DATASET_LOCAL_RAW = "data/dpo/trl/sft_v4_multiturn.jsonl"
+DATASET_FALLBACK = "data/dpo/trl/sft_v3_clean.jsonl"
 
 LORA_RANK = 32
 LORA_ALPHA = 64        # 2x rank (Unsloth recommended)
@@ -85,37 +90,58 @@ TRAINING = dict(
 # Dataset resolution
 # ---------------------------------------------------------------------------
 
-def resolve_dataset(override: str | None) -> str:
+def load_dataset_smart(override: str | None):
+    """
+    Load SFT dataset. Priority:
+    1. --dataset override (path or HF repo)
+    2. HF private repo (Vast.ai standard path)
+    3. Local filtered JSONL
+    4. Local raw JSONL
+    5. Local fallback v3
+    """
+    from datasets import load_dataset as hf_load_dataset
+
     if override:
-        path = Path(override)
-        if not path.exists():
-            logger.error("Dataset not found: %s", override)
-            sys.exit(1)
-        return str(path)
+        # Can be a local path or HF repo id
+        if Path(override).exists():
+            logger.info("Dataset: %s (override local)", override)
+            return hf_load_dataset("json", data_files=override, split="train")
+        else:
+            logger.info("Dataset: %s (override HF)", override)
+            hf_token = os.environ.get("HF_TOKEN")
+            return hf_load_dataset(override, split="train", token=hf_token)
 
-    primary = Path(DATASET_PRIMARY)
-    fallback = Path(DATASET_FALLBACK)
+    hf_token = os.environ.get("HF_TOKEN")
 
-    if primary.exists():
-        logger.info("Dataset: %s (W2 multiturn — preferred)", primary)
-        return str(primary)
-    elif fallback.exists():
-        logger.warning(
-            "W2 dataset not found (%s). Using fallback: %s",
-            primary, fallback,
-        )
-        logger.warning("Run W2 (02_prepare_sft_multiturn.py) first for best results.")
-        return str(fallback)
-    else:
-        logger.error("No dataset found. Run W1 and W2 first.")
-        sys.exit(1)
+    # Try HF first (preferred on Vast.ai — datasets not in git)
+    if hf_token:
+        try:
+            logger.info("Loading dataset from HF: %s", HF_DATASET_SFT)
+            ds = hf_load_dataset(HF_DATASET_SFT, split="train", token=hf_token)
+            logger.info("HF dataset loaded: %d examples", len(ds))
+            return ds
+        except Exception as e:
+            logger.warning("HF dataset load failed (%s) — falling back to local", e)
+
+    # Local fallbacks
+    for local_path, label in [
+        (DATASET_LOCAL_FILTERED, "W2 filtered (token-safe)"),
+        (DATASET_LOCAL_RAW, "W2 raw"),
+        (DATASET_FALLBACK, "v3 fallback"),
+    ]:
+        if Path(local_path).exists():
+            logger.info("Dataset: %s (%s)", local_path, label)
+            return hf_load_dataset("json", data_files=local_path, split="train")
+
+    logger.error("No dataset found. Set HF_TOKEN or run W2 locally.")
+    sys.exit(1)
 
 
 # ---------------------------------------------------------------------------
 # Training
 # ---------------------------------------------------------------------------
 
-def train(dataset_path: str, dry_run: bool = False) -> None:
+def train(dataset_override: str | None, dry_run: bool = False) -> None:
     import torch
 
     logger.info("Loading base model: %s", BASE_MODEL)
@@ -129,7 +155,6 @@ def train(dataset_path: str, dry_run: bool = False) -> None:
         logger.error("unsloth not installed. Run: pip install unsloth[cu124-torch240]")
         sys.exit(1)
 
-    from datasets import load_dataset
     from trl import SFTTrainer, SFTConfig
 
     # BUG-7 fix: load base model fresh, no adapter carryover
@@ -152,9 +177,8 @@ def train(dataset_path: str, dry_run: bool = False) -> None:
         random_state=3407,
     )
 
-    # Load dataset
-    logger.info("Loading dataset: %s", dataset_path)
-    dataset = load_dataset("json", data_files=dataset_path, split="train")
+    # Load dataset (HF preferred, local fallback)
+    dataset = load_dataset_smart(dataset_override)
     logger.info("Dataset size: %d examples", len(dataset))
 
     # Format with ChatML template (Qwen3 native)
@@ -234,8 +258,7 @@ def main():
                         help="Validate dataset and show first example, do not train")
     args = parser.parse_args()
 
-    dataset_path = resolve_dataset(args.dataset)
-    train(dataset_path, dry_run=args.dry_run)
+    train(args.dataset, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

@@ -118,122 +118,110 @@ WORKSPACE="${WORKSPACE:-/workspace}"
 if [ -d "$WORKSPACE/Clonnect" ]; then
     echo "Repo exists — pulling latest"
     cd "$WORKSPACE/Clonnect"
-    git pull origin sprint10/w2-sft-multiturn
+    git pull origin sprint10/w3-training-pipeline
 else
     echo "Cloning repo"
     cd "$WORKSPACE"
     git clone https://github.com/manelbertran-arch/CLONNECT.git Clonnect
     cd Clonnect
-    git checkout sprint10/w2-sft-multiturn
+    git checkout sprint10/w3-training-pipeline
 fi
 
 BACKEND="$WORKSPACE/Clonnect/backend"
 cd "$BACKEND"
 
 # ---------------------------------------------------------------------------
-# Railway DATABASE_URL connectivity check
+# Dataset download from HuggingFace (private repos)
 # ---------------------------------------------------------------------------
+# Datasets are pre-uploaded to HF to avoid Railway DB dependency on Vast.ai.
+# Upload done locally: scripts/finetuning/build_sft_v4.py + sanitize_sft_v4.py
+# HF repos (private — contain Iris system prompts):
+#   SFT: manelbertranluque/clonnect-iris-sft-v4-multiturn
+#   DPO: manelbertranluque/clonnect-iris-dpo-v3-clean
 
 echo ""
-echo "=== Railway DB Connectivity Check ==="
-if [ -z "${DATABASE_URL:-}" ]; then
-    echo "ERROR: DATABASE_URL not set"
-    echo "Export Railway Postgres URL: export DATABASE_URL=postgresql://..."
-    echo "Get from: railway variables | grep DATABASE_URL"
-    exit 1
-fi
-
-echo "Testing connection to Railway Postgres..."
-python3 -c "
-import os
-from sqlalchemy import create_engine, text
-eng = create_engine(os.environ['DATABASE_URL'], connect_args={'connect_timeout': 10})
-try:
-    with eng.connect() as c:
-        result = c.execute(text('SELECT COUNT(*) FROM messages LIMIT 1')).scalar()
-    print(f'  Connection OK — messages table accessible')
-except Exception as e:
-    print(f'  FAIL: {e}')
-    print('  Railway may block Vast.ai IPs. Try: railway run --environment production')
-    print('  Workaround: generate dataset locally then scp to Vast.ai')
-    exit(1)
-"
-DB_EXIT=$?
-if [ "$DB_EXIT" -ne 0 ]; then
-    echo "DB connection failed — see workaround above"
-    exit 1
-fi
-
-# ---------------------------------------------------------------------------
-# Dataset generation (requires Railway DB access)
-# ---------------------------------------------------------------------------
-
-echo ""
-echo "=== Dataset Generation ==="
-
-SFT_DATASET="$BACKEND/data/dpo/trl/sft_v4_multiturn.jsonl"
-DPO_DATASET="$BACKEND/data/dpo/trl/dpo_iris_v3_clean.jsonl"
+echo "=== Dataset download from HuggingFace ==="
 
 mkdir -p "$BACKEND/data/dpo/trl"
 
-# SFT W2 dataset
-if [ -f "$SFT_DATASET" ]; then
-    lines=$(wc -l < "$SFT_DATASET")
-    echo "[SKIP] SFT W2 dataset already exists: $lines records"
-else
-    echo "Regenerating SFT W2 dataset (max_seq_len=8192 filtered)..."
-    python3 scripts/finetuning/build_sft_v4.py 2>&1
-    if [ $? -ne 0 ]; then
-        echo "ERROR: SFT dataset generation failed"
-        exit 1
-    fi
-    lines=$(wc -l < "$SFT_DATASET")
-    echo "[OK] SFT W2 dataset generated: $lines records"
-fi
+python3 << 'PYEOF'
+import os
+from datasets import load_dataset
+from pathlib import Path
 
-# DPO W1 dataset
-if [ -f "$DPO_DATASET" ]; then
-    lines=$(wc -l < "$DPO_DATASET")
-    echo "[SKIP] DPO W1 dataset already exists: $lines records"
-elif [ -f "data/dpo/trl/dpo_iris_v2.jsonl" ]; then
-    echo "[FALLBACK] Using dpo_iris_v2.jsonl (run W1 for best results)"
-else
-    echo "ERROR: No DPO dataset found. Run W1 (scripts/finetuning/build_dpo_v3_clean.py) first."
-    exit 1
-fi
+token = os.environ.get("HF_TOKEN")
+if not token:
+    print("ERROR: HF_TOKEN not set. Cannot download private datasets.")
+    exit(1)
 
-# ---------------------------------------------------------------------------
-# Final dataset check
-# ---------------------------------------------------------------------------
+base = Path("data/dpo/trl")
+base.mkdir(parents=True, exist_ok=True)
+
+# SFT dataset (filtered, token-safe)
+sft_path = base / "sft_v4_multiturn_filtered.jsonl"
+if sft_path.exists():
+    n = sum(1 for _ in open(sft_path))
+    print(f"[SKIP] SFT dataset already exists: {n} records")
+else:
+    print("Downloading SFT v4 dataset from HF...")
+    ds = load_dataset(
+        "manelbertranluque/clonnect-iris-sft-v4-multiturn",
+        split="train",
+        token=token,
+    )
+    ds.to_json(str(sft_path), orient="records", lines=True)
+    print(f"[OK] SFT dataset: {len(ds)} records → {sft_path}")
+
+# DPO dataset
+dpo_path = base / "dpo_iris_v3_clean.jsonl"
+if dpo_path.exists():
+    n = sum(1 for _ in open(dpo_path))
+    print(f"[SKIP] DPO dataset already exists: {n} records")
+else:
+    print("Downloading DPO v3 dataset from HF...")
+    ds = load_dataset(
+        "manelbertranluque/clonnect-iris-dpo-v3-clean",
+        split="train",
+        token=token,
+    )
+    ds.to_json(str(dpo_path), orient="records", lines=True)
+    print(f"[OK] DPO dataset: {len(ds)} records → {dpo_path}")
+PYEOF
 
 echo ""
 echo "=== Final Dataset Check ==="
-python3 -c "
-import json
+python3 << 'PYEOF'
+import json, os
 
-sft_path = 'data/dpo/trl/sft_v4_multiturn.jsonl'
-dpo_paths = ['data/dpo/trl/dpo_iris_v3_clean.jsonl', 'data/dpo/trl/dpo_iris_v2.jsonl']
+sft_paths = [
+    "data/dpo/trl/sft_v4_multiturn_filtered.jsonl",
+    "data/dpo/trl/sft_v4_multiturn.jsonl",
+]
+dpo_paths = [
+    "data/dpo/trl/dpo_iris_v3_clean.jsonl",
+    "data/dpo/trl/dpo_iris_v2.jsonl",
+]
 
-with open(sft_path) as f:
-    records = [json.loads(l) for l in f]
-mt = sum(1 for r in records if r.get('turn_type') == 'multi')
-print(f'SFT: {len(records)} records, {mt/len(records)*100:.1f}% multi-turn')
-
-# Check token budget
-over = sum(
-    1 for r in records
-    if sum(len(m[\"content\"]) for m in r[\"messages\"]) > 8192 * 3.5 * 0.95
-)
-print(f'SFT: {over} records estimated >8192 tokens (should be 0)')
-
-for p in dpo_paths:
-    import os
+for p in sft_paths:
     if os.path.exists(p):
         with open(p) as f:
-            n = sum(1 for _ in f)
-        print(f'DPO: {n} records ({p})')
+            records = [json.loads(l) for l in f]
+        mt = sum(1 for r in records if r.get("turn_type") == "multi")
+        print(f"SFT: {len(records)} records, {mt/len(records)*100:.1f}% multi-turn ({p})")
         break
-"
+else:
+    print("ERROR: No SFT dataset found!")
+    exit(1)
+
+for p in dpo_paths:
+    if os.path.exists(p):
+        n = sum(1 for _ in open(p))
+        print(f"DPO: {n} records ({p})")
+        break
+else:
+    print("ERROR: No DPO dataset found!")
+    exit(1)
+PYEOF
 
 # ---------------------------------------------------------------------------
 # Training

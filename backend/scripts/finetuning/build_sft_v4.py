@@ -110,8 +110,9 @@ def load_system_variants(eng) -> list:
     if row:
         sp = _extract_system_block(row[0])
         if sp and len(sp) > 500:
-            # Cap at 26K chars: 26000 / 3.5 ≈ 7,429 tokens + ~50 conv → fits in 8192
-            variants.append(sp[:26000])
+            # Cap at 16,000 chars: verified Qwen3 tokenizer gives 7,003 tokens
+            # Full record = 7,003 + ~100 conv = ~7,100 → fits in 8000 with margin
+            variants.append(sp[:16000])
 
     print(f"Loaded {len(variants)} system prompt variants:")
     for i, v in enumerate(variants):
