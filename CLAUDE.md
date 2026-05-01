@@ -76,6 +76,13 @@ IMPORTANT: Do NOT compress, summarize, reorder by importance, or rewrite identit
 - Scoring batch: runs at t+210s after deploy, uses paged queries with sleep between batches.
 - CDN URLs (scontent.cdninstagram.com) expire in 24h — upload to Cloudinary for permanent storage.
 
+## OpenAI Removal — Status
+- Sprint 1-3 completado 2026-04-30 (commit `eb77615e` en main)
+- Producción: 0 calls OpenAI activos
+- Stack: Gemini (LLM + embeddings) + DeepInfra (eval/judge)
+- Pendiente: reindex content_embeddings (procedure: `docs/sprint_openai_removal/REINDEX_PROCEDURE.md`)
+- Sprint 4 (en 7 días post-dashboard $0): eliminar OPENAI_API_KEY de Railway/.env, cancelar tarjeta
+
 ## Quick Commands
 ```bash
 python3 -m pytest tests/ -x -q                    # Unit tests
