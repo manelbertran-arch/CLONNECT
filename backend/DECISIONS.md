@@ -4,6 +4,18 @@ Architecture and implementation decisions, in reverse chronological order.
 
 ---
 
+## Sprint2-WorkerB — OpenAI removal: prod secondary services (2026-05-01)
+
+**Sites #3, #4, #5** del OPENAI_DECISION_MATRIX.md.
+
+- **llm_judge.py → DeepInfra Qwen3-30B-A3B**: misma implementación httpx, endpoint OpenAI-compatible, `DEEPINFRA_API_KEY` ya existe. Consistencia con judge del pipeline CCEE.
+- **personality_extraction fallback → eliminado**: Gemini es primario, fallback OpenAI nunca activado en producción. Nombre `call_openai_extraction` mantenido por compat.
+- **Whisper-1 Tier 2 → eliminado**: Groq + Gemini cubren el volumen; si fallan → string vacío (DM agent lo maneja). Elimina dependencia `OPENAI_API_KEY` en transcripción.
+
+**Files:** `services/llm_judge.py`, `core/personality_extraction/llm_client.py`, `ingestion/transcriber.py`
+
+---
+
 ## 2026-04-23 — Contextual Prefix forensic (PR #83): Q2 debt registry
 
 Forensic audit of `core/contextual_prefix.py` landed in PR `forensic/contextual-prefix-20260423` (branch, not merged). Refactor removed hardcoding (8 env vars), extracted `_DIALECT_LABELS` / `_FORMALITY_LABELS` to DB-driven `tone_profile.dialect_label` + `tone_profile.formality_label` (zero hardcoded linguistic content in code). 8 of 10 bugs fixed; 2 deferred:

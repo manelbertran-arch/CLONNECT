@@ -146,49 +146,14 @@ async def call_openai_extraction(
     temperature: float = 0.3,
     model: Optional[str] = None,
 ) -> Optional[str]:
-    """Fallback: call OpenAI for extraction analysis."""
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        logger.error("OPENAI_API_KEY not set")
-        return None
-
-    model = model or "gpt-4o"
-    start = time.monotonic()
-
-    try:
-        from openai import AsyncOpenAI
-
-        client = AsyncOpenAI(api_key=api_key)
-        response = await asyncio.wait_for(
-            client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message},
-                ],
-                max_tokens=max_tokens,
-                temperature=temperature,
-            ),
-            timeout=120.0,
-        )
-
-        content = response.choices[0].message.content
-        if content:
-            content = _fix_double_encoding(content)
-        latency_ms = int((time.monotonic() - start) * 1000)
-
-        logger.info(
-            "OpenAI extraction OK: model=%s latency=%dms tokens=%d/%d len=%d",
-            model, latency_ms,
-            response.usage.prompt_tokens if response.usage else 0,
-            response.usage.completion_tokens if response.usage else 0,
-            len(content) if content else 0,
-        )
-        return content
-
-    except Exception as e:
-        logger.error("OpenAI extraction error: %s", e)
-        return None
+    """Kept for backward compatibility. Delegates to Gemini Flash."""
+    return await call_gemini_extraction(
+        system_prompt=system_prompt,
+        user_message=user_message,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        model=model,
+    )
 
 
 async def extract_with_llm(
@@ -197,31 +162,13 @@ async def extract_with_llm(
     max_tokens: int = 8192,
     temperature: float = 0.3,
 ) -> Optional[str]:
-    """
-    Call LLM for extraction with cascade: Gemini Flash → OpenAI GPT-4o.
-
-    Returns the response text, or None if both fail.
-    """
-    # Primary: Gemini Flash
-    result = await call_gemini_extraction(
+    """Call Gemini Flash for extraction. Returns response text, or None on failure."""
+    return await call_gemini_extraction(
         system_prompt=system_prompt,
         user_message=user_message,
         max_tokens=max_tokens,
         temperature=temperature,
     )
-    if result:
-        return result
-
-    logger.warning("Gemini extraction failed, trying OpenAI fallback")
-
-    # Fallback: OpenAI GPT-4o
-    result = await call_openai_extraction(
-        system_prompt=system_prompt,
-        user_message=user_message,
-        max_tokens=max_tokens,
-        temperature=temperature,
-    )
-    return result
 
 
 async def extract_json_with_llm(
