@@ -59,9 +59,9 @@ class Document:
 
 class SemanticRAG:
     """
-    RAG con búsqueda semántica usando OpenAI Embeddings + pgvector.
+    RAG con búsqueda semántica usando Gemini Embeddings + pgvector.
 
-    - Embeddings generados con OpenAI API (text-embedding-3-small)
+    - Embeddings generados con Gemini gemini-embedding-001 (dim 1536 via MRL)
     - Almacenados en PostgreSQL con pgvector
     - Búsqueda por cosine similarity
     - Persistencia: embeddings sobreviven redeploys
@@ -74,19 +74,19 @@ class SemanticRAG:
         self._doc_list: List[str] = []
 
     def _check_embeddings_available(self) -> bool:
-        """Check if OpenAI embeddings are available."""
+        """Check if Gemini embeddings are available."""
         if self._embeddings_available is None:
-            api_key = os.getenv("OPENAI_API_KEY")
+            api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
             self._embeddings_available = bool(api_key)
             if not self._embeddings_available:
-                logger.warning("OPENAI_API_KEY not set - semantic search disabled")
+                logger.warning("GOOGLE_API_KEY not set - semantic search disabled")
         return self._embeddings_available
 
     def add_document(self, doc_id: str, text: str, metadata: Dict = None):
         """
         Add document and generate embedding.
 
-        If OpenAI is available, generates and stores embedding in pgvector.
+        If Gemini embeddings are available, generates and stores embedding in pgvector.
         Always adds to in-memory cache for fallback search.
         """
         doc = Document(doc_id=doc_id, text=text, metadata=metadata)
@@ -219,7 +219,7 @@ class SemanticRAG:
         return semantic_results
 
     def _semantic_search(self, query: str, top_k: int, creator_id: str) -> List[Dict]:
-        """Core semantic search using OpenAI embeddings + pgvector."""
+        """Core semantic search using Gemini embeddings + pgvector."""
         if self._check_embeddings_available():
             try:
                 from core.embeddings import generate_embedding, search_similar
